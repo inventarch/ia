@@ -7,7 +7,8 @@
  *
  * Per repository: refuse when planning did; `git fetch origin` and the base (`origin/HEAD`, then `origin/main`, then
  * `origin/master`); refuse an existing worktree path or branch; `git worktree add --no-track -b <branch> <path> <base>`
- * (no upstream, ever); the package manager's install when the worktree holds a `package.json`, built for the worktree;
+ * (no upstream, ever); the package manager's install when the worktree holds a `package.json`, built for the worktree,
+ * with no lifecycle script and frozen to a tracked lockfile (`batchInstallArgv`);
  * then each step. Before the install and before every step the real filesystem is checked (`containedStep`): the
  * step's `cwd` and each path it names must lead, through any link, into the worktree. An `ia` step runs on the copy
  * the worktree has at that step, found again before each one, or on the running copy when there is none; the batch
@@ -20,7 +21,7 @@ import { fileURLToPath } from 'node:url';
 import { confirmedArgv, displayFix } from '../fix.js';
 import { NO_HANDOFF } from '../handoff.js';
 import type { LocalCli } from '../local-cli.js';
-import { detectPackageManager, installArgv } from '../package-manager.js';
+import { batchInstallArgv, detectPackageManager, lockTracked } from '../package-manager.js';
 import type { Git } from '../channel.js';
 import type { Env } from '../program.js';
 import { findProgram, programEnv, windowsShell, windowsShellArgs } from '../program.js';
@@ -606,12 +607,14 @@ async function runRepo(
   if (manifest !== null) {
     const probe = checkPinned(worktree, pinned);
     if (probe !== null) return refuse(probe);
-    const { manager, conflict } = detectPackageManager(manifest, gitWith(io.env, gitPath, guard));
+    const listing = gitWith(io.env, gitPath, guard);
+    const { manager, conflict } = detectPackageManager(manifest, listing);
     if (conflict.length > 0) return refuse(`package managers disagree: ${conflict.join(', ')}`);
     if (manager === null) return refuse(`no package manager is declared or locked in ${manifest}`);
+    // No lifecycle script runs, and a tracked lockfile is never rewritten: the install is frozen to it.
     const install: Step = {
       program: 'external',
-      argv: [...installArgv(manager, manifest, workspace)],
+      argv: [...batchInstallArgv(manager, manifest, workspace, lockTracked(manifest, manager, listing))],
       flow: 'confirm',
       writesTo: 'repo',
     };

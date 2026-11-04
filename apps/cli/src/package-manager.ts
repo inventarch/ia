@@ -31,6 +31,20 @@ const LOCKFILES: readonly (readonly [string, PackageManager])[] = [
 ];
 const MANAGERS: ReadonlySet<string> = new Set(['npm', 'pnpm', 'yarn', 'bun']);
 
+/** The managers whose lockfiles git tracks in `directory` (outside git, the ones present). */
+function lockedManagers(directory: string, git: Git): ReadonlySet<PackageManager> {
+  const names = LOCKFILES.map(([file]) => file);
+  const listed = git(directory, ['ls-files', '--', ...names]);
+  const locks =
+    listed === null
+      ? names.filter((file) => existsSync(resolve(directory, file)))
+      : listed.split(/\r?\n/).filter((file) => names.includes(file));
+  return new Set(LOCKFILES.flatMap(([file, manager]) => (locks.includes(file) ? [manager] : [])));
+}
+/** `manager`'s own lockfile is tracked in `directory` (outside git, present), so an install can be frozen to it. */
+export const lockTracked = (directory: string, manager: PackageManager, git: Git = runGit): boolean =>
+  lockedManagers(directory, git).has(manager);
+
 /** The `packageManager` field, then the lockfiles git tracks (outside git, the ones present); never a guess. */
 export function detectPackageManager(
   directory: string,
@@ -43,13 +57,7 @@ export function detectPackageManager(
   const declared = readManifest(resolve(directory, 'package.json'))?.packageManager;
   const name = typeof declared === 'string' ? (declared.split('@')[0] ?? '') : '';
   if (MANAGERS.has(name)) found.add(name as PackageManager);
-  const names = LOCKFILES.map(([file]) => file);
-  const listed = git(directory, ['ls-files', '--', ...names]);
-  const locks =
-    listed === null
-      ? names.filter((file) => existsSync(resolve(directory, file)))
-      : listed.split(/\r?\n/).filter((file) => names.includes(file));
-  for (const [file, manager] of LOCKFILES) if (locks.includes(file)) found.add(manager);
+  for (const manager of lockedManagers(directory, git)) found.add(manager);
   const managers = [...found].sort();
   if (managers.length > 1) return { manager: null, conflict: managers };
   return { manager: managers[0] ?? null, conflict: [] };
@@ -106,6 +114,31 @@ const ADD: Readonly<Record<PackageManager, readonly string[]>> = {
 export const installArgv = (manager: PackageManager, directory: string, at: string): readonly string[] =>
   sameDirectory(directory, at) ? [manager, 'install'] : DIRECTED_INSTALL[manager](directory);
 export const installCommand = (manager: PackageManager): string => installArgv(manager, '.', '.').join(' ');
+
+/**
+ * The install a batch runs in a new worktree (consumer CLI contract §1.2): `installArgv`'s form, with no lifecycle
+ * script run (a `preinstall` or `postinstall` could follow the worktree's `.git` file back to the user's checkout) and,
+ * where `locked` says the manager's lockfile is tracked, frozen to it, so the install never rewrites it. npm: `ci
+ * --ignore-scripts` (`install --ignore-scripts` unlocked); pnpm, Yarn Classic and Bun: `install --frozen-lockfile
+ * --ignore-scripts`; Yarn 2 and later, which has no `--ignore-scripts`: `install --immutable --mode=skip-build`.
+ */
+export function batchInstallArgv(
+  manager: PackageManager,
+  directory: string,
+  at: string,
+  locked: boolean,
+): readonly string[] {
+  const argv = [...installArgv(manager, directory, at)];
+  const berry = manager === 'yarn' && yarnMajor(directory) === 'berry';
+  const flags =
+    manager === 'npm'
+      ? ['--ignore-scripts']
+      : berry
+        ? [...(locked ? ['--immutable'] : []), '--mode=skip-build']
+        : [...(locked ? ['--frozen-lockfile'] : []), '--ignore-scripts'];
+  argv.splice(argv.indexOf('install'), 1, manager === 'npm' && locked ? 'ci' : 'install', ...flags);
+  return argv;
+}
 
 /**
  * The addition of the dependency to the `package.json` in `directory`, run in `at`. At a workspace root pnpm and Yarn 1

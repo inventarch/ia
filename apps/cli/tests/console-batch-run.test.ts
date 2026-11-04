@@ -22,7 +22,7 @@ import { basename, delimiter, isAbsolute, join, relative, resolve, sep } from 'n
 import { pathToFileURL } from 'node:url';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 import { iaFix } from '../src/fix.js';
-import { installArgv, pinArgv } from '../src/package-manager.js';
+import { batchInstallArgv, installArgv, pinArgv } from '../src/package-manager.js';
 import { resolveRepo } from '../src/console/app.js';
 import type { Step } from '../src/console/offers.js';
 import type { RepoPlan } from '../src/console/batch-plan.js';
@@ -403,7 +403,8 @@ describe('install first', () => {
       [false, expect.stringMatching(/^no package manager is declared or locked in /)],
     ]);
     // One install, in the first repository's worktree; the restore then ran on its installed copy.
-    expect(pmCalls(fx)).toEqual([{ manager: 'npm', argv: ['install'], cwd: results[0]!.worktree }]);
+    // With no lifecycle script and frozen to the tracked lockfile: npm ci, never a plain install.
+    expect(pmCalls(fx)).toEqual([{ manager: 'npm', argv: ['ci', '--ignore-scripts'], cwd: results[0]!.worktree }]);
     expect(iaCalls(fx).map((call) => call.version)).toEqual(['3.5.0']);
     const failing = repo(fx, 'failing', { 'package.json': pinned('3.5.0'), ...LOCKED });
     const failed = await batch(
@@ -414,7 +415,7 @@ describe('install first', () => {
     expect(only(failed.results)).toMatchObject({
       ok: false,
       refused: null,
-      last: expect.stringMatching(/^npm install exited 1: install failed/),
+      last: expect.stringMatching(/^npm ci --ignore-scripts exited 1: install failed/),
     });
     expect(iaCalls(fx)).toHaveLength(1);
   });
@@ -433,10 +434,10 @@ describe('install first', () => {
     expect(pmCalls(fx)).toEqual([
       {
         manager: 'pnpm',
-        argv: ['--dir', nested!.worktree, 'install'],
+        argv: ['--dir', nested!.worktree, 'install', '--frozen-lockfile', '--ignore-scripts'],
         cwd: join(nested!.worktree, 'packages', 'notes'),
       },
-      { manager: 'pnpm', argv: ['install'], cwd: own!.worktree },
+      { manager: 'pnpm', argv: ['install', '--frozen-lockfile', '--ignore-scripts'], cwd: own!.worktree },
     ]);
     // The nested workspace's restore runs in its folder, on the copy installed at the worktree's top.
     const restores = iaSpawns(calls);
@@ -445,7 +446,7 @@ describe('install first', () => {
       realpathSync.native(join(nested!.worktree, 'node_modules/@inventarch/cli/dist/bin.js')),
     );
   });
-  it('yarn --cwd <worktree manifest dir> install for Yarn Classic and Yarn 2+ alike', async () => {
+  it('yarn --cwd <worktree manifest dir> install for Yarn Classic and Yarn 2+ alike, each frozen and without scripts by its own flags', async () => {
     const fx = fixture('batch-run-yarn');
     const classic = repo(fx, 'classic', {
       'package.json': pinned('3.5.0'),
@@ -465,8 +466,8 @@ describe('install first', () => {
       'fix:generation',
     );
     expect(pmCalls(fx).map((call) => call.argv)).toEqual([
-      ['--cwd', results[0]!.worktree, 'install'],
-      ['--cwd', results[1]!.worktree, 'install'],
+      ['--cwd', results[0]!.worktree, 'install', '--frozen-lockfile', '--ignore-scripts'],
+      ['--cwd', results[1]!.worktree, 'install', '--immutable', '--mode=skip-build'],
     ]);
     expect(results.every((result) => result.ok)).toBe(true);
   });
@@ -742,7 +743,10 @@ describe('the copy each ia step runs', () => {
     const { top } = repo(fx, 'unpinned', { 'package.json': unpinned, 'pnpm-lock.yaml': '' });
     const { results, calls } = await batch(fx, [rowOf(top, [upgrade('pnpm', top, top)])], 'upgrade');
     const worktree = only(results).worktree;
-    expect(pmCalls(fx).map((call) => call.argv)).toEqual([['install'], ['add', '-D', '@inventarch/cli@3.5.1']]);
+    expect(pmCalls(fx).map((call) => call.argv)).toEqual([
+      ['install', '--frozen-lockfile', '--ignore-scripts'],
+      ['add', '-D', '@inventarch/cli@3.5.1'],
+    ]);
     const entry = realpathSync.native(join(worktree, 'node_modules/@inventarch/cli/dist/bin.js'));
     expect(iaSpawns(calls).map((call) => [call.args[0], call.args[1]])).toEqual([
       [entry, 'restore'],
@@ -849,6 +853,74 @@ it.skipIf(process.platform === 'win32')('a POSIX shim passes shell characters th
   const args = ['a&b', '$HOME', '"q"', "it's", 'x;y', '100%'];
   expect((await run('npm', args, { cwd: fx.dir, env: fx.env })).status).toBe(0);
   expect(pmCalls(fx)[0]?.argv).toEqual(args);
+});
+
+describe('the batch install', () => {
+  it('never runs a lifecycle script, and is frozen to the lockfile where one is tracked', () => {
+    const dir = base('batch-install-argv');
+    const classic = join(dir, 'classic');
+    const berry = join(dir, 'berry');
+    mkdirSync(classic, { recursive: true });
+    mkdirSync(berry, { recursive: true });
+    writeFileSync(join(berry, '.yarnrc.yml'), 'nodeLinker: node-modules\n');
+    const at = (manifest: string) => join(manifest, 'app');
+    // Locked, in the manifest's own directory.
+    expect(batchInstallArgv('npm', classic, classic, true)).toEqual(['npm', 'ci', '--ignore-scripts']);
+    expect(batchInstallArgv('pnpm', classic, classic, true)).toEqual([
+      'pnpm',
+      'install',
+      '--frozen-lockfile',
+      '--ignore-scripts',
+    ]);
+    expect(batchInstallArgv('yarn', classic, classic, true)).toEqual([
+      'yarn',
+      'install',
+      '--frozen-lockfile',
+      '--ignore-scripts',
+    ]);
+    expect(batchInstallArgv('yarn', berry, berry, true)).toEqual([
+      'yarn',
+      'install',
+      '--immutable',
+      '--mode=skip-build',
+    ]);
+    expect(batchInstallArgv('bun', classic, classic, true)).toEqual([
+      'bun',
+      'install',
+      '--frozen-lockfile',
+      '--ignore-scripts',
+    ]);
+    // Locked, for an ancestor manifest: the directory flag as before, the same flags after the verb.
+    expect(batchInstallArgv('npm', classic, at(classic), true)).toEqual([
+      'npm',
+      'ci',
+      '--ignore-scripts',
+      '--prefix',
+      classic,
+    ]);
+    expect(batchInstallArgv('bun', classic, at(classic), true)).toEqual([
+      'bun',
+      'install',
+      '--frozen-lockfile',
+      '--ignore-scripts',
+      '--cwd',
+      classic,
+    ]);
+    // No lockfile tracked: nothing to freeze to, and still no script.
+    expect(batchInstallArgv('npm', classic, classic, false)).toEqual(['npm', 'install', '--ignore-scripts']);
+    expect(batchInstallArgv('pnpm', classic, classic, false)).toEqual(['pnpm', 'install', '--ignore-scripts']);
+    expect(batchInstallArgv('yarn', berry, berry, false)).toEqual(['yarn', 'install', '--mode=skip-build']);
+  });
+  it('a manager declared with no lockfile tracked installs without scripts, unfrozen', async () => {
+    const fx = fixture('batch-run-unlocked');
+    const manifest = JSON.stringify({ packageManager: 'npm@10.0.0', devDependencies: { '@inventarch/cli': '3.5.0' } });
+    const { top } = repo(fx, 'unlocked', { 'package.json': manifest });
+    const { results } = await batch(fx, [rowOf(top, [relock(top)])], 'fix:generation');
+    expect(only(results).ok).toBe(true);
+    expect(pmCalls(fx)).toEqual([
+      { manager: 'npm', argv: ['install', '--ignore-scripts'], cwd: only(results).worktree },
+    ]);
+  });
 });
 
 describe('the fixture grammar', () => {
