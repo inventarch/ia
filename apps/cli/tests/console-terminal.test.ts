@@ -9,13 +9,22 @@ import type { TerminalIO } from '../src/console/terminal.js';
 import { Screen } from '../src/console/terminal.js';
 
 const ESC = '\x1b';
+const OFF = { paste: `${ESC}[?2004l`, mouse: `${ESC}[?1000l${ESC}[?1002l${ESC}[?1003l${ESC}[?1006l` };
 class Recorder implements TerminalIO {
   writes: string[] = [];
+  synced: string[] = [];
   raw: boolean[] = [];
+  /** A write whose data contains this throws, as a closed or failing terminal does. */
+  failOn: string | null = null;
+  failRaw = false;
   size = { columns: 20, rows: 4 };
   listeners: (() => void)[] = [];
   write(data: string): void {
+    if (this.failOn !== null && data.includes(this.failOn)) throw new Error('write failed');
     this.writes.push(data);
+  }
+  writeSync(data: string): void {
+    this.synced.push(data);
   }
   columns(): number {
     return this.size.columns;
@@ -24,6 +33,7 @@ class Recorder implements TerminalIO {
     return this.size.rows;
   }
   setRawMode(on: boolean): void {
+    if (on && this.failRaw) throw new Error('raw mode refused');
     this.raw.push(on);
   }
   onResize(listener: () => void): () => void {
@@ -50,7 +60,7 @@ describe('screen', () => {
     const io = new Recorder();
     const screen = new Screen(io, false);
     screen.enter();
-    expect(io.writes.join('')).toBe(`${ESC}[?1049h${ESC}[?25l`);
+    expect(io.writes.join('')).toBe(`${ESC}[?1049h${ESC}[?25l${ESC}[?2004h`);
     expect(io.raw).toEqual([true]);
     expect(screen.active).toBe(true);
   });
@@ -101,10 +111,58 @@ describe('screen', () => {
     io.writes = [];
     screen.leave();
     screen.leave();
-    expect(io.writes.join('')).toBe(`${ESC}[?25h${ESC}[?1049l`);
+    expect(io.writes.join('')).toBe(`${OFF.paste}${OFF.mouse}${ESC}[?25h${ESC}[?1049l`);
     expect(io.raw).toEqual([true, false]);
     expect(screen.active).toBe(false);
     expect(io.listeners).toHaveLength(0);
+  });
+  it('a failure part-way through enter rolls back exactly what was acquired', () => {
+    const refused = new Recorder();
+    refused.failRaw = true;
+    const screen = new Screen(refused, false);
+    expect(() => screen.enter()).toThrow('raw mode refused');
+    // Alternate screen, cursor and paste were taken, so all three are given back; raw mode never was, so it is left.
+    expect(refused.writes.join('')).toBe(
+      `${ESC}[?1049h${ESC}[?25l${ESC}[?2004h${OFF.paste}${OFF.mouse}${ESC}[?25h${ESC}[?1049l`,
+    );
+    expect(refused.raw).toEqual([]);
+    expect(screen.active).toBe(false);
+    expect(refused.listeners).toHaveLength(0);
+    const halfway = new Recorder();
+    halfway.failOn = '?2004h';
+    const second = new Screen(halfway, false);
+    expect(() => second.enter()).toThrow('write failed');
+    expect(halfway.writes.join('')).toBe(`${ESC}[?1049h${ESC}[?25l${OFF.mouse}${ESC}[?25h${ESC}[?1049l`);
+    expect(second.active).toBe(false);
+    // Nothing is left held: a second leave writes nothing.
+    halfway.writes = [];
+    second.leave();
+    expect(halfway.writes).toEqual([]);
+  });
+  it('leave keeps going when a piece fails, and a synchronous leave writes synchronously', () => {
+    const io = new Recorder();
+    const screen = new Screen(io, false);
+    screen.enter();
+    io.failOn = '?1049l';
+    expect(() => screen.leave()).not.toThrow();
+    expect(io.raw).toEqual([true, false]);
+    expect(screen.active).toBe(false);
+    const sync = new Recorder();
+    const exiting = new Screen(sync, false);
+    exiting.enter();
+    sync.writes = [];
+    exiting.leave(true);
+    expect(sync.writes).toEqual([]);
+    expect(sync.synced.join('')).toBe(`${OFF.paste}${OFF.mouse}${ESC}[?25h${ESC}[?1049l`);
+  });
+  it('raw mode taken outside the alternate screen is given back by leave', () => {
+    const io = new Recorder();
+    const screen = new Screen(io, false);
+    screen.raw(true);
+    expect(screen.active).toBe(false);
+    screen.leave();
+    expect(io.raw).toEqual([true, false]);
+    expect(io.writes).toEqual([]);
   });
   it('restores on a throw during a frame', () => {
     const io = new Recorder();

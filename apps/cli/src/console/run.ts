@@ -21,6 +21,7 @@ import { findProgram, programEnv, windowsShell, windowsShellArgs } from '../prog
 import type { Offer, Step } from './offers.js';
 import { runsOn } from './offers.js';
 import type { ConsoleState } from './state.js';
+import { sanitize } from './grid.js';
 import type { Screen } from './terminal.js';
 
 export interface SpawnOptions {
@@ -51,9 +52,13 @@ export interface RunIO {
 /** The running copy's entry, which never hands off. */
 export const runningEntry = (packageRoot: string): string => join(packageRoot, 'dist', 'main.js');
 
-/** A cmd.exe argument: passed unchanged when plain, quoted otherwise; null when cmd.exe would rewrite it. */
-const cmdArgument = (value: string): string | null =>
-  /[%"]/.test(value) ? null : /^[\w\-.:\\/@=+,^~]+$/.test(value) ? value : `"${value}"`;
+/**
+ * A cmd.exe argument: passed unchanged when it holds only characters cmd.exe reads as themselves, quoted otherwise, so
+ * a caret, an ampersand, a pipe, a redirection, a bang or an argument delimiter stays literal; null for `%` and `"`,
+ * which cmd.exe rewrites even inside quotes.
+ */
+export const cmdArgument = (value: string): string | null =>
+  /[%"]/.test(value) ? null : /^[\w\-.:\\/@+~]+$/.test(value) ? value : `"${value}"`;
 
 /** The default spawner: inherited stdio, and this process deaf to the terminal's signals while the child decides. */
 export const spawnInherited: Spawner = (file, args, options) =>
@@ -62,6 +67,7 @@ export const spawnInherited: Spawner = (file, args, options) =>
     const signals: NodeJS.Signals[] = [
       'SIGINT',
       'SIGTERM',
+      'SIGHUP',
       ...(process.platform === 'win32' ? (['SIGBREAK'] as const) : []),
     ];
     for (const signal of signals) process.on(signal, ignore);
@@ -134,6 +140,9 @@ export async function runOffer(
   io: RunIO,
 ): Promise<{ readonly completed: number; readonly exitCode: number | null }> {
   if (offer.disabled !== undefined) return { completed: 0, exitCode: null };
+  // What the normal screen shows is cut free of control characters, as the grid is; the argv that runs is untouched.
+  const say = (text: string): void => io.print(sanitize(text));
+  const confirm = (question: string): Promise<boolean> => io.ask(sanitize(question));
   let steps: readonly Step[] = offer.steps;
   if (offer.input !== undefined) {
     const value = await io.prompt(offer.input.label, offer.input.accept);
@@ -161,21 +170,21 @@ export async function runOffer(
     const run = async (argv: readonly string[]): Promise<{ code: number | null; copy: Target['copy'] } | string> => {
       const started = target(step, argv, state, repo, io);
       if (typeof started === 'string') return started;
-      io.print(`$ ${shown(step, argv)}`);
+      say(`$ ${shown(step, argv)}`);
       return { code: await io.spawn(started.file, started.args, started.options), copy: started.copy };
     };
     let result: Awaited<ReturnType<typeof run>> | null = null;
     const preview = previewArgv(step);
     if (step.flow === 'immediate') result = await run(step.argv);
     else {
-      io.print(`${label}${offer.title}`);
+      say(`${label}${offer.title}`);
       if (preview !== null) {
         const previewed = await run(preview);
         if (typeof previewed === 'string' || previewed.code !== 0) result = previewed;
       }
       if (result === null) {
         const final = step.flow === 'preview-flag' ? step.argv : confirmedArgv(step);
-        if (!(await io.ask(`${preview === null ? 'Run' : 'Apply'}: ${shown(step, final)}?`))) {
+        if (!(await confirm(`${preview === null ? 'Run' : 'Apply'}: ${shown(step, final)}?`))) {
           outcome = `Declined; ${index === 0 ? 'nothing ran' : `stopped before step ${index + 1}`}.`;
           break;
         }
@@ -198,8 +207,8 @@ export async function runOffer(
     completed += 1;
   }
   if (!left) return { completed, exitCode };
-  io.print(outcome === '' ? (steps.length > 1 ? `Done: ${completed} steps.` : 'Done.') : outcome);
-  io.print('Press any key to return to the console.');
+  say(outcome === '' ? (steps.length > 1 ? `Done: ${completed} steps.` : 'Done.') : outcome);
+  say('Press any key to return to the console.');
   await io.waitKey();
   io.screen.enter();
   io.screen.invalidate();

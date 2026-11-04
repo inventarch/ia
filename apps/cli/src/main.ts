@@ -1,11 +1,12 @@
 #!/usr/bin/env node
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeSync } from 'node:fs';
 import { isatty } from 'node:tty';
 import type { Readable } from 'node:stream';
 import { Door, isEntry } from '@inventarch/runtime';
 import type { DoorResponse } from '@inventarch/runtime';
 import { dispatch, HELP_TOKENS } from './consumer.js';
 import type { Host } from './consumer.js';
+import type { TerminalIO } from './console/terminal.js';
 import { EXTENSIONS, packageRoot, version } from './self.js';
 import { describeOperation, renderOperationHelp, renderOperationSchema, SCHEMA_TOKEN } from './operation-help.js';
 
@@ -210,29 +211,49 @@ export async function enter(argv: readonly string[], deps: EntryDeps): Promise<'
   await deps.dispatch();
   return 'dispatch';
 }
+/** The streams a console terminal is made of; the process's own in production. */
+export interface ConsoleStreams {
+  readonly stdout: Pick<NodeJS.WriteStream, 'write' | 'on' | 'off' | 'columns' | 'rows'> & { readonly fd: number };
+  readonly stdin: { readonly isTTY?: boolean; setRawMode?(on: boolean): unknown };
+  /** A write that completes before it returns: `fs.writeSync` on the stdout descriptor. */
+  readonly writeSync: (fd: number, data: string) => void;
+}
+/**
+ * The console's terminal over the process streams. An output failure (a closed pipe) reaches the console's own
+ * teardown through `onError`, so the terminal is restored and the console ends, rather than being swallowed with stdin
+ * destroyed and raw mode left on.
+ */
+export function consoleTerminal({ stdout, stdin, writeSync }: ConsoleStreams): TerminalIO {
+  return {
+    write: (data) => {
+      stdout.write(data);
+    },
+    writeSync: (data) => writeSync(stdout.fd, data),
+    columns: () => stdout.columns ?? 80,
+    rows: () => stdout.rows ?? 24,
+    setRawMode: (on) => {
+      if (stdin.isTTY === true) stdin.setRawMode?.(on);
+    },
+    onResize: (listener) => {
+      stdout.on('resize', listener);
+      return () => {
+        stdout.off('resize', listener);
+      };
+    },
+    onError: (listener) => {
+      stdout.on('error', listener);
+      return () => {
+        stdout.off('error', listener);
+      };
+    },
+  };
+}
 /** The console on this process's terminal; loaded only when bare `ia` runs on one. */
 async function startConsole(): Promise<number> {
   const { runConsole } = await import('./console/app.js');
-  const stdout = process.stdout,
-    stdin = process.stdin;
   const code = await runConsole({
-    io: {
-      write: (data) => {
-        stdout.write(data);
-      },
-      columns: () => stdout.columns ?? 80,
-      rows: () => stdout.rows ?? 24,
-      setRawMode: (on) => {
-        if (stdin.isTTY) stdin.setRawMode(on);
-      },
-      onResize: (listener) => {
-        stdout.on('resize', listener);
-        return () => {
-          stdout.off('resize', listener);
-        };
-      },
-    },
-    input: stdin,
+    io: consoleTerminal({ stdout: process.stdout, stdin: process.stdin, writeSync: (fd, data) => writeSync(fd, data) }),
+    input: process.stdin,
     env: process.env,
     cwd: process.cwd(),
     packageRoot,
@@ -247,11 +268,6 @@ async function startConsole(): Promise<number> {
  * `node dist/main.js`, the plugin hook's entry, runs it directly and so never hands off (consumer-cli-contract §1.2).
  */
 export async function main(argv: readonly string[] = process.argv.slice(2)): Promise<void> {
-  // A closed stdout is a normal end of output. The three moves are apps/mcp-door/src/main.ts's stdout error handlers.
-  process.stdout.on('error', (error: NodeJS.ErrnoException) => {
-    process.stdin.destroy();
-    if (error.code !== 'EPIPE') throw error;
-  });
   try {
     // isatty rather than process.stdin.isTTY, for the reason `host` gives: reading that getter constructs the stream.
     await enter(argv, {
@@ -259,6 +275,12 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
       env: process.env,
       runConsole: startConsole,
       dispatch: async () => {
+        // A closed stdout is a normal end of output. The three moves are apps/mcp-door/src/main.ts's stdout error
+        // handlers. The console, which owns the terminal, routes the same failure into its own teardown instead.
+        process.stdout.on('error', (error: NodeJS.ErrnoException) => {
+          process.stdin.destroy();
+          if (error.code !== 'EPIPE') throw error;
+        });
         const result = await dispatch(argv, host(new AbortController()), runCli, EXTENSIONS);
         if (result.stderr !== '') process.stderr.write(result.stderr);
         process.stdout.write(result.stdout);

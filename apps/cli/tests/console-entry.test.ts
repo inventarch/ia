@@ -4,11 +4,12 @@
  * TTY, so the CI-on-a-TTY half is proven here through the injected entry with a fake `isatty`;
  * console-entry-installed.test.ts proves the piped half against the built binary.
  */
+import { EventEmitter } from 'node:events';
 import { describe, expect, it } from 'vitest';
 import type { Host } from '../src/consumer.js';
 import { dispatch, renderHelp } from '../src/consumer.js';
 import type { EntryDeps } from '../src/main.js';
-import { enter, opensConsole, runCli } from '../src/main.js';
+import { consoleTerminal, enter, opensConsole, runCli } from '../src/main.js';
 import { resolveCapabilities } from '../src/render.js';
 import { EXTENSIONS, packageRoot } from '../src/self.js';
 
@@ -93,5 +94,42 @@ describe('enter', () => {
       expect(await enter([], { ...entry, isatty: (asked) => asked !== fd })).toBe('dispatch');
       expect(calls).toEqual(['dispatch']);
     }
+  });
+});
+
+describe('consoleTerminal', () => {
+  it('routes an output failure to its subscriber, never destroying stdin, and writes synchronously on request', () => {
+    const stdout = Object.assign(new EventEmitter(), {
+      written: '',
+      fd: 7,
+      columns: 120,
+      rows: 40,
+      write(data: string) {
+        this.written += data;
+        return true;
+      },
+    });
+    const raw: boolean[] = [];
+    let destroyed = false;
+    const stdin = { isTTY: true, setRawMode: (on: boolean) => raw.push(on), destroy: () => (destroyed = true) };
+    const synced: [number, string][] = [];
+    const io = consoleTerminal({
+      stdout: stdout as never,
+      stdin,
+      writeSync: (fd, data) => synced.push([fd, data]),
+    });
+    const errors: Error[] = [];
+    const stop = io.onError!((error) => errors.push(error));
+    const failure = Object.assign(new Error('write EPIPE'), { code: 'EPIPE' });
+    stdout.emit('error', failure);
+    expect(errors).toEqual([failure]);
+    expect(destroyed).toBe(false);
+    stop();
+    expect(stdout.listenerCount('error')).toBe(0);
+    io.writeSync!('bye');
+    expect(synced).toEqual([[7, 'bye']]);
+    io.setRawMode(true);
+    io.write('x');
+    expect([raw, stdout.written, io.columns(), io.rows()]).toEqual([[true], 'x', 120, 40]);
   });
 });

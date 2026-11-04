@@ -12,11 +12,12 @@ import type { Fix } from '../src/fix.js';
 import { iaFix } from '../src/fix.js';
 import type { LocalCli } from '../src/local-cli.js';
 import type { ProcessHooks } from '../src/console/app.js';
-import { runConsole } from '../src/console/app.js';
+import { consoleSignals, runConsole } from '../src/console/app.js';
 import type { Offer, Step } from '../src/console/offers.js';
 import { offersFor } from '../src/console/offers.js';
 import type { RunIO, SpawnOptions } from '../src/console/run.js';
-import { runOffer, runningEntry } from '../src/console/run.js';
+import { cmdArgument, runOffer, runningEntry } from '../src/console/run.js';
+import { windowsShellArgs } from '../src/program.js';
 import type { ConsoleCheck, ConsoleState } from '../src/console/state.js';
 import type { TerminalIO } from '../src/console/terminal.js';
 import { cleanup, scratch } from './scratch-fixture.js';
@@ -249,6 +250,44 @@ describe('runOffer', () => {
     await runOffer(offer([pin]), state(), run.io);
     expect(run.spawned[0]).toMatchObject({ file: process.execPath, args: ['-e', ''], options: { cwd: ROOT } });
   });
+  it('control characters in a title or argv never reach the normal screen; the original argv still runs', async () => {
+    const root = '/srv/ws\x1b[?1000h\x9b2J';
+    const track = offersFor(state({ root, tracked: false })).find((entry) => entry.id === 'track')!;
+    const run = harness({ answers: [true] });
+    const questions: string[] = [];
+    const io: RunIO = {
+      ...run.io,
+      ask: async (question) => {
+        questions.push(question);
+        return true;
+      },
+    };
+    await runOffer({ ...track, title: 'Track\x1b]0;forged\x07 this' }, state({ root, tracked: false }), io);
+    for (const text of [...run.printed, ...questions]) {
+      expect(text).not.toMatch(/[\x00-\x08\x0b-\x1f\x7f-\x9f]/);
+      expect(text).not.toContain('\x1b');
+    }
+    expect(questions[0]).toContain('/srv/ws\uFFFD[?1000h\uFFFD2J');
+    expect(argvOf(run.spawned[0]!)).toEqual(['workspaces', 'add', root]);
+  });
+  it('cmd.exe arguments: plain ones pass as typed, everything cmd would read is quoted or refused', () => {
+    expect(cmdArgument('install')).toBe('install');
+    expect(cmdArgument('@inventarch/cli@3.6.0')).toBe('@inventarch/cli@3.6.0');
+    expect(cmdArgument('C:\\ws\\app')).toBe('C:\\ws\\app');
+    expect(cmdArgument('C:\\w^s')).toBe('"C:\\w^s"');
+    for (const value of ['a&b', 'a|b', 'a<b', 'a>b', 'a!b', 'a b', 'a(b)'])
+      expect(cmdArgument(value)).toBe(`"${value}"`);
+    expect(cmdArgument('a%PATH%b')).toBeNull();
+    expect(cmdArgument('a"b')).toBeNull();
+    const args = ['--cwd', 'C:\\w^s', 'add', '-D', '@inventarch/cli@3.6.0'].map((value) => cmdArgument(value)!);
+    expect(windowsShellArgs('C:\\Program Files\\nodejs\\yarn.cmd', args)).toEqual([
+      '/d',
+      '/v:off',
+      '/s',
+      '/c',
+      '""C:\\Program Files\\nodejs\\yarn.cmd" --cwd "C:\\w^s" add -D @inventarch/cli@3.6.0"',
+    ]);
+  });
   it('an input offer prompts first, and a cancel runs nothing', async () => {
     const run = harness();
     const add = offersFor(state({ checks: [kitsInfo] })).find((entry) => entry.id === 'add-kit')!;
@@ -272,10 +311,22 @@ const kitsInfo: ConsoleCheck = {
 /** A recording terminal of a fixed size. */
 class FakeTerminal implements TerminalIO {
   out = '';
+  /** What a synchronous write (the `exit` path) put out. */
+  synced = '';
   raw: boolean[] = [];
   listeners: (() => void)[] = [];
+  errors: ((error: Error) => void)[] = [];
   write(data: string): void {
     this.out += data;
+  }
+  writeSync(data: string): void {
+    this.synced += data;
+  }
+  onError(listener: (error: Error) => void): () => void {
+    this.errors.push(listener);
+    return () => {
+      this.errors = this.errors.filter((entry) => entry !== listener);
+    };
   }
   columns(): number {
     return 100;
@@ -407,9 +458,183 @@ describe('runConsole', () => {
     const signalled = launch();
     await until(signalled.entered, 'the console');
     signalled.hooks.listeners.get('SIGTERM')!();
-    expect(await signalled.exit).toBe(130);
-    expect(signalled.hooks.exits).toEqual([130]);
+    expect(await signalled.exit).toBe(143);
+    expect(signalled.hooks.exits).toEqual([143]);
     expect(signalled.restored()).toBe(true);
+  });
+  it('exit and every console signal are handled while the console runs, and removed when it ends', async () => {
+    const run = launch();
+    await until(run.entered, 'the console');
+    expect([...run.hooks.listeners.keys()].sort()).toEqual(
+      ['exit', 'uncaughtException', 'unhandledRejection', ...consoleSignals(process.platform)].sort(),
+    );
+    expect(consoleSignals('win32')).toEqual(['SIGINT', 'SIGTERM', 'SIGHUP', 'SIGBREAK']);
+    expect(consoleSignals('linux')).toEqual(['SIGINT', 'SIGTERM', 'SIGHUP']);
+    run.stdin.write('q');
+    expect(await run.exit).toBe(0);
+    expect(run.hooks.listeners.size).toBe(0);
+  });
+  it('SIGHUP restores the terminal and exits 129; a process exit restores it synchronously', async () => {
+    const hung = launch();
+    await until(hung.entered, 'the console');
+    hung.hooks.listeners.get('SIGHUP')!();
+    expect(await hung.exit).toBe(129);
+    expect(hung.hooks.exits).toEqual([129]);
+    expect(hung.restored()).toBe(true);
+    const exiting = launch();
+    await until(exiting.entered, 'the console');
+    exiting.hooks.listeners.get('exit')!(0);
+    expect(exiting.terminal.synced).toContain('\x1b[?2004l');
+    expect(exiting.terminal.synced).toContain('\x1b[?25h\x1b[?1049l');
+    expect(exiting.terminal.raw.at(-1)).toBe(false);
+    expect(await exiting.exit).toBe(0);
+    expect(exiting.hooks.listeners.size).toBe(0);
+  });
+  it('a failing stdout ends the console through its teardown', async () => {
+    const run = launch();
+    await until(run.entered, 'the console');
+    const error = Object.assign(new Error('write EPIPE'), { code: 'EPIPE' });
+    for (const listener of run.terminal.errors) listener(error);
+    expect(await run.exit).toBe(1);
+    expect(run.terminal.raw.at(-1)).toBe(false);
+    expect(run.stdin.listenerCount('data')).toBe(0);
+    expect(run.stdin.destroyed).toBe(false);
+    expect(run.hooks.listeners.size).toBe(0);
+    expect(run.terminal.errors).toHaveLength(0);
+  });
+  it('Ctrl-C at a confirmation declines it and returns to the console; while a child runs it is the child’s', async () => {
+    let release: (code: number) => void = () => {};
+    let children = 0;
+    const run = launch({
+      collect: () =>
+        view([
+          check('root', 'ok'),
+          check('install-lock', 'warn', { fix: iaFix(['recover'], 'repo', '/srv/ws').fix, remedy: 'ia recover' }),
+          check('records', 'fail', { fix: iaFix(['validate'], 'none').fix, remedy: 'ia validate' }),
+        ]),
+      spawn: () => {
+        children += 1;
+        return new Promise((settle) => {
+          release = settle;
+        });
+      },
+    });
+    await until(() => run.terminal.out.includes('› ✖ Fix record errors'), 'the first frame');
+    // The second offer confirms before it runs.
+    run.stdin.write('j');
+    await until(() => run.terminal.out.includes('› ▲ Resume interrupted install'), 'the selection');
+    run.stdin.write('\r');
+    await until(() => run.terminal.out.includes('[y/N]'), 'the confirmation');
+    run.hooks.listeners.get('SIGINT')!();
+    await until(() => run.terminal.out.includes('Press any key'), 'the declined run');
+    expect(children).toBe(0);
+    expect(run.hooks.exits).toEqual([]);
+    run.stdin.write('x');
+    await until(() => run.terminal.raw.at(-1) === true && run.terminal.out.endsWith('quit\x1b[?2026l'), 'the console');
+    // An immediate step: SIGINT while its child runs does not end the console.
+    run.stdin.write('k');
+    await until(() => run.terminal.out.includes('› ✖ Fix record errors'), 'the selection back');
+    run.stdin.write('\r');
+    await until(() => children === 1, 'the child');
+    run.hooks.listeners.get('SIGINT')!();
+    run.hooks.listeners.get('SIGTERM')!();
+    expect(run.hooks.exits).toEqual([]);
+    release(0);
+    await until(() => run.terminal.out.includes('Press any key'), 'the step to finish');
+    run.stdin.write('x');
+    await until(() => run.terminal.raw.at(-1) === true, 'the console again');
+    run.stdin.write('q');
+    expect(await run.exit).toBe(0);
+  });
+  it('the parent lets go of stdin before a child starts', async () => {
+    const seen: { listeners: number; paused: boolean; raw: boolean | undefined }[] = [];
+    const run = launch({
+      collect: () =>
+        view([check('root', 'ok'), check('records', 'fail', { fix: iaFix(['validate'], 'none').fix, remedy: 'x' })]),
+      spawn: async () => {
+        seen.push({ listeners: stdin().listenerCount('data'), paused: stdin().isPaused(), raw: terminal().raw.at(-1) });
+        return 0;
+      },
+    });
+    const stdin = () => run.stdin;
+    const terminal = () => run.terminal;
+    await until(() => run.terminal.out.includes('› ✖ Fix record errors'), 'the first frame');
+    run.stdin.write('\r');
+    await until(() => run.terminal.out.includes('Press any key'), 'the step');
+    expect(seen).toEqual([{ listeners: 0, paused: true, raw: false }]);
+    const mark = run.terminal.out.length;
+    run.stdin.write('x');
+    await until(() => run.terminal.out.slice(mark).includes('\x1b[?1049h'), 'the console');
+    expect(run.stdin.listenerCount('data')).toBe(1);
+    run.stdin.write('q');
+    expect(await run.exit).toBe(0);
+  });
+  it('a resize while the normal screen shows draws nothing; the return repaints', async () => {
+    let release: (code: number) => void = () => {};
+    const run = launch({
+      collect: () =>
+        view([check('root', 'ok'), check('records', 'fail', { fix: iaFix(['validate'], 'none').fix, remedy: 'x' })]),
+      spawn: () =>
+        new Promise((settle) => {
+          release = settle;
+        }),
+    });
+    await until(() => run.terminal.out.includes('› ✖ Fix record errors'), 'the first frame');
+    run.stdin.write('\r');
+    await until(() => run.terminal.out.includes('$ ia validate'), 'the child');
+    const mark = run.terminal.out.length;
+    for (const listener of run.terminal.listeners) listener();
+    await settle();
+    expect(run.terminal.out.slice(mark)).not.toContain('\x1b[?2026h');
+    release(0);
+    await until(() => run.terminal.out.includes('Press any key'), 'the step to finish');
+    run.stdin.write('x');
+    await until(() => run.terminal.out.slice(mark).includes('\x1b[2J'), 'the repaint');
+    run.stdin.write('q');
+    expect(await run.exit).toBe(0);
+  });
+  it('keys decoded in one read never start two runs, and a quit in the same read ends it', async () => {
+    const twice = launch({
+      collect: () =>
+        view([check('root', 'ok'), check('records', 'fail', { fix: iaFix(['validate'], 'none').fix, remedy: 'x' })]),
+    });
+    await until(() => twice.terminal.out.includes('› ✖ Fix record errors'), 'the first frame');
+    twice.stdin.write('\r\r');
+    await until(() => twice.terminal.out.includes('Press any key'), 'the step');
+    await settle();
+    expect(twice.spawned).toHaveLength(1);
+    twice.stdin.write('x');
+    await until(() => twice.terminal.raw.at(-1) === true, 'the console');
+    await settle();
+    expect(twice.spawned).toHaveLength(1);
+    twice.stdin.write('q');
+    expect(await twice.exit).toBe(0);
+    const quit = launch({
+      collect: () =>
+        view([check('root', 'ok'), check('records', 'fail', { fix: iaFix(['validate'], 'none').fix, remedy: 'x' })]),
+    });
+    await until(() => quit.terminal.out.includes('› ✖ Fix record errors'), 'the first frame');
+    quit.stdin.write('q\r');
+    expect(await quit.exit).toBe(0);
+    await settle();
+    expect(quit.spawned).toEqual([]);
+    expect(quit.restored()).toBe(true);
+  });
+  it('a bracketed paste of q and enter is ignored outside text entry', async () => {
+    const run = launch({
+      collect: () =>
+        view([check('root', 'ok'), check('records', 'fail', { fix: iaFix(['validate'], 'none').fix, remedy: 'x' })]),
+    });
+    await until(() => run.terminal.out.includes('› ✖ Fix record errors'), 'the first frame');
+    expect(run.terminal.out).toContain('\x1b[?2004h');
+    run.stdin.write('\x1b[200~q\r\x1b[201~');
+    await settle();
+    await settle();
+    expect(run.spawned).toEqual([]);
+    expect(run.hooks.exits).toEqual([]);
+    run.stdin.write('q');
+    expect(await run.exit).toBe(0);
+    expect(run.terminal.out).toContain('\x1b[?2004l');
   });
   it('an escape key split across chunks does not quit, and a lone Escape does after the timer', async () => {
     const run = launch();
@@ -426,7 +651,13 @@ describe('runConsole', () => {
     expect(run.restored()).toBe(true);
   });
   it('add a kit: the prompt runs in text mode, j and q are typed, an invalid value is refused on the line, Esc cancels with nothing spawned', async () => {
-    const run = launch();
+    let loads = 0;
+    const run = launch({
+      collect: () => {
+        loads += 1;
+        return view([check('node', 'ok'), check('kits', 'info'), check('root', 'ok')]);
+      },
+    });
     await until(() => run.terminal.out.includes('› ○ Add a kit'), 'the first frame');
     run.stdin.write('\r');
     await until(() => run.terminal.out.includes('Kit id: ▌'), 'the prompt');
@@ -439,7 +670,9 @@ describe('runConsole', () => {
     run.stdin.write('\x1b');
     await until(() => run.timers.length > 0, 'the escape timer');
     run.timers.at(-1)!();
-    await until(() => run.terminal.out.includes('enter run · tab diagnostics'), 'the key bar back');
+    // The cancelled run ends with a reload; keys typed before it ends are not navigation.
+    await until(() => loads === 2, 'the reload after the cancelled run');
+    await settle();
     expect(run.spawned).toEqual([]);
     run.stdin.write('q');
     expect(await run.exit).toBe(0);

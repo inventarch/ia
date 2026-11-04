@@ -4,10 +4,17 @@
  * start a sequence. Enter runs the selected offer in the normal screen (run.ts) and reloads; `r` reloads; tab shows the
  * diagnostics; `?` the keys; `q`, Escape at the top level, or Ctrl-C quits with 0.
  *
- * The terminal is always restored: on quit, on a throw anywhere in the loop (exit 1, the error printed in the normal
- * screen), and through `uncaughtException`, `unhandledRejection`, `SIGTERM` and `SIGINT` handlers that are installed
- * for the console's lifetime only (exit 1 for a crash, 130 for a signal). While a step's child runs, a signal is the
- * child's to handle.
+ * One offer runs at a time. Once a run starts or the console begins to finish, the rest of an already-decoded read is
+ * discarded, and no key navigates while an offer runs. stdin has one owner at a time: the console's decoder, a
+ * confirmation line or a one-key wait; before a child starts the console pauses stdin and lets go of it, and takes it
+ * back only for its own input.
+ *
+ * One teardown restores the terminal (console/terminal.ts) on quit, on a throw anywhere in the loop (exit 1, the error
+ * printed in the normal screen), on an output failure such as a closed pipe (exit 1), on `uncaughtException` and
+ * `unhandledRejection` (exit 1), and on `SIGINT`, `SIGTERM`, `SIGHUP` and, on Windows, `SIGBREAK` (exit 128 plus the
+ * signal's number: 130, 143, 129, 149). A process `exit` restores it synchronously. These handlers exist only while the
+ * console runs. A signal while a step's child runs is the child's to handle; Ctrl-C at the console's own confirmation
+ * declines it.
  */
 import { dirname } from 'node:path';
 import type { Extension } from '../consumer.js';
@@ -19,6 +26,7 @@ import { findLocalCli, readCliDependency } from '../local-cli.js';
 import type { Env } from '../program.js';
 import type { Capabilities } from '../render.js';
 import { resolveCapabilities } from '../render.js';
+import { sanitize } from './grid.js';
 import type { Input } from './keys.js';
 import { KeyDecoder } from './keys.js';
 import type { Prompt, View } from './layout-repo.js';
@@ -36,22 +44,31 @@ import { graphemes } from './width.js';
 
 export const ESCAPE_TIMEOUT_MS = 50;
 
+export type ConsoleSignal = 'SIGINT' | 'SIGTERM' | 'SIGHUP' | 'SIGBREAK';
+export type HookEvent = 'exit' | 'uncaughtException' | 'unhandledRejection' | ConsoleSignal;
+/** The signals the console tears down on: Ctrl-Break (`SIGBREAK`) exists on Windows only. */
+export const consoleSignals = (platform: NodeJS.Platform): readonly ConsoleSignal[] =>
+  platform === 'win32' ? ['SIGINT', 'SIGTERM', 'SIGHUP', 'SIGBREAK'] : ['SIGINT', 'SIGTERM', 'SIGHUP'];
+/** 128 plus the signal's number, as a shell reports a process a signal ended. */
+export const SIGNAL_EXIT: Readonly<Record<ConsoleSignal, number>> = {
+  SIGINT: 130,
+  SIGTERM: 143,
+  SIGHUP: 129,
+  SIGBREAK: 149,
+};
+
 /** The process events the console listens to while it runs; injected by tests. */
 export interface ProcessHooks {
-  on(
-    event: 'uncaughtException' | 'unhandledRejection' | 'SIGTERM' | 'SIGINT',
-    listener: (error?: unknown) => void,
-  ): void;
-  off(
-    event: 'uncaughtException' | 'unhandledRejection' | 'SIGTERM' | 'SIGINT',
-    listener: (error?: unknown) => void,
-  ): void;
+  on(event: HookEvent, listener: (value?: unknown) => void): void;
+  off(event: HookEvent, listener: (value?: unknown) => void): void;
   exit(code: number): void;
+  readonly platform?: NodeJS.Platform;
 }
 const PROCESS: ProcessHooks = {
-  on: (event, listener) => process.on(event, listener),
-  off: (event, listener) => process.off(event, listener),
+  on: (event, listener) => process.on(event as NodeJS.Signals, listener),
+  off: (event, listener) => process.off(event as NodeJS.Signals, listener),
   exit: (code) => process.exit(code),
+  platform: process.platform,
 };
 /** The workspace's own copy as the disk has it now. */
 export function resolveRepo(root: string): LocalCli | null {
@@ -79,6 +96,7 @@ export async function runConsole(input: {
   const hooks = input.hooks ?? PROCESS;
   const setTimer = input.setTimer ?? setTimeout,
     clearTimer = input.clearTimer ?? clearTimeout;
+  const spawner = input.spawn ?? spawnInherited;
   const extensions = input.extensions ?? [];
   const consoles = extensions.flatMap((extension) => (extension.console === undefined ? [] : [extension.console]));
   // Bare `ia` has no flags: colour and ASCII come from the environment and the terminal.
@@ -107,70 +125,104 @@ export async function runConsole(input: {
     prompt: Prompt | null;
   } = { selected: 0, scroll: { list: 0, pane: 0 }, view: 'offers', message: null, prompt: null };
 
-  // stdin goes to one consumer at a time: the key decoder while the console shows, a line or a key in the normal screen.
   const decoder = new KeyDecoder();
+  // stdin's one owner, or null. `epoch` changes whenever ownership changes or a run starts, which ends the dispatch of
+  // keys already decoded from one read.
   let consumer: ((chunk: string) => void) | null = null;
+  let attached = false,
+    epoch = 0;
   let timer: ReturnType<typeof setTimeout> | null = null;
   const onData = (chunk: string | Buffer): void => {
     consumer?.(typeof chunk === 'string' ? chunk : chunk.toString('utf8'));
   };
-  const readLine = (): Promise<string | null> =>
-    new Promise((settle) => {
-      let buffer = '';
-      consumer = (chunk) => {
-        buffer += chunk;
-        const end = buffer.search(/\r?\n|\r/);
-        if (end === -1) return;
-        consumer = null;
-        settle(buffer.slice(0, end));
-      };
-    });
-  const readKey = (): Promise<void> =>
-    new Promise((settle) => {
-      consumer = () => {
-        consumer = null;
-        settle();
-      };
-    });
+  const own = (next: (chunk: string) => void): void => {
+    consumer = next;
+    epoch += 1;
+    if (!attached) {
+      input.input.on('data', onData);
+      attached = true;
+    }
+    input.input.resume?.();
+  };
+  const release = (): void => {
+    consumer = null;
+    epoch += 1;
+    if (timer !== null) {
+      clearTimer(timer);
+      timer = null;
+    }
+    if (attached) {
+      input.input.off('data', onData);
+      attached = false;
+    }
+    input.input.pause?.();
+  };
 
   return new Promise<number>((resolve) => {
     let finished = false,
-      busy = false;
+      running = false,
+      child = false;
+    // A confirmation or one-key wait the console itself owns; Ctrl-C cancels it.
+    let waiting: { readonly cancel: () => void } | null = null;
     let keyHandler: (key: Input) => void = () => {};
-    const finish = (code: number, error?: unknown): void => {
-      if (finished) return;
-      finished = true;
-      if (timer !== null) clearTimer(timer);
-      consumer = null;
-      input.input.off('data', onData);
-      input.input.pause?.();
+    let unsubscribe: (() => void) | null = null,
+      unsubscribeError: (() => void) | null = null;
+    const signals = consoleSignals(hooks.platform ?? process.platform);
+    const removeHooks = (): void => {
       for (const [event, listener] of handlers) hooks.off(event, listener);
       unsubscribe?.();
-      screen.leave();
-      if (error !== undefined)
-        print(`ia: the console stopped: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`);
+      unsubscribe = null;
+      unsubscribeError?.();
+      unsubscribeError = null;
+    };
+    /** The one teardown: stdin let go, handlers removed, the terminal given back. */
+    const finish = (code: number, error?: unknown, sync = false): void => {
+      if (finished) return;
+      finished = true;
+      release();
+      removeHooks();
+      screen.leave(sync);
+      waiting?.cancel();
+      if (error !== undefined) {
+        const text = error instanceof Error ? (error.stack ?? error.message) : String(error);
+        try {
+          for (const line of `ia: the console stopped: ${text}`.split(/\r?\n/)) print(sanitize(line));
+        } catch {
+          // The terminal itself failed; there is nowhere left to say so.
+        }
+      }
       resolve(code);
     };
     const crash = (error: unknown): void => {
       finish(1, error);
       hooks.exit(1);
     };
-    const signal = (): void => {
-      if (busy) return;
-      finish(130);
-      hooks.exit(130);
+    const onSignal = (name: ConsoleSignal) => (): void => {
+      // A running child receives the terminal's signals itself and decides; the console waits for it.
+      if (child) return;
+      if (name === 'SIGINT' && waiting !== null) {
+        waiting.cancel();
+        return;
+      }
+      finish(SIGNAL_EXIT[name]);
+      hooks.exit(SIGNAL_EXIT[name]);
     };
-    const handlers: [Parameters<ProcessHooks['on']>[0], (error?: unknown) => void][] = [
+    const handlers: [HookEvent, (value?: unknown) => void][] = [
+      ['exit', () => finish(0, undefined, true)],
       ['uncaughtException', crash],
       ['unhandledRejection', crash],
-      ['SIGTERM', signal],
-      ['SIGINT', signal],
+      ...signals.map((name): [HookEvent, () => void] => [name, onSignal(name)]),
     ];
     for (const [event, listener] of handlers) hooks.on(event, listener);
-    let unsubscribe: (() => void) | null = null;
+    unsubscribeError = io.onError?.((error) => finish(1, error)) ?? null;
 
     const render = (): void => {
       if (finished) return;
+      // Only the console's own screen is drawn on; elsewhere a resize only marks the next frame as a full one.
+      if (!screen.active) {
+        screen.invalidate();
+        return;
+      }
       const columns = io.columns(),
         rows = io.rows();
       const at = geometry(state.areas.length, columns, rows);
@@ -185,18 +237,27 @@ export async function runConsole(input: {
         finish(1, error);
       }
     };
+    /** Keys from one read, dispatched until the console finishes, a run starts or stdin changes owner. */
+    const dispatch = (keys: readonly Input[]): void => {
+      const at = epoch;
+      for (const key of keys) {
+        if (finished || epoch !== at) return;
+        keyHandler(key);
+      }
+    };
     const consoleInput = (chunk: string): void => {
       if (timer !== null) {
         clearTimer(timer);
         timer = null;
       }
-      for (const key of decoder.push(chunk)) keyHandler(key);
-      if (decoder.pending())
+      dispatch(decoder.push(chunk));
+      if (!finished && consumer === consoleInput && decoder.pending())
         timer = setTimer(() => {
           timer = null;
-          for (const key of decoder.flush()) keyHandler(key);
+          dispatch(decoder.flush());
         }, ESCAPE_TIMEOUT_MS);
     };
+    const takeConsole = (): void => own(consoleInput);
 
     const reload = async (): Promise<void> => {
       state = await load();
@@ -211,6 +272,8 @@ export async function runConsole(input: {
           decoder.mode = 'keys';
           ui.prompt = null;
           keyHandler = navigate;
+          // The rest of the read that ended the prompt is not navigation.
+          epoch += 1;
           render();
           settle(value);
         };
@@ -229,30 +292,65 @@ export async function runConsole(input: {
         };
         render();
       });
+    /** A wait on the console's own input in the normal screen, cancelled by Ctrl-C or the console finishing. */
+    const wait = <T>(reader: (settle: (value: T) => void) => (chunk: string) => void, cancelled: T): Promise<T> =>
+      new Promise((settle) => {
+        if (finished) return settle(cancelled);
+        const end = (value: T): void => {
+          waiting = null;
+          release();
+          settle(value);
+        };
+        waiting = { cancel: () => end(cancelled) };
+        own(reader(end));
+      });
     const run = async (offer: Offer): Promise<void> => {
-      busy = true;
+      running = true;
+      // Keys already decoded from the read that started this run are dropped.
+      epoch += 1;
       try {
         const result = await runOffer(offer, state, {
           screen: {
             leave: () => {
+              release();
               screen.leave();
-              consumer = null;
             },
             enter: () => {
+              if (finished) return;
               screen.enter();
-              consumer = consoleInput;
+              takeConsole();
             },
             invalidate: () => screen.invalidate(),
           },
-          spawn: input.spawn ?? spawnInherited,
+          spawn: async (file, args, options) => {
+            if (finished) return null;
+            release();
+            child = true;
+            try {
+              return await spawner(file, args, options);
+            } finally {
+              child = false;
+            }
+          },
           ask: async (question) => {
+            if (finished) return false;
             io.write(`${question} [y/N] `);
-            return consents(await readLine());
+            const answer = await wait<string | null>((settle) => {
+              let buffer = '';
+              return (chunk) => {
+                buffer += chunk;
+                const end = buffer.search(/\r?\n|\r/);
+                if (end !== -1) settle(buffer.slice(0, end));
+              };
+            }, null);
+            if (answer === null) io.write('\n');
+            return consents(answer);
           },
           prompt,
           waitKey: async () => {
-            io.setRawMode(true);
-            await readKey();
+            if (finished) return;
+            screen.raw(true);
+            await wait<void>((settle) => () => settle(), undefined);
           },
           print,
           resolveRepo: input.resolveRepo ?? resolveRepo,
@@ -261,14 +359,15 @@ export async function runConsole(input: {
         });
         ui.message = result.exitCode !== null ? `${offer.title}: stopped with exit ${result.exitCode}` : null;
       } finally {
-        busy = false;
+        running = false;
       }
-      consumer = consoleInput;
+      if (finished) return;
+      if (consumer !== consoleInput) takeConsole();
       await reload();
       render();
     };
     const navigate = (entry: Input): void => {
-      if (entry.kind !== 'key') return;
+      if (entry.kind !== 'key' || running || finished) return;
       const key = entry.key;
       if (key === 'quit' || key === 'interrupt' || (key === 'escape' && ui.view === 'offers')) return finish(0);
       if (key === 'escape' || (key === 'tab' && ui.view !== 'offers')) ui.view = 'offers';
@@ -303,13 +402,12 @@ export async function runConsole(input: {
 
     guard(async () => {
       await reload();
+      if (finished) return;
       screen.enter();
       unsubscribe = io.onResize(() => guard(render));
       if (typeof (input.input as NodeJS.ReadStream).setEncoding === 'function')
         (input.input as NodeJS.ReadStream).setEncoding('utf8');
-      consumer = consoleInput;
-      input.input.on('data', onData);
-      input.input.resume?.();
+      takeConsole();
       render();
     });
   });
