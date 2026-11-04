@@ -44,9 +44,9 @@ export const doorLaunch = (version: string): { readonly command: 'npx'; readonly
 });
 
 /**
- * The marker line every bootstrap carries, in the committed block and in the plugin's session context: one line that
- * says, in a form a program can read, that contributing needs no binding and which operations do. Parse it with
- * `^ia-bootstrap v1( [a-z-]+=\S+)+$`; a key a reader does not know is ignored.
+ * The marker line every committed bootstrap block carries: one line that says, in a form a program can read, that
+ * contributing needs no binding and which operations do. Parse it with `^ia-bootstrap v1( [a-z-]+=\S+)+$`; a key a
+ * reader does not know is ignored.
  */
 export const BOOTSTRAP_MARKER =
   'ia-bootstrap v1 public-contribution=available needs-method=ia:work,ia:knowledge,ia:delivery needs-authority=declared-operations';
