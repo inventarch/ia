@@ -106,6 +106,23 @@ it('refuses a directory with no .ia/src, naming ia init, through the committed a
   }
 });
 
+it('a descriptor without .ia/src names restoring the sources, not ia init, through both routes', async () => {
+  const { root, env } = await initialized();
+  rmSync(resolve(root, '.ia/src'), { recursive: true, force: true });
+  for (const argv of [
+    ['host', 'claude', '--commit', '--root', root, '--json'],
+    ['host', 'claude', '--root', root, '--json'],
+  ]) {
+    const refused = await run(argv, { env });
+    expect(refused.exitCode, argv.join(' ')).toBe(3);
+    expect(JSON.parse(refused.stdout), argv.join(' ')).toMatchObject({
+      code: 'IA-CLI-CONFLICT',
+      message: expect.stringContaining('.ia/src is absent'),
+      next: `Restore the authored sources under .ia/src from source control, then run "ia validate --root ${quote(realpathSync(root))}".`,
+    });
+  }
+});
+
 it('a workspace that does not admit names the rooted ia validate and writes nothing, through both routes', async () => {
   const { root, env } = await withoutDescriptor();
   put(root, '.ia/src/broken.ia', '@@@ this is not a record\n');
@@ -114,9 +131,15 @@ it('a workspace that does not admit names the rooted ia validate and writes noth
     for (const committed of [true, false]) {
       const argv = ['host', 'claude', ...(committed ? ['--commit'] : []), ...mode, '--root', root, '--json'];
       const refused = await run(argv, { env });
-      // The ordinary route's --apply is first stopped by the mandate profile, which cannot be read from a broken source.
-      if (mode.length > 0 && !committed) expect(refused.exitCode, argv.join(' ')).not.toBe(0);
-      else {
+      // The ordinary route's --apply is first stopped by the mandate profile, which cannot be read from a broken source:
+      // the gate judges the session before admission is checked, and fails closed (host registration §4).
+      if (mode.length > 0 && !committed) {
+        expect(refused.exitCode, argv.join(' ')).toBe(1);
+        expect(JSON.parse(refused.stdout), argv.join(' ')).toMatchObject({
+          code: 'IA-RUNTIME-REQUEST-INVALID',
+          next: expect.stringContaining('ia report --root'),
+        });
+      } else {
         expect(refused.exitCode, argv.join(' ')).toBe(3);
         expect(JSON.parse(refused.stdout), argv.join(' ')).toMatchObject({ code: 'IA-CLI-CONFLICT', next });
         expect(JSON.parse(refused.stdout).message).not.toContain('initialized');

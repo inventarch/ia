@@ -70,7 +70,7 @@ import {
   renderProjectionFor,
 } from './host-projection.js';
 import { codeOf } from './session.js';
-import { hasWorkspaceSource } from './workspace-state.js';
+import { hasWorkspaceSource, shipsPackage } from './workspace-state.js';
 import type { Capabilities, Field, SymbolName } from './render.js';
 import {
   atom,
@@ -336,7 +336,10 @@ export function requireWorkspace(root: string, named: string = root): void {
       'The target is not a workspace: .ia/src is absent',
       3,
       { path: root },
-      `Run "ia init ${quote(named)}" first.`,
+      // `ia init` refuses a folder that already carries a release descriptor, so that one restores its sources instead.
+      shipsPackage(root)
+        ? `Restore the authored sources under .ia/src from source control, then run "ia validate --root ${quote(named)}".`
+        : `Run "ia init ${quote(named)}" first.`,
     );
 }
 /** The journal a failed transaction left behind, if any, with the command that recovers it. */
