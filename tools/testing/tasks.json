@@ -844,6 +844,7 @@
         "tests/channel.test.ts",
         "tests/cli-version.test.ts",
         "tests/console-app.test.ts",
+        "tests/console-entry.test.ts",
         "tests/console-keys.test.ts",
         "tests/console-layout.test.ts",
         "tests/console-offers.test.ts",
@@ -1306,6 +1307,7 @@
       "project": "apps/cli",
       "files": [
         "tests/cli.test.ts",
+        "tests/console-entry-installed.test.ts",
         "tests/handoff-installed.test.ts",
         "tests/program.test.ts",
         "tests/protocols.test.ts",

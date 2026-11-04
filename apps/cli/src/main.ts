@@ -182,6 +182,66 @@ export function installSignals(
 }
 /** The public CLI's extension table lives in self.ts, which the `ia` bin reads before this module loads. */
 export { EXTENSIONS };
+
+/**
+ * Consumer CLI contract §1.2: bare `ia` opens the console only when stdin and stdout are both terminals and `CI` is unset
+ * or empty. Everywhere else it is today's help at exit 0, and `ia --help` always is.
+ */
+export function opensConsole(
+  argv: readonly string[],
+  stdinTTY: boolean,
+  stdoutTTY: boolean,
+  env: Readonly<Record<string, string | undefined>>,
+): boolean {
+  return argv.length === 0 && stdinTTY && stdoutTTY && (env['CI'] ?? '') === '';
+}
+export interface EntryDeps {
+  readonly isatty: (fd: number) => boolean;
+  readonly env: Readonly<Record<string, string | undefined>>;
+  readonly runConsole: () => Promise<number>;
+  readonly dispatch: () => Promise<void>;
+}
+/** The console or the ordinary dispatch, decided before anything is dispatched; `main` builds the deps from the process. */
+export async function enter(argv: readonly string[], deps: EntryDeps): Promise<'console' | 'dispatch'> {
+  if (opensConsole(argv, deps.isatty(0), deps.isatty(1), deps.env)) {
+    await deps.runConsole();
+    return 'console';
+  }
+  await deps.dispatch();
+  return 'dispatch';
+}
+/** The console on this process's terminal; loaded only when bare `ia` runs on one. */
+async function startConsole(): Promise<number> {
+  const { runConsole } = await import('./console/app.js');
+  const stdout = process.stdout,
+    stdin = process.stdin;
+  const code = await runConsole({
+    io: {
+      write: (data) => {
+        stdout.write(data);
+      },
+      columns: () => stdout.columns ?? 80,
+      rows: () => stdout.rows ?? 24,
+      setRawMode: (on) => {
+        if (stdin.isTTY) stdin.setRawMode(on);
+      },
+      onResize: (listener) => {
+        stdout.on('resize', listener);
+        return () => {
+          stdout.off('resize', listener);
+        };
+      },
+    },
+    input: stdin,
+    env: process.env,
+    cwd: process.cwd(),
+    packageRoot,
+    version: version(),
+    extensions: EXTENSIONS,
+  });
+  process.exitCode = code;
+  return code;
+}
 /**
  * Runs one invocation on this copy and sets the exit code. The `ia` bin (bin.ts) calls it when no hand-off answered;
  * `node dist/main.js`, the plugin hook's entry, runs it directly and so never hands off (consumer-cli-contract §1.2).
@@ -193,10 +253,18 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
     if (error.code !== 'EPIPE') throw error;
   });
   try {
-    const result = await dispatch(argv, host(new AbortController()), runCli, EXTENSIONS);
-    if (result.stderr !== '') process.stderr.write(result.stderr);
-    process.stdout.write(result.stdout);
-    process.exitCode = result.exitCode;
+    // isatty rather than process.stdin.isTTY, for the reason `host` gives: reading that getter constructs the stream.
+    await enter(argv, {
+      isatty,
+      env: process.env,
+      runConsole: startConsole,
+      dispatch: async () => {
+        const result = await dispatch(argv, host(new AbortController()), runCli, EXTENSIONS);
+        if (result.stderr !== '') process.stderr.write(result.stderr);
+        process.stdout.write(result.stdout);
+        process.exitCode = result.exitCode;
+      },
+    });
   } catch (error) {
     const code =
       error !== null && typeof error === 'object' && 'code' in error && typeof error.code === 'string'

@@ -363,7 +363,7 @@ The [language floor](.ia/src/floor/README.md) supplies the kernel. These systems
 
 `ia init <directory> --from <plugin-directory>` lowers a host plugin into a kit workspace, and `ia project <claude|codex> --product plugin` renders that kit back into a plugin (`--out`) or checks the round trip without writing (`--check`).
 
-`--json` returns one structured value, and every consumer-command refusal names the one command to run next. `read`, `next`, `validate`, `preview`, `author`, `capture`, `project`, all `kb` subcommands and a workspace `host --apply` (not `--remove` or `--user`) are checked against the acting participant's mandates; `--actor <agent>` names which authored participant is acting. `ia --help` and `ia <command> --help` give the full syntax, and the [CLI guide](apps/cli/README.md) and [consumer CLI contract](docs/specs/consumer-cli-contract/README.md) give the detail.
+`--json` returns one structured value, and every consumer-command refusal names the one command to run next. `read`, `next`, `validate`, `preview`, `author`, `capture`, `project`, all `kb` subcommands and a workspace `host --apply` (not `--remove` or `--user`) are checked against the acting participant's mandates; `--actor <agent>` names which authored participant is acting. Bare `ia` on an interactive terminal opens a console that shows the workspace's health and offers the commands that fix or set it up. `ia --help` and `ia <command> --help` give the full syntax, and the [CLI guide](apps/cli/README.md) and [consumer CLI contract](docs/specs/consumer-cli-contract/README.md) give the detail.
 
 ---
 
