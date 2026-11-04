@@ -330,6 +330,15 @@ async function runRepo(
   const refuse = (why: string): RepoResult => done(false, why, why);
   if (repo.refused !== null) return refuse(repo.refused);
   const git = (args: readonly string[]) => io.run('git', ['-C', top, ...args], { cwd: top, env: io.env });
+  // Planning judged the path by its spelling; a link on the way (a configured root, or `.ia-worktrees` itself) could
+  // still lead it into the checkout or the IA home, where git would then write. Judged by where it really leads.
+  const destination = leadsTo(worktree);
+  if (destination === null) return refuse(`the worktree path ${worktree} passes through a link that leads nowhere`);
+  if (within(leadsTo(top) ?? top, destination))
+    return refuse(`the worktree path ${worktree} leads inside the repository, to ${destination}`);
+  const home = repo.iaHome === undefined ? null : leadsTo(repo.iaHome);
+  if (home !== null && within(home, destination))
+    return refuse(`the worktree path ${worktree} leads inside the IA home, to ${destination}`);
 
   say('fetching origin');
   const base = await findBase(top, io.run, io.env);

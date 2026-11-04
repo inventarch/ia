@@ -5,7 +5,16 @@
  * and the run-time containment check. Every spawn is recorded, so the tests assert the argv and cwd themselves, and
  * that the user's own checkout is touched only by the listed git metadata operations.
  */
-import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -19,7 +28,7 @@ import type { RepoResult } from '../src/console/batch-run.js';
 import { chooseBase, containedStep, defaultRunner, gitTop, METADATA_OPS, runBatch } from '../src/console/batch-run.js';
 import type { RepoRow } from '../src/console/workspaces-state.js';
 import type { Call, Fixture } from './batch-fixture.js';
-import { FAKE_PM, fixture, git, offerOf, readLog, recorder, repo, rowOf } from './batch-fixture.js';
+import { base, FAKE_PM, fixture, git, offerOf, readLog, recorder, repo, rowOf } from './batch-fixture.js';
 import { cleanup } from './scratch-fixture.js';
 
 afterAll(cleanup);
@@ -127,6 +136,44 @@ describe('worktree, branch and base', () => {
       refused: expect.stringMatching(/origin has no HEAD, main or master/),
     });
     expect(existsSync(only(results).worktree)).toBe(false);
+  });
+  it('a worktree root or .ia-worktrees folder that is a link into the checkout or the IA home is refused, creating nothing', async () => {
+    const fx = fixture('batch-run-dest');
+    const kind = process.platform === 'win32' ? 'junction' : 'dir';
+    const home = join(fx.dir, 'home');
+    mkdirSync(home, { recursive: true });
+    const plan = (root: string, worktreeRoot?: string) =>
+      planBatch(
+        'fix:generation',
+        [rowOf(root, [relock(root)])],
+        new Set([0]),
+        { iaHome: home, ...(worktreeRoot === undefined ? {} : { worktreeRoot }) },
+        { top: (path) => gitTop(path, fx.env) },
+      );
+    // A configured worktree root that is a link into the user's checkout.
+    const configured = repo(fx, 'configured', { 'inside/keep.txt': '' });
+    symlinkSync(join(configured.top, 'inside'), join(fx.dir, 'trees-link'), kind);
+    const first = plan(configured.top, join(fx.dir, 'trees-link'));
+    expect(first.repos[0]!.refused).toBeNull();
+    const { results } = await batch(fx, [], 'fix:generation', first);
+    expect(only(results).refused).toMatch(/^the worktree path .* leads inside the repository, to /);
+    // One that leads into the IA home.
+    symlinkSync(home, join(fx.dir, 'home-link'), kind);
+    const homed = await batch(fx, [], 'fix:generation', plan(configured.top, join(fx.dir, 'home-link')));
+    expect(only(homed.results).refused).toMatch(/^the worktree path .* leads inside the IA home, to /);
+    // The default .ia-worktrees beside the repository, made a link into it.
+    const fallback = base('batch-run-dest-default');
+    const nested = repo({ ...fx, dir: fallback }, 'nested', { 'deep/keep.txt': '' });
+    symlinkSync(join(nested.top, 'deep'), join(fallback, '.ia-worktrees'), kind);
+    const third = await batch(fx, [], 'fix:generation', plan(nested.top));
+    expect(only(third.results).refused).toMatch(/^the worktree path .* leads inside the repository, to /);
+    // Nothing was made in either checkout or the home, and no branch was created.
+    expect(readdirSync(join(configured.top, 'inside'))).toEqual(['keep.txt']);
+    expect(readdirSync(join(nested.top, 'deep'))).toEqual(['keep.txt']);
+    expect(readdirSync(home)).toEqual([]);
+    for (const top of [configured.top, nested.top])
+      expect(() => git(top, ['rev-parse', '--verify', 'refs/heads/chore/ia-fix-generation'], fx.env)).toThrow();
+    expect(git(configured.top, ['worktree', 'list', '--porcelain'], fx.env).match(/^worktree /gm)).toHaveLength(1);
   });
   it('an existing path or branch is refused', async () => {
     const fx = fixture('batch-run-exists');

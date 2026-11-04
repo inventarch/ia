@@ -81,6 +81,8 @@ export interface RepoPlan {
   /** The user and machine steps left out of this repository's run, as the offer had them. */
   readonly deferred: readonly Step[];
   readonly refused: string | null;
+  /** The IA home, which the worktree must not lead into once links are followed (batch-run.ts checks it). */
+  readonly iaHome?: string;
 }
 export interface BatchConfig {
   /** `worktreeRoot` from the IA home's config.json; an absolute directory outside the IA home. */
@@ -134,7 +136,17 @@ export function planBatch(
     for (const step of left) if (!deferred.has(displayFix(step))) deferred.set(displayFix(step), step);
     const kept = offer.steps.filter((step) => !left.includes(step));
     const refuse = (why: string, top = root, worktree = '', workspace = ''): void => {
-      repos.push({ root, top, worktree, workspace, branch, steps: kept, deferred: left, refused: why });
+      repos.push({
+        root,
+        top,
+        worktree,
+        workspace,
+        branch,
+        steps: kept,
+        deferred: left,
+        refused: why,
+        iaHome: config.iaHome,
+      });
     };
     const top = git.top(root);
     if (top === null) return refuse(`${root} is not inside a git repository`);
@@ -147,7 +159,17 @@ export function planBatch(
       if ('refused' in rebased) return refuse(rebased.refused, top, made.path, workspace);
       steps.push(rebased.step);
     }
-    repos.push({ root, top, worktree: made.path, workspace, branch, steps, deferred: left, refused: null });
+    repos.push({
+      root,
+      top,
+      worktree: made.path,
+      workspace,
+      branch,
+      steps,
+      deferred: left,
+      refused: null,
+      iaHome: config.iaHome,
+    });
   });
   return { repos, deferred: [...deferred.values()] };
 }
