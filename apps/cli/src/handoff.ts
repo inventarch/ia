@@ -71,6 +71,28 @@ export function rootFromArgv(argv: readonly string[], cwd: string, iaHome: strin
 }
 
 /**
+ * The workspace's installed copy an `ia` may run for the workspace at `root`, or `null` (consumer-cli-contract §1.2):
+ * the copy resolveWorkspaceCli finds, up to the workspaces root that hoists it. A copy other than `running` is refused
+ * when the user set `IA_NO_HANDOFF=1` or the repository commits it, so neither a typed command (handoffTarget) nor the
+ * console (console/load.ts, console/app.ts) ever runs the repository's own code. The running copy is returned as found,
+ * since running it runs nothing new; git is asked only about another copy.
+ */
+export function runnableCopy(
+  root: string,
+  input: {
+    readonly env: Readonly<Record<string, string | undefined>>;
+    /** The running copy's package root. */
+    readonly running: string;
+    readonly committed?: (packageRoot: string) => boolean;
+  },
+): LocalCli | null {
+  const local = resolveWorkspaceCli(root).local;
+  if (local === null || sameFile(local.packageRoot, input.running)) return local;
+  if (input.env[NO_HANDOFF] === '1') return null;
+  return (input.committed ?? committed)(local.packageRoot) ? null : local;
+}
+
+/**
  * The workspace's installed copy when it is not this one, or `null`. Bare `ia`, `--user`, an extension's commands and
  * `doctor --host` always answer here, as does a malformed IA home (`iaHome` undefined), which this copy refuses. As in
  * dispatch (consumer.ts), an extension never takes a core token: such a token is the core command's, and hands off.
@@ -89,14 +111,20 @@ export function handoffTarget(input: {
   const command = argv[0];
   if (command === undefined) return null;
   if (!input.coreTokens.has(command) && input.extensions.includes(command)) return null;
-  if ((env[HANDOFF_FROM] ?? '') !== '' || env[NO_HANDOFF] === '1' || input.iaHome === undefined) return null;
+  if ((env[HANDOFF_FROM] ?? '') !== '' || input.iaHome === undefined) return null;
   const tokens = options(argv);
   if (tokens.includes('--user')) return null;
   if (command === 'doctor' && tokens.some((token) => token === '--host' || token.startsWith('--host='))) return null;
   const root = rootFromArgv(argv, input.cwd, input.iaHome);
-  const local = root === undefined ? null : resolveWorkspaceCli(root).local;
-  if (local === null || sameFile(local.packageRoot, input.packageRoot)) return null;
-  return (input.committed ?? committed)(local.packageRoot) ? null : local;
+  const local =
+    root === undefined
+      ? null
+      : runnableCopy(root, {
+          env,
+          running: input.packageRoot,
+          ...(input.committed === undefined ? {} : { committed: input.committed }),
+        });
+  return local === null || sameFile(local.packageRoot, input.packageRoot) ? null : local;
 }
 
 /**

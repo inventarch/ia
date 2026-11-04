@@ -3,6 +3,7 @@
  * and a recording spawner: the argv each flow spawns, which copy's entry runs each step (resolved at that step, from
  * the disk), that a decline spawns nothing, and that the terminal is restored on quit, on a throw and on a signal.
  */
+import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
@@ -12,8 +13,8 @@ import type { Fix } from '../src/fix.js';
 import { iaFix } from '../src/fix.js';
 import type { LocalCli } from '../src/local-cli.js';
 import type { ProcessHooks } from '../src/console/app.js';
+import { consoleSignals, resolveRepo, runConsole } from '../src/console/app.js';
 import type { SpawnDoctor } from '../src/console/load.js';
-import { consoleSignals, runConsole } from '../src/console/app.js';
 import type { Offer, Step } from '../src/console/offers.js';
 import { offersFor } from '../src/console/offers.js';
 import type { RunIO, SpawnOptions } from '../src/console/run.js';
@@ -391,6 +392,61 @@ describe('runOffer', () => {
     expect(result).toEqual({ completed: 0, exitCode: null });
     expect(run.events).toEqual([]);
   });
+  it('a step whose program cannot start stops the recipe as a failed step, and the console goes on', async () => {
+    const run = harness({
+      onSpawn: () => {
+        throw Object.assign(new Error('spawn /srv/bin/npm ENOENT'), { code: 'ENOENT' });
+      },
+    });
+    const result = await runOffer(
+      offer([iaFix(['validate'], 'none').fix!, iaFix(['validate'], 'none').fix!]),
+      state(),
+      run.io,
+    );
+    expect(result).toEqual({ completed: 0, exitCode: null });
+    expect(run.spawned).toHaveLength(1);
+    expect(run.printed).toContain('Stopped at step 1: could not start: spawn /srv/bin/npm ENOENT.');
+    expect(run.events.slice(-3)).toEqual(['waitKey', 'enter', 'invalidate']);
+  });
+});
+
+describe('resolveRepo', () => {
+  /** A workspace at `member` pinning the CLI, with a copy installed in `root`'s `node_modules`; its real path. */
+  const pinnedAt = (root: string, member = root): string => {
+    mkdirSync(join(member, '.ia/src'), { recursive: true });
+    writeFileSync(join(member, 'package.json'), JSON.stringify({ devDependencies: { '@inventarch/cli': '3.6.0' } }));
+    const copy = join(root, 'node_modules/@inventarch/cli');
+    mkdirSync(join(copy, 'dist'), { recursive: true });
+    writeFileSync(
+      join(copy, 'package.json'),
+      JSON.stringify({ name: '@inventarch/cli', version: '3.6.0', bin: { ia: './dist/main.js' } }),
+    );
+    writeFileSync(join(copy, 'dist/main.js'), '');
+    return realpathSync(copy);
+  };
+  it('an ordinary installed copy is the one steps run on', () => {
+    const root = scratch('console-resolve-installed');
+    const copy = pinnedAt(root);
+    expect(resolveRepo(root, {}, RUNNING)?.packageRoot).toBe(copy);
+  });
+  it('a committed copy, or any other copy under IA_NO_HANDOFF=1, is not: steps run on the running copy', () => {
+    const committedRoot = scratch('console-resolve-committed');
+    pinnedAt(committedRoot);
+    const git = (...args: string[]) => spawnSync('git', args, { cwd: committedRoot, encoding: 'utf8' });
+    expect(git('init', '-q').status).toBe(0);
+    expect(git('add', '-f', 'node_modules/@inventarch/cli/package.json').status).toBe(0);
+    expect(resolveRepo(committedRoot, {}, RUNNING)).toBeNull();
+    const off = scratch('console-resolve-no-handoff');
+    pinnedAt(off);
+    expect(resolveRepo(off, { IA_NO_HANDOFF: '1' }, RUNNING)).toBeNull();
+  });
+  it('a copy hoisted to the workspaces root is found, as hand-off finds it', () => {
+    const repo = scratch('console-resolve-hoisted');
+    writeFileSync(join(repo, 'package.json'), JSON.stringify({ workspaces: ['packages/*'] }));
+    const member = join(repo, 'packages/app');
+    const copy = pinnedAt(repo, member);
+    expect(resolveRepo(member, {}, RUNNING)?.packageRoot).toBe(copy);
+  });
 });
 /** The characters cmd.exe acts on (&, |, <, >, ^, parentheses) that its own quote state leaves outside quotes. */
 function liveCharacters(line: string): string[] {
@@ -538,9 +594,17 @@ const fakeHooks = (terminal: FakeTerminal): Hooks => {
     },
   };
 };
-function launch(extra: { collect?: () => DoctorView; spawn?: RunIO['spawn'] } = {}) {
+function launch(
+  extra: {
+    collect?: () => DoctorView;
+    spawn?: RunIO['spawn'];
+    spawnDoctor?: SpawnDoctor;
+    prepare?: (root: string) => void;
+  } = {},
+) {
   const root = scratch('console-app');
   mkdirSync(join(root, '.ia/src'), { recursive: true });
+  extra.prepare?.(root);
   const terminal = new FakeTerminal();
   const stdin = new PassThrough();
   const timers: (() => void)[] = [];
@@ -566,6 +630,7 @@ function launch(extra: { collect?: () => DoctorView; spawn?: RunIO['spawn'] } = 
     }) as unknown as typeof setTimeout,
     clearTimer: (() => {}) as typeof clearTimeout,
     hooks,
+    ...(extra.spawnDoctor === undefined ? {} : { spawnDoctor: extra.spawnDoctor }),
   });
   // Restored by an ordinary write, or synchronously on the paths that exit right after.
   const restored = (): boolean =>
@@ -591,6 +656,37 @@ describe('runConsole', () => {
     expect(await run.exit).toBe(0);
     expect(run.restored()).toBe(true);
     expect(run.hooks.listeners.size).toBe(0);
+  });
+  it('q during a reload aborts the reload’s doctor run, so the process does not wait it out', async () => {
+    const signals: (AbortSignal | undefined)[] = [];
+    const run = launch({
+      // The workspace's own copy, so each load runs its doctor.
+      prepare: (root) => {
+        writeFileSync(join(root, 'package.json'), JSON.stringify({ devDependencies: { '@inventarch/cli': '3.6.0' } }));
+        const copy = join(root, 'node_modules/@inventarch/cli');
+        mkdirSync(join(copy, 'dist'), { recursive: true });
+        writeFileSync(
+          join(copy, 'package.json'),
+          JSON.stringify({ name: '@inventarch/cli', version: '3.6.0', bin: { ia: './dist/main.js' } }),
+        );
+        writeFileSync(join(copy, 'dist/main.js'), '');
+      },
+      spawnDoctor: (_entry, _root, signal) => {
+        signals.push(signal);
+        const answer = { status: 0, stdout: JSON.stringify({ version: 1, checks: [], counts: {} }) };
+        // The first load answers at once; the reload's doctor ends only when it is aborted.
+        if (signals.length === 1) return Promise.resolve(answer);
+        return new Promise((settle) => signal?.addEventListener('abort', () => settle({ status: null, stdout: '' })));
+      },
+    });
+    await until(run.entered, 'the console');
+    run.stdin.write('r');
+    await until(() => signals.length === 2, 'the reload');
+    expect(signals[1]?.aborted).toBe(false);
+    run.stdin.write('q');
+    expect(await run.exit).toBe(0);
+    expect(signals[1]?.aborted).toBe(true);
+    expect(run.restored()).toBe(true);
   });
   it('a throw inside the loop restores the terminal and exits 1', async () => {
     let loads = 0;

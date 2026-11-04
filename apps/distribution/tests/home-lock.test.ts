@@ -119,3 +119,46 @@ it('releases the lock when the action throws', () => {
   expect(existsSync(join(at, NAME))).toBe(false);
   expect(withHomeLock(at, NAME, () => 'again', { waitMs: 100 })).toBe('again');
 });
+
+const errno = (code: string): NodeJS.ErrnoException => Object.assign(new Error(code), { code });
+it('a release Windows refuses for a moment (EBUSY, EPERM) is retried until the lock is gone', () => {
+  const at = home(),
+    tries: string[] = [];
+  const removeLock = (path: string) => {
+    tries.push(path);
+    if (tries.length <= 2) throw errno(tries.length === 1 ? 'EBUSY' : 'EPERM');
+    rmSync(path);
+  };
+  expect(withHomeLock(at, NAME, () => 'done', { removeLock })).toBe('done');
+  expect(tries).toHaveLength(3);
+  expect(existsSync(join(at, NAME))).toBe(false);
+});
+it('a release that keeps failing throws naming the lock it left, and an action error still wins', () => {
+  const at = home(),
+    removeLock = () => {
+      throw errno('EBUSY');
+    };
+  expect(() => withHomeLock(at, NAME, () => 'done', { removeLock })).toThrow(
+    expect.objectContaining({ code: 'IA-DIST-HOME-LOCK-LEFT', message: expect.stringContaining(join(at, NAME)) }),
+  );
+  expect(existsSync(join(at, NAME))).toBe(true);
+  rmSync(join(at, NAME));
+  expect(() =>
+    withHomeLock(
+      at,
+      NAME,
+      () => {
+        throw new Error('action failed');
+      },
+      { removeLock },
+    ),
+  ).toThrow('action failed');
+});
+it('a lock already gone at release (ENOENT) is released', () => {
+  const at = home();
+  const removeLock = (path: string) => {
+    rmSync(path);
+    throw errno('ENOENT');
+  };
+  expect(withHomeLock(at, NAME, () => 'done', { removeLock })).toBe('done');
+});

@@ -44,7 +44,8 @@ export interface RegistryResolveRequest {
   /**
    * The member ids the collection record keeps for each installed collection (and, for one whose identity is unknown,
    * both sides' members). When `allowKits` re-expands such a collection, its recorded members leave the requests first,
-   * so the new members replace them instead of conflicting with them.
+   * so the new members replace them instead of conflicting with them; a member another collection here still lists
+   * stays, unless the same command expands that collection too.
    */
   readonly collectionMembers?: ReadonlyMap<string, readonly string[]> | undefined;
 }
@@ -59,6 +60,21 @@ export interface RegistryResolution {
   readonly expandedCollections?: readonly ExpandedCollection[];
   readonly candidates: readonly ReleaseCandidate<BundleMetadata>[];
   readonly sources: ReadonlyMap<string, RegistryChoice>;
+}
+/**
+ * A kit's member range differs, as a string, from the range another installed collection left for that member: the
+ * install refuses rather than move a member the other collection still lists. `holders` are those collections, which
+ * re-expanding together with the kit replaces, when their releases list the member with the same range.
+ */
+export class CollectionConflictError extends DistributionError {
+  constructor(
+    message: string,
+    readonly member: string,
+    readonly holders: readonly string[],
+  ) {
+    super('IA-DIST-CONFLICT', message);
+    this.name = 'CollectionConflictError';
+  }
 }
 type LockedPackage = DistributionLock['packages'][number];
 /**
@@ -247,7 +263,11 @@ async function resolveWithPins(
   // pin stays selectable and preferred. Licensed releases are followed too, so a licensed-only need can be named (§7).
   const known = new Map<string, { readonly ranges: Set<string>; readonly pinned: Set<string> }>(),
     indexed = new Map<string, Indexed>();
-  const expanded: ExpandedCollection[] = [];
+  const expanded: { readonly id: string; readonly version: string; readonly registry: string; members: string[] }[] =
+    [];
+  // A kit that is a member of a kit this command expands is expanded in its turn; its members are recorded on that
+  // outer collection in its place, so a row names only ids the lock holds.
+  const nestedIn = new Map<string, (typeof expanded)[number]>();
   const pending: string[] = [],
     queued = new Set<string>(),
     followed = new Set<RegistryRelease>(),
@@ -316,21 +336,39 @@ async function resolveWithPins(
         // Re-expanding a collection replaces the member requests its earlier expansion left: they leave the requests
         // (one the new release no longer lists stays locked only while something depends on it), so a changed range is
         // not a conflict. A request this command names itself, or one another collection's expansion in this command
-        // introduced, is not inherited and stays, so it still conflicts as it always has.
+        // introduced, is not inherited and stays, so it still conflicts as it always has. So does a member another
+        // installed collection still lists, unless this command expands that collection too (it is expanded already,
+        // or its id is still a request waiting to be): one collection's install never drops another's constraint.
         const recorded = new Set(request.collectionMembers?.get(id) ?? []);
+        const held = new Map<string, string[]>();
+        for (const [other, members] of request.collectionMembers ?? [])
+          if (
+            other !== id &&
+            !expanded.some((collection) => collection.id === other) &&
+            !requests.some((item) => item.id === other)
+          )
+            for (const member of members) held.set(member, [...(held.get(member) ?? []), other].sort());
         for (let at = requests.length - 1; at >= 0; at -= 1) {
           const member = requests[at]!.id;
-          if (recorded.has(member) && !explicit.has(member) && !introduced.has(member)) requests.splice(at, 1);
+          if (recorded.has(member) && !explicit.has(member) && !introduced.has(member) && !held.has(member))
+            requests.splice(at, 1);
         }
         for (const member of kit.distributions) introduced.add(member.id);
-        expanded.push({
-          id,
-          version: kit.version,
-          registry: registryLocation(entry.registry.base),
-          members: kit.distributions.map((member) => member.id),
-        });
+        const outer = explicit.has(id) ? undefined : nestedIn.get(id),
+          ids = kit.distributions.map((member) => member.id);
+        const row = outer ?? { id, version: kit.version, registry: registryLocation(entry.registry.base), members: [] };
+        if (outer === undefined) expanded.push(row);
+        row.members = [...new Set([...row.members.filter((member) => member !== id), ...ids])].sort();
+        for (const member of ids) nestedIn.set(member, row);
         for (const member of kit.distributions) {
           const existing = requests.find((item) => item.id === member.id);
+          const holders = held.get(member.id);
+          if (existing && existing.range !== member.range && holders !== undefined && !explicit.has(member.id))
+            throw new CollectionConflictError(
+              `Kit ${id} ${kit.version} lists ${member.id} ${member.range}, but installed ${holders.length === 1 ? 'collection' : 'collections'} ${holders.join(', ')} ${holders.length === 1 ? 'lists' : 'list'} it at ${existing.range}`,
+              member.id,
+              holders,
+            );
           if (existing && existing.range !== member.range)
             fail('CONFLICT', `Kit conflicts with direct request ${member.id}`);
           if (!existing) requests.push(member);

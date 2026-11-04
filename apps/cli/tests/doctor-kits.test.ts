@@ -277,6 +277,21 @@ it('an unknown collection identity is warn with a reinstall fix', () => {
     fix: { program: 'ia', argv: ['install', 'acme/kit'], flow: 'preview-apply', writesTo: 'repo' },
   });
 });
+it('a committed record whose unknown id is an option offers no fix that passes it', () => {
+  const { root } = workspace(['acme/x']);
+  const lock = readFileSync(join(root, '.ia/distributions.lock.json'), 'utf8');
+  put(
+    join(root, KIT_COLLECTIONS),
+    JSON.stringify({
+      format: 'ia-kit-collections-1',
+      lock: createHash('sha256').update(lock).digest('hex'),
+      collections: [],
+      unknown: [{ id: '--root=/other', members: ['acme/x'] }],
+    }),
+  );
+  const kits = kitsOf(rows(home([]), root));
+  expect(JSON.stringify(kits)).not.toContain('--root=/other');
+});
 it('unknown for a unit missing from the cache, or cached under another registry', () => {
   const { root } = workspace(['acme/a']);
   expect(kitsOf(rows(home([]), root))[0]).toMatchObject({ status: 'unknown', detail: 'not checked: 1 of 1 kit' });

@@ -3,7 +3,7 @@
  * step follows its flow: a preview-apply form previews, asks, then applies with `--apply --yes`; a preview-flag form
  * runs with `--preview`, asks, then as given; a confirm step is shown, asked and run in its confirmed form (a required
  * `--apply` gains `--yes`, so the child never asks again); an immediate step runs straight away. A decline, a non-zero
- * exit, or a step that needs the repo copy when none resolves stops the recipe.
+ * exit, a program that cannot start, or a step that needs the repo copy when none resolves stops the recipe.
  *
  * Which copy runs a step is decided at that step, from the disk (`resolveRepo`), never from the state's snapshot: a
  * step that installs or replaces the workspace's copy changes which entry the next step runs. An `ia` step is spawned
@@ -42,7 +42,7 @@ export interface RunIO {
   readonly prompt: (label: string, accept: (value: string) => string | null) => Promise<string | null>;
   readonly waitKey: () => Promise<void>;
   readonly print: (text: string) => void;
-  /** The workspace's own copy as the disk has it now: readCliDependency, then findLocalCli. */
+  /** The workspace's own copy as the disk has it now, by hand-off's rule (handoff.ts `runnableCopy`), or null. */
   readonly resolveRepo: (root: string) => LocalCli | null;
   readonly env: Env;
   /** The working directory outside a workspace. */
@@ -200,7 +200,12 @@ export async function runOffer(
       const started = target(step, argv, state, repo, io);
       if (typeof started === 'string') return started;
       say(`$ ${shown(step, argv)}`);
-      return { code: await io.spawn(started.file, started.args, started.options), copy: started.copy };
+      try {
+        return { code: await io.spawn(started.file, started.args, started.options), copy: started.copy };
+      } catch (error) {
+        // A program that cannot start (ENOENT, EACCES) is a failed step, not the console's end.
+        return `could not start: ${error instanceof Error ? error.message : String(error)}`;
+      }
     };
     let result: Awaited<ReturnType<typeof run>> | null = null;
     const preview = previewArgv(step);

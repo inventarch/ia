@@ -45,7 +45,13 @@ async function batch(fx: Fixture, rows: readonly RepoRow[], offerId = 'fix:gener
   const results = await runBatch(
     plan,
     { running: { packageRoot: fx.running, version: '3.5.1' } },
-    { run: defaultRunner(fx.env), resolveRepo, progress: () => {}, signal: new AbortController().signal, env: fx.env },
+    {
+      run: defaultRunner(fx.env),
+      resolveRepo: (root: string) => resolveRepo(root, fx.env, fx.running),
+      progress: () => {},
+      signal: new AbortController().signal,
+      env: fx.env,
+    },
   );
   // What a step would have changed in each worktree.
   for (const result of results) if (result.created) writeFileSync(join(result.worktree, 'changed.txt'), result.branch);
@@ -607,7 +613,13 @@ describe('git routing variables', () => {
     const results = await runBatch(
       plan,
       { running: { packageRoot: fx.running, version: '3.5.1' } },
-      { run: recorded.run, resolveRepo, progress: () => {}, signal: new AbortController().signal, env: routed },
+      {
+        run: recorded.run,
+        resolveRepo: (root: string) => resolveRepo(root, routed, fx.running),
+        progress: () => {},
+        signal: new AbortController().signal,
+        env: routed,
+      },
     );
     expect(results[0]).toMatchObject({ ok: true });
     const committed = await commitPassed(results, 'Re-lock', recorded.run, routed);
@@ -655,7 +667,7 @@ describe('the batch screen', () => {
           return left.shift() ?? null;
         },
         run: defaultRunner(fx.env),
-        resolveRepo,
+        resolveRepo: (root: string) => resolveRepo(root, fx.env, fx.running),
         env: fx.env,
         signal: new AbortController().signal,
       },

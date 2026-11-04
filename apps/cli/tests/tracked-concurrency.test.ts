@@ -11,7 +11,7 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterAll, afterEach, expect, it, vi } from 'vitest';
 import { Refusal } from '../src/consumer.js';
-import { readTracked, TRACKED_FILE } from '../src/tracked.js';
+import { readTracked, TRACKED_FILE, trackWorkspace } from '../src/tracked.js';
 import { TRACKED_LOCK_FILE, withTrackedLock } from '../src/tracked-lock.js';
 import { cleanup, scratch } from './scratch-fixture.js';
 
@@ -276,4 +276,22 @@ it('releases the lock when removing its staging file fails after the lock is pub
   expect(existsSync(resolve(at, TRACKED_LOCK_FILE))).toBe(false);
   // The next call in the same process takes the lock at once.
   expect(withTrackedLock(at, () => 'ran', { waitMs: 100 })).toBe('ran');
+});
+
+it('a lock it cannot remove after the list was written refuses saying the change was made, naming the lock', () => {
+  const at = home(),
+    root = resolve(scratch('tracked-lock-left'), 'demo');
+  mkdirSync(resolve(root, '.ia/src'), { recursive: true });
+  const removeLock = (): void => {
+    throw errno('EBUSY');
+  };
+  const refusal = refusalOf(() => trackWorkspace(at, { root, id: 'demo' }, new Date(), { removeLock }));
+  const lock = resolve(at, TRACKED_LOCK_FILE);
+  expect(refusal).toMatchObject({ code: 'IA-CLI-TRACKED-LOCK-LEFT', exit: 3, where: { path: lock } });
+  expect(refusal.message).toContain('The change was made');
+  expect(refusal.message).toContain(lock);
+  expect(refusal.next).toContain(`delete ${lock}`);
+  expect(refusal.next).toContain('"ia workspaces list"');
+  expect(readTracked(at).map((row) => row.id)).toEqual(['demo']);
+  expect(existsSync(lock)).toBe(true);
 });

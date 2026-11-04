@@ -32,8 +32,8 @@ import { consents } from '../consumer.js';
 import { iaHomeOf } from '../discovery.js';
 import type { DoctorRequest, DoctorView } from '../doctor.js';
 import { collectDoctor } from '../doctor.js';
+import { runnableCopy } from '../handoff.js';
 import type { LocalCli } from '../local-cli.js';
-import { findLocalCli, readCliDependency } from '../local-cli.js';
 import type { Env } from '../program.js';
 import type { Capabilities } from '../render.js';
 import { resolveCapabilities } from '../render.js';
@@ -91,10 +91,13 @@ const PROCESS: ProcessHooks = {
   exit: (code) => process.exit(code),
   platform: process.platform,
 };
-/** The workspace's own copy as the disk has it now. */
-export function resolveRepo(root: string): LocalCli | null {
-  const dependency = readCliDependency(root);
-  return dependency === null ? null : findLocalCli(root, dirname(dependency.manifest));
+/**
+ * The workspace's own copy as the disk has it now, by the rule hand-off applies (handoff.ts `runnableCopy`): found up to
+ * the workspaces root that hoists it, and none when the repository commits it or the user set `IA_NO_HANDOFF=1`. Then
+ * every `ia` step runs on the running copy (`running`), as when no copy is installed.
+ */
+export function resolveRepo(root: string, env: Env, running: string): LocalCli | null {
+  return runnableCopy(root, { env, running });
 }
 
 const isDirectory = (path: string): boolean => {
@@ -135,18 +138,29 @@ export async function runConsole(input: {
   const screen = new Screen(io, caps.color);
   const print = (text: string): void => io.write(`${text}\n`);
   const collect = input.collect ?? collectDoctor;
-  const repoOf = input.resolveRepo ?? resolveRepo;
+  // Every step and batch run resolves the workspace's copy by the hand-off rule (handoff.ts `runnableCopy`).
+  const repoOf = input.resolveRepo ?? ((root: string) => resolveRepo(root, env, input.packageRoot));
 
-  const load = (cwd: string): Promise<ConsoleState> =>
-    loadState({
-      cwd,
-      env,
-      packageRoot: input.packageRoot,
-      version: input.version,
-      collect,
-      extensions,
-      ...(input.spawnDoctor === undefined ? {} : { spawnDoctor: input.spawnDoctor }),
-    });
+  // One controller per load, aborted when the console finishes, so quitting never waits for a reload's doctor run.
+  const loads = new Set<AbortController>();
+  const load = async (cwd: string): Promise<ConsoleState> => {
+    const controller = new AbortController();
+    loads.add(controller);
+    try {
+      return await loadState({
+        cwd,
+        env,
+        packageRoot: input.packageRoot,
+        version: input.version,
+        collect,
+        extensions,
+        signal: controller.signal,
+        ...(input.spawnDoctor === undefined ? {} : { spawnDoctor: input.spawnDoctor }),
+      });
+    } finally {
+      loads.delete(controller);
+    }
+  };
 
   /** The console's own workspace, or the running copy's view outside one. */
   let home: ConsoleState;
@@ -252,6 +266,7 @@ export async function runConsole(input: {
     const finish = (code: number, error?: unknown, sync = false): void => {
       if (finished) return;
       finished = true;
+      for (const controller of loads) controller.abort();
       release();
       removeHooks();
       all.controller?.abort();

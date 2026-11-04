@@ -1722,23 +1722,26 @@ async function offerTracking(context: Context, root: string, result: Result): Pr
     return result;
   }
   const said = (line: string): Result => ({ ...result, stderr: `${result.stderr}${line}\n` });
-  // `--yes` answered init's one question; it never stands for a second one, so a --yes run is shown the command.
-  if (!host.interaction.interactive || args.flag('yes')) {
-    // apps/cli/SPEC.md: a root a shell would act on is never printed in a suggested command.
+  // apps/cli/SPEC.md: a root a shell would act on is never printed in a suggested command.
+  const hint = (): Result => {
     const path = commandPath(real);
     return said(
       path !== undefined
         ? `Track it with: ia workspaces add ${path}`
         : `Track it from the workspace root with: ia workspaces add . (${PATH_OMITTED})`,
     );
-  }
+  };
+  // `--yes` answered init's one question; it never stands for a second one, so a --yes run is shown the command.
+  if (!host.interaction.interactive || args.flag('yes')) return hint();
   // A signal that came before the question is not an answer to it, so §3's interruption stands.
   if (host.signal?.aborted) return result;
   let yes: boolean;
   try {
     yes = await confirm(host.interaction, '', trackQuestion(real));
-  } catch (error) {
-    if (!host.signal?.aborted) throw error;
+  } catch {
+    // A question that cannot be read (a closed stdin, a broken terminal) is not a yes, and tracking is never init's
+    // exit code, so it declines with the one line a terminal without a question gets. A signal is handled below.
+    if (!host.signal?.aborted) return hint();
     yes = false;
   }
   // A signal at the question declines it. The workspace is initialized, so init's report and exit code stand, and the

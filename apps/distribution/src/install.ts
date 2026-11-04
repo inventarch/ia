@@ -289,6 +289,17 @@ function collectionsChange(
   if (after === before) return null;
   return { formatVersion: 1, beforeActive: pending.beforeActive, afterActive: json(plan.pointer), before, after };
 }
+/**
+ * Whether applying `plan` now would write `.ia/kit-collections.json`: the same merge the apply makes, against the lock
+ * on disk, so a preview can name the record among the files it would write.
+ */
+export function collectionsWouldChange(plan: InstallationPlan, expanded: readonly ExpandedCollection[]): boolean {
+  const root = workspace(plan.root),
+    beforeLock = bytes(root, INSTALL_PATHS.lock, DISTRIBUTION_LIMITS.metadata)?.toString('utf8') ?? null;
+  return (
+    collectionsChange(root, plan, expanded, { beforeActive: null, beforeLock, afterLock: json(plan.lock) }) !== null
+  );
+}
 export function applyInstallation(
   input: unknown,
   options: InstallOptions = {},
@@ -345,7 +356,8 @@ export function applyInstallation(
       afterActive: json(plan.pointer),
       afterLock: json(plan.lock),
     };
-    // Built before anything is written, so a collection whose member the lock lacks refuses with nothing to recover.
+    // Built before pending.json is written, so a collection whose member the lock lacks refuses with nothing to recover
+    // (the immutable store and generation files already written change nothing that counts).
     const collections = collectionsChange(root, plan, options.collections ?? [], pending);
     replace(root, INSTALL_PATHS.pending, Buffer.from(json(pending)));
     checkpoint('pending');

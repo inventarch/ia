@@ -97,7 +97,7 @@ async function batch(
     { running: { packageRoot: fx.running, version: '3.5.1' } },
     {
       run: recorded.run,
-      resolveRepo,
+      resolveRepo: (root: string) => resolveRepo(root, fx.env, fx.running),
       progress: (_index, line) => progress.push(line),
       signal,
       env: fx.env,

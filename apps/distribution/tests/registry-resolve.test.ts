@@ -1150,3 +1150,135 @@ it('the id preferredExcept names is named, so a re-expansion keeps its request',
     { id: 'acme/y', range: '^1.0.0' },
   ]);
 });
+
+/** Collections `acme/a` and `acme/b` share `acme/x`; `acme/a` 2.0.0 moves x to ^2, and 3.0.0 drops x for w. */
+async function sharedRegistry(): Promise<string> {
+  const { dir } = await registry([
+    { id: 'acme/w', version: '1.0.0' },
+    { id: 'acme/x', version: '1.0.0' },
+    { id: 'acme/x', version: '2.0.0' },
+    { id: 'acme/y', version: '1.0.0' },
+  ]);
+  registryAddCollection(dir, 'kit', {
+    format: 'ia.registry-kit.v1',
+    id: 'acme/a',
+    releases: [
+      { version: '1.0.0', withdrawn: false, distributions: [{ id: 'acme/x', range: '^1.0.0' }] },
+      { version: '2.0.0', withdrawn: false, distributions: [{ id: 'acme/x', range: '^2.0.0' }] },
+      { version: '3.0.0', withdrawn: false, distributions: [{ id: 'acme/w', range: '^1.0.0' }] },
+    ],
+  });
+  registryAddCollection(dir, 'kit', {
+    format: 'ia.registry-kit.v1',
+    id: 'acme/b',
+    releases: [
+      {
+        version: '1.0.0',
+        withdrawn: false,
+        distributions: [
+          { id: 'acme/x', range: '^1.0.0' },
+          { id: 'acme/y', range: '^1.0.0' },
+        ],
+      },
+    ],
+  });
+  return dir;
+}
+const SHARED = new Map([
+  ['acme/a', ['acme/x']],
+  ['acme/b', ['acme/x', 'acme/y']],
+]);
+it('re-expanding one collection keeps a member another installed collection still lists, so its change conflicts', async () => {
+  const dir = await sharedRegistry();
+  await expect(
+    resolveWith(
+      workspaceRoot(),
+      dir,
+      [
+        { id: 'acme/a', range: '2.0.0' },
+        { id: 'acme/x', range: '^1.0.0' },
+        { id: 'acme/y', range: '^1.0.0' },
+      ],
+      { allowKits: true, named: ['acme/a'], collectionMembers: SHARED },
+    ),
+  ).rejects.toMatchObject({
+    code: 'IA-DIST-CONFLICT',
+    message: 'Kit acme/a 2.0.0 lists acme/x ^2.0.0, but installed collection acme/b lists it at ^1.0.0',
+    member: 'acme/x',
+    holders: ['acme/b'],
+  });
+});
+it('a release that drops a shared member leaves it requested while another installed collection lists it', async () => {
+  const dir = await sharedRegistry();
+  const resolved = await resolveWith(
+    workspaceRoot(),
+    dir,
+    [
+      { id: 'acme/a', range: '3.0.0' },
+      { id: 'acme/x', range: '^1.0.0' },
+      { id: 'acme/y', range: '^1.0.0' },
+    ],
+    { allowKits: true, named: ['acme/a'], collectionMembers: SHARED },
+  );
+  expect(resolved.expandedRequests).toEqual([
+    { id: 'acme/w', range: '^1.0.0' },
+    { id: 'acme/x', range: '^1.0.0' },
+    { id: 'acme/y', range: '^1.0.0' },
+  ]);
+});
+it('two collections re-expanded together still replace a member they share', async () => {
+  const dir = await sharedRegistry();
+  const resolved = await resolveWith(
+    workspaceRoot(),
+    dir,
+    [
+      { id: 'acme/a', range: '3.0.0' },
+      { id: 'acme/b', range: '1.0.0' },
+      { id: 'acme/x', range: '^1.0.0' },
+      { id: 'acme/y', range: '^1.0.0' },
+    ],
+    { allowKits: true, named: ['acme/a', 'acme/b'], collectionMembers: SHARED },
+  );
+  expect(resolved.expandedRequests).toEqual([
+    { id: 'acme/w', range: '^1.0.0' },
+    { id: 'acme/x', range: '^1.0.0' },
+    { id: 'acme/y', range: '^1.0.0' },
+  ]);
+});
+
+it('a kit whose member is a kit records the members it expanded to, on the kit the command named', async () => {
+  const { dir } = await registry([
+    { id: 'acme/w', version: '1.0.0' },
+    { id: 'acme/x', version: '1.0.0' },
+  ]);
+  registryAddCollection(dir, 'kit', {
+    format: 'ia.registry-kit.v1',
+    id: 'acme/outer',
+    releases: [
+      {
+        version: '1.0.0',
+        withdrawn: false,
+        distributions: [
+          { id: 'acme/inner', range: '^1.0.0' },
+          { id: 'acme/w', range: '^1.0.0' },
+        ],
+      },
+    ],
+  });
+  registryAddCollection(dir, 'kit', {
+    format: 'ia.registry-kit.v1',
+    id: 'acme/inner',
+    releases: [{ version: '1.0.0', withdrawn: false, distributions: [{ id: 'acme/x', range: '^1.0.0' }] }],
+  });
+  const resolved = await resolveWith(workspaceRoot(), dir, [{ id: 'acme/outer', range: '*' }], {
+    allowKits: true,
+    named: ['acme/outer'],
+  });
+  expect(resolved.expandedRequests).toEqual([
+    { id: 'acme/w', range: '^1.0.0' },
+    { id: 'acme/x', range: '^1.0.0' },
+  ]);
+  expect(resolved.expandedCollections).toEqual([
+    { id: 'acme/outer', version: '1.0.0', registry: dir, members: ['acme/w', 'acme/x'] },
+  ]);
+});

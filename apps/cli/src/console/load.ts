@@ -13,8 +13,8 @@ import { discoverRoot, iaHomeOf } from '../discovery.js';
 import type { DoctorRequest, DoctorView } from '../doctor.js';
 import { doctorRequest } from '../doctor.js';
 import { cliVersionRow } from '../doctor-user.js';
-import { NO_HANDOFF } from '../handoff.js';
-import { findLocalCli, readCliDependency } from '../local-cli.js';
+import { NO_HANDOFF, runnableCopy } from '../handoff.js';
+import { readCliDependency } from '../local-cli.js';
 import { readMarketplaceRecord } from '../marketplace-record.js';
 import { detectPackageManager } from '../package-manager.js';
 import type { Env } from '../program.js';
@@ -71,6 +71,7 @@ export async function loadState(input: {
   readonly spawnDoctor?: SpawnDoctor;
   readonly extensions?: readonly Extension[];
   readonly setupIds?: SetupIds;
+  /** Aborts the repo copy's doctor run: the console aborts it when it finishes during a load. */
   readonly signal?: AbortSignal;
   /** The bound on the workspace copy's doctor run; 20 s by default. */
   readonly timeoutMs?: number;
@@ -84,7 +85,10 @@ export async function loadState(input: {
   const root = found === undefined ? null : real(found);
   const dependency = root === null ? null : readCliDependency(root);
   const manifestDir = dependency === null ? null : dirname(dependency.manifest);
-  const copy = root === null || manifestDir === null ? null : findLocalCli(root, manifestDir);
+  // The copy hand-off would run (handoff.ts): found up to the workspaces root that hoists it, and none when the
+  // repository commits it or the user set IA_NO_HANDOFF=1. Without one, the rows come from this process and every step
+  // runs on the running copy, as when no copy is installed.
+  const copy = root === null ? null : runnableCopy(root, { env, running: packageRoot });
   // The running copy answers for itself; only another copy is run.
   const other = copy !== null && !sameFile(copy.packageRoot, packageRoot) ? copy : null;
   let report: DoctorReport | null = null;

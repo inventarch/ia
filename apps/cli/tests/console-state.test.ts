@@ -4,7 +4,8 @@
  * a repo copy's `doctor --json` run counts as a report, and how rows group into areas. Doctor collection is effectful,
  * so the tests inject fixed views and runs.
  */
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { mkdirSync, realpathSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import type { Extension } from '../src/consumer.js';
@@ -474,5 +475,68 @@ describe('loadState', () => {
     expect(byId(state.checks)['kits']).toBeUndefined();
     expect(byId(state.checks)['install-channel']?.from).toBe('running');
     expect(state.repoFailure).toBeNull();
+  });
+
+  /** A copy of the CLI installed at `dir`, whose entry exists. */
+  const installCopy = (dir: string): void => {
+    mkdirSync(join(dir, 'dist'), { recursive: true });
+    writeFileSync(
+      join(dir, 'package.json'),
+      JSON.stringify({ name: '@inventarch/cli', version: '3.4.0', bin: { ia: './dist/bin.js' } }),
+    );
+    writeFileSync(join(dir, 'dist/bin.js'), '');
+  };
+  /** A workspace that pins the CLI and has a copy installed in its own `node_modules`. */
+  const pinned = (prefix: string): string => {
+    const root = scratch(prefix);
+    mkdirSync(join(root, '.ia/src'), { recursive: true });
+    writeFileSync(join(root, 'package.json'), JSON.stringify({ devDependencies: { '@inventarch/cli': '3.4.0' } }));
+    installCopy(join(root, 'node_modules/@inventarch/cli'));
+    return root;
+  };
+  const load = (root: string, env: Record<string, string> = {}) => {
+    const runs: string[] = [];
+    const loaded = loadState({
+      cwd: root,
+      env: { IA_HOME: join(root, 'home'), ...env },
+      packageRoot: resolve(root, 'elsewhere'),
+      version: '3.5.1',
+      collect: () => view([...viewRows, check('cli-version'), check('kits')]),
+      spawnDoctor: async (entry) => {
+        runs.push(entry);
+        return report([json(check('records', 'ok'))]);
+      },
+    });
+    return { loaded, runs };
+  };
+  it('a copy the repository commits is never run: rows come in-process and steps run on the running copy', async () => {
+    const root = pinned('console-state-committed');
+    const git = (...args: string[]) => spawnSync('git', args, { cwd: root, encoding: 'utf8' });
+    expect(git('init', '-q').status).toBe(0);
+    expect(git('add', '-f', 'node_modules/@inventarch/cli/package.json').status).toBe(0);
+    const { loaded, runs } = load(root);
+    const state = await loaded;
+    expect(runs).toEqual([]);
+    expect(state.repo).toBeNull();
+    expect(byId(state.checks)['kits']?.from).toBe('in-process');
+  });
+  it('under the user’s IA_NO_HANDOFF=1 the workspace’s copy is never run', async () => {
+    const { loaded, runs } = load(pinned('console-state-no-handoff'), { IA_NO_HANDOFF: '1' });
+    const state = await loaded;
+    expect(runs).toEqual([]);
+    expect(state.repo).toBeNull();
+    expect(byId(state.checks)['kits']?.from).toBe('in-process');
+  });
+  it('a copy hoisted to the workspaces root is run, as hand-off finds it', async () => {
+    const repo = scratch('console-state-hoisted');
+    writeFileSync(join(repo, 'package.json'), JSON.stringify({ workspaces: ['packages/*'] }));
+    installCopy(join(repo, 'node_modules/@inventarch/cli'));
+    const member = join(repo, 'packages/app');
+    mkdirSync(join(member, '.ia/src'), { recursive: true });
+    writeFileSync(join(member, 'package.json'), JSON.stringify({ devDependencies: { '@inventarch/cli': '3.4.0' } }));
+    const { loaded, runs } = load(member);
+    const state = await loaded;
+    expect(runs).toHaveLength(1);
+    expect(state.repo?.packageRoot).toBe(realpathSync(join(repo, 'node_modules/@inventarch/cli')));
   });
 });

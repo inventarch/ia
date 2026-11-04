@@ -48,16 +48,23 @@ import {
   lockedReleases,
 } from '@inventarch/db/distribution';
 import type { Dependency, DistributionLock } from '@inventarch/db/distribution';
-import { ARCHIVE_CACHE, applyInstallation, cacheArchive, planInstallation } from '@inventarch/distribution/install';
+import {
+  ARCHIVE_CACHE,
+  applyInstallation,
+  cacheArchive,
+  collectionsWouldChange,
+  planInstallation,
+} from '@inventarch/distribution/install';
 import type { InstallationPlan } from '@inventarch/distribution/install';
 import type { ExpandedCollection } from '@inventarch/distribution/kit-collections';
-import { intactCollections } from '@inventarch/distribution/kit-collections';
+import { intactCollections, KIT_COLLECTIONS } from '@inventarch/distribution/kit-collections';
 import type { ProjectionDrift } from '@inventarch/distribution/projection';
 import { legacyProjectionActions, observeProjection } from '@inventarch/distribution/projection';
 import { PACKET_MARKER } from '@inventarch/runtime';
 import {
   registryChooser,
   registryLocation,
+  CollectionConflictError,
   registryWithdrawals,
   resolveFromRegistries,
   unpublishedPins,
@@ -182,6 +189,8 @@ export interface PlanView {
   readonly rooted: boolean;
   /** The registry collections this plan expanded, which the apply records beside the lock (kit-collections.ts). */
   readonly collections: readonly ExpandedCollection[];
+  /** Whether the apply would write the collection record, `.ia/kit-collections.json`, which "Would write" then names. */
+  readonly writesCollections: boolean;
 }
 
 const SYMBOL: Readonly<Record<ChangeRow['kind'], SymbolName>> = {
@@ -266,6 +275,8 @@ export interface Reruns {
   readonly install: string;
   /** `update`'s: the overview that lists the installed generation's direct requests. */
   readonly inspect: string;
+  /** `install`'s: this install with `extra` ids added, so collections that share a member are expanded together. */
+  readonly together?: (extra: readonly string[]) => string;
 }
 const RETRY = (reruns: Reruns): string => `Retry "${reruns.again}" when the host is reachable.`;
 const REGISTRY_RETRY = (reruns: Reruns): string =>
@@ -345,6 +356,15 @@ async function acquiring<T>(run: () => Promise<T>, where: string | null, route: 
     if (code === 'IA-DIST-REGISTRY-UNMAPPED')
       throw new Refusal(code, message, 3, at, `${UNMAPPED_NEXT} Then run "${reruns.again}".`);
     if (code === 'IA-DIST-LICENSE-REQUIRED') throw new Refusal(code, message, 3, at, LICENSED(reruns));
+    // A kit would move a member another installed collection still lists: expanding them together replaces both.
+    if (error instanceof CollectionConflictError && reruns.together !== undefined)
+      throw new Refusal(
+        code,
+        message,
+        3,
+        at,
+        `Install them together with "${reruns.together(error.holders)}"; that succeeds only when their releases list ${error.member} with the same range.`,
+      );
     // A service refusal the service located keeps its code and class 3, and gains its location (§4) and the
     // rerun after the file it names is repaired.
     if (!(error instanceof Refusal) && own !== null)
@@ -646,6 +666,7 @@ function requestReruns(request: PlanRequest): Reruns {
     another: `${spell(operation, { source: ['--registry', '<url|dir>'] })}${apply}`,
     install: spell('install', { ids: request.ids.map((id) => (to === undefined ? id : `${id}@${to}`)) }),
     inspect: `ia inspect${request.rooted === true ? ` --root ${quote(root)}` : ''}`,
+    together: (extra) => spell('install', { ids: joined(request.ids, extra) }),
   };
 }
 
@@ -915,6 +936,7 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
     retired: [],
     rooted: request.rooted ?? false,
     collections,
+    writesCollections: collectionsWouldChange(plan, collections),
   };
 }
 
@@ -1050,6 +1072,7 @@ const wouldWriteBlocks = (view: PlanView, caps: Capabilities): readonly (readonl
     `${INSTALL_PATHS.generations}/${plan.pointer.generation}/`,
     INSTALL_PATHS.lock,
     INSTALL_PATHS.active,
+    ...(view.writesCollections ? [KIT_COLLECTIONS] : []),
   ];
   return [
     [
@@ -1239,8 +1262,14 @@ function rerunsOf(context: Context, operation: Operation): Reruns {
       ids: args.positionals.map((id) => (to === undefined ? id : `${id}@${to}`)),
     }),
     inspect: `ia inspect${root === undefined ? '' : ` --root ${quote(root)}`}`,
+    together: (extra) => invocationOf(context, 'install', { ids: joined(args.positionals, extra) }),
   };
 }
+/** The ids a command named, then each of `extra` whose id none of them names (`acme/b` is named by `acme/b@1`). */
+const joined = (named: readonly string[], extra: readonly string[]): readonly string[] => [
+  ...named,
+  ...extra.filter((id) => !named.some((given) => given === id || given.startsWith(`${id}@`))),
+];
 
 /**
  * Registry spec §4: the one chooser a command builds, from the host rather than the process, so every verb that

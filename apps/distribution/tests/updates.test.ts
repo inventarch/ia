@@ -727,3 +727,38 @@ it(
   },
   PROCESS_CASE,
 );
+
+it('a cache stamped in the future (a clock stepped back) is replaced by the next refresh, forced or not', async () => {
+  for (const force of [false, true]) {
+    const home = join(temp(), '.ia'),
+      root = kitWorkspace(['acme/a']),
+      now = new Date();
+    await refresh(home, root, recording({ 'acme/a': '1.0.0' }).sources, { now });
+    // The clock then steps back a year: every stamp the cache holds lies in the future.
+    const future = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+      stored = readUpdateCheck(home)!;
+    writeFileSync(
+      join(home, UPDATE_CHECK),
+      JSON.stringify({
+        ...stored,
+        checkedAt: future,
+        packages: {
+          checked: true,
+          entries: [
+            ...stored.packages.entries!.map((entry) => ({ ...entry, checkedAt: future })),
+            { registry: 'npm', kind: 'package', id: '@acme/gone', latest: '9.0.0', checkedAt: future },
+          ],
+        },
+      }),
+    );
+    const next = recording({ 'acme/a': '1.1.0' });
+    const check = await refresh(home, root, next.sources, { now, force });
+    expect(
+      next.asked.map((unit) => unit.id),
+      `force ${force}`,
+    ).toEqual(['acme/a']);
+    expect(check.checkedAt, `force ${force}`).toBe(now.toISOString());
+    expect(refreshDue(check, now), `force ${force}`).toBe(false);
+    expect(entriesOf(home), `force ${force}`).toEqual(['release acme/a 1.1.0']);
+  }
+});
