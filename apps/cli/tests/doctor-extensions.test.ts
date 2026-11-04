@@ -130,6 +130,24 @@ it('a fix outside the token is nulled', () => {
       )[0],
     ).toMatchObject({ id: 'acme-account', remedy: 'ia acme login', fix: null });
 });
+it('a fix no declared step names runs only after confirmation, whatever the state file claims', () => {
+  const fix = { program: 'ia', argv: ['acme', 'wipe'], flow: 'immediate', writesTo: 'none' };
+  expect(
+    extensionChecks(
+      [acme(CONSOLE)],
+      home({ format: 'ia-extension-checks-1', checks: [row('acme-account', { fix })] }),
+    )[0]?.fix,
+  ).toMatchObject({ argv: ['acme', 'wipe'], flow: 'confirm' });
+});
+it("a fix a declared step names takes that step's flow and target, not the state file's", () => {
+  const fix = { program: 'ia', argv: ['acme', 'login'], flow: 'immediate', writesTo: 'none' };
+  expect(
+    extensionChecks(
+      [acme(CONSOLE)],
+      home({ format: 'ia-extension-checks-1', checks: [row('acme-account', { fix })] }),
+    )[0]?.fix,
+  ).toEqual({ program: 'ia', argv: ['acme', 'login'], flow: 'confirm', writesTo: 'user' });
+});
 it('doctor appends extension rows after the user rows, in Environment', () => {
   const at = home({ format: 'ia-extension-checks-1', checks: [row('acme-account')] });
   const view = collectDoctor({

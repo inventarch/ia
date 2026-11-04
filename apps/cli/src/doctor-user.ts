@@ -10,11 +10,13 @@
  * `.ia/release.json` language versions against the versions this ia's parser reads.
  */
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { hostname } from 'node:os';
 import { createRequire } from 'node:module';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { sameFile } from '@inventarch/db';
 import type { Decision } from '@inventarch/distribution/decisions';
 import { decisionFor, DECISIONS, readDecisions } from '@inventarch/distribution/decisions';
+import { parseOwner, pidRunning } from '@inventarch/distribution/home-lock';
 import { HOME_MARKER, resolveIaHome } from '@inventarch/distribution/ia-home';
 import { inspectMaterializedPlugin, MARKETPLACE_DIR } from '@inventarch/distribution/plugin-home';
 import type { UpdateCheck } from '@inventarch/distribution/updates';
@@ -27,6 +29,7 @@ import {
   readIaConfig,
   readUpdateCheck,
   refreshDue,
+  UPDATE_CHECK_LOCK,
   updateCheckDisabled,
 } from '@inventarch/distribution/updates';
 import { localDate } from './briefing.js';
@@ -100,6 +103,36 @@ export function refreshCommand(
     ...(input.root === undefined ? [] : ['--root', input.root]),
     ...(options.force && input.root !== undefined ? ['--force'] : []),
   ];
+}
+/** The IA home's store locks (host plugin distribution §3), relative to the home. */
+const HOME_LOCKS = [UPDATE_CHECK_LOCK, 'tracked-workspaces.json.lock'];
+/**
+ * One `home-lock:<file>` row per store lock in the IA home whose owner is gone: the token parses, the owner is on this
+ * host and its pid is no longer running. A lock a running process, another host or an unreadable token holds gets no
+ * row, since only the first can be said to be left behind. `ia` never removes another owner's lock, so the row names
+ * the file to delete by hand.
+ */
+export function homeLockRows(home: string): Check[] {
+  return HOME_LOCKS.flatMap((name): Check[] => {
+    const path = join(home, name);
+    let owner;
+    try {
+      owner = parseOwner(readFileSync(path, 'utf8'));
+    } catch {
+      return [];
+    }
+    if (owner === null || owner.host !== hostname() || pidRunning(owner.pid)) return [];
+    return [
+      row(
+        `home-lock:${name}`,
+        'Environment',
+        'IA home lock',
+        'warn',
+        `${path} was left by ia process ${owner.pid} on this host, which is no longer running (created ${Number.isNaN(Date.parse(owner.createdAt)) ? owner.createdAt : utcMinute(owner.createdAt)}); until it is deleted every change to that store waits for it and refuses`,
+        `Once no other ia process is running on this host, delete ${path} by hand`,
+      ),
+    ];
+  });
 }
 /** A recorded time as the rows print it: `YYYY-MM-DD HH:MM UTC`, the same on every machine. */
 export const utcMinute = (iso: string): string => `${new Date(iso).toISOString().slice(0, 16).replace('T', ' ')} UTC`;
@@ -634,6 +667,7 @@ export function userRows(input: {
   if (!disabled)
     for (const notice of stored?.account?.notices ?? [])
       checks.push(row('updates-account', 'Environment', 'Account', 'info', notice));
+  if (home !== null) checks.push(...homeLockRows(home));
   // A home holding src/ fails the ia-home row, and refresh-updates would refuse to write it, so nothing is started.
   const unusable = home !== null && existsSync(join(home, 'src'));
   // The workspace at its real path, as the mechanism opens it: a root reached through a link reads the same.
