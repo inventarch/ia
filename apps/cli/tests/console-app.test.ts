@@ -14,6 +14,7 @@ import { iaFix } from '../src/fix.js';
 import type { LocalCli } from '../src/local-cli.js';
 import type { ProcessHooks } from '../src/console/app.js';
 import { consoleSignals, resolveRepo, runConsole } from '../src/console/app.js';
+import type { SpawnDoctor } from '../src/console/load.js';
 import type { Offer, Step } from '../src/console/offers.js';
 import { offersFor } from '../src/console/offers.js';
 import type { RunIO, SpawnOptions } from '../src/console/run.js';
@@ -576,9 +577,17 @@ const fakeHooks = (terminal: FakeTerminal): Hooks => {
     },
   };
 };
-function launch(extra: { collect?: () => DoctorView; spawn?: RunIO['spawn'] } = {}) {
+function launch(
+  extra: {
+    collect?: () => DoctorView;
+    spawn?: RunIO['spawn'];
+    spawnDoctor?: SpawnDoctor;
+    prepare?: (root: string) => void;
+  } = {},
+) {
   const root = scratch('console-app');
   mkdirSync(join(root, '.ia/src'), { recursive: true });
+  extra.prepare?.(root);
   const terminal = new FakeTerminal();
   const stdin = new PassThrough();
   const timers: (() => void)[] = [];
@@ -604,6 +613,7 @@ function launch(extra: { collect?: () => DoctorView; spawn?: RunIO['spawn'] } = 
     }) as unknown as typeof setTimeout,
     clearTimer: (() => {}) as typeof clearTimeout,
     hooks,
+    ...(extra.spawnDoctor === undefined ? {} : { spawnDoctor: extra.spawnDoctor }),
   });
   // Restored by an ordinary write, or synchronously on the paths that exit right after.
   const restored = (): boolean =>
@@ -629,6 +639,37 @@ describe('runConsole', () => {
     expect(await run.exit).toBe(0);
     expect(run.restored()).toBe(true);
     expect(run.hooks.listeners.size).toBe(0);
+  });
+  it('q during a reload aborts the reload’s doctor run, so the process does not wait it out', async () => {
+    const signals: (AbortSignal | undefined)[] = [];
+    const run = launch({
+      // The workspace's own copy, so each load runs its doctor.
+      prepare: (root) => {
+        writeFileSync(join(root, 'package.json'), JSON.stringify({ devDependencies: { '@inventarch/cli': '3.6.0' } }));
+        const copy = join(root, 'node_modules/@inventarch/cli');
+        mkdirSync(join(copy, 'dist'), { recursive: true });
+        writeFileSync(
+          join(copy, 'package.json'),
+          JSON.stringify({ name: '@inventarch/cli', version: '3.6.0', bin: { ia: './dist/main.js' } }),
+        );
+        writeFileSync(join(copy, 'dist/main.js'), '');
+      },
+      spawnDoctor: (_entry, _root, signal) => {
+        signals.push(signal);
+        const answer = { status: 0, stdout: JSON.stringify({ version: 1, checks: [], counts: {} }) };
+        // The first load answers at once; the reload's doctor ends only when it is aborted.
+        if (signals.length === 1) return Promise.resolve(answer);
+        return new Promise((settle) => signal?.addEventListener('abort', () => settle({ status: null, stdout: '' })));
+      },
+    });
+    await until(run.entered, 'the console');
+    run.stdin.write('r');
+    await until(() => signals.length === 2, 'the reload');
+    expect(signals[1]?.aborted).toBe(false);
+    run.stdin.write('q');
+    expect(await run.exit).toBe(0);
+    expect(signals[1]?.aborted).toBe(true);
+    expect(run.restored()).toBe(true);
   });
   it('a throw inside the loop restores the terminal and exits 1', async () => {
     let loads = 0;

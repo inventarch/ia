@@ -106,16 +106,26 @@ export async function runConsole(input: {
   const screen = new Screen(io, caps.color);
   const print = (text: string): void => io.write(`${text}\n`);
 
-  const load = (): Promise<ConsoleState> =>
-    loadState({
-      cwd: input.cwd,
-      env,
-      packageRoot: input.packageRoot,
-      version: input.version,
-      collect: input.collect ?? collectDoctor,
-      extensions,
-      ...(input.spawnDoctor === undefined ? {} : { spawnDoctor: input.spawnDoctor }),
-    });
+  // One controller per load, aborted when the console finishes, so quitting never waits for a reload's doctor run.
+  const loads = new Set<AbortController>();
+  const load = async (): Promise<ConsoleState> => {
+    const controller = new AbortController();
+    loads.add(controller);
+    try {
+      return await loadState({
+        cwd: input.cwd,
+        env,
+        packageRoot: input.packageRoot,
+        version: input.version,
+        collect: input.collect ?? collectDoctor,
+        extensions,
+        signal: controller.signal,
+        ...(input.spawnDoctor === undefined ? {} : { spawnDoctor: input.spawnDoctor }),
+      });
+    } finally {
+      loads.delete(controller);
+    }
+  };
 
   let state: ConsoleState;
   let offers: readonly Offer[];
@@ -181,6 +191,7 @@ export async function runConsole(input: {
     const finish = (code: number, error?: unknown, sync = false): void => {
       if (finished) return;
       finished = true;
+      for (const controller of loads) controller.abort();
       release();
       removeHooks();
       screen.leave(sync);

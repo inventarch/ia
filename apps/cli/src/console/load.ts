@@ -71,6 +71,7 @@ export async function loadState(input: {
   readonly spawnDoctor?: SpawnDoctor;
   readonly extensions?: readonly Extension[];
   readonly setupIds?: SetupIds;
+  /** Aborts the repo copy's doctor run: the console aborts it when it finishes during a load. */
   readonly signal?: AbortSignal;
 }): Promise<ConsoleState> {
   const { env, packageRoot, version } = input;
