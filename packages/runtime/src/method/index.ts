@@ -15,6 +15,7 @@ export type { ReleaseIndex, ReleaseRow } from './releases.js';
 export {
   SIDECARS,
   assertPinnedKit,
+  canonicalKitId,
   carrierOf,
   declaredAssets,
   findKit,
@@ -27,13 +28,25 @@ export {
   kitBindings,
   kitChecks,
   kitDelivery,
+  kitInstallMatches,
+  kitInstallation,
   kitRecordNames,
   listKits,
   readDescriptor,
   readLock,
+  requireKitInstalled,
   sourcesDigest,
 } from './kits.js';
-export type { Kit, KitCheck, KitOrigin, KitRecordName, KitSources, LockedPackage, Recommendation } from './kits.js';
+export type {
+  Kit,
+  KitCheck,
+  KitInstallation,
+  KitOrigin,
+  KitRecordName,
+  KitSources,
+  LockedPackage,
+  Recommendation,
+} from './kits.js';
 export {
   INSTALLED_KITS_DIRECTORY,
   RESTORE_NEEDED,

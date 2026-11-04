@@ -1,7 +1,11 @@
-import { mkdirSync, realpathSync, writeFileSync } from 'node:fs';
+import { mkdirSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { afterAll, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
+import { CORE_TOKENS } from '../src/commands.js';
+import { collectDoctor } from '../src/doctor.js';
 import { cliVersionRow } from '../src/doctor-user.js';
+import { handoffTarget } from '../src/handoff.js';
+import { resolveWorkspaceCli } from '../src/local-cli.js';
 import { cleanup, scratch } from './scratch-fixture.js';
 
 afterAll(cleanup);
@@ -164,4 +168,150 @@ it('pins at a pnpm workspace root with -w', () => {
   const { root } = fixture('cv-pnpm-root', { range: null, installed: null, manager: 'pnpm@10.0.0' });
   put(resolve(root, 'pnpm-workspace.yaml'), 'packages: []');
   expect(row(root, scratch('cv-other'), '3.5.0').remedy).toBe('pnpm add -D -w @inventarch/cli@3.5.0');
+});
+
+/** `repo` is a workspaces root listing `packages/*`; `packages/x` pins the CLI and holds the IA root. */
+function hoisted(prefix: string, options: { installed: string | null; lock?: string; workspaces?: string[] }) {
+  const repo = scratch(prefix);
+  put(resolve(repo, 'package.json'), JSON.stringify({ workspaces: options.workspaces ?? ['packages/*'] }));
+  if (options.lock !== undefined) put(resolve(repo, options.lock), '');
+  const member = resolve(repo, 'packages/x');
+  put(resolve(member, 'package.json'), JSON.stringify({ devDependencies: { '@inventarch/cli': '3.5.0' } }));
+  mkdirSync(resolve(member, '.ia/src'), { recursive: true });
+  const copy = resolve(repo, 'node_modules/@inventarch/cli');
+  if (options.installed !== null) {
+    put(
+      resolve(copy, 'package.json'),
+      JSON.stringify({ name: '@inventarch/cli', version: options.installed, bin: { ia: 'dist/main.js' } }),
+    );
+    put(resolve(copy, 'dist/main.js'), '');
+  }
+  return { repo, member, copy: options.installed === null ? copy : realpathSync(copy) };
+}
+it("a hoisted copy is reported as this workspace's copy", () => {
+  const { member, copy } = hoisted('cv-hoisted', { installed: '3.5.0' });
+  expect(row(member, copy, '3.5.0')).toMatchObject({
+    status: 'ok',
+    detail: "this workspace's copy 3.5.0, CLI dependency 3.5.0; no package manager declared or locked",
+  });
+});
+it('the manager is detected at the workspaces root', () => {
+  const { repo, member } = hoisted('cv-hoisted-pm', { installed: null, lock: 'package-lock.json' });
+  const check = row(member, scratch('cv-other'), '3.5.0');
+  expect(check.status).toBe('warn');
+  expect(check.remedy).toBe(`In ${repo}: npm install`);
+  expect(check.detail).toContain(`between the workspace and ${repo.replaceAll('\\', '/')}`);
+});
+describe('doctor names the copy hand-off runs', () => {
+  const running = scratch('cv-tie-running');
+  const iaHome = resolve(scratch('cv-tie-home'), '.ia');
+  const copyAt = (dir: string): string => {
+    const copy = resolve(dir, 'node_modules/@inventarch/cli');
+    put(
+      resolve(copy, 'package.json'),
+      JSON.stringify({ name: '@inventarch/cli', version: '3.5.0', bin: { ia: 'dist/main.js' } }),
+    );
+    put(resolve(copy, 'dist/main.js'), '');
+    return realpathSync(copy);
+  };
+  /** Each layout gives the IA root and the copy both must name, or null when neither may name one. */
+  const layouts: [string, () => { root: string; expected: string | null }][] = [
+    [
+      'the workspace pins and installs it',
+      () => {
+        const { root, copy } = fixture('cv-tie-own', { range: '3.5.0', installed: '3.5.0' });
+        return { root, expected: copy };
+      },
+    ],
+    [
+      'a workspaces root hoists it',
+      () => {
+        const { member, copy } = hoisted('cv-tie-hoisted', { installed: '3.5.0' });
+        return { root: member, expected: copy };
+      },
+    ],
+    [
+      'the member installs its own beside a hoisted one',
+      () => {
+        const { member } = hoisted('cv-tie-nested', { installed: '3.5.0' });
+        return { root: member, expected: copyAt(member) };
+      },
+    ],
+    [
+      'a parent root that does not list the member',
+      () => {
+        const { member } = hoisted('cv-tie-unrelated', { installed: '3.5.0', workspaces: ['apps/*'] });
+        return { root: member, expected: null };
+      },
+    ],
+    [
+      'a parent root that lists the member only through braces',
+      () => {
+        const { member } = hoisted('cv-tie-braces', { installed: '3.5.0', workspaces: ['packages/{x,y}'] });
+        return { root: member, expected: null };
+      },
+    ],
+  ];
+  it('through a linked --root, doctor reads the workspace at its real path, as hand-off does', () => {
+    // The pin and the copy sit above the link's real target, not above the link. A junction needs no privilege on
+    // Windows; elsewhere the type is ignored and a directory symlink is made.
+    const repo = scratch('cv-tie-link');
+    put(resolve(repo, 'package.json'), JSON.stringify({ devDependencies: { '@inventarch/cli': '3.5.0' } }));
+    const copy = copyAt(repo);
+    const real = resolve(repo, 'ws');
+    mkdirSync(resolve(real, '.ia/src'), { recursive: true });
+    const link = resolve(scratch('cv-tie-link-alias'), 'ws');
+    symlinkSync(real, link, 'junction');
+    const handedTo = handoffTarget({
+      argv: ['validate', '--root', link],
+      cwd: scratch('cv-tie-link-cwd'),
+      env: {},
+      packageRoot: running,
+      iaHome,
+      extensions: [],
+      coreTokens: CORE_TOKENS,
+      committed: () => false,
+    });
+    expect(handedTo?.packageRoot).toBe(copy);
+    const view = collectDoctor({
+      cwd: scratch('cv-tie-link-cwd'),
+      root: link,
+      packageRoot: running,
+      version: '3.6.0',
+      runtime: { version: '22.22.0', platform: process.platform, arch: process.arch },
+      env: { IA_HOME: iaHome },
+      home: scratch('cv-tie-link-home'),
+    });
+    expect(view.checks.find((check) => check.id === 'cli-version')).toMatchObject({
+      status: 'warn',
+      detail: expect.stringContaining("running 3.6.0; this workspace's copy is 3.5.0"),
+    });
+  });
+  it.each(layouts)('%s', (_name, layout) => {
+    const { root, expected } = layout();
+    expect(resolveWorkspaceCli(root).local?.packageRoot ?? null).toBe(expected);
+    const handedTo = handoffTarget({
+      argv: ['validate'],
+      cwd: root,
+      env: {},
+      packageRoot: running,
+      iaHome,
+      extensions: [],
+      coreTokens: CORE_TOKENS,
+      committed: () => false,
+    });
+    expect(handedTo?.packageRoot ?? null).toBe(expected);
+    const asked: string[] = [];
+    const committed = (packageRoot: string) => (asked.push(packageRoot), true);
+    const check = cliVersionRow({ root, packageRoot: running, version: '3.5.0', env: {}, host: false, committed });
+    expect(asked).toEqual(expected === null ? [] : [expected]);
+    expect(check.status).toBe(expected === null ? 'warn' : 'info');
+  });
+});
+it('an unrelated parent root does not lend its manager', () => {
+  const { member } = hoisted('cv-unrelated', { installed: null, lock: 'package-lock.json', workspaces: ['apps/*'] });
+  const check = row(member, scratch('cv-other'), '3.5.0');
+  expect(check.remedy).toBeNull();
+  expect(check.detail).toContain('no package manager declared or locked');
+  expect(check.detail).toContain('package.json lists @inventarch/cli 3.5.0');
 });

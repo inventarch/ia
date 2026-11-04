@@ -845,6 +845,7 @@
         "tests/cli-version.test.ts",
         "tests/doctor-handoff.test.ts",
         "tests/handoff.test.ts",
+        "tests/local-cli-fs-root.test.ts",
         "tests/local-cli.test.ts",
         "tests/render.test.ts"
       ],
@@ -2599,6 +2600,7 @@
         "tests/door-read.test.ts",
         "tests/editor.test.ts",
         "tests/entry.test.ts",
+        "tests/install-guard.test.ts",
         "tests/kits-package.test.ts",
         "tests/locator.test.ts",
         "tests/loop.test.ts",
