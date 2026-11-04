@@ -12,6 +12,7 @@ import type { Fix } from '../src/fix.js';
 import { iaFix } from '../src/fix.js';
 import type { LocalCli } from '../src/local-cli.js';
 import type { ProcessHooks } from '../src/console/app.js';
+import type { SpawnDoctor } from '../src/console/load.js';
 import { consoleSignals, runConsole } from '../src/console/app.js';
 import type { Offer, Step } from '../src/console/offers.js';
 import { offersFor } from '../src/console/offers.js';
@@ -876,14 +877,26 @@ describe('runConsole', () => {
 /** The end of a long value, which the folder line always shows. */
 const tail = (text: string): string => text.slice(-12);
 /** The console started outside any workspace, with `tracked` workspaces in its IA home's tracked list. */
-function launchAll(tracked = 0) {
+function launchAll(tracked = 0, extra: { copies?: boolean; spawnDoctor?: SpawnDoctor } = {}) {
   const base = scratch('console-all');
   const cwd = join(base, 'outside'),
     home = join(base, 'home');
   mkdirSync(cwd, { recursive: true });
   mkdirSync(home, { recursive: true });
   const roots = Array.from({ length: tracked }, (_, index) => join(base, `ws${index}`));
-  for (const root of roots) mkdirSync(join(root, '.ia/src'), { recursive: true });
+  for (const root of roots) {
+    mkdirSync(join(root, '.ia/src'), { recursive: true });
+    // Its own installed copy, so its rows come from that copy's doctor (the injected `spawnDoctor`).
+    if (extra.copies !== true) continue;
+    writeFileSync(join(root, 'package.json'), JSON.stringify({ devDependencies: { '@inventarch/cli': '3.5.0' } }));
+    const installed = join(root, 'node_modules/@inventarch/cli');
+    mkdirSync(join(installed, 'dist'), { recursive: true });
+    writeFileSync(
+      join(installed, 'package.json'),
+      JSON.stringify({ name: '@inventarch/cli', version: '3.5.0', bin: { ia: './dist/bin.js' } }),
+    );
+    writeFileSync(join(installed, 'dist/bin.js'), '');
+  }
   if (roots.length > 0) trackWorkspaces(home, roots);
   const terminal = new FakeTerminal();
   const stdin = new PassThrough();
@@ -904,6 +917,7 @@ function launchAll(tracked = 0) {
     }) as unknown as typeof setTimeout,
     clearTimer: (() => {}) as typeof clearTimeout,
     hooks,
+    ...(extra.spawnDoctor === undefined ? {} : { spawnDoctor: extra.spawnDoctor }),
   });
   const shows = (text: string) => () => terminal.out.includes(text);
   return { base, cwd, home, roots, terminal, stdin, timers, hooks, exit, shows };
@@ -1024,5 +1038,142 @@ describe('the all-workspaces view', () => {
     await until(run.shows('space select'), 'the key bar');
     run.stdin.write('q');
     expect(await run.exit).toBe(0);
+  });
+});
+
+/** A copy's doctor report whose `records` row says `marker`, which the repo view shows in its Records area. */
+const markedReport = (marker: string) => ({
+  status: 0,
+  stdout: JSON.stringify({
+    version: 1,
+    checks: [
+      { id: 'cli-version', title: 'cli', status: 'ok', detail: 'copy', remedy: null, fix: null },
+      { id: 'records', title: 'records', status: 'warn', detail: marker, remedy: null, fix: null },
+    ],
+    counts: {},
+  }),
+});
+const escapeKey = async (run: ReturnType<typeof launchAll>): Promise<void> => {
+  const timers = run.timers.length;
+  run.stdin.write('\x1b');
+  await until(() => run.timers.length > timers, 'the escape timer');
+  run.timers.at(-1)!();
+};
+
+describe('refreshing a workspace opened from the table', () => {
+  /** Doctor runs answer at once until `hold` is set; then each waits for its `settle`. */
+  function held() {
+    const pending: { root: string; settle: (run: ReturnType<typeof markedReport>) => void }[] = [];
+    const state = { hold: false };
+    const spawnDoctor: SpawnDoctor = (_entry, root) =>
+      state.hold
+        ? new Promise((settle) => pending.push({ root, settle }))
+        : Promise.resolve(markedReport(`fresh ${root.slice(-3)}`));
+    return { pending, state, spawnDoctor };
+  }
+  it('a refresh that finishes after Escape or q is discarded, and the console keeps running', async () => {
+    const doctor = held();
+    const run = launchAll(2, { copies: true, spawnDoctor: doctor.spawnDoctor });
+    await until(run.shows('Attention 2'), 'both rows');
+    for (const leave of ['escape', 'q'] as const) {
+      run.stdin.write('\r');
+      await until(run.shows('esc back'), 'the repo view');
+      doctor.state.hold = true;
+      run.stdin.write('r');
+      await until(() => doctor.pending.length === 1, 'the refresh');
+      const mark = run.terminal.out.length;
+      if (leave === 'escape') await escapeKey(run);
+      else run.stdin.write('q');
+      await until(() => run.terminal.out.slice(mark).includes('space select'), 'the table');
+      doctor.pending.shift()!.settle(markedReport('STALE'));
+      await settle();
+      await settle();
+      expect(run.hooks.exits).toEqual([]);
+      expect(run.terminal.out.slice(mark)).not.toContain('STALE');
+      doctor.state.hold = false;
+    }
+    run.stdin.write('q');
+    expect(await run.exit).toBe(0);
+  });
+  it('a refresh of one repo that finishes after another is opened never shows in it', async () => {
+    const doctor = held();
+    const run = launchAll(2, { copies: true, spawnDoctor: doctor.spawnDoctor });
+    await until(run.shows('Attention 2'), 'both rows');
+    run.stdin.write('\r');
+    await until(run.shows('esc back'), 'the first repo');
+    doctor.state.hold = true;
+    run.stdin.write('r');
+    await until(() => doctor.pending.length === 1, 'the refresh');
+    await escapeKey(run);
+    await until(run.shows('space select'), 'the table');
+    run.stdin.write('j');
+    await settle();
+    const mark = run.terminal.out.length;
+    run.stdin.write('\r');
+    await until(() => run.terminal.out.slice(mark).includes('esc back'), 'the second repo');
+    expect(run.terminal.out.slice(mark)).toContain('fresh ws1');
+    doctor.pending.shift()!.settle(markedReport('STALE ws0'));
+    await settle();
+    await settle();
+    run.stdin.write('k');
+    await settle();
+    expect(run.terminal.out.slice(mark)).not.toContain('STALE ws0');
+    expect(run.hooks.exits).toEqual([]);
+    run.stdin.write('q');
+    await until(() => run.terminal.out.slice(mark).includes('space select'), 'the table again');
+    run.stdin.write('q');
+    expect(await run.exit).toBe(0);
+  });
+  it('refreshes share the four doctor slots with the background loads, and quit aborts every run', async () => {
+    let active = 0,
+      most = 0;
+    const calls: { root: string; signal: AbortSignal | undefined }[] = [];
+    const spawnDoctor: SpawnDoctor = (_entry, root, signal) => {
+      calls.push({ root, signal });
+      active += 1;
+      most = Math.max(most, active);
+      const done = (): void => {
+        active -= 1;
+      };
+      // The first row answers soon; every other run holds its slot until it is aborted.
+      if (root.endsWith('ws0'))
+        return new Promise((answer) =>
+          setTimeout(() => {
+            done();
+            answer(markedReport('first'));
+          }, 20),
+        );
+      return new Promise((answer) => {
+        signal?.addEventListener('abort', () => {
+          done();
+          answer({ status: null, stdout: '' });
+        });
+      });
+    };
+    const run = launchAll(5, { copies: true, spawnDoctor });
+    await until(() => calls.length === 5 && run.terminal.out.includes('first'), 'four held runs and the first row');
+    run.stdin.write('\r');
+    await until(run.shows('esc back'), 'the first repo');
+    for (let times = 0; times < 3; times += 1) {
+      run.stdin.write('r');
+      await settle();
+    }
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    expect(most).toBeLessThanOrEqual(4);
+    const mark = run.terminal.out.length;
+    run.stdin.write('q');
+    await until(() => run.terminal.out.slice(mark).includes('space select'), 'the table');
+    run.stdin.write('q');
+    expect(await run.exit).toBe(0);
+    await settle();
+    // Every run still holding a slot was aborted by the quit, and no queued refresh started after it.
+    expect(calls.filter((call) => !call.root.endsWith('ws0')).every((call) => call.signal?.aborted === true)).toBe(
+      true,
+    );
+    expect(active).toBe(0);
+    const after = calls.length;
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    expect(calls.length).toBe(after);
+    expect(most).toBeLessThanOrEqual(4);
   });
 });

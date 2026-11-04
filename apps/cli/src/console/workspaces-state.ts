@@ -36,6 +36,57 @@ export const DOCTOR_LIMIT = 4;
 /** The bound on each workspace copy's doctor run. */
 export const WORKSPACE_DOCTOR_TIMEOUT_MS = 30_000;
 
+/**
+ * The slots the console's doctor runs share: at most `limit` run at once, the rest wait in order. A run whose signal
+ * aborts while it waits never starts (it settles `null`); one that has started is the task's to stop, through the same
+ * signal. Every load the console starts (the table's rows and a refresh of an opened workspace) goes through one pool.
+ */
+export interface DoctorPool {
+  run<T>(signal: AbortSignal, task: () => Promise<T>): Promise<T | null>;
+}
+export function doctorPool(limit: number = DOCTOR_LIMIT): DoctorPool {
+  let active = 0;
+  const waiting: (() => void)[] = [];
+  // A finished run hands its slot straight to the next waiter, so a slot is never free between the two.
+  const release = (): void => {
+    const go = waiting.shift();
+    if (go === undefined) active -= 1;
+    else go();
+  };
+  return {
+    async run<T>(signal: AbortSignal, task: () => Promise<T>): Promise<T | null> {
+      if (signal.aborted) return null;
+      if (active < Math.max(1, limit)) active += 1;
+      else {
+        const started = await new Promise<boolean>((settle) => {
+          const go = (): void => {
+            signal.removeEventListener('abort', drop);
+            settle(true);
+          };
+          const drop = (): void => {
+            const at = waiting.indexOf(go);
+            if (at !== -1) waiting.splice(at, 1);
+            settle(false);
+          };
+          waiting.push(go);
+          signal.addEventListener('abort', drop, { once: true });
+        });
+        if (!started) return null;
+        // Handed a slot after its signal aborted: it passes the slot on and never starts.
+        if (signal.aborted) {
+          release();
+          return null;
+        }
+      }
+      try {
+        return await task();
+      } finally {
+        release();
+      }
+    },
+  };
+}
+
 export const loadingRow = (tracked: TrackedWorkspace): RepoRow => ({
   tracked,
   state: 'loading',
@@ -72,6 +123,8 @@ export async function loadAll(input: {
   readonly collect: (request: DoctorRequest) => DoctorView;
   readonly spawnDoctor?: SpawnDoctor;
   readonly extensions?: readonly Extension[];
+  /** The slots to run in; a pool of `limit` (4 by default) of its own when none is given. */
+  readonly pool?: DoctorPool;
 }): Promise<void> {
   const { signal } = input;
   const extensions = input.extensions ?? [];
@@ -112,11 +165,8 @@ export async function loadAll(input: {
     }
     if (!signal.aborted) input.onRow(index, row);
   };
-  const worker = async (): Promise<void> => {
-    for (let next = queue.shift(); next !== undefined && !signal.aborted; next = queue.shift()) await one(next);
-  };
-  const limit = Math.max(1, input.limit ?? DOCTOR_LIMIT);
-  await Promise.all(Array.from({ length: Math.min(limit, queue.length) }, worker));
+  const pool = input.pool ?? doctorPool(input.limit ?? DOCTOR_LIMIT);
+  await Promise.all(queue.map((index) => pool.run(signal, () => one(index))));
 }
 
 export interface Summary {

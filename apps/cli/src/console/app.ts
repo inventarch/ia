@@ -61,7 +61,7 @@ import type { TerminalIO } from './terminal.js';
 import { Screen } from './terminal.js';
 import { graphemes } from './width.js';
 import type { RepoRow } from './workspaces-state.js';
-import { loadAll, loadingRow, summarize } from './workspaces-state.js';
+import { doctorPool, loadAll, loadingRow, summarize, WORKSPACE_DOCTOR_TIMEOUT_MS } from './workspaces-state.js';
 
 export const ESCAPE_TIMEOUT_MS = 50;
 
@@ -191,6 +191,11 @@ export async function runConsole(input: {
     message: null,
   };
   let batchController: AbortController | null = null;
+  // Every workspace doctor the console starts, the table's and an opened workspace's refresh, shares these slots.
+  const pool = doctorPool();
+  /** The opened workspace's refresh in flight, and how many have been asked for: only the newest may land. */
+  let refresh: AbortController | null = null;
+  let refreshes = 0;
   const homeDir = (): string | null => home?.facts.home ?? iaHomeOf(env) ?? null;
 
   const decoder = new KeyDecoder();
@@ -251,6 +256,7 @@ export async function runConsole(input: {
       removeHooks();
       all.controller?.abort();
       batchController?.abort();
+      refresh?.abort();
       screen.leave(sync);
       waiting?.cancel();
       if (error !== undefined) {
@@ -375,14 +381,44 @@ export async function runConsole(input: {
       offers: offersFor(loaded, consoles),
       failure: loaded.repoFailure,
     });
+    /** Stops the opened workspace's refresh, if one is in flight: its result could only be stale now. */
+    const dropRefresh = (): void => {
+      refresh?.abort();
+      refresh = null;
+      refreshes += 1;
+    };
     const reload = async (): Promise<void> => {
-      if (ui.drilled === null) {
+      const target = ui.drilled;
+      if (target === null) {
         home = await load(input.cwd);
         state = home;
       } else {
-        state = await load(ui.drilled.root);
-        const row = ui.drilled.row === null ? undefined : all.rows[ui.drilled.row];
-        if (row !== undefined && ui.drilled.row !== null) all.rows[ui.drilled.row] = rowFrom(row.tracked, state);
+        // A workspace opened from the table is read in the shared slots, bounded and cancellable; a newer refresh
+        // cancels this one, and a result is kept only while that same opening is still on screen.
+        dropRefresh();
+        const controller = new AbortController();
+        refresh = controller;
+        const mine = refreshes;
+        const loaded = await pool.run(controller.signal, () =>
+          loadState({
+            cwd: target.root,
+            env,
+            packageRoot: input.packageRoot,
+            version: input.version,
+            collect,
+            extensions,
+            signal: controller.signal,
+            timeoutMs: WORKSPACE_DOCTOR_TIMEOUT_MS,
+            ...(input.spawnDoctor === undefined ? {} : { spawnDoctor: input.spawnDoctor }),
+          }),
+        );
+        if (refresh === controller) refresh = null;
+        if (loaded === null || finished || mine !== refreshes || ui.drilled !== target || controller.signal.aborted)
+          return;
+        state = loaded;
+        const row = target.row === null ? undefined : all.rows[target.row];
+        if (row !== undefined && target.row !== null && row.tracked.root === target.root)
+          all.rows[target.row] = rowFrom(row.tracked, loaded);
       }
       offers = offersFor(state, consoles);
       ui.selected = Math.min(ui.selected, Math.max(0, offers.length - 1));
@@ -416,6 +452,7 @@ export async function runConsole(input: {
           signal: controller.signal,
           collect,
           extensions,
+          pool,
           ...(input.spawnDoctor === undefined ? {} : { spawnDoctor: input.spawnDoctor }),
           onRow: (index, row) => {
             if (controller.signal.aborted || finished) return;
@@ -574,6 +611,7 @@ export async function runConsole(input: {
       all.preview = null;
       if (outcome.next === 'open') {
         ui.mode = 'repo';
+        dropRefresh();
         ui.drilled = { root: outcome.root, row: null };
         ui.view = 'offers';
         ui.selected = 0;
@@ -649,6 +687,7 @@ export async function runConsole(input: {
 
     const toAll = (): void => {
       ui.mode = 'all';
+      if (ui.drilled !== null) dropRefresh();
       ui.drilled = null;
       state = home;
       offers = offersFor(home, consoles);
@@ -707,6 +746,7 @@ export async function runConsole(input: {
             all.message = row.state === 'missing' ? `${row.tracked.id} is missing.` : 'Still reading this workspace.';
           else {
             ui.mode = 'repo';
+            dropRefresh();
             ui.drilled = { root: row.tracked.root, row: item.index };
             ui.view = 'offers';
             ui.selected = 0;
@@ -742,6 +782,7 @@ export async function runConsole(input: {
       const key = entry.key;
       const top = ui.view === 'offers';
       if (ui.drilled !== null && top && (key === 'quit' || key === 'escape')) {
+        dropRefresh();
         ui.mode = 'all';
         ui.drilled = null;
         state = home;
