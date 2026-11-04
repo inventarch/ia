@@ -1239,14 +1239,10 @@ export function collectDoctor(request: DoctorRequest): DoctorView {
   // report has one root. Without --root it was discovered upward from the cwd, which is how the §8.2 hook runs doctor.
   // A supplied --root is literal, as for every other verb: it is a workspace only when it holds .ia/src itself. When it
   // does not but lies inside a workspace, that workspace is only named (`enclosing`), never described or offered init.
-  const workspaceRoot =
-    supplied === undefined
-      ? usable
-        ? root
-        : undefined
-      : directory(resolve(supplied, '.ia/src'))
-        ? supplied
-        : undefined;
+  // Either way the workspace is read at its real path (`root`), as hand-off reads it (handoff.ts), so the cli-version
+  // row names the copy hand-off runs even through a linked --root.
+  const workspace = supplied === undefined ? usable : directory(resolve(supplied, '.ia/src'));
+  const workspaceRoot = workspace ? root : undefined;
   const enclosing =
     supplied !== undefined && workspaceRoot === undefined && directory(supplied)
       ? discoverRoot(supplied, iaHomeOf(request.env, request.home))

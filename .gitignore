@@ -2,6 +2,7 @@
 .ia/.iadb/
 .ia/work/
 .ia/distributions/
+.playwright-mcp/
 
 # Dependencies and emitted packages (kept locally for validation)
 node_modules/
