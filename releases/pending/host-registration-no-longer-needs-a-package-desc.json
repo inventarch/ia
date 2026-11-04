@@ -2,7 +2,7 @@
   "format": "ia.npm-change-note.v1",
   "bump": "patch",
   "title": "Host registration no longer needs a package descriptor",
-  "summary": "ia host and ia project, committed bootstrap included, work on any workspace that has sources and admits, whether or not it ships a package. The committed path now refuses a workspace that does not admit, naming ia validate, and a generated CLAUDE.md or AGENTS.md is still refused.",
+  "summary": "ia host and ia project, committed bootstrap included, work on any workspace that has sources and admits, whether or not it ships a package. The committed path now refuses a workspace that does not admit, naming ia validate (with --root when one was given), while --remove still runs on sources that do not admit, and a generated CLAUDE.md or AGENTS.md is still refused.",
   "packages": [
     "@inventarch/cli"
   ],

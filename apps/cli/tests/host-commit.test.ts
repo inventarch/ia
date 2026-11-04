@@ -106,23 +106,50 @@ it('refuses a directory with no .ia/src, naming ia init, through the committed a
   }
 });
 
-it('a workspace that does not admit names ia validate, through the committed and the registration paths', async () => {
+it('a workspace that does not admit names the rooted ia validate and writes nothing, through both routes', async () => {
   const { root, env } = await withoutDescriptor();
   put(root, '.ia/src/broken.ia', '@@@ this is not a record\n');
-  for (const argv of [
-    ['host', 'claude', '--commit', '--root', root, '--json'],
-    ['host', 'claude', '--root', root, '--json'],
-  ]) {
-    const refused = await run(argv, { env });
-    expect(refused.exitCode, argv.join(' ')).toBe(3);
-    expect(JSON.parse(refused.stdout)).toMatchObject({
-      code: 'IA-CLI-CONFLICT',
-      next: expect.stringContaining('ia validate'),
-    });
-    expect(JSON.parse(refused.stdout).message).not.toContain('initialized');
-  }
-  expect(existsSync(resolve(root, 'CLAUDE.md'))).toBe(false);
+  const next = `Run "ia validate --root ${quote(realpathSync(root))}" and fix the reported errors.`;
+  for (const mode of [[], ['--apply', '--yes']])
+    for (const committed of [true, false]) {
+      const argv = ['host', 'claude', ...(committed ? ['--commit'] : []), ...mode, '--root', root, '--json'];
+      const refused = await run(argv, { env });
+      // The ordinary route's --apply is first stopped by the mandate profile, which cannot be read from a broken source.
+      if (mode.length > 0 && !committed) expect(refused.exitCode, argv.join(' ')).not.toBe(0);
+      else {
+        expect(refused.exitCode, argv.join(' ')).toBe(3);
+        expect(JSON.parse(refused.stdout), argv.join(' ')).toMatchObject({ code: 'IA-CLI-CONFLICT', next });
+        expect(JSON.parse(refused.stdout).message).not.toContain('initialized');
+      }
+      expect(existsSync(resolve(root, 'CLAUDE.md')), argv.join(' ')).toBe(false);
+      expect(existsSync(resolve(root, '.mcp.json')), argv.join(' ')).toBe(false);
+    }
+});
+
+it('the committed refusal names the target root when run from another workspace', async () => {
+  const { root: other, env } = await withoutDescriptor();
+  const { root } = await initialized(env);
+  put(root, '.ia/src/broken.ia', '@@@ this is not a record\n');
+  const refused = await run(['host', 'claude', '--commit', '--root', root, '--json'], { env, cwd: other });
+  expect(refused.exitCode).toBe(3);
+  expect(JSON.parse(refused.stdout).next).toBe(
+    `Run "ia validate --root ${quote(realpathSync(root))}" and fix the reported errors.`,
+  );
+});
+
+it('ia host claude --commit --remove runs on sources that do not admit and leaves them untouched', async () => {
+  const { root, env } = await withoutDescriptor();
+  const applied = await run(['host', 'claude', '--commit', '--apply', '--yes', '--root', root, '--json'], { env });
+  expect(applied.exitCode, applied.stdout).toBe(0);
+  expect(existsSync(resolve(root, '.mcp.json'))).toBe(true);
+  put(root, '.ia/src/broken.ia', '@@@ this is not a record\n');
+  const before = readFileSync(resolve(root, '.ia/src/broken.ia'), 'utf8');
+  const removed = await run(['host', 'claude', '--commit', '--remove', '--apply', '--yes', '--root', root, '--json'], {
+    env,
+  });
+  expect(removed.exitCode, removed.stdout).toBe(0);
   expect(existsSync(resolve(root, '.mcp.json'))).toBe(false);
+  expect(readFileSync(resolve(root, '.ia/src/broken.ia'), 'utf8')).toBe(before);
 });
 
 it('ia host claude --commit still refuses a generated CLAUDE.md', async () => {

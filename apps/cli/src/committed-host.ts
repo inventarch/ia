@@ -12,7 +12,7 @@ import type { BootstrapHost } from '@inventarch/distribution/hosts';
 import { UsageError } from './args.js';
 import type { Context, Result } from './consumer.js';
 import { confirm, Refusal, refusalOf, requireRoot } from './consumer.js';
-import { requireWorkspace } from './host.js';
+import { requireWorkspace, rootedNext } from './host.js';
 import { sessionGate } from './profile.js';
 import type { Capabilities, SymbolName } from './render.js';
 import { document, entry, quote, words } from './render.js';
@@ -86,8 +86,23 @@ export async function runCommitHost(context: Context): Promise<Result> {
     rooted = supplied === undefined ? '' : ` --root ${quote(supplied)}`;
   const root = requireRoot(context);
   requireWorkspace(root);
-  requireAdmittedWorkspace(root);
   const remove = args.flag('remove');
+  // Removal reads no record, so it runs on a workspace that does not admit.
+  if (!remove) {
+    try {
+      requireAdmittedWorkspace(root);
+    } catch (error) {
+      if (supplied === undefined || !(error instanceof Refusal) || error.next === null) throw error;
+      throw new Refusal(
+        error.code,
+        error.message,
+        error.exit,
+        error.where,
+        rootedNext(error.next, name === 'codex' ? 'codex' : 'claude', root),
+        error.at,
+      );
+    }
+  }
   let plan: BootstrapPlan;
   try {
     plan = planBootstrap(root, name as BootstrapHost, host.version, remove);
