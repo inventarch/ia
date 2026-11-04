@@ -27,6 +27,7 @@ import {
   methodRefusal,
   readRegistry,
   projectOf,
+  readBindings,
   readReleases,
   registerWorkspace,
   releaseRecords,
@@ -229,34 +230,53 @@ describe('names and briefing', () => {
   });
 });
 
+/** Every entry under a folder with its content, so a rewritten file shows as well as a new or missing one. */
+function snapshot(folder: string): Record<string, string> {
+  const rows: Record<string, string> = {};
+  for (const entry of readdirSync(folder, { recursive: true, withFileTypes: true }))
+    rows[join(entry.parentPath, entry.name).slice(folder.length)] = entry.isDirectory()
+      ? '<directory>'
+      : readFileSync(join(entry.parentPath, entry.name)).toString('hex');
+  return rows;
+}
+
 describe('a missing binding refuses only the method it names', () => {
-  it('refuses IA-CORE-NO-METHOD for the activity, writes nothing, and names only the missing binding', () => {
+  it('refuses IA-CORE-NO-METHOD for the activity, writes nothing, names only the missing binding, and reading goes on', () => {
     const repo = join(dir, 'repo');
     write(
       join(repo, '.ia', 'src', 'workspace.ia'),
       '#! ia 1.0\n\n@workspace repo\n  meaning\n    says "A repository."\n',
     );
-    const files = (): string[] => readdirSync(repo, { recursive: true }).map(String).sort();
-    const before = files();
+    const bundled = join(dir, 'kits');
+    kit(join('kits', 'one'), '0.1.0', 1, 'one');
+    const home = join(dir, 'home');
+    mkdirSync(home);
+    const before = snapshot(dir);
     const store = join(dir, 'closures');
     const refusal = catching(() =>
       resolveMethod(
         { entry: 'work', activity: 'task', root: repo },
         {
-          kits: { bundled: join(dir, 'no-kits'), home: null },
+          kits: { bundled, home: null },
           restore: () => {
             throw new Error('a refused resolve restores nothing');
           },
-          env: { IA_HOME: join(dir, 'home') },
+          env: { IA_HOME: home },
           store,
         },
       ),
     );
     expect(refusal).toBeInstanceOf(MethodError);
     expect(methodRefusal(refusal)).toMatchObject({ error: { code: 'IA-CORE-NO-METHOD', key: 'work.task' } });
-    expect((refusal as MethodError).message).toMatch(/^no method is bound for work\.task in this repository: /);
-    expect((refusal as MethodError).message).not.toMatch(/private|plugin is required/i);
-    expect(files()).toEqual(before);
+    expect((refusal as MethodError).message).toBe(
+      'no method is bound for work.task in this repository: .ia/bindings.json names no work.task, no work.*, and no defaults.work. List the kits with kit.mjs list and bind one with bind.mjs set work.task <kit> <capability>',
+    );
+    expect(snapshot(dir)).toEqual(before);
     expect(existsSync(store)).toBe(false);
+    // The public path is unaffected: the same kit folder reads and lists after the refusal.
+    expect(listKits({ bundled, home: null }).map((k) => [k.folder, k.origin, k.version])).toEqual([
+      ['one', 'bundled', '0.1.0'],
+    ]);
+    expect(readBindings(repo)).toBeNull();
   });
 });

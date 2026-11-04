@@ -1,6 +1,7 @@
+import { lstatSync } from 'node:fs';
 import { parse } from 'smol-toml';
 import { reconcileConfig } from './config.js';
-import { bytes, fail, json, replace, utf8, workspace } from './files.js';
+import { bytes, contained, fail, json, replace, utf8, workspace } from './files.js';
 import { bootstrapRow } from './hosts.js';
 import type { BootstrapFormat, BootstrapHost } from './hosts.js';
 import { editJson } from './json-edit.js';
@@ -115,9 +116,11 @@ function markdown(path: string, current: string | null, remove: boolean, contrib
   if (start < 0 || endAt < start || text.indexOf(BLOCK_BEGIN, start + 1) >= 0)
     fail('LOCAL-MODIFICATION', `${path} holds an incomplete or repeated IA bootstrap block`);
   let after = text.slice(endAt + BLOCK_END.length);
-  if (after.startsWith('\n')) after = after.slice(1);
+  // The closing line's own terminator (CRLF, LF or none at the end of the file) is kept as it was found.
+  const terminator = after.startsWith('\r\n') ? '\r\n' : after.startsWith('\n') ? '\n' : '';
+  after = after.slice(terminator.length);
   const before = text.slice(0, start);
-  if (!remove) return before + block + after;
+  if (!remove) return before + block.slice(0, -1) + terminator + after;
   const kept = (before.replace(/\n+$/, '\n') + after).replace(/^\n+/, '');
   return kept.trim() === '' ? null : kept;
 }
@@ -173,6 +176,19 @@ function tomlFile(path: string, current: string | null, version: string, remove:
   return combined.trim() === '' ? null : combined;
 }
 
+/**
+ * Whether `CONTRIBUTING.md` is a plain file the block may name. A probe, never a read: a directory, a link, a hard link,
+ * an oversized file or anything unreadable only selects the generic wording, so no guide can make a bootstrap fail.
+ */
+function hasContributingGuide(root: string): boolean {
+  try {
+    const stat = lstatSync(contained(root, 'CONTRIBUTING.md'));
+    return stat.isFile() && stat.nlink === 1 && stat.size <= 1024 * 1024;
+  } catch {
+    return false;
+  }
+}
+
 /** The plan of the committed bootstrap for one host at root: each file's next text and what changes. */
 export function planBootstrap(rootInput: string, host: BootstrapHost, version: string, remove = false): BootstrapPlan {
   const root = workspace(rootInput);
@@ -184,7 +200,7 @@ export function planBootstrap(rootInput: string, host: BootstrapHost, version: s
   };
   const action = (before: string | null, after: string | null): BootstrapFile['action'] =>
     before === after ? 'unchanged' : before === null ? 'create' : after === null ? 'remove' : 'update';
-  const contributing = bytes(root, 'CONTRIBUTING.md') !== null;
+  const contributing = hasContributingGuide(root);
   const files: BootstrapFile[] = [];
   for (const path of row.bootstrap.instructions) {
     const before = read(path),

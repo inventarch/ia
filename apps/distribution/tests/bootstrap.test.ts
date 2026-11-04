@@ -1,4 +1,14 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  linkSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, expect, it } from 'vitest';
@@ -156,3 +166,61 @@ it('a block written by the previous text is updated in place, and every other by
   applyBootstrap(plan);
   expect(planBootstrap(root, 'claude', '3.5.0').files[0]!.action).toBe('unchanged');
 });
+
+const GENERIC = "follow the repository's own contributing guide";
+const kinds: ReadonlyArray<readonly [string, () => void]> = [
+  ['a directory', () => mkdirSync(join(root, 'CONTRIBUTING.md'))],
+  ['a file over 1 MiB', () => put('CONTRIBUTING.md', 'x'.repeat(1024 * 1024 + 1))],
+  [
+    'a hard link',
+    () => {
+      put('guide.md', '# Contributing\n');
+      linkSync(join(root, 'guide.md'), join(root, 'CONTRIBUTING.md'));
+    },
+  ],
+];
+for (const [name, make] of kinds)
+  it(`installing, updating and removing never fail over a CONTRIBUTING.md that is ${name}`, () => {
+    make();
+    const plan = planBootstrap(root, 'claude', '3.5.0');
+    expect(plan.files[0]!.after).toContain(GENERIC);
+    applyBootstrap(plan);
+    expect(planBootstrap(root, 'claude', '3.6.0').files[0]!.action).toBe('unchanged');
+    applyBootstrap(planBootstrap(root, 'claude', '3.5.0', true));
+    expect(existsSync(join(root, 'CLAUDE.md'))).toBe(false);
+  });
+
+it('a CONTRIBUTING.md that is a symlink selects the generic wording', (context) => {
+  put('guide.md', '# Contributing\n');
+  try {
+    symlinkSync(join(root, 'guide.md'), join(root, 'CONTRIBUTING.md'));
+  } catch {
+    context.skip();
+  }
+  const plan = planBootstrap(root, 'claude', '3.5.0');
+  expect(plan.files[0]!.after).toContain(GENERIC);
+  applyBootstrap(plan);
+  applyBootstrap(planBootstrap(root, 'claude', '3.5.0', true));
+});
+
+const OLD_BLOCK = [BLOCK_BEGIN, '## IA', '', 'Start each session by calling `ia_session`.', BLOCK_END].join('\n');
+for (const [name, terminator] of [
+  ['CRLF', '\r\n'],
+  ['LF', '\n'],
+  ['no terminator at the end of the file', ''],
+] as const)
+  it(`replacing an old block keeps its closing ${name}`, () => {
+    const head = '# Project\n\n';
+    const tail = terminator === '' ? '' : 'tail\n';
+    put('CLAUDE.md', head + OLD_BLOCK + terminator + tail);
+    const plan = planBootstrap(root, 'claude', '3.5.0');
+    const after = plan.files[0]!.after!;
+    expect(after.startsWith(head + BLOCK_BEGIN)).toBe(true);
+    expect(after.endsWith(`${BLOCK_END}${terminator}${tail}`)).toBe(true);
+    expect(after).not.toContain(`${BLOCK_END}\n\r\n`);
+    expect(after).toMatch(MARKER);
+    applyBootstrap(plan);
+    expect(planBootstrap(root, 'claude', '3.5.0').files[0]!.action).toBe('unchanged');
+    applyBootstrap(planBootstrap(root, 'claude', '3.5.0', true));
+    expect(read('CLAUDE.md')).toBe('# Project\n' + tail);
+  });
