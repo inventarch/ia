@@ -14,16 +14,18 @@ import type { Context, Result } from './consumer.js';
 import { confirm, discoverRoot, iaHomeOf, Refusal } from './consumer.js';
 import { homeSrcRemedy } from './home-remedy.js';
 import type { Capabilities, StatusSymbol, Token } from './render.js';
-import { atom, document, entry, quote, sectionLabel, statusSymbol, style, words } from './render.js';
+import { atom, document, entry, sectionLabel, statusSymbol, style, words } from './render.js';
 import type { TrackedState, TrackedWorkspace } from './tracked.js';
 import {
   checkTrackId,
   defaultTrackId,
   clashRemedy,
+  commandPath,
   FIND_DEPTH,
   findWorkspaces,
   idClashes,
   idTaken,
+  PATH_OMITTED,
   readTracked,
   trackedRow,
   trackedState,
@@ -227,7 +229,8 @@ async function find(context: Context, home: string, folder: string): Promise<Res
         state: row.tracked || now.has(row.id) ? 'tracked' : clashing.has(row.root) ? 'clash' : 'new',
       }) as const,
   );
-  const pending = rows.filter((row) => row.state !== 'tracked').length;
+  const pending = rows.filter((row) => row.state !== 'tracked').length,
+    folderPath = commandPath(walked);
   return human([
     [sectionLabel(`Workspaces under ${middle(walked, caps.width - 17, caps.ascii)}`, caps), ...table(rows, caps)],
     ...clashes.map((clash) => {
@@ -268,10 +271,14 @@ async function find(context: Context, home: string, folder: string): Promise<Res
             )
           : line(
               [
-                ...words(
-                  `${pending} of ${found.length} found ${pending === 1 ? 'is' : 'are'} not tracked. Track them with`,
-                ),
-                atom(`"ia workspaces find ${quote(walked)} --apply".`),
+                ...words(`${pending} of ${found.length} found ${pending === 1 ? 'is' : 'are'} not tracked.`),
+                ...(folderPath !== undefined
+                  ? [...words('Track them with'), atom(`"ia workspaces find ${folderPath} --apply".`)]
+                  : [
+                      ...words('From that folder, run'),
+                      atom('"ia workspaces find . --apply"'),
+                      ...words(`to track them; ${PATH_OMITTED}.`),
+                    ]),
               ],
               'info',
               caps,
