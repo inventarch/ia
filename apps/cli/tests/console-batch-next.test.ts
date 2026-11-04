@@ -178,8 +178,29 @@ describe('after the run', () => {
     expect(git(kept.top, ['ls-remote', 'origin', 'chore/ia-fix-generation'], fx.env)).not.toBe('');
     const created = readLog<{ argv: string[]; cwd: string }>(join(fx.dir, 'gh.log'));
     expect(created).toEqual([
-      { argv: ['pr', 'create', '--fill', '--head', 'chore/ia-fix-generation'], cwd: results[1]!.worktree },
+      {
+        argv: ['pr', 'create', '--fill', '--head', 'chore/ia-fix-generation', '--base', 'main'],
+        cwd: results[1]!.worktree,
+      },
     ]);
+  });
+  it('the PR is opened against the branch the worktree was made from, origin/master included', async () => {
+    const fx = withGh('batch-next-base');
+    const { top } = repo(fx, 'old', {}, 'master');
+    const { results } = await batch(fx, [rowOf(top, [relock(top)])]);
+    expect(results[0]).toMatchObject({ ok: true, base: 'origin/master' });
+    const run = defaultRunner(fx.env);
+    const opened = await pushAndOpenPrs(await commitPassed(results, 'Re-lock', run, fx.env), run, fx.env);
+    expect(opened).toEqual([{ root: top, url: 'https://example.test/pull/chore/ia-fix-generation', error: null }]);
+    expect(readLog<{ argv: string[] }>(join(fx.dir, 'gh.log')).map((call) => call.argv)).toEqual([
+      ['pr', 'create', '--fill', '--head', 'chore/ia-fix-generation', '--base', 'master'],
+    ]);
+    // A result that does not say its base gets no PR, and nothing is pushed for it.
+    const unknown = { ...results[0]!, base: undefined, branch: 'chore/ia-other' };
+    expect(await pushAndOpenPrs([unknown], run, fx.env)).toEqual([
+      { root: top, url: null, error: 'the branch the worktree was made from is not known, so no PR is opened' },
+    ]);
+    expect(git(top, ['ls-remote', 'origin', 'chore/ia-other'], fx.env)).toBe('');
   });
   it('a branch that exists on the remote is reported per repo', async () => {
     const fx = withGh('batch-next-remote');

@@ -168,7 +168,7 @@ async function createBranch(
 
 /**
  * For each repository that passed (and committed): a create-only `git push -u origin <branch>:refs/heads/<branch>`,
- * then `gh pr create --fill --head <branch>`. A branch already on origin, at any commit, is reported as a collision and
+ * then `gh pr create --fill --head <branch> --base <the branch the worktree was made from>`. A branch already on origin, at any commit, is reported as a collision and
  * no PR is opened; any failure is reported for that repository and the others continue. git and gh are both checked
  * before anything is pushed.
  */
@@ -190,6 +190,16 @@ export async function pushAndOpenPrs(
       out.push({ root: result.root, url: null, error: refused ?? 'git or gh may not run' });
       continue;
     }
+    // The PR's base is the branch the worktree was made from, never gh's own default, which could differ from it.
+    if (result.base === undefined || !result.base.startsWith('origin/')) {
+      out.push({
+        root: result.root,
+        url: null,
+        error: 'the branch the worktree was made from is not known, so no PR is opened',
+      });
+      continue;
+    }
+    const base = result.base.slice('origin/'.length);
     const options = { cwd: result.worktree, env };
     const guard = guardOf(results, result);
     const pushed = await createBranch(git.path, result.worktree, result.branch, run, options, guard);
@@ -200,7 +210,7 @@ export async function pushAndOpenPrs(
     const opened = await spawnGuarded(
       run,
       gh.path,
-      ['pr', 'create', '--fill', '--head', result.branch],
+      ['pr', 'create', '--fill', '--head', result.branch, '--base', base],
       options,
       guard,
     );

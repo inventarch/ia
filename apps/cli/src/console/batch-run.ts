@@ -449,6 +449,8 @@ export interface RepoResult {
   readonly created: boolean;
   /** What the created worktree was, checked before every later command in it. */
   readonly pinned?: Pinned | null;
+  /** The remote-tracking branch the worktree was made from (`origin/main`), which its PR is opened against. */
+  readonly base?: string;
 }
 
 const repoResult = (repo: RepoPlan) => ({
@@ -512,9 +514,18 @@ async function runRepo(
   const { top, worktree, workspace, branch } = repo;
   let created = false;
   let pinned: Pinned | null = null;
+  let from: string | undefined;
   const done = (ok: boolean, last: string, refused: string | null = null): RepoResult => {
     say(refused === null ? last : `refused: ${refused}`);
-    return { ...repoResult(repo), ok, last: refused ?? last, refused, created, pinned };
+    return {
+      ...repoResult(repo),
+      ok,
+      last: refused ?? last,
+      refused,
+      created,
+      pinned,
+      ...(from === undefined ? {} : { base: from }),
+    };
   };
   const refuse = (why: string): RepoResult => done(false, why, why);
   if (repo.refused !== null) return refuse(repo.refused);
@@ -553,6 +564,7 @@ async function runRepo(
   if (added.refused !== undefined) return refuse(added.refused);
   if (added.status !== 0) return done(false, `git worktree add failed: ${lastLine(added.stderr)}`);
   created = true;
+  from = base.base;
   // What was created is pinned: its real path must be the destination, and it is checked before every later command.
   pinned = pinWorktree(worktree);
   if (pinned === null || fold(pinned.real) !== fold(now))
