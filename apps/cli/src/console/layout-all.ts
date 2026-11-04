@@ -154,8 +154,11 @@ const PLUGIN: Column = { title: 'plugin', width: 18, pick: (row) => row.plugin }
 
 /** The summary panel's text: Tracked, Healthy, Attention and Missing always; Unreadable, Unchecked and Loading when not 0. */
 export function summaryText(summary: Summary, ascii: boolean): string {
+  return summaryParts(summary, ascii).join('  ');
+}
+function summaryParts(summary: Summary, ascii: boolean): readonly string[] {
   const behind = summary.behind ? ` ${ascii ? '!' : '▲'}` : '';
-  const parts = [
+  return [
     `Latest ${summary.latest ?? '?'}`,
     `Global ${summary.global}${behind}`,
     `Tracked ${summary.tracked}`,
@@ -166,7 +169,16 @@ export function summaryText(summary: Summary, ascii: boolean): string {
     ...(summary.unchecked > 0 ? [`Unchecked ${summary.unchecked}`] : []),
     ...(summary.loading > 0 ? [`Loading ${summary.loading}`] : []),
   ];
-  return parts.join('  ');
+}
+/** The summary panel's lines: its parts, two spaces apart, wrapped between parts so no count is ever cut off. */
+export function summaryLines(summary: Summary, ascii: boolean, width: number): readonly string[] {
+  const lines: string[] = [];
+  for (const part of summaryParts(summary, ascii)) {
+    const last = lines.at(-1);
+    if (last !== undefined && stringWidth(`${last}  ${part}`) <= width) lines[lines.length - 1] = `${last}  ${part}`;
+    else lines.push(part);
+  }
+  return lines;
 }
 
 const label = (row: RepoRow): string => row.tracked.label ?? row.tracked.id;
@@ -286,9 +298,11 @@ export function layoutAll(input: AllLayoutInput): Grid {
     );
     return grid;
   }
-  grid.put(1, 0, summaryText(input.summary, ascii), 'bold', columns - 2, ascii);
-  const top = 2,
-    body = rows - 4;
+  const summary = summaryLines(input.summary, ascii, columns - 2);
+  summary.forEach((line, y) => grid.put(1, y, line, 'bold', columns - 2, ascii));
+  const panel = summary.length;
+  const top = panel + 1,
+    body = rows - panel - 3;
   const side = columns >= SIDE_BY_SIDE;
   const split = side ? Math.floor(columns * 0.58) : null;
   const listHeight = side ? body : Math.floor((body - 1) / 2);
@@ -301,7 +315,7 @@ export function layoutAll(input: AllLayoutInput): Grid {
     grid.put(0, y, horizontal.repeat(columns), 'dim', undefined, ascii);
     if (split !== null) grid.put(split, y, junction, 'dim', undefined, ascii);
   };
-  divider(1, ascii ? '+' : '┬');
+  divider(panel, ascii ? '+' : '┬');
   divider(rows - 2, ascii ? '+' : '┴');
   if (split !== null)
     for (let y = top; y < top + body; y += 1) grid.put(split, y, ascii ? '|' : '│', 'dim', undefined, ascii);

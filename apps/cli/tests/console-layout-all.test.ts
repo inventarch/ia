@@ -173,8 +173,8 @@ describe('golden frames', () => {
     const loading = frame().find((line) => line.includes('notes'))!;
     expect(loading).toMatch(/\[ \] \? notes\s+\? \?\s+\? \?\s+\? \?\s+\? \?/);
     // The plugin column appears from 120 columns.
-    expect(frame({ columns: 140 })[2]).toContain('plugin');
-    expect(frame({ columns: 100 })[2]).not.toContain('plugin');
+    expect(frame({ columns: 140 }).find((line) => line.includes('workspace'))).toContain('plugin');
+    expect(frame({ columns: 100 }).find((line) => line.includes('workspace'))).not.toContain('plugin');
   });
   it('an empty list highlights find', () => {
     const lines = frame({ selected: new Set(), choices: [], cursor: 0 }, []);
@@ -248,6 +248,36 @@ describe('golden frames', () => {
 });
 
 describe('summary', () => {
+  it('every non-zero count is visible at 80, 100 and 140 columns, the panel wrapping when it must', () => {
+    const repos = [...rows(), { ...ready('fresh', '3.5.1', [check('kits', 'unknown', 'not checked')]) }];
+    for (const columns of [80, 100, 140])
+      for (const caps of [UNICODE, ASCII]) {
+        const lines = frame({ columns, caps }, repos);
+        const panel = lines
+          .slice(
+            0,
+            lines.findIndex((line) => /^[─-]{10,}/.test(line)),
+          )
+          .join(' ');
+        for (const count of [
+          'Tracked 7',
+          'Healthy 1',
+          'Attention 2',
+          'Missing 1',
+          'Unreadable 1',
+          'Unchecked 1',
+          'Loading 1',
+        ])
+          expect([columns, panel]).toEqual([columns, expect.stringContaining(count)]);
+        for (const line of lines) expect(stringWidth(line)).toBeLessThanOrEqual(columns);
+        expect(lines.some((line) => line.includes('…') && /Loading|Unreadable/.test(line))).toBe(false);
+      }
+    // The table keeps its header and rows below a two-line panel.
+    const narrow = frame({ columns: 80 }, repos);
+    expect(narrow[1]).toContain('Unreadable 1');
+    expect(narrow[2]).toMatch(/^─+$/);
+    expect(narrow[3]).toContain('workspace');
+  });
   it('the summary shows Tracked, Healthy, Attention, Missing, and Unreadable, Unchecked and Loading only when non-zero', () => {
     const base = summarize([], { latest: '3.5.1' }, '3.5.1');
     expect(summaryText(base, false)).toBe('Latest 3.5.1  Global 3.5.1  Tracked 0  Healthy 0  Attention 0  Missing 0');

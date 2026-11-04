@@ -1,4 +1,5 @@
- Latest 3.5.1  Global 3.4.0 ▲  Tracked 6  Healthy 1  Attention 2  Missing 1  Unreadable 1  Loading…
+ Latest 3.5.1  Global 3.4.0 ▲  Tracked 6  Healthy 1  Attention 2  Missing 1  Unreadable 1
+ Loading 1
 ─────────────────────────────────────────────────────────┬──────────────────────────────────────────
          workspace        cli      records  lock    kits │ atlas
  › [x] ▲ atlas            ▲ 3.5.0  ✔ 0      ▲ drift ▲ 2  │ /srv/repos/atlas
@@ -13,7 +14,6 @@
     Re-lock                                      1 repo  │ Re-lock
  MORE                                                    │
     Find workspaces in a folder…                         │
-                                                         │
                                                          │
                                                          │
                                                          │
