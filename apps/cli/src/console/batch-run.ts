@@ -90,7 +90,12 @@ export function batchEnv(env: Env, platform: NodeJS.Platform = process.platform)
  * enough that a command waiting on something no one will give (a credential, a lock) never holds the batch for good.
  */
 export const BATCH_COMMAND_TIMEOUT_MS = 10 * 60_000;
-/** Ends `child` and, on Windows, every process it started (a `.cmd` runs its program as cmd.exe's child). */
+/**
+ * Ends `child` and, on Windows, every process it started (a `.cmd` runs its program as cmd.exe's child). On POSIX only
+ * the child itself is killed, so a grandchild (an install's own scripts) can outlive it: killing the whole group would
+ * need the child spawned `detached`, in a process group of its own, and the terminal's Ctrl-C would then no longer
+ * reach the command in flight, which is how a stopped batch ends it (app.ts).
+ */
 function stopTree(child: ReturnType<typeof spawn>, env: Env): void {
   if (process.platform === 'win32' && child.pid !== undefined) {
     const root = Object.entries(env).find(([name]) => name.toUpperCase() === 'SYSTEMROOT')?.[1] ?? 'C:\\Windows';
