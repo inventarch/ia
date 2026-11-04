@@ -67,6 +67,8 @@ function sequenceLength(text: string): number {
 
 export const PASTE_START = '\x1b[200~';
 export const PASTE_END = '\x1b[201~';
+/** The most a bracketed paste may hold; past it the paste is discarded, never run, up to its end marker. */
+export const PASTE_LIMIT = 64 * 1024;
 /** A pasted payload as text: control characters (line breaks included) dropped, so a paste never submits. */
 const pastedText = (payload: string): string => payload.replace(/[\x00-\x1f\x7f-\x9f]/g, '');
 /** How many characters at the end of `text` could be the start of `marker`. */
@@ -81,10 +83,14 @@ export class KeyDecoder {
   private buffer = '';
   /** The payload of a bracketed paste that has started and not yet ended, or null. */
   private paste: string | null = null;
+  /** The open paste outgrew `PASTE_LIMIT`: its payload is dropped up to its end marker. */
+  private overflow = false;
   /**
    * Every complete key in the buffer and this chunk; an incomplete escape sequence stays buffered. A bracketed paste
    * (the console turns the mode on) is never a key: its payload is text in text mode and ignored in keys mode, so a
-   * pasted `q` or line break neither quits nor runs anything.
+   * pasted `q` or line break neither quits nor runs anything. A paste is bounded: past `PASTE_LIMIT` its payload is
+   * discarded, and one still open when the escape timer flushes is abandoned, so a paste that never ends cannot hold
+   * the console's input.
    */
   push(chunk: string): readonly Input[] {
     this.buffer += chunk;
@@ -101,12 +107,14 @@ export class KeyDecoder {
         if (end === -1) {
           // Hold what could be the start of the end marker; the rest is payload.
           const keep = partialMarker(this.buffer, PASTE_END);
-          this.paste += this.buffer.slice(0, this.buffer.length - keep);
+          this.take(this.buffer.slice(0, this.buffer.length - keep));
           this.buffer = this.buffer.slice(this.buffer.length - keep);
           break;
         }
-        const payload = pastedText(this.paste + this.buffer.slice(0, end));
+        this.take(this.buffer.slice(0, end));
+        const payload = this.overflow ? '' : pastedText(this.paste);
         this.paste = null;
+        this.overflow = false;
         this.buffer = this.buffer.slice(end + PASTE_END.length);
         if (this.mode === 'text') text += payload;
         continue;
@@ -146,14 +154,28 @@ export class KeyDecoder {
   }
   /** Called when the escape timer fires: a held lone ESC is Escape, a partial sequence is dropped as `other`. */
   flush(): readonly Input[] {
-    // An open paste waits for its end marker, however slowly it arrives.
-    if (this.buffer === '' || this.paste !== null) return [];
+    // A paste still open when the timer fires is abandoned: its payload is dropped, never run, and decoding resumes.
+    if (this.paste !== null) {
+      this.paste = null;
+      this.overflow = false;
+      this.buffer = '';
+      return [];
+    }
+    if (this.buffer === '') return [];
     const held = this.buffer;
     this.buffer = '';
     return [key(held === '\x1b' ? 'escape' : 'other')];
   }
-  /** True while a buffered ESC could still start a sequence (not inside a paste, which only its end marker closes). */
+  /** True while a buffered ESC could still start a sequence, or a paste is open: either way the escape timer runs. */
   pending(): boolean {
-    return this.buffer !== '' && this.paste === null;
+    return this.buffer !== '' || this.paste !== null;
+  }
+  /** Payload of the open paste, kept up to `PASTE_LIMIT`; past it the paste only waits for its end. */
+  private take(part: string): void {
+    if (this.overflow || this.paste === null) return;
+    if (this.paste.length + part.length > PASTE_LIMIT) {
+      this.overflow = true;
+      this.paste = '';
+    } else this.paste += part;
   }
 }

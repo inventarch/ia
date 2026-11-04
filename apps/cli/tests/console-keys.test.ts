@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { Input, Key } from '../src/console/keys.js';
-import { KeyDecoder } from '../src/console/keys.js';
+import { KeyDecoder, PASTE_LIMIT } from '../src/console/keys.js';
 
 const key = (name: Key): Input => ({ kind: 'key', key: name });
 const text = (value: string): Input => ({ kind: 'text', text: value });
@@ -115,13 +115,40 @@ describe('bracketed paste', () => {
     const decoder = new KeyDecoder();
     decoder.mode = 'text';
     expect(decoder.push(`${START}ac`)).toEqual([]);
-    expect(decoder.pending()).toBe(false);
     expect(decoder.push('me\x1b[20')).toEqual([]);
-    expect(decoder.flush()).toEqual([]);
     expect(decoder.push(`1~\r`)).toEqual([text('acme'), key('enter')]);
     const keys = new KeyDecoder();
     expect(keys.push(`${START}q`)).toEqual([]);
     expect(keys.push(`\r${END}q`)).toEqual([key('quit')]);
+  });
+  it('an unterminated paste is abandoned by the idle flush, its payload discarded, and decoding resumes', () => {
+    const keys = new KeyDecoder();
+    expect(keys.push(`${START}q\r`)).toEqual([]);
+    // The console arms its escape timer while a paste is open, so a paste that never ends cannot hold input.
+    expect(keys.pending()).toBe(true);
+    expect(keys.flush()).toEqual([]);
+    expect(keys.pending()).toBe(false);
+    expect(keys.push('q')).toEqual([key('quit')]);
+    expect(keys.push('\x03')).toEqual([key('interrupt')]);
+    const typed = new KeyDecoder();
+    typed.mode = 'text';
+    expect(typed.push(`${START}abc`)).toEqual([]);
+    expect(typed.flush()).toEqual([]);
+    expect(typed.push('x\r')).toEqual([text('x'), key('enter')]);
+  });
+  it('an oversized paste is discarded, never executed, and keys resume after it', () => {
+    expect(PASTE_LIMIT).toBe(64 * 1024);
+    const keys = new KeyDecoder();
+    expect(keys.push(`${START}${'q'.repeat(PASTE_LIMIT + 1)}`)).toEqual([]);
+    expect(keys.push(`q\r${END}j`)).toEqual([key('down')]);
+    const typed = new KeyDecoder();
+    typed.mode = 'text';
+    expect(typed.push(`${START}${'a'.repeat(PASTE_LIMIT)}b${END}c`)).toEqual([text('c')]);
+    const endless = new KeyDecoder();
+    expect(endless.push(`${START}${'q'.repeat(PASTE_LIMIT + 10)}`)).toEqual([]);
+    expect(endless.push('q\r'.repeat(10))).toEqual([]);
+    expect(endless.flush()).toEqual([]);
+    expect(endless.push('q')).toEqual([key('quit')]);
   });
   it('the paste markers split across chunks still open and close a paste', () => {
     expect(decode(['\x1b[20', '0~q\r', END])).toEqual([]);
