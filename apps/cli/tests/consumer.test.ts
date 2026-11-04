@@ -725,8 +725,9 @@ it('runs the built binary when a link reaches it, as npm .bin entries and global
     const linked = resolve(base, 'linked dist'),
       bin = resolve(base, 'ia');
     symlinkSync(resolve(cli, 'dist'), linked, 'junction');
-    const entries = [resolve(linked, 'main.js')];
-    if (fileLink(resolve(cli, 'dist/main.js'), bin)) entries.push(bin);
+    // The `ia` bin, and main.js, which the plugin hook runs.
+    const entries = [resolve(linked, 'bin.js'), resolve(linked, 'main.js')];
+    if (fileLink(resolve(cli, 'dist/bin.js'), bin)) entries.push(bin);
     for (const entry of entries) {
       const got = await runBounded(process.execPath, [entry, '--version'], { cwd: base, timeoutMs: 20000 });
       expect({ entry, status: got.status, stdout: got.stdout, stderr: got.stderr }).toEqual({

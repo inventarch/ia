@@ -7,11 +7,8 @@
  * subprocess. Progress is not produced by any verb in this release; §6 permits its absence and requires the
  * terminal state line, which every verb prints as text.
  */
-import { existsSync, realpathSync, statSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { dirname, isAbsolute, resolve } from 'node:path';
-import { sameFile } from '@inventarch/db';
-import { resolveIaHome } from '@inventarch/distribution/ia-home';
+import { realpathSync, statSync } from 'node:fs';
+import { isAbsolute, resolve } from 'node:path';
 import type { Arguments, Grammar, OptionSpec } from './args.js';
 import { parseArguments, UsageError } from './args.js';
 import type { CommandSpec, Group } from './commands.js';
@@ -25,6 +22,7 @@ import {
   RESERVED_TOKEN,
 } from './commands.js';
 import { runCapture } from './capture.js';
+import { discoverRoot, iaHomeOf } from './discovery.js';
 import { runDistribute } from './distribute.js';
 import { runDoctor } from './doctor.js';
 import { runFormat } from './format.js';
@@ -407,32 +405,8 @@ export function renderCommandHelp(command: CommandSpec, caps: Capabilities): str
   ]);
 }
 
-/**
- * §1.2: walk from cwd toward the filesystem root and take the first directory containing `.ia/src`. Host plugin
- * distribution spec §3: a directory whose `.ia` is the IA home is never a workspace, even if src/ appeared there.
- */
-export function discoverRoot(start: string, iaHome?: string): string | undefined {
-  let current = resolve(start);
-  for (;;) {
-    // The IA home by device and inode, so a home spelled in another case or normalization is still recognized.
-    if (existsSync(resolve(current, '.ia/src')) && (iaHome === undefined || !sameFile(resolve(current, '.ia'), iaHome)))
-      return current;
-    const parent = dirname(current);
-    if (parent === current) return undefined;
-    current = parent;
-  }
-}
-/** The IA home for discovery, or undefined when its variable is malformed; the verb that needs the home refuses then. */
-export function iaHomeOf(
-  env: Readonly<Record<string, string | undefined>>,
-  home: string = homedir(),
-): string | undefined {
-  try {
-    return resolveIaHome(env, home).home;
-  } catch {
-    return undefined;
-  }
-}
+/** §1.2's discovery lives in discovery.ts, which the `ia` bin loads alone; every importer of this module keeps both. */
+export { discoverRoot, iaHomeOf };
 /**
  * The refused invocation spelled again from what the parser understood, so a next action that reruns it carries every
  * argument this invocation supplied that the rerun needs: its positionals, then the verb's own options in grammar

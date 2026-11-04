@@ -6,7 +6,9 @@
  *
  * It writes `plugin.json.gz` (the `ia` plugin's scripts and support files and the `ia-kb` kit, each path to its UTF-8 text),
  * then runs that plugin's own `resolve.mjs` for `knowledge.find` and `knowledge.check` in one task over a consumer whose
- * `.ia/bindings.json` is `bindings.json`, and writes each packet as `golden-<activity>.json` and the task pin as
+ * `.ia/bindings.json` is `bindings.json` and whose lock installs the ia-kb kit and the language base it depends on
+ * (the kit's published archive and the bundled base archive, through this checkout's own `planInstallation` and
+ * `applyInstallation`, so the lock and its active generation agree), and writes each packet as `golden-<activity>.json` and the task pin as
  * `golden-pin.json`. The temporary root is written `<ROOT>` with forward slashes, the envelope is removed, and each
  * packet's digest is recomputed over that content with the plugin's own `packetDigest`. Record the marketplace commit
  * in `PROVENANCE.json` after a run.
@@ -41,6 +43,46 @@ const plugin = join(marketplace, 'plugins', 'ia');
 const { packetDigest } = await import(pathToFileURL(join(plugin, 'scripts', 'lib', 'packet.mjs')).href);
 const SUBJECT = 'the decision records';
 
+/** Installs the kit and its language base into the consumer through the checkout's built distribution package. */
+async function install(consumer) {
+  const repository = resolve(out, '../../../../..');
+  const { applyInstallation, cacheArchive, planInstallation } = await import(
+    pathToFileURL(join(repository, 'apps', 'distribution', 'dist', 'install.js')).href
+  );
+  const base = JSON.parse(readFileSync(join(repository, 'apps', 'mcp-door', 'assets', 'base.json'), 'utf8'));
+  const kits = join(repository, 'apps', 'cli', 'tests', 'fixtures', 'kits-package');
+  const kit = JSON.parse(readFileSync(join(kits, 'package.json.txt'), 'utf8')).ia.kits[0];
+  cacheArchive(
+    consumer,
+    readFileSync(join(repository, 'apps', 'mcp-door', 'assets', 'base', `${base.archive}.ia.tgz`)),
+    base.archive,
+  );
+  cacheArchive(consumer, readFileSync(join(kits, 'archives', `${kit.archive}.ia.tgz`)), kit.archive);
+  const row = (release, dependencies) => ({
+    id: release.id,
+    version: release.version,
+    archive: release.archive,
+    manifest: release.manifest,
+    location: `sha256:${release.archive}`,
+    dependencies,
+  });
+  applyInstallation(
+    planInstallation(
+      consumer,
+      {
+        formatVersion: 1,
+        engine: '^0.1.2',
+        requests: [
+          { id: kit.id, range: `^${kit.version}` },
+          { id: base.id, range: `^${base.version}` },
+        ],
+        packages: [row(kit, [base.id]), row(base, [])],
+      },
+      'install',
+    ),
+  );
+}
+
 const files = {};
 const add = (root, prefix, dir = root) => {
   for (const name of readdirSync(dir).sort()) {
@@ -63,6 +105,7 @@ try {
   }
   mkdirSync(join(root, 'consumer', '.ia', 'src'), { recursive: true });
   cpSync(join(out, 'bindings.json'), join(root, 'consumer', '.ia', 'bindings.json'));
+  await install(join(root, 'consumer'));
   mkdirSync(join(root, 'tmp'));
   const env = {
     ...process.env,

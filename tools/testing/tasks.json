@@ -842,6 +842,11 @@
         "tests/args.test.ts",
         "tests/briefing.test.ts",
         "tests/channel.test.ts",
+        "tests/cli-version.test.ts",
+        "tests/doctor-handoff.test.ts",
+        "tests/handoff.test.ts",
+        "tests/local-cli-fs-root.test.ts",
+        "tests/local-cli.test.ts",
         "tests/render.test.ts"
       ],
       "profile": "unit",
@@ -869,6 +874,13 @@
           "platforms": [
             "linux",
             "macos"
+          ]
+        },
+        {
+          "case": "tests/handoff.test.ts > handOff returns 130 when the child ends on a signal",
+          "reason": "A child ended by a signal reports a null status only on POSIX; Windows has no such ending to produce.",
+          "platforms": [
+            "windows"
           ]
         }
       ]
@@ -1270,6 +1282,7 @@
       "project": "apps/cli",
       "files": [
         "tests/cli.test.ts",
+        "tests/handoff-installed.test.ts",
         "tests/program.test.ts",
         "tests/protocols.test.ts",
         "tests/session-hook.test.ts",
@@ -1297,6 +1310,15 @@
       "resourceClass": "subprocess",
       "covers": [
         "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ],
+      "skips": [
+        {
+          "case": "tests/handoff-installed.test.ts > the copy that handed off outlives a signal the child also receives",
+          "reason": "The fixture needs a catchable signal; on Windows process.kill ends the target unconditionally.",
+          "platforms": [
+            "windows"
+          ]
+        }
       ]
     },
     {
@@ -2578,6 +2600,7 @@
         "tests/door-read.test.ts",
         "tests/editor.test.ts",
         "tests/entry.test.ts",
+        "tests/install-guard.test.ts",
         "tests/kits-package.test.ts",
         "tests/locator.test.ts",
         "tests/loop.test.ts",
