@@ -251,6 +251,30 @@ describe('ownsMember', () => {
     expect(ownsMember([glob], member)).toBe(false);
     expect(Date.now() - started).toBeLessThan(300);
   });
+  it('answers a run of stars inside one segment promptly', () => {
+    const started = Date.now();
+    expect(ownsMember([`${'*'.repeat(30)}z`], 'my-repo-project')).toBe(false);
+    expect(ownsMember([`packages/${'*'.repeat(30)}z`], 'packages/my-repo-project')).toBe(false);
+    expect(ownsMember([`${'*'.repeat(30)}t`], 'my-repo-project')).toBe(true);
+    expect(Date.now() - started).toBeLessThan(300);
+  });
+  it('answers stars between literals promptly, so matching one segment is linear', () => {
+    const started = Date.now();
+    expect(ownsMember([`${'*a'.repeat(15)}b`], 'a'.repeat(40))).toBe(false);
+    expect(ownsMember([`${'*a'.repeat(15)}*`], 'a'.repeat(40))).toBe(true);
+    expect(ownsMember([`**/${'*'.repeat(30)}z/**/${'*a'.repeat(15)}b`], Array(20).fill('a'.repeat(30)).join('/'))).toBe(
+      false,
+    );
+    expect(Date.now() - started).toBeLessThan(300);
+  });
+  it('matches * within a segment as any run of characters', () => {
+    expect(ownsMember(['packages/x*'], 'packages/x')).toBe(true);
+    expect(ownsMember(['packages/*-cli'], 'packages/ia-cli')).toBe(true);
+    expect(ownsMember(['packages/*-cli'], 'packages/ia-cli2')).toBe(false);
+    expect(ownsMember(['packages/a*b*c'], 'packages/abbc')).toBe(true);
+    expect(ownsMember(['packages/a*b*c'], 'packages/acb')).toBe(false);
+    expect(ownsMember(['packages/x.y'], 'packages/xzy')).toBe(false);
+  });
   it('lets the last matching glob decide, so ! excludes', () => {
     const globs = ['packages/**', '!packages/private'];
     expect(ownsMember(globs, 'packages/x')).toBe(true);

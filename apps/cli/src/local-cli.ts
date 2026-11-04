@@ -85,8 +85,31 @@ export function findLocalCli(root: string, stopAt: string): LocalCli | null {
   }
 }
 
-const segment = (glob: string, name: string): boolean =>
-  glob === name || new RegExp(`^${glob.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replaceAll('*', '[^/]*')}$`).test(name);
+/**
+ * Whether one glob segment matches one path segment: `*` is any run of characters and every other character is itself.
+ * A single pass that, on a mismatch, moves back only to the last `*`, so the work is bounded by the product of the two
+ * lengths whatever the stars; a compiled regular expression backtracks exponentially on a run of them.
+ */
+const segment = (glob: string, name: string): boolean => {
+  let g = 0;
+  let n = 0;
+  let star = -1;
+  let resume = 0;
+  while (n < name.length) {
+    if (glob[g] === '*') {
+      star = g++;
+      resume = n;
+    } else if (g < glob.length && glob[g] === name[n]) {
+      g++;
+      n++;
+    } else if (star !== -1) {
+      g = star + 1;
+      n = ++resume;
+    } else return false;
+  }
+  while (glob[g] === '*') g++;
+  return g === glob.length;
+};
 /** Whether `glob` lists `member` segment by segment; adjacent `**` collapse and each (glob, member) pair is solved once. */
 const matches = (glob: readonly string[], member: readonly string[]): boolean => {
   const globs = glob.filter((part, index) => part !== '**' || glob[index - 1] !== '**');
