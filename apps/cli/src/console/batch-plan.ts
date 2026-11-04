@@ -17,6 +17,7 @@ import { basename, dirname, isAbsolute, join, posix, relative, win32 } from 'nod
 import { fileURLToPath } from 'node:url';
 import type { OptionSpec } from '../args.js';
 import { COMMANDS } from '../commands.js';
+import { isInstallArgv } from '../package-manager.js';
 import { displayFix } from '../fix.js';
 import type { Offer, Step } from './offers.js';
 import type { RepoRow } from './workspaces-state.js';
@@ -51,6 +52,13 @@ export function batchChoices(rows: readonly RepoRow[], selected: ReadonlySet<num
 export function selectNeeding(rows: readonly RepoRow[]): ReadonlySet<number> {
   return new Set(rows.flatMap((row, index) => (row.offers.some(fires) ? [index] : [])));
 }
+
+/**
+ * The offer's first step is the package manager's own plain install (doctor's `cli-version` remedy), so the batch's
+ * frozen install is left out: on the lockfile drift that step exists to repair, a frozen install would fail first.
+ */
+export const installsFirst = (steps: readonly Step[]): boolean =>
+  steps[0]?.program === 'external' && isInstallArgv(steps[0].argv);
 
 /** `chore/<slug>`: `ia-<version>` for the upgrade, with dots as dashes; otherwise the offer id, prefixed `ia-` once. */
 export function branchFor(offer: Offer): string {

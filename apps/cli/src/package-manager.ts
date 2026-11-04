@@ -114,6 +114,19 @@ const ADD: Readonly<Record<PackageManager, readonly string[]>> = {
 export const installArgv = (manager: PackageManager, directory: string, at: string): readonly string[] =>
   sameDirectory(directory, at) ? [manager, 'install'] : DIRECTED_INSTALL[manager](directory);
 export const installCommand = (manager: PackageManager): string => installArgv(manager, '.', '.').join(' ');
+/**
+ * `argv` is a plain install exactly as `installArgv` builds it (in its own directory, or directed at another), the
+ * manager named first: the step doctor's `cli-version` row and the console's fallback offer for it run.
+ */
+export function isInstallArgv(argv: readonly string[]): argv is readonly [PackageManager, ...string[]] {
+  const [manager] = argv;
+  if (manager === undefined || !MANAGERS.has(manager)) return false;
+  const same = (form: readonly string[]): boolean =>
+    form.length === argv.length && form.every((token, index) => token === argv[index]);
+  const named = manager as PackageManager;
+  const directory = argv[named === 'npm' || named === 'bun' ? 3 : 2];
+  return same([named, 'install']) || (directory !== undefined && same(DIRECTED_INSTALL[named](directory)));
+}
 
 /**
  * The install a batch runs in a new worktree (consumer CLI contract §1.2): `installArgv`'s form, with no lifecycle

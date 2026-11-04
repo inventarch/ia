@@ -857,6 +857,35 @@ it.skipIf(process.platform === 'win32')('a POSIX shim passes shell characters th
   expect(pmCalls(fx)[0]?.argv).toEqual(args);
 });
 
+describe('an offer whose first step is the install', () => {
+  it('a lockfile out of step with its manifest: the batch install is left to the offer\u2019s own install step', async () => {
+    const fx = fixture('batch-run-drift');
+    const env = { ...fx.env, FAKE_PM_FROZEN: 'fail' };
+    const { top } = repo(fx, 'drift', { 'package.json': pinned('3.5.0'), ...LOCKED });
+    // What offers.ts builds for the cli-version row: the plain install, then what needs the copy it installs.
+    const offer = offerOf('fix:cli-version', 'Install', [
+      external(installArgv('npm', top, top)),
+      { ...ia(['restore', '--apply', '--root', top]), requires: 'repo-copy' },
+    ]);
+    const { results } = await batch({ ...fx, env }, [rowOf(top, [offer])], 'fix:cli-version');
+    expect(only(results)).toMatchObject({ ok: true, refused: null });
+    expect(pmCalls(fx)).toEqual([{ manager: 'npm', argv: ['install'], cwd: only(results).worktree }]);
+    expect(iaCalls(fx).map((call) => call.version)).toEqual(['3.5.0']);
+  });
+  it('any other offer still gets the frozen install first, which fails on that drift', async () => {
+    const fx = fixture('batch-run-drift-other');
+    const env = { ...fx.env, FAKE_PM_FROZEN: 'fail' };
+    const { top } = repo(fx, 'drift', { 'package.json': pinned('3.5.0'), ...LOCKED });
+    const { results } = await batch({ ...fx, env }, [rowOf(top, [relock(top)])], 'fix:generation');
+    expect(only(results)).toMatchObject({
+      ok: false,
+      last: expect.stringMatching(/^npm ci --ignore-scripts exited 1/),
+    });
+    expect(pmCalls(fx).map((call) => call.argv)).toEqual([['ci', '--ignore-scripts']]);
+    expect(iaCalls(fx)).toEqual([]);
+  });
+});
+
 describe('the base', () => {
   it('a workspace the base does not hold is refused before anything is created', async () => {
     const fx = fixture('batch-run-absent');

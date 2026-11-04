@@ -3,6 +3,8 @@
 // {manager, argv, cwd}.
 //
 // $FAKE_PM_MODE: `ok` (the default) acts; `conflict` prints a dependency-resolution error and exits 1; `fail` exits 1.
+// $FAKE_PM_FROZEN=fail: a frozen install (`ci`, `--frozen-lockfile` or `--immutable`) exits 1, as one does when the
+// lockfile no longer matches the manifest; a plain install still acts.
 //
 // On `ok` the command is classified the way the real manager reads it, by whether it names a package, not by its verb:
 // - a dependency mutation names a package spec after the verb (`npm install -D [--prefix <dir>] @inventarch/cli@X`,
@@ -59,6 +61,11 @@ function main() {
   const cwd = process.cwd();
   if (process.env.FAKE_PM_LOG) appendFileSync(process.env.FAKE_PM_LOG, `${JSON.stringify({ manager, argv, cwd })}\n`);
   const mode = process.env.FAKE_PM_MODE ?? 'ok';
+  const frozen = argv.includes('ci') || argv.includes('--frozen-lockfile') || argv.includes('--immutable');
+  if (frozen && process.env.FAKE_PM_FROZEN === 'fail') {
+    process.stderr.write('the lockfile does not match package.json\n');
+    process.exit(1);
+  }
   if (mode === 'conflict') {
     process.stderr.write('ERESOLVE could not resolve the dependency tree\n');
     process.exit(1);

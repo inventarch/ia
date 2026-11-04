@@ -26,7 +26,7 @@ import type { Git } from '../channel.js';
 import type { Env } from '../program.js';
 import { findProgram, programEnv, windowsShell, windowsShellArgs } from '../program.js';
 import type { RepoPlan } from './batch-plan.js';
-import { pathArguments } from './batch-plan.js';
+import { installsFirst, pathArguments } from './batch-plan.js';
 import type { Step } from './offers.js';
 import { cmdArgument, runningEntry } from './run.js';
 import type { ConsoleState } from './state.js';
@@ -707,15 +707,19 @@ async function runRepo(
     const { manager, conflict } = detectPackageManager(manifest, listing);
     if (conflict.length > 0) return refuse(`package managers disagree: ${conflict.join(', ')}`);
     if (manager === null) return refuse(`no package manager is declared or locked in ${manifest}`);
-    // No lifecycle script runs, and a tracked lockfile is never rewritten: the install is frozen to it.
-    const install: Step = {
-      program: 'external',
-      argv: [...batchInstallArgv(manager, manifest, workspace, lockTracked(manifest, manager, listing))],
-      flow: 'confirm',
-      writesTo: 'repo',
-    };
-    const why = await run(install, 'install');
-    if (why !== null) return failed(why);
+    // An offer that begins with this manager's own install installs by that step (checked and run like every step,
+    // below), as the preview says; any other gets the batch's install first.
+    if (!installsFirst(repo.steps) || repo.steps[0]!.argv[0] !== manager) {
+      // No lifecycle script runs, and a tracked lockfile is never rewritten: the install is frozen to it.
+      const install: Step = {
+        program: 'external',
+        argv: [...batchInstallArgv(manager, manifest, workspace, lockTracked(manifest, manager, listing))],
+        flow: 'confirm',
+        writesTo: 'repo',
+      };
+      const why = await run(install, 'install');
+      if (why !== null) return failed(why);
+    }
   } else {
     const outside =
       checkPinned(worktree, pinned) ??

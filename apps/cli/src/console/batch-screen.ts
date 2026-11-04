@@ -11,6 +11,7 @@ import type { Env } from '../program.js';
 import { commitPassed, ghReady, nextChoices, pushAndOpenPrs, removeWorktrees } from './batch-next.js';
 import type { RepoResult, Runner } from './batch-run.js';
 import { runBatch } from './batch-run.js';
+import { installsFirst } from './batch-plan.js';
 import type { BatchPreview } from './layout-all.js';
 import type { Step } from './offers.js';
 import { shownArgument } from './run.js';
@@ -43,7 +44,7 @@ export const BASE_NOTE =
   'The offers were read from each local checkout, but each worktree starts from that base: a change the checkout has and the base lacks is not in it, and a repository whose workspace the base does not hold is refused.';
 /** How the batch's install runs (package-manager.ts `batchInstallArgv`), said once under the repositories. */
 export const INSTALL_NOTE =
-  'The install runs no lifecycle script and, where git tracks the lockfile, is frozen to it: npm ci --ignore-scripts, pnpm install --frozen-lockfile --ignore-scripts, yarn install --frozen-lockfile --ignore-scripts (Yarn 2 and later: --immutable --mode=skip-build) or bun install --frozen-lockfile --ignore-scripts. A commit afterwards holds what it and the steps write.';
+  'The install runs no lifecycle script and, where git tracks the lockfile, is frozen to it: npm ci --ignore-scripts, pnpm install --frozen-lockfile --ignore-scripts, yarn install --frozen-lockfile --ignore-scripts (Yarn 2 and later: --immutable --mode=skip-build) or bun install --frozen-lockfile --ignore-scripts. A step listed under it may still run scripts: a package-manager step such as npm install -D runs as shown. A commit afterwards holds what it and the steps write.';
 
 /** The preview as the confirmation shows it: nothing cut, the install included, since its output is committed too. */
 export function previewLines(preview: BatchPreview): readonly string[] {
@@ -58,7 +59,9 @@ export function previewLines(preview: BatchPreview): readonly string[] {
       `  worktree ${shown(plan.worktree)}`,
       `  branch   ${shown(plan.branch)}`,
       `  base     ${BASE}`,
-      "  install  the package manager's install, first, where the worktree holds a package.json",
+      installsFirst(plan.steps)
+        ? "  install  by the first step, the package manager's own install"
+        : "  install  the package manager's install, first, where the worktree holds a package.json",
     );
     plan.steps.forEach((step, index) => out.push(`  ${index + 1}. ${shown(displayFix(step))}`));
   }

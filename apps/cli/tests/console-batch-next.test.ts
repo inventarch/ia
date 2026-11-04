@@ -151,8 +151,27 @@ describe('the preview', () => {
       'The offers were read from each local checkout, but each worktree starts from that base: a change the checkout has and the base lacks is not in it, and a repository whose workspace the base does not hold is refused.',
     );
     expect(lines).toContain(
-      'The install runs no lifecycle script and, where git tracks the lockfile, is frozen to it: npm ci --ignore-scripts, pnpm install --frozen-lockfile --ignore-scripts, yarn install --frozen-lockfile --ignore-scripts (Yarn 2 and later: --immutable --mode=skip-build) or bun install --frozen-lockfile --ignore-scripts. A commit afterwards holds what it and the steps write.',
+      'The install runs no lifecycle script and, where git tracks the lockfile, is frozen to it: npm ci --ignore-scripts, pnpm install --frozen-lockfile --ignore-scripts, yarn install --frozen-lockfile --ignore-scripts (Yarn 2 and later: --immutable --mode=skip-build) or bun install --frozen-lockfile --ignore-scripts. A step listed under it may still run scripts: a package-manager step such as npm install -D runs as shown. A commit afterwards holds what it and the steps write.',
     );
+  });
+});
+
+describe('the preview of an offer whose first step is the install', () => {
+  it('says the first step installs, and lists no batch install', () => {
+    const root = resolve('/srv/repos/alpha');
+    const offer = offerOf('fix:cli-version', 'Install', [
+      { program: 'external', argv: ['npm', 'install'], flow: 'confirm', writesTo: 'repo' },
+    ]);
+    const plan = planBatch(
+      'fix:cli-version',
+      [rowOf(root, [offer])],
+      new Set([0]),
+      { iaHome: resolve('/srv/ia-home') },
+      { top: (path) => path },
+    );
+    const lines = previewLines({ choice: { offerId: 'fix:cli-version', title: 'Install', repos: 1 }, ...plan });
+    expect(lines).toContain("  install  by the first step, the package manager's own install");
+    expect(lines.filter((line) => line.startsWith('  install  '))).toHaveLength(1);
   });
 });
 
