@@ -111,9 +111,14 @@ export function readUpdateCheck(home: string): UpdateCheck | null {
 /**
  * `~/.ia/config.json`, or null when it is absent or unreadable. Never throws and never writes. Its booleans:
  * `updateCheck` (default true) and `accountOffer` (default true; false suppresses the `ia` plugin's once-per-session
- * account offer for this IA home).
+ * account offer for this IA home). Its one path: `worktreeRoot`, where the console makes a batch's worktrees.
  */
-export function readIaConfig(home: string): { readonly updateCheck?: boolean; readonly accountOffer?: boolean } | null {
+export function readIaConfig(home: string): {
+  readonly updateCheck?: boolean;
+  readonly accountOffer?: boolean;
+  /** Where the console makes a batch's worktrees, instead of `.ia-worktrees` beside each repository. */
+  readonly worktreeRoot?: string;
+} | null {
   try {
     const text = readHomeFile(home, IA_CONFIG),
       value: unknown = text === null ? null : JSON.parse(text);
@@ -121,6 +126,7 @@ export function readIaConfig(home: string): { readonly updateCheck?: boolean; re
       ? {
           ...(typeof value['updateCheck'] === 'boolean' ? { updateCheck: value['updateCheck'] } : {}),
           ...(typeof value['accountOffer'] === 'boolean' ? { accountOffer: value['accountOffer'] } : {}),
+          ...(typeof value['worktreeRoot'] === 'string' ? { worktreeRoot: value['worktreeRoot'] } : {}),
         }
       : null;
   } catch {

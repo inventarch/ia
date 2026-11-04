@@ -178,6 +178,11 @@ it('is due after 24 hours and disabled by IA_NO_UPDATE_CHECK, CI or the IA home 
   expect(readIaConfig(home)).toEqual({ accountOffer: false });
   expect(accountOfferEnabled(readIaConfig(home))).toBe(false);
   expect(accountOfferEnabled(null)).toBe(true);
+  // The console's worktree root is read beside the other keys; a value that is not a string is ignored.
+  writeFileSync(join(home, 'config.json'), JSON.stringify({ updateCheck: true, worktreeRoot: '/srv/trees', other: 1 }));
+  expect(readIaConfig(home)).toEqual({ updateCheck: true, worktreeRoot: '/srv/trees' });
+  writeFileSync(join(home, 'config.json'), JSON.stringify({ worktreeRoot: 3 }));
+  expect(readIaConfig(home)).toEqual({});
   writeFileSync(join(home, 'config.json'), '{');
   expect(readIaConfig(home)).toBeNull();
 });
