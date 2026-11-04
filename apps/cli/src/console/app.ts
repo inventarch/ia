@@ -390,7 +390,13 @@ export async function runConsole(input: {
     const reload = async (): Promise<void> => {
       const target = ui.drilled;
       if (target === null) {
-        home = await load(input.cwd);
+        // Guarded like the opened workspace's refresh below: a newer refresh, or a workspace opened from the table
+        // while this one loads, makes its result stale, and it is dropped rather than drawn over that view.
+        dropRefresh();
+        const mine = refreshes;
+        const loaded = await load(input.cwd);
+        if (finished || mine !== refreshes || ui.drilled !== target) return;
+        home = loaded;
         state = home;
       } else {
         // A workspace opened from the table is read in the shared slots, bounded and cancellable; a newer refresh

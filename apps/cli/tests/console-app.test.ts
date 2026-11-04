@@ -877,7 +877,7 @@ describe('runConsole', () => {
 /** The end of a long value, which the folder line always shows. */
 const tail = (text: string): string => text.slice(-12);
 /** The console started outside any workspace, with `tracked` workspaces in its IA home's tracked list. */
-function launchAll(tracked = 0, extra: { copies?: boolean; spawnDoctor?: SpawnDoctor } = {}) {
+function launchAll(tracked = 0, extra: { copies?: boolean; spawnDoctor?: SpawnDoctor; inside?: boolean } = {}) {
   const base = scratch('console-all');
   const cwd = join(base, 'outside'),
     home = join(base, 'home');
@@ -898,6 +898,8 @@ function launchAll(tracked = 0, extra: { copies?: boolean; spawnDoctor?: SpawnDo
     writeFileSync(join(installed, 'dist/bin.js'), '');
   }
   if (roots.length > 0) trackWorkspaces(home, roots);
+  // `inside`: the console starts in the first tracked workspace, whose own view is then the home one.
+  const start = extra.inside === true && roots[0] !== undefined ? roots[0] : cwd;
   const terminal = new FakeTerminal();
   const stdin = new PassThrough();
   const timers: (() => void)[] = [];
@@ -906,7 +908,7 @@ function launchAll(tracked = 0, extra: { copies?: boolean; spawnDoctor?: SpawnDo
     io: terminal,
     input: stdin,
     env: { IA_HOME: home, NO_COLOR: '1' },
-    cwd,
+    cwd: start,
     packageRoot: RUNNING,
     version: '3.5.1',
     collect: () => view([check('node', 'ok'), check('records', 'ok'), check('root', 'ok')]),
@@ -1118,6 +1120,37 @@ describe('refreshing a workspace opened from the table', () => {
     run.stdin.write('k');
     await settle();
     expect(run.terminal.out.slice(mark)).not.toContain('STALE ws0');
+    expect(run.hooks.exits).toEqual([]);
+    run.stdin.write('q');
+    await until(() => run.terminal.out.slice(mark).includes('space select'), 'the table again');
+    run.stdin.write('q');
+    expect(await run.exit).toBe(0);
+  });
+  it('a home refresh that finishes after a workspace is opened from the table never shows in it', async () => {
+    const doctor = held();
+    const run = launchAll(2, { copies: true, spawnDoctor: doctor.spawnDoctor, inside: true });
+    await until(run.shows('fresh ws0'), 'the home view');
+    run.stdin.write('\t');
+    await until(run.shows('Attention 2'), 'both rows');
+    run.stdin.write('\t');
+    await settle();
+    doctor.state.hold = true;
+    run.stdin.write('r');
+    await until(() => doctor.pending.length === 1, 'the home refresh');
+    run.stdin.write('\t');
+    await settle();
+    run.stdin.write('j');
+    await settle();
+    const mark = run.terminal.out.length;
+    run.stdin.write('\r');
+    await until(() => run.terminal.out.slice(mark).includes('esc back'), 'the second repo');
+    expect(run.terminal.out.slice(mark)).toContain('fresh ws1');
+    doctor.pending.shift()!.settle(markedReport('STALE home'));
+    await settle();
+    await settle();
+    run.stdin.write('j');
+    await settle();
+    expect(run.terminal.out.slice(mark)).not.toContain('STALE home');
     expect(run.hooks.exits).toEqual([]);
     run.stdin.write('q');
     await until(() => run.terminal.out.slice(mark).includes('space select'), 'the table again');
