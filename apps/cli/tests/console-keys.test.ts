@@ -72,7 +72,7 @@ describe('keys mode', () => {
   });
   it('an unknown CSI is one other, with no stray letters', () => {
     expect(decode(['\x1b[1;5Cq'])).toEqual([key('other'), key('quit')]);
-    expect(decode(['\x1b[20', '0~'])).toEqual([key('other')]);
+    expect(decode(['\x1b[20', '9~'])).toEqual([key('other')]);
   });
   it('a partial sequence at flush is dropped as other', () => {
     const decoder = new KeyDecoder();
@@ -99,5 +99,31 @@ describe('text mode', () => {
   it('a multi-byte character fed whole is one text input', () => {
     expect(decode(['用户🚀'], 'text')).toEqual([text('用户🚀')]);
     expect(decode(['é'], 'text')).toEqual([text('é')]);
+  });
+});
+
+describe('bracketed paste', () => {
+  const START = '\x1b[200~',
+    END = '\x1b[201~';
+  it('a pasted payload is never a command: ignored in keys mode, text in text mode', () => {
+    expect(decode([`${START}q\r${END}`])).toEqual([]);
+    expect(decode([`${START}jjk\r\x1b[A${END}j`])).toEqual([key('down')]);
+    expect(decode([`${START}acme/kit\r\n${END}`], 'text')).toEqual([text('acme/kit')]);
+    expect(decode([`ab${START}cd${END}\r`], 'text')).toEqual([text('abcd'), key('enter')]);
+  });
+  it('a paste split across chunks, its end marker included, is held until it ends', () => {
+    const decoder = new KeyDecoder();
+    decoder.mode = 'text';
+    expect(decoder.push(`${START}ac`)).toEqual([]);
+    expect(decoder.pending()).toBe(false);
+    expect(decoder.push('me\x1b[20')).toEqual([]);
+    expect(decoder.flush()).toEqual([]);
+    expect(decoder.push(`1~\r`)).toEqual([text('acme'), key('enter')]);
+    const keys = new KeyDecoder();
+    expect(keys.push(`${START}q`)).toEqual([]);
+    expect(keys.push(`\r${END}q`)).toEqual([key('quit')]);
+  });
+  it('the paste markers split across chunks still open and close a paste', () => {
+    expect(decode(['\x1b[20', '0~q\r', END])).toEqual([]);
   });
 });

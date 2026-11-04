@@ -65,10 +65,27 @@ function sequenceLength(text: string): number {
   return 2;
 }
 
+export const PASTE_START = '\x1b[200~';
+export const PASTE_END = '\x1b[201~';
+/** A pasted payload as text: control characters (line breaks included) dropped, so a paste never submits. */
+const pastedText = (payload: string): string => payload.replace(/[\x00-\x1f\x7f-\x9f]/g, '');
+/** How many characters at the end of `text` could be the start of `marker`. */
+function partialMarker(text: string, marker: string): number {
+  for (let length = Math.min(marker.length - 1, text.length); length > 0; length -= 1)
+    if (text.endsWith(marker.slice(0, length))) return length;
+  return 0;
+}
+
 export class KeyDecoder {
   mode: Mode = 'keys';
   private buffer = '';
-  /** Every complete key in the buffer and this chunk; an incomplete escape sequence stays buffered. */
+  /** The payload of a bracketed paste that has started and not yet ended, or null. */
+  private paste: string | null = null;
+  /**
+   * Every complete key in the buffer and this chunk; an incomplete escape sequence stays buffered. A bracketed paste
+   * (the console turns the mode on) is never a key: its payload is text in text mode and ignored in keys mode, so a
+   * pasted `q` or line break neither quits nor runs anything.
+   */
   push(chunk: string): readonly Input[] {
     this.buffer += chunk;
     const out: Input[] = [];
@@ -79,10 +96,30 @@ export class KeyDecoder {
       out.push(input);
     };
     while (this.buffer.length > 0) {
+      if (this.paste !== null) {
+        const end = this.buffer.indexOf(PASTE_END);
+        if (end === -1) {
+          // Hold what could be the start of the end marker; the rest is payload.
+          const keep = partialMarker(this.buffer, PASTE_END);
+          this.paste += this.buffer.slice(0, this.buffer.length - keep);
+          this.buffer = this.buffer.slice(this.buffer.length - keep);
+          break;
+        }
+        const payload = pastedText(this.paste + this.buffer.slice(0, end));
+        this.paste = null;
+        this.buffer = this.buffer.slice(end + PASTE_END.length);
+        if (this.mode === 'text') text += payload;
+        continue;
+      }
       const first = this.buffer[0]!;
       if (first === '\x1b') {
         const length = sequenceLength(this.buffer);
         if (length === 0) break;
+        if (this.buffer.slice(0, length) === PASTE_START) {
+          this.paste = '';
+          this.buffer = this.buffer.slice(length);
+          continue;
+        }
         // In text mode a sequence is swallowed whole; the input line has no cursor movement.
         emit(key(this.mode === 'text' ? 'other' : (SEQUENCES[this.buffer.slice(0, length)] ?? 'other')));
         this.buffer = this.buffer.slice(length);
@@ -109,13 +146,14 @@ export class KeyDecoder {
   }
   /** Called when the escape timer fires: a held lone ESC is Escape, a partial sequence is dropped as `other`. */
   flush(): readonly Input[] {
-    if (this.buffer === '') return [];
+    // An open paste waits for its end marker, however slowly it arrives.
+    if (this.buffer === '' || this.paste !== null) return [];
     const held = this.buffer;
     this.buffer = '';
     return [key(held === '\x1b' ? 'escape' : 'other')];
   }
-  /** True while a buffered ESC could still start a sequence. */
+  /** True while a buffered ESC could still start a sequence (not inside a paste, which only its end marker closes). */
   pending(): boolean {
-    return this.buffer !== '';
+    return this.buffer !== '' && this.paste === null;
   }
 }
