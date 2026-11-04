@@ -1280,6 +1280,37 @@ it('a signal at the question to track declines it: init keeps its receipt and it
   }
 });
 
+it('a question to track that cannot be read declines it: init keeps its receipt and its exit code', async () => {
+  // No signal: the read itself fails (a closed stdin, a broken terminal). Tracking is never init's exit code (§2.16).
+  const root = target(),
+    home = resolve(scratch('init-track-home'), '.ia'),
+    prompts: string[] = [];
+  const host = makeHost({ env: { IA_HOME: home }, interactive: true, prompts });
+  let asked = 0;
+  const result = await dispatch(
+    ['init', root, '--apply'],
+    {
+      ...host,
+      interaction: {
+        ...host.interaction,
+        read: async () => {
+          asked += 1;
+          if (asked === 1) return 'y';
+          throw new Error('stdin closed');
+        },
+      },
+    },
+    () => {
+      throw new Error('Unexpected machine route');
+    },
+    [],
+  );
+  expect(result.exitCode, result.stderr).toBe(0);
+  expect(result.stdout).toContain('Initialized local/demo; release descriptor .ia/release.json.');
+  expect(result.stderr).toMatch(/^Track it (with|from the workspace root with): ia workspaces add /m);
+  expect(existsSync(trackedFile(home))).toBe(false);
+});
+
 it('init --apply --yes without a terminal prints the hint and tracks nothing', async () => {
   const root = target(),
     home = resolve(scratch('init-track-home'), '.ia');
