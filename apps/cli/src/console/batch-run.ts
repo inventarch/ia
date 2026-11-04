@@ -332,9 +332,10 @@ async function runRepo(
   const git = (args: readonly string[]) => io.run('git', ['-C', top, ...args], { cwd: top, env: io.env });
   // Planning judged the path by its spelling; a link on the way (a configured root, or `.ia-worktrees` itself) could
   // still lead it into the checkout or the IA home, where git would then write. Judged by where it really leads.
+  const checkout = leadsTo(top) ?? top;
   const destination = leadsTo(worktree);
   if (destination === null) return refuse(`the worktree path ${worktree} passes through a link that leads nowhere`);
-  if (within(leadsTo(top) ?? top, destination))
+  if (within(checkout, destination))
     return refuse(`the worktree path ${worktree} leads inside the repository, to ${destination}`);
   const home = repo.iaHome === undefined ? null : leadsTo(repo.iaHome);
   if (home !== null && within(home, destination))
@@ -366,12 +367,26 @@ async function runRepo(
       }
       const copy = found !== null && within(tree, found.packageRoot) ? found : null;
       if (copy === null && step.requires === 'repo-copy') return `refused:${label}: the repo copy is not installed`;
+      // The file Node will run, by its real path, now: a package folder inside the worktree can still name an entry,
+      // or hold a link, that leads elsewhere. Only the running copy's own entry may lie outside the worktree.
+      if (copy !== null) {
+        const real = leadsTo(copy.entry);
+        if (real === null || !within(tree, real))
+          return `refused:${label}: the repo copy's entry ${copy.entry} leads outside the worktree, to ${real ?? 'nowhere'}`;
+      }
       file = process.execPath;
       args = [copy?.entry ?? runningEntry(state.running.packageRoot), ...confirmedArgv(step)];
       env = { ...io.env, [NO_HANDOFF]: '1' };
     } else {
       const [name, ...rest] = step.argv;
       if (name === undefined) return `refused:${label}: the step names no program`;
+      // The program the runner will start, judged by its real path: never one the user's checkout holds.
+      const program = isAbsolute(name)
+        ? name
+        : (findProgram(name, io.env, 'program') ?? findProgram(name, io.env, 'script'));
+      const real = program === null ? null : leadsTo(program);
+      if (real !== null && within(checkout, real))
+        return `refused:${label}: ${name} resolves to ${real}, inside the repository`;
       file = name;
       args = rest;
       env = io.env;

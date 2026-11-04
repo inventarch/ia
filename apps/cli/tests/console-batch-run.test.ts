@@ -15,7 +15,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { delimiter, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
 import { iaFix } from '../src/fix.js';
@@ -28,7 +28,19 @@ import type { RepoResult } from '../src/console/batch-run.js';
 import { chooseBase, containedStep, defaultRunner, gitTop, METADATA_OPS, runBatch } from '../src/console/batch-run.js';
 import type { RepoRow } from '../src/console/workspaces-state.js';
 import type { Call, Fixture } from './batch-fixture.js';
-import { base, FAKE_PM, fixture, git, offerOf, readLog, recorder, repo, rowOf } from './batch-fixture.js';
+import {
+  base,
+  FAKE_PM,
+  fixture,
+  git,
+  loggingCopy,
+  offerOf,
+  readLog,
+  recorder,
+  repo,
+  rowOf,
+  shim,
+} from './batch-fixture.js';
 import { cleanup } from './scratch-fixture.js';
 
 afterAll(cleanup);
@@ -567,6 +579,42 @@ describe('the copy each ia step runs', () => {
       expect(iaCalls(fx).map((call) => [call.argv[0], call.version])).toEqual([['validate', 'running']]);
       expect(only(results).refused).toBe('step 2: the repo copy is not installed');
     }
+  });
+  it('a copy whose entry leads outside the worktree is refused at that step, and nothing runs', async () => {
+    const fx = fixture('batch-run-escape');
+    // What would run instead: a script outside the worktree that logs as version `escape`.
+    const outside = join(fx.dir, 'outside');
+    mkdirSync(outside, { recursive: true });
+    writeFileSync(join(outside, 'bin.js'), loggingCopy('escape'));
+    writeFileSync(join(outside, 'package.json'), JSON.stringify({ type: 'module' }));
+    const offer = (top: string) =>
+      offerOf('fix:check', 'Check', [ia(['validate'], 'none'), ia(['restore', '--apply', '--root', top])]);
+    for (const [name, env] of [
+      ['bin', { FAKE_PM_ENTRY: join(outside, 'bin.js') }],
+      ['dist', { FAKE_PM_DIST: outside }],
+    ] as const) {
+      const { top } = repo(fx, `escape-${name}`, { 'package.json': pinned('3.5.0'), ...LOCKED });
+      const { results, calls } = await batch(
+        { ...fx, env: { ...fx.env, ...env } },
+        [rowOf(top, [offer(top)])],
+        'fix:check',
+      );
+      expect(only(results).refused).toMatch(/^step 1: the repo copy's entry .* leads outside the worktree, to /);
+      expect(iaSpawns(calls)).toEqual([]);
+    }
+    expect(iaCalls(fx)).toEqual([]);
+  });
+  it('a package manager found inside the checkout is refused before it runs', async () => {
+    const fx = fixture('batch-run-planted');
+    const { top } = repo(fx, 'planted', { 'package.json': pinned('3.5.0'), ...LOCKED });
+    // An npm the user's checkout holds, first on PATH.
+    const planted = join(top, 'tools-bin');
+    mkdirSync(planted, { recursive: true });
+    shim(planted, 'npm', FAKE_PM, ['npm']);
+    const env = { ...fx.env, PATH: [planted, fx.env['PATH']].join(delimiter) };
+    const { results } = await batch({ ...fx, env }, [rowOf(top, [relock(top)])], 'fix:generation');
+    expect(only(results).refused).toMatch(/^npm resolves to .*, inside the repository$/);
+    expect(pmCalls(fx)).toEqual([]);
   });
   it('an unpinned repo uses the running copy; a requires-repo-copy step refuses it', async () => {
     const fx = fixture('batch-run-unpinned');

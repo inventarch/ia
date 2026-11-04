@@ -15,6 +15,8 @@
 // package.json. The targeted directory is the --prefix, --dir, -C or --cwd value, resolved against the working
 // directory, or the working directory.
 //
+// $FAKE_PM_ENTRY points the copy's bin at an absolute path, and $FAKE_PM_DIST makes its dist folder a link to a
+// directory; both lead the entry out of the worktree while the package folder stays inside it.
 // $FAKE_PM_DEFECT writes a copy findLocalCli rejects: `name` (another package name), `version` (none), `bin` (none) or
 // `entry` (the bin names a file that is not there). $FAKE_PM_LINKS, a JSON array of [path, target] pairs, makes each
 // path (relative to the targeted directory) a link to target: a junction on Windows, a directory symlink elsewhere.
@@ -85,7 +87,13 @@ function main() {
 
   if (version !== null) {
     const copy = join(target, 'node_modules', CLI);
-    mkdirSync(join(copy, 'dist'), { recursive: true });
+    // $FAKE_PM_DIST makes the copy's dist folder a link to that directory, which holds its own bin.js.
+    const outside = process.env.FAKE_PM_DIST;
+    if (outside === undefined) mkdirSync(join(copy, 'dist'), { recursive: true });
+    else {
+      mkdirSync(copy, { recursive: true });
+      symlinkSync(outside, join(copy, 'dist'), process.platform === 'win32' ? 'junction' : 'dir');
+    }
     const defect = process.env.FAKE_PM_DEFECT ?? '';
     const pkg = {
       name: defect === 'name' ? '@inventarch/other' : CLI,
@@ -96,6 +104,8 @@ function main() {
     if (defect === 'version') delete pkg.version;
     if (defect === 'bin') delete pkg.bin;
     if (defect === 'entry') pkg.bin = { ia: 'dist/missing.js' };
+    // $FAKE_PM_ENTRY names the bin's target as an absolute path, wherever it is.
+    if (process.env.FAKE_PM_ENTRY) pkg.bin = { ia: process.env.FAKE_PM_ENTRY };
     writeFileSync(join(copy, 'package.json'), `${JSON.stringify(pkg, null, 2)}\n`);
     const script = [
       "import { appendFileSync } from 'node:fs';",
@@ -104,8 +114,10 @@ function main() {
       '  appendFileSync(process.env.FAKE_IA_LOG, `${JSON.stringify({ argv: process.argv.slice(2), cwd: process.cwd(), version })}\\n`);',
       '',
     ].join('\n');
-    writeFileSync(join(copy, 'dist', 'bin.js'), script);
-    writeFileSync(join(copy, 'dist', 'main.js'), script);
+    if (outside === undefined) {
+      writeFileSync(join(copy, 'dist', 'bin.js'), script);
+      writeFileSync(join(copy, 'dist', 'main.js'), script);
+    }
   }
 
   for (const [path, to] of JSON.parse(process.env.FAKE_PM_LINKS ?? '[]')) {
