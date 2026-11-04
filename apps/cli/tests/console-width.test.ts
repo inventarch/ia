@@ -292,6 +292,25 @@ describe('the generated table', () => {
   });
 });
 
+describe('the cached task that runs these tests', () => {
+  it('hashes the generator and the vendored sources, which these tests read from outside the package', () => {
+    const tasks = JSON.parse(readFileSync(resolve(repository, 'tools/testing/tasks.json'), 'utf8')) as {
+      tasks: { id: string; files?: string[]; inputProfile: string }[];
+    };
+    const named = (
+      JSON.parse(readFileSync(resolve(repository, 'nx.json'), 'utf8')) as {
+        namedInputs: Record<string, (string | object)[]>;
+      }
+    ).namedInputs;
+    const owner = tasks.tasks.find((task) => task.files?.includes('tests/console-width.test.ts'))!;
+    const inputs = (name: string): string[] =>
+      (named[name] ?? []).flatMap((entry) =>
+        typeof entry !== 'string' ? [] : entry.startsWith('{') || entry.startsWith('!') ? [entry] : inputs(entry),
+      );
+    expect(inputs(owner.inputProfile)).toContain('{workspaceRoot}/tools/unicode/**/*');
+  });
+});
+
 describe('the notice ships', () => {
   it('lists THIRD_PARTY_NOTICES.txt, carries the Unicode license and is named from NOTICE', () => {
     const cli = resolve(import.meta.dirname, '..');

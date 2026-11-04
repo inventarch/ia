@@ -53,6 +53,7 @@
     "emitted": "Built package outputs, packed archive bytes, the native corpus and the host scripts an independent installed consumer executes.",
     "development-native-build": "CLI source, canonical generator source, native owners and their captured teaching manifest.",
     "selected-tests": "Owning production sources, every non-test helper, shared configuration and dependency sources; exclude only declared sibling test files, retaining selected and unassigned files.",
+    "selected-tests-unicode": "selected-tests plus the Unicode width-table generator and the Unicode data it vendors, which the console width tests read through the filesystem, since no import edge names them.",
     "selected-tests-workspace-records": "selected-tests plus authored workspace records, teaching resources and native fixture inventories read through the filesystem.",
     "language-conformance": "workspace-records plus the compliance language fixtures read by the language formatter and conformance suites.",
     "host-adapters": "workspace-records plus this repository's committed ia-authoring skills under .claude/skills and .agents/skills, the pending mandate-resolution note and consumed changeset history read by runtime tests through the filesystem, since no import edge names them.",
@@ -869,7 +870,7 @@
         "macos"
       ],
       "mode": "source",
-      "inputProfile": "selected-tests",
+      "inputProfile": "selected-tests-unicode",
       "dependsOn": [],
       "outputs": [
         "artifacts/tests/cli-test-unit"
