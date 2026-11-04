@@ -55,37 +55,28 @@ export const runningEntry = (packageRoot: string): string => join(packageRoot, '
 /**
  * One argument on the line cmd.exe runs a `.cmd` program with, which forwards it (`%*`) to a program that splits its
  * line by the Windows argv rules (CommandLineToArgvW and the C runtime). Plain text passes as typed. Anything else is
- * quoted by those rules: inside the quotes a run of backslashes before a quote, or before the closing quote, is
- * doubled and an embedded quote is escaped, so the program reads back exactly this argument; and cmd.exe, which sees
- * it inside quotes, leaves a caret, an ampersand, a pipe, a redirection or a bang alone. Null, refused, for `%`, which
- * cmd.exe expands even inside quotes, and for an embedded quote beside a character cmd.exe would act on, since the
- * quote toggles cmd.exe's own quoting.
+ * put in quotes, with a run of backslashes before the closing quote doubled, so the program reads back exactly this
+ * argument; and cmd.exe, which sees it inside quotes, leaves a caret, an ampersand, a pipe, a redirection or a bang
+ * alone. Null, refused, for `%`, which cmd.exe expands even inside quotes; for any double quote, since cmd.exe knows
+ * no escape for one: every quote toggles its quoting for the rest of the line, so a quote in one argument would leave
+ * a later argument's `&` live; and for a control character, since cmd.exe ends the command at a line break.
  */
 export function cmdArgument(value: string): string | null {
-  if (value.includes('%')) return null;
+  if (/[%"\x00-\x1f]/.test(value)) return null;
   if (/^[\w\-.:\\/@+~]+$/.test(value)) return value;
-  if (value.includes('"') && /[&|<>^()!]/.test(value)) return null;
-  let out = '"',
-    slashes = 0;
-  for (const character of value) {
-    if (character === '\\') {
-      slashes += 1;
-      continue;
-    }
-    out += character === '"' ? `${'\\'.repeat(slashes * 2 + 1)}"` : `${'\\'.repeat(slashes)}${character}`;
-    slashes = 0;
-  }
-  return `${out}${'\\'.repeat(slashes * 2)}"`;
+  const trailing = /\\*$/.exec(value)![0].length;
+  return `"${value}${'\\'.repeat(trailing)}"`;
 }
 
 /**
  * One argument, or one piece of text, as the normal screen shows it: as written, so a path reads as typed, unless it
- * holds a control character (C0, DEL or C1), starts with a double quote or is empty; then as a JSON string literal,
- * with DEL and C1 escaped too. So no control character reaches the terminal, and what is shown reads back exactly:
- * `JSON.parse` when it starts with a quote, as written otherwise.
+ * holds a control character (C0, DEL or C1) or a lone surrogate, starts with a double quote or is empty; then as a
+ * JSON string literal, with DEL and C1 escaped too (a lone surrogate JSON escapes itself). So no control character
+ * reaches the terminal, no character is lost to UTF-8 output, and what is shown reads back exactly: `JSON.parse` when
+ * it starts with a quote, as written otherwise.
  */
 export function shownArgument(text: string): string {
-  if (text !== '' && !text.startsWith('"') && !/[\x00-\x1f\x7f-\x9f]/.test(text)) return text;
+  if (text !== '' && !text.startsWith('"') && !/[\x00-\x1f\x7f-\x9f]|\p{Cs}/u.test(text)) return text;
   return JSON.stringify(text).replace(
     /[\x7f-\x9f]/g,
     (character) => `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`,
