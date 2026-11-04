@@ -290,6 +290,10 @@ function admit(program: string, args: readonly string[], cwd: string, guard: Spa
       return `${nameOf(program)} at ${program} cannot be read`;
     }
     if (fold(real) !== fold(program)) return `${nameOf(program)} now leads to ${real}, not to ${program}`;
+    // cmd.exe expands %NAME% even inside quotes, so a script at such a path would run from another path than the one
+    // checked. Refused on every platform, so the rule reads the same wherever a script path is judged.
+    if (/\.(?:cmd|bat)$/i.test(real) && real.includes('%'))
+      return `${nameOf(program)} at ${real} holds %, which cmd.exe would expand into another path`;
     for (const checkout of guard.checkouts)
       if (within(leadsTo(checkout) ?? checkout, real))
         return `${nameOf(program)} resolves to ${real}, inside the repository`;

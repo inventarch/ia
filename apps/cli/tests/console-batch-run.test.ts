@@ -335,6 +335,18 @@ describe('worktree, branch and base', () => {
     if (process.platform === 'win32')
       expect(refused).toMatchObject({ status: null, refused: expect.stringMatching(/cmd\.exe cannot pass/) });
   });
+  it('a script program whose real path holds % is refused, since cmd.exe would expand it into another path', () => {
+    const fx = fixture('batch-run-percent-path');
+    const folder = join(fx.dir, 'safe', '%SLOT%');
+    mkdirSync(folder, { recursive: true });
+    const log = join(fx.dir, 'percent.log');
+    const script = join(folder, 'git.cmd');
+    writeFileSync(script, `@echo off\r\necho ran>> "${log}"\r\n`);
+    const env = { ...fx.env, SLOT: 'redirect' };
+    const result = spawnGuardedSync(script, ['status'], { cwd: fx.dir, env }, { checkouts: [] });
+    expect(result).toMatchObject({ status: null, refused: expect.stringMatching(/%/) });
+    expect(existsSync(log)).toBe(false);
+  });
   it('a git planted inside the checkout, first on PATH, is never run', async () => {
     const fx = fixture('batch-run-planted-git');
     const { top } = repo(fx, 'planted');
