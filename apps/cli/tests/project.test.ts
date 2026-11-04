@@ -149,6 +149,7 @@ it('applies the packet and its receipt, which doctor reads with no drift until a
       status: 'ok',
       detail: `No drift: the 2 files ${RECEIPT} lists are as written, and the records render the packet it names (${receipt.packetDigest.slice(0, 12)})`,
       remedy: null,
+      fix: null,
     },
   ]);
   // A plan now finds nothing to change, and so does `ia host`'s projection element, which reads the same state.
