@@ -9,7 +9,8 @@ import { homedir } from 'node:os';
 import { displayFix } from '../fix.js';
 import type { Env } from '../program.js';
 import type { RepoResult, Runner } from './batch-run.js';
-import { batchEnv, checkPinned, programIn } from './batch-run.js';
+import type { SpawnGuard } from './batch-run.js';
+import { batchEnv, checkPinned, programIn, spawnGuarded } from './batch-run.js';
 import type { Step } from './offers.js';
 
 export type NextId = 'commit' | 'pr' | 'open' | 'remove' | 'deferred';
@@ -51,6 +52,11 @@ const lastLine = (text: string): string => {
  * The program each repository's command runs, by the one rule (batch-run.ts `programIn`): found once, never one a
  * user's checkout holds, then run by its absolute path; or why it may not run.
  */
+/** The guard of one repository's commands: no program inside any checkout, and its worktree as pinned. */
+const guardOf = (results: readonly RepoResult[], result: RepoResult): SpawnGuard => ({
+  checkouts: results.map((entry) => entry.top),
+  worktree: { path: result.worktree, pinned: result.pinned },
+});
 function programFor(name: string, env: Env, results: readonly RepoResult[]): { path: string } | { refused: string } {
   const found = programIn(
     name,
@@ -85,22 +91,23 @@ export async function commitPassed(
       out.push({ ...result, ok: false, last: refused ?? 'git may not run' });
       continue;
     }
+    // Every invocation goes through the guarded spawn, which checks the pinned worktree immediately before it.
+    const guard = guardOf(results, result);
     const git = (args: readonly string[]) =>
-      run(program.path, ['-C', result.worktree, ...args], { cwd: result.worktree, env });
+      spawnGuarded(run, program.path, ['-C', result.worktree, ...args], { cwd: result.worktree, env }, guard);
     const added = await git(['add', '-A']);
-    const replaced = checkPinned(result.worktree, result.pinned);
-    const committed =
-      replaced !== null
-        ? { status: 1, stdout: '', stderr: replaced }
-        : added.status === 0
-          ? await git(['commit', '--quiet', '-m', `chore: ${title}`])
-          : added;
+    const committed = added.status === 0 ? await git(['commit', '--quiet', '-m', `chore: ${title}`]) : added;
     if (committed.status !== 0) {
-      const why = lastLine(committed.stderr) || lastLine(committed.stdout) || 'git commit failed';
+      const why =
+        committed.refused ?? (lastLine(committed.stderr) || lastLine(committed.stdout) || 'git commit failed');
       out.push({ ...result, ok: false, last: why });
       continue;
     }
     const sha = await git(['rev-parse', '--short', 'HEAD']);
+    if (sha.status !== 0) {
+      out.push({ ...result, ok: false, last: sha.refused ?? (lastLine(sha.stderr) || 'git rev-parse failed') });
+      continue;
+    }
     out.push({ ...result, last: `committed ${sha.stdout.trim()}` });
   }
   return out;
@@ -118,10 +125,12 @@ async function createBranch(
   branch: string,
   run: Runner,
   options: { readonly cwd: string; readonly env: Env },
+  guard: SpawnGuard,
 ): Promise<{ readonly created: boolean; readonly why: string }> {
   const ref = `refs/heads/${branch}`;
   const push = (atomic: boolean) =>
-    run(
+    spawnGuarded(
+      run,
       git,
       [
         '-C',
@@ -135,9 +144,11 @@ async function createBranch(
         `${branch}:${ref}`,
       ],
       options,
+      guard,
     );
   const first = await push(true);
   const pushed = first.status !== 0 && /does not support --atomic/.test(first.stderr) ? await push(false) : first;
+  if (pushed.refused !== undefined) return { created: false, why: pushed.refused };
   const line = pushed.stdout
     .split(/\r?\n/)
     .map((entry) => entry.split('\t'))
@@ -180,17 +191,24 @@ export async function pushAndOpenPrs(
       continue;
     }
     const options = { cwd: result.worktree, env };
-    const pushed = await createBranch(git.path, result.worktree, result.branch, run, options);
+    const guard = guardOf(results, result);
+    const pushed = await createBranch(git.path, result.worktree, result.branch, run, options, guard);
     if (!pushed.created) {
       out.push({ root: result.root, url: null, error: pushed.why });
       continue;
     }
-    const opened = await run(gh.path, ['pr', 'create', '--fill', '--head', result.branch], options);
+    const opened = await spawnGuarded(
+      run,
+      gh.path,
+      ['pr', 'create', '--fill', '--head', result.branch],
+      options,
+      guard,
+    );
     if (opened.status !== 0) {
       out.push({
         root: result.root,
         url: null,
-        error: lastLine(opened.stderr) || `gh pr create exited ${opened.status}`,
+        error: opened.refused ?? (lastLine(opened.stderr) || `gh pr create exited ${opened.status}`),
       });
       continue;
     }
@@ -220,13 +238,19 @@ export async function removeWorktrees(
       out.push({ root: result.root, error: refused ?? 'git may not run' });
       continue;
     }
-    const removed = await run(git.path, ['-C', result.top, 'worktree', 'remove', result.worktree], {
-      cwd: result.top,
-      env,
-    });
+    const removed = await spawnGuarded(
+      run,
+      git.path,
+      ['-C', result.top, 'worktree', 'remove', result.worktree],
+      { cwd: result.top, env },
+      guardOf(results, result),
+    );
     out.push({
       root: result.root,
-      error: removed.status === 0 ? null : lastLine(removed.stderr) || `git worktree remove exited ${removed.status}`,
+      error:
+        removed.status === 0
+          ? null
+          : (removed.refused ?? (lastLine(removed.stderr) || `git worktree remove exited ${removed.status}`)),
     });
   }
   return out;
@@ -244,6 +268,6 @@ export async function ghReady(
   const env = batchEnv(given);
   const found = programIn('gh', env, checkouts);
   if ('refused' in found) return { found: false, authed: false };
-  const status = await run(found.path, ['auth', 'status'], { cwd: homedir(), env });
+  const status = await spawnGuarded(run, found.path, ['auth', 'status'], { cwd: homedir(), env }, { checkouts });
   return { found: true, authed: status.status === 0 };
 }

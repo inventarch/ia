@@ -28,6 +28,7 @@ import { scratch } from './scratch-fixture.js';
 
 export const FAKE_PM = resolve(import.meta.dirname, 'fake-pm.mjs');
 export const FAKE_GIT = resolve(import.meta.dirname, 'fake-git.mjs');
+export const FORWARD_GIT = resolve(import.meta.dirname, 'forward-git.mjs');
 export const MANAGERS = ['npm', 'pnpm', 'yarn', 'bun'] as const;
 
 /** A scratch directory by its real path, so 8.3 and linked spellings never differ from what git reports. */

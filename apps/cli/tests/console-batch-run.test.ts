@@ -28,13 +28,25 @@ import type { Step } from '../src/console/offers.js';
 import type { RepoPlan } from '../src/console/batch-plan.js';
 import { planBatch } from '../src/console/batch-plan.js';
 import type { RepoResult, Runner } from '../src/console/batch-run.js';
-import { chooseBase, containedStep, defaultRunner, gitTop, METADATA_OPS, runBatch } from '../src/console/batch-run.js';
+import {
+  chooseBase,
+  containedStep,
+  defaultRunner,
+  gitTop,
+  METADATA_OPS,
+  programIn,
+  runBatch,
+  spawnGuardedSync,
+} from '../src/console/batch-run.js';
+import { findProgram } from '../src/program.js';
 import type { RepoRow } from '../src/console/workspaces-state.js';
 import type { Call, Fixture } from './batch-fixture.js';
 import {
   base,
   plant,
+  FAKE_GIT,
   FAKE_PM,
+  FORWARD_GIT,
   fixture,
   git,
   loggingCopy,
@@ -246,6 +258,82 @@ describe('worktree, branch and base', () => {
     expect(replaced).toBe(true);
     expect(only(results).refused).toMatch(/^step 2: the worktree .* was replaced or moved/);
     expect(iaSpawns(calls).map((call) => call.args[1])).toEqual(['validate']);
+  });
+  it('git reached through a link that is retargeted into the checkout during the fetch is refused at its next call', async () => {
+    const fx = fixture('batch-run-relinked-git');
+    const kind = process.platform === 'win32' ? 'junction' : 'dir';
+    const { top } = repo(fx, 'relinked');
+    // git, as a forwarding shim in its own folder, reached on PATH only through a link to that folder.
+    const real = join(fx.dir, 'real-git');
+    mkdirSync(real, { recursive: true });
+    shim(real, 'git', FORWARD_GIT);
+    const link = join(fx.dir, 'git-link');
+    symlinkSync(real, link, kind);
+    // The checkout's own git, which must never run.
+    const planted = join(top, 'tools-bin');
+    mkdirSync(planted, { recursive: true });
+    shim(planted, 'git', FAKE_GIT);
+    const log = join(fx.dir, 'planted.log');
+    const env = {
+      ...fx.env,
+      PATH: [link, fx.shims].join(delimiter),
+      FORWARD_GIT: findProgram('git', fx.env)!,
+      FAKE_GIT_LOG: log,
+    };
+    const plan = planBatch(
+      'fix:generation',
+      [rowOf(top, [relock(top)])],
+      new Set([0]),
+      { iaHome: join(fx.dir, 'home') },
+      { top: (root) => gitTop(root, fx.env) },
+    );
+    const relink = (path: string): void => {
+      if (process.platform === 'win32') rmdirSync(path);
+      else unlinkSync(path);
+      symlinkSync(planted, path, kind);
+    };
+    // Once the fetch has run, both the link on PATH and the folder it led to lead into the checkout.
+    const retarget: (run: Runner) => Runner = (run) => async (file, args, options) => {
+      const result = await run(file, args, options);
+      if (args.includes('fetch')) {
+        relink(link);
+        renameSync(real, `${real}-old`);
+        symlinkSync(planted, real, kind);
+      }
+      return result;
+    };
+    const { results, calls } = await batch({ ...fx, env }, [], 'fix:generation', plan, retarget);
+    expect(only(results).refused).toMatch(/^git .*(now leads to|inside the repository)/);
+    // git ran by its canonical path, never by the link's spelling, and the checkout's git never ran.
+    const fetch = calls.find((call) => call.args.includes('fetch'))!;
+    expect(fetch.file.toLowerCase()).toBe(join(real, process.platform === 'win32' ? 'git.cmd' : 'git').toLowerCase());
+    expect(calls.some((call) => call.args.includes('worktree'))).toBe(false);
+    expect(readLog(log)).toEqual([]);
+  });
+  it('every child gets a clean PATH: no relative entry and, on Windows, no current-directory lookup', async () => {
+    const fx = fixture('batch-run-clean-env');
+    const { top } = repo(fx, 'clean', { 'package.json': pinned('3.5.0'), ...LOCKED });
+    const env = { ...fx.env, PATH: ['rel-bin', fx.env['PATH']].join(delimiter) };
+    const { results, calls } = await batch({ ...fx, env }, [rowOf(top, [relock(top)])], 'fix:generation');
+    expect(only(results).ok).toBe(true);
+    expect(calls.length).toBeGreaterThan(4);
+    for (const call of calls) {
+      const path = Object.entries(call.env).find(([name]) => name.toUpperCase() === 'PATH')?.[1] ?? '';
+      expect(path.split(delimiter).filter((entry) => entry !== '' && !isAbsolute(entry))).toEqual([]);
+      if (process.platform === 'win32') expect(call.env['NoDefaultCurrentDirectoryInExePath']).toBe('1');
+    }
+  });
+  it('a synchronous probe of a script program passes its arguments through intact', () => {
+    const fx = fixture('batch-run-sync-probe');
+    const npm = programIn('npm', fx.env, []);
+    if ('refused' in npm) throw new Error(npm.refused);
+    const args = ['install', 'a b&c', 'x^y', '(z)'];
+    const result = spawnGuardedSync(npm.path, args, { cwd: fx.dir, env: fx.env }, { checkouts: [] });
+    expect(result.status).toBe(0);
+    expect(readLog<{ argv: string[] }>(fx.pmLog).map((call) => call.argv)).toEqual([args]);
+    const refused = spawnGuardedSync(npm.path, ['100%'], { cwd: fx.dir, env: fx.env }, { checkouts: [] });
+    if (process.platform === 'win32')
+      expect(refused).toMatchObject({ status: null, refused: expect.stringMatching(/cmd\.exe cannot pass/) });
   });
   it('a git planted inside the checkout, first on PATH, is never run', async () => {
     const fx = fixture('batch-run-planted-git');

@@ -11,7 +11,7 @@ import { displayFix, iaFix } from '../src/fix.js';
 import { resolveRepo } from '../src/console/app.js';
 import type { Step } from '../src/console/offers.js';
 import { planBatch } from '../src/console/batch-plan.js';
-import type { RepoResult } from '../src/console/batch-run.js';
+import type { RepoResult, Runner } from '../src/console/batch-run.js';
 import { defaultRunner, gitTop, runBatch } from '../src/console/batch-run.js';
 import { commitPassed, ghReady, nextChoices, pushAndOpenPrs, removeWorktrees } from '../src/console/batch-next.js';
 import { batchScreen } from '../src/console/batch-screen.js';
@@ -291,6 +291,119 @@ describe('after the run, guarded', () => {
       { root: top, url: null, error: expect.stringMatching(/^gh resolves to .*, inside the repository$/) },
     ]);
     expect(readLog(log)).toEqual([]);
+    expect(readLog(join(fx.dir, 'gh.log'))).toEqual([]);
+  });
+});
+
+describe('a worktree replaced while an action runs', () => {
+  /** Moves the worktree away and puts a link to `decoy` (another repository) in its place. */
+  const swap = (worktree: string, decoy: string): void => {
+    renameSync(worktree, `${worktree}-moved`);
+    symlinkSync(decoy, worktree, process.platform === 'win32' ? 'junction' : 'dir');
+  };
+  /** A runner that swaps the worktree once `when` matches a finished call, or answers it itself when `answer` says. */
+  const swapping =
+    (
+      inner: Runner,
+      act: () => void,
+      when: (args: readonly string[]) => boolean,
+      answer?: (args: readonly string[]) => Awaited<ReturnType<Runner>> | null,
+    ): Runner =>
+    async (file, args, options) => {
+      const own = answer?.(args) ?? null;
+      if (own !== null) {
+        act();
+        return own;
+      }
+      const result = await inner(file, args, options);
+      if (when(args)) act();
+      return result;
+    };
+  it('the next invocation of a commit, a push or a PR create is refused, and nothing runs in the replacement', async () => {
+    const fx = withGh('batch-next-midway');
+    const decoy = repo(fx, 'decoy');
+    const decoyHead = git(decoy.top, ['rev-parse', 'HEAD'], fx.env);
+    const decoyShort = decoyHead.trim().slice(0, 7);
+    const real = defaultRunner(fx.env);
+    const replaced = /was replaced or moved/;
+
+    // During the commit: after `git add`, the commit itself is refused.
+    const a = repo(fx, 'during-add');
+    const first = (await batch(fx, [rowOf(a.top, [relock(a.top)])])).results;
+    const afterAdd = await commitPassed(
+      first,
+      'Re-lock',
+      swapping(
+        real,
+        () => swap(first[0]!.worktree, decoy.top),
+        (args) => args.includes('add'),
+      ),
+      fx.env,
+    );
+    expect(afterAdd[0]).toMatchObject({ ok: false, last: expect.stringMatching(replaced) });
+
+    // After the commit: the SHA probe is refused, so no SHA of the replacement is ever reported.
+    const b = repo(fx, 'during-commit');
+    const second = (await batch(fx, [rowOf(b.top, [relock(b.top)])])).results;
+    const afterCommit = await commitPassed(
+      second,
+      'Re-lock',
+      swapping(
+        real,
+        () => swap(second[0]!.worktree, decoy.top),
+        (args) => args.includes('commit'),
+      ),
+      fx.env,
+    );
+    expect(afterCommit[0]).toMatchObject({ ok: false, last: expect.stringMatching(replaced) });
+    expect(afterCommit[0]!.last).not.toContain(decoyShort);
+
+    // During the push: the retry the remote asks for is refused.
+    const c = repo(fx, 'during-push');
+    const third = await commitPassed(
+      (await batch(fx, [rowOf(c.top, [relock(c.top)])])).results,
+      'Re-lock',
+      real,
+      fx.env,
+    );
+    const retried = await pushAndOpenPrs(
+      third,
+      swapping(
+        real,
+        () => swap(third[0]!.worktree, decoy.top),
+        () => false,
+        (args) =>
+          args.includes('--atomic')
+            ? { status: 1, stdout: '', stderr: 'error: the receiving end does not support --atomic push' }
+            : null,
+      ),
+      fx.env,
+    );
+    expect(retried).toEqual([{ root: c.top, url: null, error: expect.stringMatching(replaced) }]);
+    expect(git(c.top, ['ls-remote', 'origin', 'refs/heads/chore/ia-fix-generation'], fx.env)).toBe('');
+
+    // After the push: the PR create is refused.
+    const d = repo(fx, 'during-pr');
+    const fourth = await commitPassed(
+      (await batch(fx, [rowOf(d.top, [relock(d.top)])])).results,
+      'Re-lock',
+      real,
+      fx.env,
+    );
+    const opened = await pushAndOpenPrs(
+      fourth,
+      swapping(
+        real,
+        () => swap(fourth[0]!.worktree, decoy.top),
+        (args) => args.includes('push'),
+      ),
+      fx.env,
+    );
+    expect(opened).toEqual([{ root: d.top, url: null, error: expect.stringMatching(replaced) }]);
+
+    // The replacement was never touched, and gh never ran.
+    expect(git(decoy.top, ['rev-parse', 'HEAD'], fx.env)).toBe(decoyHead);
+    expect(git(decoy.top, ['status', '--porcelain'], fx.env)).toBe('');
     expect(readLog(join(fx.dir, 'gh.log'))).toEqual([]);
   });
 });
