@@ -10,6 +10,7 @@ import { displayFix } from '../fix.js';
 import type { Env } from '../program.js';
 import { findProgram } from '../program.js';
 import type { RepoResult, Runner } from './batch-run.js';
+import { batchEnv } from './batch-run.js';
 import type { Step } from './offers.js';
 
 export type NextId = 'commit' | 'pr' | 'open' | 'remove' | 'deferred';
@@ -56,9 +57,11 @@ export async function commitPassed(
   results: readonly RepoResult[],
   title: string,
   run: Runner,
-  env: Env = process.env,
+  given: Env = process.env,
 ): Promise<readonly RepoResult[]> {
   const out: RepoResult[] = [];
+  // No git routing variable inherited by the console reaches these children.
+  const env = batchEnv(given);
   for (const result of results) {
     if (!result.ok || result.last.startsWith('committed ')) {
       out.push(result);
@@ -118,9 +121,11 @@ async function createBranch(
 export async function pushAndOpenPrs(
   results: readonly RepoResult[],
   run: Runner,
-  env: Env = process.env,
+  given: Env = process.env,
 ): Promise<readonly { readonly root: string; readonly url: string | null; readonly error: string | null }[]> {
   const out: { root: string; url: string | null; error: string | null }[] = [];
+  // No git routing variable inherited by the console reaches these children.
+  const env = batchEnv(given);
   for (const result of results) {
     if (!result.ok) continue;
     const options = { cwd: result.worktree, env };
@@ -157,9 +162,11 @@ export async function pushAndOpenPrs(
 export async function removeWorktrees(
   results: readonly RepoResult[],
   run: Runner,
-  env: Env = process.env,
+  given: Env = process.env,
 ): Promise<readonly { readonly root: string; readonly error: string | null }[]> {
   const out: { root: string; error: string | null }[] = [];
+  // No git routing variable inherited by the console reaches these children.
+  const env = batchEnv(given);
   for (const result of results) {
     if (!result.created) continue;
     const removed = await run('git', ['-C', result.top, 'worktree', 'remove', result.worktree], {
@@ -175,7 +182,8 @@ export async function removeWorktrees(
 }
 
 /** Whether `gh` is on a qualified PATH entry, and whether `gh auth status` exits 0. */
-export async function ghReady(run: Runner, env: Env): Promise<{ readonly found: boolean; readonly authed: boolean }> {
+export async function ghReady(run: Runner, given: Env): Promise<{ readonly found: boolean; readonly authed: boolean }> {
+  const env = batchEnv(given);
   const found = findProgram('gh', env, 'program') ?? findProgram('gh', env, 'script');
   if (found === null) return { found: false, authed: false };
   const status = await run('gh', ['auth', 'status'], { cwd: homedir(), env });

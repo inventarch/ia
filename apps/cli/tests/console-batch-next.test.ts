@@ -4,7 +4,7 @@
  * and `gh auth status` exits 0), and removing the worktrees while keeping their branches; real git repositories with
  * bare origins and a fake `gh` on a PATH of its own.
  */
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { displayFix, iaFix } from '../src/fix.js';
@@ -17,7 +17,7 @@ import { commitPassed, ghReady, nextChoices, pushAndOpenPrs, removeWorktrees } f
 import { batchScreen } from '../src/console/batch-screen.js';
 import type { RepoRow } from '../src/console/workspaces-state.js';
 import type { Fixture } from './batch-fixture.js';
-import { fixture, git, offerOf, readLog, repo, rowOf, shim } from './batch-fixture.js';
+import { fixture, git, offerOf, readLog, recorder, repo, rowOf, shim } from './batch-fixture.js';
 import { cleanup } from './scratch-fixture.js';
 
 afterAll(cleanup);
@@ -203,6 +203,65 @@ describe('after the run', () => {
     const kept = await removeWorktrees(second.results, run, fx.env);
     expect(kept).toEqual([{ root: dirty.top, error: expect.stringMatching(/.+/) }]);
     expect(existsSync(second.results[0]!.worktree)).toBe(true);
+  });
+});
+
+describe('git routing variables', () => {
+  it('GIT_DIR, GIT_WORK_TREE and GIT_INDEX_FILE aimed at the checkout reach no batch child', async () => {
+    const fx = withGh('batch-next-gitenv');
+    const { top } = repo(fx, 'routed', {
+      'package.json': JSON.stringify({ devDependencies: { '@inventarch/cli': '3.5.0' } }),
+      'package-lock.json': '{}',
+    });
+    const head = git(top, ['rev-parse', 'HEAD'], fx.env);
+    const branch = git(top, ['symbolic-ref', 'HEAD'], fx.env);
+    const index = readFileSync(join(top, '.git', 'index'));
+    const porcelain = git(top, ['status', '--porcelain'], fx.env);
+    // The console was started from a shell (a git hook, say) that routes git to the user's own checkout.
+    const routed = {
+      ...fx.env,
+      GIT_DIR: join(top, '.git'),
+      GIT_WORK_TREE: top,
+      GIT_INDEX_FILE: join(top, '.git', 'index'),
+      GIT_CONFIG_COUNT: '1',
+      GIT_CONFIG_KEY_0: 'core.hooksPath',
+      GIT_CONFIG_VALUE_0: join(top, 'hooks'),
+    };
+    const rows = [rowOf(top, [relock(top)])];
+    const plan = planBatch(
+      'fix:generation',
+      rows,
+      new Set([0]),
+      { iaHome: join(fx.dir, 'home') },
+      { top: (root) => gitTop(root, routed) },
+    );
+    expect(plan.repos[0]?.refused).toBeNull();
+    const recorded = recorder(defaultRunner(routed));
+    const results = await runBatch(
+      plan,
+      { running: { packageRoot: fx.running, version: '3.5.1' } },
+      { run: recorded.run, resolveRepo, progress: () => {}, signal: new AbortController().signal, env: routed },
+    );
+    expect(results[0]).toMatchObject({ ok: true });
+    const committed = await commitPassed(results, 'Re-lock', recorded.run, routed);
+    expect(committed[0]).toMatchObject({ ok: true });
+    await ghReady(recorded.run, routed);
+    const worktree = results[0]!.worktree;
+    // The commit is on the batch branch, in the worktree; the checkout's HEAD, branch, index and status are as they were.
+    expect(git(worktree, ['log', '-1', '--format=%s'], fx.env).trim()).toBe('chore: Re-lock');
+    expect(git(worktree, ['symbolic-ref', 'HEAD'], fx.env).trim()).toBe('refs/heads/chore/ia-fix-generation');
+    expect(git(top, ['rev-parse', 'HEAD'], fx.env)).toBe(head);
+    expect(git(top, ['symbolic-ref', 'HEAD'], fx.env)).toBe(branch);
+    expect(readFileSync(join(top, '.git', 'index')).equals(index)).toBe(true);
+    expect(git(top, ['status', '--porcelain'], fx.env)).toBe(porcelain);
+    // No recorded child (git on either side, the install, the steps, gh) was handed a routing variable.
+    expect(recorded.calls.length).toBeGreaterThan(5);
+    for (const call of recorded.calls)
+      expect(
+        Object.keys(call.env).filter((name) =>
+          /^GIT_(DIR|WORK_TREE|INDEX_FILE|CONFIG_(COUNT|KEY_\d+|VALUE_\d+))$/i.test(name),
+        ),
+      ).toEqual([]);
   });
 });
 

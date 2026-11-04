@@ -6,6 +6,7 @@
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { satisfies as satisfiesRange } from '@inventarch/db/distribution';
+import type { Git } from './channel.js';
 import { runGit } from './channel.js';
 import { CLI, readManifest } from './local-cli.js';
 
@@ -31,7 +32,10 @@ const LOCKFILES: readonly (readonly [string, PackageManager])[] = [
 const MANAGERS: ReadonlySet<string> = new Set(['npm', 'pnpm', 'yarn', 'bun']);
 
 /** The `packageManager` field, then the lockfiles git tracks (outside git, the ones present); never a guess. */
-export function detectPackageManager(directory: string): {
+export function detectPackageManager(
+  directory: string,
+  git: Git = runGit,
+): {
   readonly manager: PackageManager | null;
   readonly conflict: readonly string[];
 } {
@@ -40,7 +44,7 @@ export function detectPackageManager(directory: string): {
   const name = typeof declared === 'string' ? (declared.split('@')[0] ?? '') : '';
   if (MANAGERS.has(name)) found.add(name as PackageManager);
   const names = LOCKFILES.map(([file]) => file);
-  const listed = runGit(directory, ['ls-files', '--', ...names]);
+  const listed = git(directory, ['ls-files', '--', ...names]);
   const locks =
     listed === null
       ? names.filter((file) => existsSync(resolve(directory, file)))

@@ -21,6 +21,7 @@ import { confirmedArgv, displayFix } from '../fix.js';
 import { NO_HANDOFF } from '../handoff.js';
 import type { LocalCli } from '../local-cli.js';
 import { detectPackageManager, installArgv } from '../package-manager.js';
+import type { Git } from '../channel.js';
 import type { Env } from '../program.js';
 import { findProgram, programEnv, windowsShell, windowsShellArgs } from '../program.js';
 import type { RepoPlan } from './batch-plan.js';
@@ -41,6 +42,52 @@ export interface Runner {
 }
 
 /**
+ * Git's repository-local variables (`git rev-parse --local-env-vars`): set in the console's own environment, by a git
+ * hook or a shell that started it, they would route a batch's git, even `git -C <worktree>`, to another repository,
+ * index or configuration. No batch child inherits them, nor `GIT_CONFIG_KEY_<n>` and `GIT_CONFIG_VALUE_<n>`.
+ */
+export const GIT_LOCAL_ENV: readonly string[] = [
+  'GIT_ALTERNATE_OBJECT_DIRECTORIES',
+  'GIT_CONFIG',
+  'GIT_CONFIG_PARAMETERS',
+  'GIT_CONFIG_COUNT',
+  'GIT_OBJECT_DIRECTORY',
+  'GIT_DIR',
+  'GIT_WORK_TREE',
+  'GIT_IMPLICIT_WORK_TREE',
+  'GIT_GRAFT_FILE',
+  'GIT_INDEX_FILE',
+  'GIT_NO_REPLACE_OBJECTS',
+  'GIT_REPLACE_REF_BASE',
+  'GIT_PREFIX',
+  'GIT_SHALLOW_FILE',
+  'GIT_COMMON_DIR',
+];
+/** `env` without git's repository-local variables; Windows compares names without case, as its environment does. */
+export function batchEnv(env: Env, platform: NodeJS.Platform = process.platform): Env {
+  const out: Record<string, string | undefined> = {};
+  for (const [name, value] of Object.entries(env)) {
+    const key = platform === 'win32' ? name.toUpperCase() : name;
+    if (GIT_LOCAL_ENV.includes(key) || /^GIT_CONFIG_(?:KEY|VALUE)_\d+$/.test(key)) continue;
+    out[name] = value;
+  }
+  return out;
+}
+/** A synchronous `git -C <cwd> …` under `env` without git's routing variables, for the package manager's lockfile probe. */
+const gitWith =
+  (env: Env): Git =>
+  (cwd, args) => {
+    const git = findProgram('git', env);
+    if (git === null) return null;
+    const result = spawnSync(git, ['--no-optional-locks', '-C', cwd, ...args], {
+      env: programEnv(batchEnv(env)) as NodeJS.ProcessEnv,
+      encoding: 'utf8',
+      windowsHide: true,
+    });
+    return result.status === 0 ? result.stdout.trim() : null;
+  };
+
+/**
  * The real runner: an absolute file as given; any other name by the absolute path `findProgram` finds on a qualified
  * PATH entry, with `programEnv`, and a Windows `.cmd` through cmd.exe named by its path, each argument quoted for it
  * (`cmdArgument`; one it cannot pass refuses the call).
@@ -49,11 +96,12 @@ export function defaultRunner(env: Env): Runner {
   return (file, args, options) =>
     new Promise((settle) => {
       const fail = (why: string): void => settle({ status: null, stdout: '', stderr: why });
+      const childEnv = batchEnv(options.env);
       let target: { file: string; args: readonly string[]; env: Env; verbatim: boolean };
-      if (isAbsolute(file)) target = { file, args, env: options.env, verbatim: false };
+      if (isAbsolute(file)) target = { file, args, env: childEnv, verbatim: false };
       else {
         const program = findProgram(file, env, 'program');
-        if (program !== null) target = { file: program, args, env: programEnv(options.env), verbatim: false };
+        if (program !== null) target = { file: program, args, env: programEnv(childEnv), verbatim: false };
         else {
           const script = findProgram(file, env, 'script');
           if (script === null) return fail(`${file} was not found on a qualified PATH entry`);
@@ -63,7 +111,7 @@ export function defaultRunner(env: Env): Runner {
           target = {
             file: windowsShell(env),
             args: windowsShellArgs(script, quoted as string[]),
-            env: programEnv(options.env),
+            env: programEnv(childEnv),
             verbatim: true,
           };
         }
@@ -105,7 +153,7 @@ export function gitTop(root: string, env: Env): string | null {
   const git = findProgram('git', env);
   if (git === null) return null;
   const result = spawnSync(git, ['-C', root, 'rev-parse', '--show-toplevel'], {
-    env: programEnv(env) as NodeJS.ProcessEnv,
+    env: programEnv(batchEnv(env)) as NodeJS.ProcessEnv,
     encoding: 'utf8',
     windowsHide: true,
   });
@@ -258,9 +306,11 @@ export async function runBatch(
   },
 ): Promise<readonly RepoResult[]> {
   const results: RepoResult[] = [];
+  // Every child of the batch, on the original or in a worktree, runs without git's routing variables.
+  const scoped = { ...io, env: batchEnv(io.env) };
   for (const [index, repo] of plan.repos.entries()) {
     if (io.signal.aborted) break;
-    results.push(await runRepo(repo, state, io, (line) => io.progress(index, line)));
+    results.push(await runRepo(repo, state, scoped, (line) => io.progress(index, line)));
   }
   return results;
 }
@@ -330,7 +380,7 @@ async function runRepo(
 
   const manifest = manifestDirectory(workspace, worktree);
   if (manifest !== null) {
-    const { manager, conflict } = detectPackageManager(manifest);
+    const { manager, conflict } = detectPackageManager(manifest, gitWith(io.env));
     if (conflict.length > 0) return refuse(`package managers disagree: ${conflict.join(', ')}`);
     if (manager === null) return refuse(`no package manager is declared or locked in ${manifest}`);
     const install: Step = {
