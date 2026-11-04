@@ -37,7 +37,7 @@ export type { Base, BasePin } from './bundled-base.js';
  * already answered here, so it never asks a second one, and its projection is written by `applyHostProjection`, the one
  * writer of projection files. It reads the live revision rather than the capture, so a capture that fails does not keep
  * it from running; the capture's refusal then says the projection is written. The plan names that step and writes
- * nothing for it — the host plan needs `.ia/release.json`, which only the apply writes. A host step that refuses leaves
+ * nothing for it — the host plan needs the workspace sources, which only the apply writes. A host step that refuses leaves
  * the workspace initialized: the refusal keeps the service's code, message and location, and its next action names the
  * rerun.
  *

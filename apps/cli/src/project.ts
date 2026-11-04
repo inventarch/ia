@@ -39,7 +39,7 @@ import {
   projectionRepair,
   replanProjection,
   requireIdle,
-  requireInitialized,
+  requireWorkspace,
   rootedNext,
   folderRepair,
   printedConflict,
@@ -120,7 +120,7 @@ export function collectProject(context: Context): ProjectView {
       `Run "ia project claude${option}" to plan the Claude projection, or name codex in its place.`,
     );
   const root = requireRoot(context);
-  requireInitialized(root, given ?? root);
+  requireWorkspace(root, given ?? root);
   // The journal's recovery names the resolved root: the distribution mechanism takes only an absolute one.
   requireIdle(root, root);
   // The effect mode (Execution) under the participant's mandate profile, a plan included, judged on the rendering session

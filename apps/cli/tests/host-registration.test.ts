@@ -568,9 +568,19 @@ it('names the restore remedy for a modified owned entry and removes one the user
   expect(existsSync(resolve(root, '.ia/distributions/hosts/claude-workspace.json'))).toBe(false);
 });
 
-it('refuses an uninitialized root', async () => {
+it('host claude --apply registers on a workspace with no descriptor', async () => {
+  const { root, env } = await initialized();
+  rmSync(resolve(root, '.ia/release.json'));
+  const applied = await host(root, env, 'claude', '--apply', '--yes');
+  expect(applied.exitCode, applied.stdout).toBe(0);
+  expect(JSON.parse(applied.stdout)).toMatchObject({ command: 'host', host: 'claude', apply: true });
+  expect(existsSync(resolve(root, '.claude/rules/ia-workspace.md'))).toBe(true);
+  expect(existsSync(resolve(root, '.ia/release.json'))).toBe(false);
+});
+
+it('refuses a root with no .ia/src', async () => {
   const root = scratch('host-empty');
-  mkdirSync(resolve(root, '.ia/src'), { recursive: true });
+  mkdirSync(root, { recursive: true });
   const refused = await run(['host', 'claude', '--root', root, '--json'], {
     env: { IA_HOST_HOME: scratch('host-home') },
   });

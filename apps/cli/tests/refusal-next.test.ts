@@ -804,6 +804,7 @@ function invocations(): readonly {
 }[] {
   const empty = scratch('refusal-empty'),
     bare = resolve(scratch('refusal-bare'), 'workspace'),
+    unsourced = resolve(scratch('refusal-unsourced'), 'workspace'),
     file = resolve(empty, 'file.txt'),
     absent = resolve(empty, 'absent'),
     floorBroken = workspace(),
@@ -815,6 +816,8 @@ function invocations(): readonly {
     cycle = delivery('cycle'),
     planRefused = delivery();
   mkdirSync(resolve(bare, '.ia/src'), { recursive: true });
+  // A directory with no .ia/src: not a workspace, so host and project name its init.
+  mkdirSync(unsourced, { recursive: true });
   // A delivery plan whose status is outside its closed set: a source holds it and admission refuses it.
   const work = resolve(planRefused, '.ia/src/work.ia');
   writeFileSync(
@@ -1038,8 +1041,8 @@ function invocations(): readonly {
     { code: 'IA-DIST-HOST-UNSUPPORTED', argv: ['host', 'codex', '--user'], command: 'ia host claude --user' },
     {
       code: 'IA-CLI-CONFLICT',
-      argv: ['host', 'claude', '--root', bare],
-      command: `ia init ${quote(realpathSync(bare))}`,
+      argv: ['host', 'claude', '--root', unsourced],
+      command: `ia init ${quote(realpathSync(unsourced))}`,
     },
     {
       code: 'IA-CLI-CONFLICT',
@@ -1060,8 +1063,8 @@ function invocations(): readonly {
     },
     {
       code: 'IA-CLI-CONFLICT',
-      argv: ['project', 'claude', '--root', bare],
-      command: `ia init ${quote(bare)}`,
+      argv: ['project', 'claude', '--root', unsourced],
+      command: `ia init ${quote(unsourced)}`,
     },
     {
       code: 'IA-CLI-CONFLICT',

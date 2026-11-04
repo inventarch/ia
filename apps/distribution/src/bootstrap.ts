@@ -1,6 +1,7 @@
+import { lstatSync } from 'node:fs';
 import { parse } from 'smol-toml';
 import { reconcileConfig } from './config.js';
-import { bytes, fail, json, replace, utf8, workspace } from './files.js';
+import { bytes, contained, fail, json, replace, utf8, workspace } from './files.js';
 import { bootstrapRow } from './hosts.js';
 import type { BootstrapFormat, BootstrapHost } from './hosts.js';
 import { editJson } from './json-edit.js';
@@ -42,13 +43,34 @@ export const doorLaunch = (version: string): { readonly command: 'npx'; readonly
   args: ['-y', `${DOOR_PACKAGE}@${version}`],
 });
 
-/** The instruction block, the same text for every host. */
-export function instructionBlock(): string {
+/**
+ * The marker line every committed bootstrap block carries: one line that says, in a form a program can read, that
+ * contributing needs no binding and which operations do. Parse it with `^ia-bootstrap v1( [a-z-]+=\S+)+$`; a key a
+ * reader does not know is ignored.
+ */
+export const BOOTSTRAP_MARKER =
+  'ia-bootstrap v1 public-contribution=available needs-method=ia:work,ia:knowledge,ia:delivery needs-authority=declared-operations';
+/** The one prose sentence, on a single line, that names what needs a bound method or private authority. */
+export const BOOTSTRAP_SENTENCE =
+  'Operations that need a bound method or private authority refuse alone, naming it; everything else continues.';
+
+/**
+ * The instruction block, the same text for every host. Reading, building, testing, editing and submitting need no
+ * binding, plugin, door or private access; routing through the lanes applies only when a task needs a method.
+ */
+export function instructionBlock(options: { readonly contributing: boolean } = { contributing: false }): string {
+  const guide = options.contributing ? 'follow `CONTRIBUTING.md`' : "follow the repository's own contributing guide";
   return [
     BLOCK_BEGIN,
     '## IA',
     '',
-    `This repository is an IA workspace. Start each session by calling \`ia_session\` on the \`${BOOTSTRAP_SERVER}\` MCP server. For any task, use one lane: \`ia:work\`, \`ia:knowledge\` or \`ia:delivery\`. Call \`ia_catalogue {lane}\`, map the request to one item's \`key\`, then call \`ia_method {key}\` and follow the packet it returns. If context was lost, call \`ia_method\` again with the key and task the session briefing names.`,
+    `This repository is an IA workspace. Reading, building, testing, editing and submitting a change need no binding, plugin, door or private access; ${guide}.`,
+    '',
+    `When a task needs a method (a plan, a decision, a record, a delivery step), start the session by calling \`ia_session\` on the \`${BOOTSTRAP_SERVER}\` MCP server, then use one lane: \`ia:work\`, \`ia:knowledge\` or \`ia:delivery\`. Call \`ia_catalogue {lane}\`, map the request to one item's \`key\`, then call \`ia_method {key}\` and follow the packet it returns. If context was lost, call \`ia_method\` again with the key and task the session briefing names.`,
+    '',
+    `${BOOTSTRAP_SENTENCE} If the \`${BOOTSTRAP_SERVER}\` MCP server is unavailable, continue on the public path and run \`ia doctor\`.`,
+    '',
+    BOOTSTRAP_MARKER,
     BLOCK_END,
     '',
   ].join('\n');
@@ -76,7 +98,7 @@ function isDoorLaunch(value: unknown): boolean {
   );
 }
 
-function markdown(path: string, current: string | null, remove: boolean): string | null {
+function markdown(path: string, current: string | null, remove: boolean, contributing: boolean): string | null {
   const text = current ?? '';
   if (GENERATED.test(text))
     fail(
@@ -85,7 +107,7 @@ function markdown(path: string, current: string | null, remove: boolean): string
     );
   const start = text.indexOf(BLOCK_BEGIN),
     endAt = text.indexOf(BLOCK_END);
-  const block = instructionBlock();
+  const block = instructionBlock({ contributing });
   if (start < 0 && endAt < 0) {
     if (remove) return current;
     if (text === '') return block;
@@ -94,9 +116,11 @@ function markdown(path: string, current: string | null, remove: boolean): string
   if (start < 0 || endAt < start || text.indexOf(BLOCK_BEGIN, start + 1) >= 0)
     fail('LOCAL-MODIFICATION', `${path} holds an incomplete or repeated IA bootstrap block`);
   let after = text.slice(endAt + BLOCK_END.length);
-  if (after.startsWith('\n')) after = after.slice(1);
+  // The closing line's own terminator (CRLF, LF or none at the end of the file) is kept as it was found.
+  const terminator = after.startsWith('\r\n') ? '\r\n' : after.startsWith('\n') ? '\n' : '';
+  after = after.slice(terminator.length);
   const before = text.slice(0, start);
-  if (!remove) return before + block + after;
+  if (!remove) return before + block.slice(0, -1) + terminator + after;
   const kept = (before.replace(/\n+$/, '\n') + after).replace(/^\n+/, '');
   return kept.trim() === '' ? null : kept;
 }
@@ -152,6 +176,19 @@ function tomlFile(path: string, current: string | null, version: string, remove:
   return combined.trim() === '' ? null : combined;
 }
 
+/**
+ * Whether `CONTRIBUTING.md` is a plain file the block may name. A probe, never a read: a directory, a link, a hard link,
+ * an oversized file or anything unreadable only selects the generic wording, so no guide can make a bootstrap fail.
+ */
+function hasContributingGuide(root: string): boolean {
+  try {
+    const stat = lstatSync(contained(root, 'CONTRIBUTING.md'));
+    return stat.isFile() && stat.nlink === 1 && stat.size <= 1024 * 1024;
+  } catch {
+    return false;
+  }
+}
+
 /** The plan of the committed bootstrap for one host at root: each file's next text and what changes. */
 export function planBootstrap(rootInput: string, host: BootstrapHost, version: string, remove = false): BootstrapPlan {
   const root = workspace(rootInput);
@@ -163,10 +200,11 @@ export function planBootstrap(rootInput: string, host: BootstrapHost, version: s
   };
   const action = (before: string | null, after: string | null): BootstrapFile['action'] =>
     before === after ? 'unchanged' : before === null ? 'create' : after === null ? 'remove' : 'update';
+  const contributing = hasContributingGuide(root);
   const files: BootstrapFile[] = [];
   for (const path of row.bootstrap.instructions) {
     const before = read(path),
-      after = markdown(path, before, remove);
+      after = markdown(path, before, remove, contributing);
     files.push({ path, kind: 'instructions', action: action(before, after), after });
   }
   for (const { file, format } of row.bootstrap.mcp) {
