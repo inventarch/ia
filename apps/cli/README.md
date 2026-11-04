@@ -40,7 +40,7 @@ Each project keeps its own records in its own `.ia/` directory. The [main quick 
 
 ## ⌨️ Commands
 
-Bare `ia` on an interactive terminal opens a console: the workspace's health by area, and the offers that fix or set it up, each showing the commands it runs and what they change before you confirm. In a pipe or with `CI` set it prints help instead. `ia --help` lists every command and `ia <command> --help` gives its full syntax. These rules hold across them:
+Bare `ia` on an interactive terminal opens a console: the workspace's health by area, and the offers that fix or set it up, each showing the commands it runs and what they change before you confirm. Outside a workspace it opens on every workspace you track, where one offer can be batched across several, each in a new git worktree and branch, with nothing pushed unless you choose to. In a pipe or with `CI` set it prints help instead. `ia --help` lists every command and `ia <command> --help` gives its full syntax. These rules hold across them:
 
 - **Plan, then apply.** `init`, `install`, `adopt`, `update`, `remove`, `project` and `host` print a plan and act only with `--apply`, which needs `--yes` without a terminal or with `--json`. A plan applies nothing, though acquiring for an install or update plan may fill the archive cache. `restore` has no preview, so it always takes `--apply`.
 - **One next command.** Every consumer-command refusal names the one command to run next, on the `→` line or as `next` in the `--json` object `{version, ok: false, code, message, exit, where, next}`.
