@@ -248,3 +248,22 @@ export function installRoot(manifestDirectory: string): string {
     if (dirname(current) === current) return member;
   }
 }
+
+export interface WorkspaceCli {
+  /** The CLI dependency of the nearest manifest, or `null` when it lists none. */
+  readonly dependency: CliDependency | null;
+  /** The directory that owns the install (`installRoot` of the manifest's directory); `root` without a dependency. */
+  readonly owner: string;
+  /** The installed copy hand-off runs, or `null` without a dependency or a valid copy up to `owner`. */
+  readonly local: LocalCli | null;
+}
+/**
+ * The workspace at `root`'s CLI dependency, the directory that owns its install and the copy found up to there: the one
+ * answer hand-off acts on (handoff.ts) and doctor's `cli-version` row reports (doctor-user.ts), so the two never differ.
+ */
+export function resolveWorkspaceCli(root: string): WorkspaceCli {
+  const dependency = readCliDependency(root);
+  if (dependency === null) return { dependency, owner: root, local: null };
+  const owner = installRoot(dirname(dependency.manifest));
+  return { dependency, owner, local: findLocalCli(root, owner) };
+}

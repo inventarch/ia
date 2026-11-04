@@ -1,7 +1,10 @@
 import { mkdirSync, realpathSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { afterAll, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
+import { CORE_TOKENS } from '../src/commands.js';
 import { cliVersionRow } from '../src/doctor-user.js';
+import { handoffTarget } from '../src/handoff.js';
+import { resolveWorkspaceCli } from '../src/local-cli.js';
 import { cleanup, scratch } from './scratch-fixture.js';
 
 afterAll(cleanup);
@@ -197,6 +200,77 @@ it('the manager is detected at the workspaces root', () => {
   expect(check.status).toBe('warn');
   expect(check.remedy).toBe(`In ${repo}: npm install`);
   expect(check.detail).toContain(`between the workspace and ${repo.replaceAll('\\', '/')}`);
+});
+describe('doctor names the copy hand-off runs', () => {
+  const running = scratch('cv-tie-running');
+  const iaHome = resolve(scratch('cv-tie-home'), '.ia');
+  const copyAt = (dir: string): string => {
+    const copy = resolve(dir, 'node_modules/@inventarch/cli');
+    put(
+      resolve(copy, 'package.json'),
+      JSON.stringify({ name: '@inventarch/cli', version: '3.5.0', bin: { ia: 'dist/main.js' } }),
+    );
+    put(resolve(copy, 'dist/main.js'), '');
+    return realpathSync(copy);
+  };
+  /** Each layout gives the IA root and the copy both must name, or null when neither may name one. */
+  const layouts: [string, () => { root: string; expected: string | null }][] = [
+    [
+      'the workspace pins and installs it',
+      () => {
+        const { root, copy } = fixture('cv-tie-own', { range: '3.5.0', installed: '3.5.0' });
+        return { root, expected: copy };
+      },
+    ],
+    [
+      'a workspaces root hoists it',
+      () => {
+        const { member, copy } = hoisted('cv-tie-hoisted', { installed: '3.5.0' });
+        return { root: member, expected: copy };
+      },
+    ],
+    [
+      'the member installs its own beside a hoisted one',
+      () => {
+        const { member } = hoisted('cv-tie-nested', { installed: '3.5.0' });
+        return { root: member, expected: copyAt(member) };
+      },
+    ],
+    [
+      'a parent root that does not list the member',
+      () => {
+        const { member } = hoisted('cv-tie-unrelated', { installed: '3.5.0', workspaces: ['apps/*'] });
+        return { root: member, expected: null };
+      },
+    ],
+    [
+      'a parent root that lists the member only through braces',
+      () => {
+        const { member } = hoisted('cv-tie-braces', { installed: '3.5.0', workspaces: ['packages/{x,y}'] });
+        return { root: member, expected: null };
+      },
+    ],
+  ];
+  it.each(layouts)('%s', (_name, layout) => {
+    const { root, expected } = layout();
+    expect(resolveWorkspaceCli(root).local?.packageRoot ?? null).toBe(expected);
+    const handedTo = handoffTarget({
+      argv: ['validate'],
+      cwd: root,
+      env: {},
+      packageRoot: running,
+      iaHome,
+      extensions: [],
+      coreTokens: CORE_TOKENS,
+      committed: () => false,
+    });
+    expect(handedTo?.packageRoot ?? null).toBe(expected);
+    const asked: string[] = [];
+    const committed = (packageRoot: string) => (asked.push(packageRoot), true);
+    const check = cliVersionRow({ root, packageRoot: running, version: '3.5.0', env: {}, host: false, committed });
+    expect(asked).toEqual(expected === null ? [] : [expected]);
+    expect(check.status).toBe(expected === null ? 'warn' : 'info');
+  });
 });
 it('an unrelated parent root does not lend its manager', () => {
   const { member } = hoisted('cv-unrelated', { installed: null, lock: 'package-lock.json', workspaces: ['apps/*'] });

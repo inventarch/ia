@@ -32,7 +32,7 @@ import { describeChannel, detectChannel, updateInstruction } from './channel.js'
 import type { Check, CheckStatus, Section } from './doctor.js';
 import { quote } from './render.js';
 import { committed, HANDOFF_FROM, NO_HANDOFF } from './handoff.js';
-import { findLocalCli, installRoot, readCliDependency } from './local-cli.js';
+import { resolveWorkspaceCli } from './local-cli.js';
 import { readMarketplaceRecord } from './marketplace-record.js';
 import type { PackageManager } from './package-manager.js';
 import { detectPackageManager, installCommand, pinCommand, satisfies } from './package-manager.js';
@@ -146,10 +146,9 @@ export function cliVersionRow(input: {
   readonly committed?: (packageRoot: string) => boolean;
 }): Check {
   const { root, version, env } = input;
-  const dependency = readCliDependency(root);
+  // The same resolution hand-off acts on, so the row names the copy a typed command runs.
+  const { dependency, owner, local } = resolveWorkspaceCli(root);
   const managed = dependency === null ? root : dirname(dependency.manifest);
-  const owner = dependency === null ? root : installRoot(managed);
-  const local = dependency === null ? null : findLocalCli(root, owner);
   const { manager, conflict } = detectPackageManager(owner);
   const manage = (command: (manager: PackageManager) => string): string | null =>
     manager === null ? null : command(manager);
