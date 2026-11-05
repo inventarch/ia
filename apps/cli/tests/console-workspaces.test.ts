@@ -3,7 +3,7 @@
  * few doctor runs at once, each row classified from the statuses its checks report (never from its offers), and the
  * summary's counts. Doctor collection and the copies' runs are injected; the roots are real directories.
  */
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import type { Extension } from '../src/consumer.js';
@@ -68,6 +68,16 @@ const base = (tracked: readonly TrackedWorkspace[]) => ({
   version: '3.5.1',
   collect: () => view([...RUNNING, check('node'), check('records'), check('cli-version'), check('kits', 'unknown')]),
 });
+const unprivileged = process.platform === 'win32' || process.getuid?.() === 0;
+/** Runs `check` with `directories` denied to this user, so a stat below each fails with EACCES. */
+async function denied<T>(directories: readonly string[], check: () => Promise<T>): Promise<T> {
+  for (const directory of directories) chmodSync(directory, 0o000);
+  try {
+    return await check();
+  } finally {
+    for (const directory of directories) chmodSync(directory, 0o755);
+  }
+}
 async function load(input: Omit<Parameters<typeof loadAll>[0], 'onRow'>): Promise<RepoRow[]> {
   const rows: RepoRow[] = input.tracked.map(loadingRow);
   await loadAll({ ...input, onRow: (index, row) => (rows[index] = row) });
@@ -119,6 +129,59 @@ describe('loadAll', () => {
     expect(rows.map((row) => row.state)).toEqual(['ready', 'missing', 'missing']);
     expect(collected).toEqual([present.root]);
     expect(rows.map(classify)).toEqual(['healthy', 'missing', 'missing']);
+  });
+  // A root that cannot be read must never load: discovery walks up from it, so it would read as the workspace around
+  // it, or as outside any workspace, with that place's offers. A real chmod, not a stub.
+  it.skipIf(unprivileged)('unreadable rows never load as another workspace', async () => {
+    const parent = workspace('parent');
+    const nested = { id: 'nested', root: join(parent.root, 'nested'), added: parent.added };
+    mkdirSync(join(nested.root, '.ia/src'), { recursive: true });
+    const lone = workspace('lone');
+    const collected: string[] = [];
+    const rows = await denied([nested.root, lone.root], () =>
+      load({
+        ...base([nested, lone]),
+        collect: (request) => {
+          collected.push(request.cwd);
+          return view([check('records')]);
+        },
+        signal: new AbortController().signal,
+      }),
+    );
+    expect(rows.map((row) => row.state)).toEqual(['unreadable', 'unreadable']);
+    expect(rows.map((row) => [row.console, row.offers])).toEqual([
+      [null, []],
+      [null, []],
+    ]);
+    expect(rows.map(classify)).toEqual(['unreadable', 'unreadable']);
+    expect(collected).toEqual([]);
+  });
+  it.skipIf(unprivileged)('a root that turns unreadable while it loads is not taken for another', async () => {
+    const parent = workspace('parent-late');
+    const nested = { id: 'nested', root: join(parent.root, 'nested'), added: parent.added };
+    mkdirSync(join(nested.root, '.ia/src'), { recursive: true });
+    const lone = workspace('lone-late');
+    const locked: string[] = [];
+    try {
+      const rows = await load({
+        ...base([nested, lone]),
+        // Collected before discovery: denying the root here is the race between the check and the load.
+        collect: (request) => {
+          chmodSync(request.cwd, 0o000);
+          locked.push(request.cwd);
+          return view([check('records')]);
+        },
+        signal: new AbortController().signal,
+      });
+      expect(locked).toEqual([nested.root, lone.root]);
+      expect(rows.map((row) => row.state)).toEqual(['unreadable', 'unreadable']);
+      expect(rows.map((row) => [row.console, row.offers])).toEqual([
+        [null, []],
+        [null, []],
+      ]);
+    } finally {
+      for (const path of locked) chmodSync(path, 0o755);
+    }
   });
   it('at most limit doctor runs at once', async () => {
     const tracked = ['a', 'b', 'c', 'd', 'e', 'f'].map((name) => workspace(name, '3.5.0'));
@@ -358,6 +421,7 @@ describe('summarize', () => {
     const rows: RepoRow[] = [
       loadingRow(tracked),
       { ...loadingRow(tracked), state: 'missing' },
+      { ...loadingRow(tracked), state: 'unreadable' },
       { ...ready([{ id: 'records', status: 'unknown' }]), state: 'failed', failure: 'exit 3' },
       ready([{ id: 'node', status: 'fail' }]),
       ready([{ id: 'records', status: 'warn' }]),
@@ -370,18 +434,19 @@ describe('summarize', () => {
       latest: '3.5.2',
       global: '3.5.1',
       behind: true,
-      tracked: 8,
+      tracked: 9,
       healthy: 2,
       attention: 2,
       failing: 1,
       warning: 1,
       missing: 1,
+      unreadable: 1,
       failed: 1,
       unchecked: 1,
       loading: 1,
     });
-    const { tracked: total, healthy, failing, warning, missing, failed, unchecked, loading } = summary;
-    expect(total).toBe(healthy + failing + warning + missing + failed + unchecked + loading);
+    const { tracked: total, healthy, failing, warning, missing, unreadable, failed, unchecked, loading } = summary;
+    expect(total).toBe(healthy + failing + warning + missing + unreadable + failed + unchecked + loading);
     expect(summarize([], { latest: null }, '3.5.1')).toMatchObject({ latest: null, behind: false, tracked: 0 });
     expect(summarize([], { latest: '3.5.1' }, '3.5.1').behind).toBe(false);
   });

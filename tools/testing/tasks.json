@@ -931,6 +931,34 @@
           "platforms": [
             "windows"
           ]
+        },
+        {
+          "case": "tests/console-workspaces.test.ts > loadAll unreadable rows never load as another workspace",
+          "reason": "POSIX permission bits are what deny the stat here, and Windows does not honour chmod on a directory; how the console shows an unreadable row is covered on every platform by the console-layout-all and summarize cases.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/console-workspaces.test.ts > loadAll a root that turns unreadable while it loads is not taken for another",
+          "reason": "POSIX permission bits are what deny the stat here, and Windows does not honour chmod on a directory; how the console shows an unreadable row is covered on every platform by the console-layout-all and summarize cases.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/console-app.test.ts > the all-workspaces view an unreadable row reads unreadable and does not open",
+          "reason": "POSIX permission bits are what deny the stat here, and Windows does not honour chmod on a directory; how the console shows an unreadable row is covered on every platform by the console-layout-all and summarize cases.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/console-app.test.ts > the all-workspaces view an opened workspace whose root turns unreadable goes back to the table on refresh",
+          "reason": "POSIX permission bits are what deny the stat here, and Windows does not honour chmod on a directory; how the console shows an unreadable row is covered on every platform by the console-layout-all and summarize cases.",
+          "platforms": [
+            "windows"
+          ]
         }
       ]
     },

@@ -287,6 +287,14 @@ describe('summary', () => {
     expect(summaryText({ ...base, latest: null, global: '3.4.0', behind: true }, false)).toContain('Global 3.4.0 ▲');
     expect(summaryText({ ...base, behind: true }, true)).toContain('Global 3.5.1 !');
   });
+  it('an unreadable row reads unreadable, with no cells, and counts in Unreadable', () => {
+    const repos: RepoRow[] = [{ ...loadingRow(tracked('locked')), state: 'unreadable' }];
+    const lines = frame({ selected: new Set(), choices: [], cursor: 0, columns: 140 }, repos);
+    expect(lines.some((line) => /\[ \] \? locked\s+unreadable/.test(line))).toBe(true);
+    expect(lines.some((line) => line.includes('Unreadable: the folder cannot be examined'))).toBe(true);
+    expect(lines[0]).toContain('Unreadable 1');
+    expect(lines[0]).toContain('Missing 0');
+  });
   it('a repo whose only failure is advice-only shows ▲ and counts in Attention', () => {
     const repos = [
       ready('advice', '3.5.1', [

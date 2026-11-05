@@ -4,7 +4,7 @@
  * the disk), that a decline spawns nothing, and that the terminal is restored on quit, on a throw and on a signal.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -970,10 +970,14 @@ describe('runConsole', () => {
   });
 });
 
+const unprivileged = process.platform === 'win32' || process.getuid?.() === 0;
 /** The end of a long value, which the folder line always shows. */
 const tail = (text: string): string => text.slice(-12);
 /** The console started outside any workspace, with `tracked` workspaces in its IA home's tracked list. */
-async function launchAll(tracked = 0, extra: { copies?: boolean; spawnDoctor?: SpawnDoctor; inside?: boolean } = {}) {
+async function launchAll(
+  tracked = 0,
+  extra: { copies?: boolean; spawnDoctor?: SpawnDoctor; inside?: boolean; before?: (roots: string[]) => void } = {},
+) {
   const base = scratch('console-all');
   const cwd = join(base, 'outside'),
     home = join(base, 'home');
@@ -994,6 +998,7 @@ async function launchAll(tracked = 0, extra: { copies?: boolean; spawnDoctor?: S
     writeFileSync(join(installed, 'dist/bin.js'), '');
   }
   if (roots.length > 0) await trackWorkspaces(home, roots);
+  extra.before?.(roots);
   // `inside`: the console starts in the first tracked workspace, whose own view is then the home one.
   const start = extra.inside === true && roots[0] !== undefined ? roots[0] : cwd;
   const terminal = new FakeTerminal();
@@ -1044,6 +1049,47 @@ describe('the all-workspaces view', () => {
     expect(run.hooks.exits).toEqual([]);
     run.stdin.write('q');
     expect(await run.exit).toBe(0);
+  });
+  // A real chmod: discovery walks up from a root it cannot read, so such a row must never open as another place.
+  it.skipIf(unprivileged)('an unreadable row reads unreadable and does not open', async () => {
+    const denied: string[] = [];
+    try {
+      const run = await launchAll(1, {
+        before: (roots) => {
+          chmodSync(roots[0]!, 0o000);
+          denied.push(roots[0]!);
+        },
+      });
+      await until(run.shows('Unreadable 1'), 'the row to be set aside');
+      expect(run.terminal.out).toContain('Healthy 0');
+      run.stdin.write('\r');
+      await until(run.shows('ws0 is unreadable.'), 'the refusal to open it');
+      expect(run.terminal.out).not.toContain('esc back');
+      run.stdin.write('q');
+      expect(await run.exit).toBe(0);
+    } finally {
+      for (const path of denied) chmodSync(path, 0o755);
+    }
+  });
+  it.skipIf(unprivileged)('an opened workspace whose root turns unreadable goes back to the table on refresh', async () => {
+    const denied: string[] = [];
+    try {
+      const run = await launchAll(1);
+      await until(run.shows('Healthy 1'), 'the row to load');
+      run.stdin.write('\r');
+      await until(run.shows('esc back'), 'the repo view');
+      chmodSync(run.roots[0]!, 0o000);
+      denied.push(run.roots[0]!);
+      const mark = run.terminal.out.length;
+      run.stdin.write('r');
+      await until(() => run.terminal.out.slice(mark).includes('ws0 is unreadable.'), 'the table');
+      expect(run.terminal.out.slice(mark)).toContain('space select');
+      expect(run.terminal.out.slice(mark)).toContain('Unreadable 1');
+      run.stdin.write('q');
+      expect(await run.exit).toBe(0);
+    } finally {
+      for (const path of denied) chmodSync(path, 0o755);
+    }
   });
   it('f opens the folder line in text mode: b, q and j are typed, not commands', async () => {
     const run = await launchAll(1);

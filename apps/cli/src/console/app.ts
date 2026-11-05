@@ -61,7 +61,15 @@ import type { TerminalIO } from './terminal.js';
 import { Screen } from './terminal.js';
 import { graphemes } from './width.js';
 import type { RepoRow } from './workspaces-state.js';
-import { doctorPool, loadAll, loadingRow, summarize, WORKSPACE_DOCTOR_TIMEOUT_MS } from './workspaces-state.js';
+import {
+  doctorPool,
+  loadAll,
+  loadingRow,
+  ownRoot,
+  setAside,
+  summarize,
+  WORKSPACE_DOCTOR_TIMEOUT_MS,
+} from './workspaces-state.js';
 
 export const ESCAPE_TIMEOUT_MS = 50;
 
@@ -436,10 +444,22 @@ export async function runConsole(input: {
         if (refresh === controller) refresh = null;
         if (loaded === null || finished || mine !== refreshes || ui.drilled !== target || controller.signal.aborted)
           return;
-        state = loaded;
         const row = target.row === null ? undefined : all.rows[target.row];
-        if (row !== undefined && target.row !== null && row.tracked.root === target.root)
-          all.rows[target.row] = rowFrom(row.tracked, loaded);
+        const same = row !== undefined && target.row !== null && row.tracked.root === target.root;
+        // A root that went missing or unreadable since it opened loads as the workspace around it, or as none, with
+        // that place's offers; the view goes back to the table rather than offer them.
+        if (!ownRoot(target.root, loaded)) {
+          const aside = same && row !== undefined ? setAside(row.tracked) : null;
+          if (aside !== null) all.rows[target.row!] = aside;
+          toAll();
+          all.message =
+            aside === null
+              ? 'The opened workspace can no longer be read.'
+              : `${aside.tracked.id} is ${aside.state}.`;
+          return;
+        }
+        state = loaded;
+        if (same && row !== undefined) all.rows[target.row!] = rowFrom(row.tracked, loaded);
       }
       offers = offersFor(state, consoles);
       ui.selected = Math.min(ui.selected, Math.max(0, offers.length - 1));
@@ -790,7 +810,10 @@ export async function runConsole(input: {
         if (item.kind === 'repo') {
           const row = all.rows[item.index]!;
           if (row.console === null)
-            all.message = row.state === 'missing' ? `${row.tracked.id} is missing.` : 'Still reading this workspace.';
+            all.message =
+              row.state === 'missing' || row.state === 'unreadable'
+                ? `${row.tracked.id} is ${row.state}.`
+                : 'Still reading this workspace.';
           else {
             ui.mode = 'repo';
             dropRefresh();
