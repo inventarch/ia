@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import { packDistribution } from '@inventarch/distribution/pack';
@@ -94,7 +94,7 @@ beforeAll(async () => {
     });
     files.set(`package/archives/${packed.archiveDigest}.ia.tgz`, packed.bytes);
   }
-  packageManifest = { name: '@inventarch/public-kits', version: '1.0.0', ia: { format: 1, kits } };
+  packageManifest = { name: '@inventarch/public-kits', version: '1.0.2', ia: { format: 1, kits } };
   files.set('package/package.json', Buffer.from(JSON.stringify(packageManifest)));
   packageBytes = packTree(files, HOST_TREE_LIMITS);
 }, 120_000);
@@ -222,6 +222,21 @@ it('refuses conflicting MCP configuration before initializing or downloading', a
   expect(existsSync(join(root, '.ia'))).toBe(false);
   expect(existsSync(env.IA_NPM_LOG)).toBe(false);
 });
+
+it('adds agent setup to an admitted workspace that ships no package', async () => {
+  const { root, env } = target();
+  expect((await run(['init', root, '--host', 'none', '--apply', '--yes', '--json'], { env })).exitCode).toBe(0);
+  unlinkSync(join(root, '.ia/release.json'));
+  const sources = read(root, '.ia/src/workspace.ia');
+  const preview = await run(['init', root, '--setup', '--host', 'codex', '--json'], { env });
+  expect(preview.exitCode, preview.stdout).toBe(0);
+  expect(existsSync(env.IA_NPM_LOG)).toBe(false);
+  const setup = await run(['init', root, '--setup', '--host', 'codex', '--apply', '--yes', '--json'], { env });
+  expect(setup.exitCode, setup.stdout).toBe(0);
+  expect(existsSync(join(root, '.ia/release.json'))).toBe(false);
+  expect(read(root, '.ia/src/workspace.ia')).toBe(sources);
+  expect(read(root, 'AGENTS.md')).toContain('ia_catalogue');
+}, 120_000);
 
 it('offers CLI-only initialization without downloading methods or writing agent files', async () => {
   const { root, env } = target();

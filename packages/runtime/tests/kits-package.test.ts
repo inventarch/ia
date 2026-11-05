@@ -6,6 +6,7 @@ import { afterEach, beforeEach, expect, it } from 'vitest';
 import {
   INSTALLED_KITS_DIRECTORY,
   briefing,
+  declaredAssets,
   installedKit,
   installedPackageKits,
   listKits,
@@ -45,17 +46,33 @@ function folderKit(at: string, name: string, version: string): void {
   });
 }
 /** An installed store payload of `inventarch/ia-kb-kit`, and the lock row that pins it. */
-function storeKit(): { id: string; version: string; archive: string; manifest: string; dependencies: string[] } {
+function storeKit(assets: Record<string, string> = {}): {
+  id: string;
+  version: string;
+  archive: string;
+  manifest: string;
+  dependencies: string[];
+} {
   const record = '#! ia 1.0\n\n@workspace kb\n';
   const manifest = JSON.stringify({
     id: 'inventarch/ia-kb-kit',
     version: '0.9.0',
     dependencies: [{ id: BASE.id, range: '^3.2.0' }],
-    files: [{ path: '.ia/src/workspace.ia', bytes: record.length, sha256: sha256(record), role: 'source' }],
+    files: [
+      { path: '.ia/src/workspace.ia', bytes: record.length, sha256: sha256(record), role: 'source' },
+      ...Object.entries(assets).map(([path, bytes]) => ({
+        path,
+        bytes: bytes.length,
+        sha256: sha256(bytes),
+        role: 'asset',
+      })),
+    ],
   });
   const archive = 'd'.repeat(64);
   write(join(root, '.ia', 'distributions', 'store', archive, 'distribution.json'), manifest);
   write(join(root, '.ia', 'distributions', 'store', archive, '.ia', 'src', 'workspace.ia'), record);
+  for (const [path, bytes] of Object.entries(assets))
+    write(join(root, '.ia', 'distributions', 'store', archive, path), bytes);
   return { id: 'inventarch/ia-kb-kit', version: '0.9.0', archive, manifest: sha256(manifest), dependencies: [BASE.id] };
 }
 const lock = (kits: unknown[]): void =>
@@ -89,6 +106,19 @@ it('reads kits as before when the lock records no package entry', () => {
     kits: listKits({ bundled, home: null }),
     missing: [],
   });
+});
+
+it('reconstructs the installed descriptor and repairs an older cache so declared assets remain readable', () => {
+  const row = storeKit({ 'bindings.json': '{"format":1,"recommend":{}}', 'assets/guide.md': 'Read this guide.' });
+  lock([row]);
+  const first = installedPackageKits(root, env()).kits[0]!;
+  expect(first.version).toBe(row.version);
+  expect(declaredAssets(first.dir).map(({ rel }) => rel)).toEqual(['assets/guide.md', 'bindings.json']);
+  rmSync(join(first.dir, '.ia', 'release.json'));
+  const restored = installedPackageKits(root, env()).kits[0]!;
+  expect(declaredAssets(restored.dir).map(({ rel }) => rel)).toEqual(['assets/guide.md', 'bindings.json']);
+  write(join(restored.dir, '.ia', 'release.json'), { assets: [] });
+  expect(declaredAssets(installedPackageKits(root, env()).kits[0]!.dir)).toHaveLength(2);
 });
 
 it('reads an installed kit from the store, materialized with its release and dependency lock, and never another copy', () => {

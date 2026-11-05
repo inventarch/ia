@@ -20,9 +20,10 @@ import type { Context, Result } from './consumer.js';
 import { sessionGate } from './profile.js';
 import { openSession } from './session.js';
 import { terminalText } from './render.js';
-import { requireAdmittedWorkspace } from './workspace-state.js';
+import { hasWorkspaceSource, requireAdmittedWorkspace } from './workspace-state.js';
 
 export const DEFAULT_METHODS_PACKAGE = '@inventarch/public-kits';
+const DEFAULT_METHODS_SELECTOR = `${DEFAULT_METHODS_PACKAGE}@1.0.2`;
 const DEFAULT_KITS = ['inventarch/ia-method-kit', 'inventarch/ia-kb-kit', 'inventarch/ia-authoring-kit'];
 const BINDINGS = '.ia/bindings.json';
 const LABELS = { codex: 'Codex', claude: 'Claude Code', none: 'CLI only' } as const;
@@ -181,7 +182,16 @@ export async function runSetup(context: Context, root: string): Promise<Result> 
   if (args.value('id')) init.push('--id', args.value('id')!);
   const initial = await command(context, init);
   const state = initial.plan!.state;
-  const initialized = existsSync(join(root, '.ia/release.json')) && existsSync(join(root, '.ia/src'));
+  let initialized = false;
+  if (hasWorkspaceSource(root)) {
+    try {
+      requireAdmittedWorkspace(root);
+      initialized = true;
+    } catch (error) {
+      // An interrupted initializer may already have written some sources. Its own plan decides whether it can resume.
+      if (state !== 'fresh' && state !== 'resumable') throw error;
+    }
+  }
   if (!initialized && state !== 'fresh' && state !== 'resumable')
     throw new Refusal(
       'IA-CLI-CONFLICT',
@@ -193,7 +203,6 @@ export async function runSetup(context: Context, root: string): Promise<Result> 
   // Inspect the destination before installing anything. The portable bootstrap appends to existing instruction files.
   const discovery = agent === 'none' || !existsSync(root) ? undefined : planBootstrap(root, agent, host.version);
   if (initialized) {
-    requireAdmittedWorkspace(root);
     bindingBytes(root);
     readBindings(root);
   }
@@ -242,7 +251,7 @@ export async function runSetup(context: Context, root: string): Promise<Result> 
         context,
         locked
           ? ['restore', '--root', root, '--offline', '--apply', '--yes']
-          : ['install', '--root', root, '--package', DEFAULT_METHODS_PACKAGE, '--apply', '--yes'],
+          : ['install', '--root', root, '--package', DEFAULT_METHODS_SELECTOR, '--apply', '--yes'],
       );
       completed.push(step);
       step = 'methods';
