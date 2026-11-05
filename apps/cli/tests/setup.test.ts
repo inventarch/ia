@@ -246,3 +246,15 @@ it('offers CLI-only initialization without downloading methods or writing agent 
   expect(existsSync(join(root, 'AGENTS.md'))).toBe(false);
   expect(existsSync(env.IA_NPM_LOG)).toBe(false);
 });
+
+it('finishes an interrupted initializer whose authored workspace has not been written', async () => {
+  const { root, env } = target();
+  expect((await run(['init', root, '--host', 'none', '--apply', '--yes', '--json'], { env })).exitCode).toBe(0);
+  unlinkSync(join(root, '.ia/release.json'));
+  unlinkSync(join(root, '.ia/src/workspace.ia'));
+  const result = await run(['init', root, '--setup', '--host', 'codex', '--apply', '--yes', '--json'], { env });
+  expect(result.exitCode, result.stdout).toBe(0);
+  expect(existsSync(join(root, '.ia/src/workspace.ia'))).toBe(true);
+  expect(existsSync(join(root, '.ia/release.json'))).toBe(true);
+  expect(read(root, 'AGENTS.md')).toContain('ia_catalogue');
+}, 120_000);

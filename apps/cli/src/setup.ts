@@ -20,7 +20,7 @@ import type { Context, Result } from './consumer.js';
 import { sessionGate } from './profile.js';
 import { openSession } from './session.js';
 import { terminalText } from './render.js';
-import { hasWorkspaceSource, requireAdmittedWorkspace } from './workspace-state.js';
+import { hasWorkspaceSource, requireAdmitted } from './workspace-state.js';
 
 export const DEFAULT_METHODS_PACKAGE = '@inventarch/public-kits';
 const DEFAULT_METHODS_SELECTOR = `${DEFAULT_METHODS_PACKAGE}@1.0.2`;
@@ -185,8 +185,20 @@ export async function runSetup(context: Context, root: string): Promise<Result> 
   let initialized = false;
   if (hasWorkspaceSource(root)) {
     try {
-      requireAdmittedWorkspace(root);
-      initialized = true;
+      const session = openSession(root);
+      try {
+        requireAdmitted(session, root);
+        initialized = session.reader
+          .records()
+          .some(
+            (record) =>
+              record.discriminator === 'workspace' &&
+              record.source.path.startsWith('.ia/src/') &&
+              !record.source.path.startsWith('.ia/src/floor/'),
+          );
+      } finally {
+        session.close();
+      }
     } catch (error) {
       // An interrupted initializer may already have written some sources. Its own plan decides whether it can resume.
       if (state !== 'fresh' && state !== 'resumable') throw error;
