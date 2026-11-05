@@ -1352,7 +1352,8 @@ describe.skipIf(process.platform === 'win32')('a command’s whole process tree'
   it('the command has no terminal of its own to stop on: opening one fails at once rather than waiting', async () => {
     const fx = fixture('batch-run-tree-tty');
     const run = defaultRunner(fx.env, { timeoutMs: 20_000 });
-    const result = await run('/bin/sh', ['-c', ': < /dev/tty && echo opened || echo refused'], {
+    // `cat`, not `:`: a failed redirect on a special builtin ends a POSIX shell (dash on Linux) before the echo.
+    const result = await run('/bin/sh', ['-c', '/bin/cat < /dev/tty > /dev/null 2>&1 && echo opened || echo refused'], {
       cwd: fx.dir,
       env: fx.env,
     });

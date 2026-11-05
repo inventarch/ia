@@ -292,7 +292,14 @@ export function enclosingTop(path: string, env: Env): string | null {
     { checkouts: [] },
   );
   const top = result.status === 0 ? result.stdout.trim() : '';
-  return top === '' ? null : top;
+  if (top === '') return null;
+  // git writes the top level with forward slashes, and Windows may spell it with a short name; `gitTop` names its
+  // repository by real path, so the folder around it is named the same way.
+  try {
+    return realpathSync.native(resolve(top));
+  } catch {
+    return null;
+  }
 }
 
 const lastLine = (text: string): string =>

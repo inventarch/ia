@@ -917,6 +917,27 @@
           "platforms": [
             "windows"
           ]
+        },
+        {
+          "case": "tests/console-app.test.ts > opening a failed repository after a batch no key reaches another workspace’s offers while it reads; its own view follows",
+          "reason": "The case drives the console through a batch against a faked git and a real worktree layout; it has not been checked on Windows, so it runs on Linux and macOS only.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/console-app.test.ts > opening a failed repository after a batch q still quits while it reads",
+          "reason": "The case drives the console through a batch against a faked git and a real worktree layout; it has not been checked on Windows, so it runs on Linux and macOS only.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/console-workspaces.test.ts > the bound on a workspace copy's doctor an abort settles only once the doctor has ended, so its slot stays held",
+          "reason": "The stub doctor ignores SIGTERM; on Windows process.kill ends the target unconditionally.",
+          "platforms": [
+            "windows"
+          ]
         }
       ]
     },
@@ -1386,6 +1407,69 @@
         {
           "case": "tests/handoff-installed.test.ts > the copy that handed off outlives a signal the child also receives",
           "reason": "The fixture needs a catchable signal; on Windows process.kill ends the target unconditionally.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/console-batch-run.test.ts > a failed git worktree add what the run made is removed: the worktree, dirty as it is, and the branch",
+          "reason": "The post-checkout hook that fails the add is a POSIX shell script with an executable bit; Windows runs no such hook.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/console-batch-run.test.ts > a failed git worktree add a branch that moved away from the base is not this run’s to delete, and the result says it is left",
+          "reason": "The post-checkout hook that fails the add is a POSIX shell script with an executable bit; Windows runs no such hook.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/console-batch-run.test.ts > a command’s whole process tree a timeout kills a process the command started, not only the command",
+          "reason": "The case reaches a process group and signals; Windows has neither, and ends a tree another way.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/console-batch-run.test.ts > a command’s whole process tree the command has no terminal of its own to stop on: opening one fails at once rather than waiting",
+          "reason": "The case runs /bin/sh and /dev/tty, which Windows does not have; a process group of its own is a POSIX notion.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/console-batch-run.test.ts > a command’s whole process tree the console’s own SIGINT reaches the command and what it started",
+          "reason": "The case runs /bin/sh and signals a process group; Windows has neither.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/console-batch-run.test.ts > a command’s whole process tree the console ending takes the running command’s tree with it",
+          "reason": "The case runs /bin/sh and signals a process group; Windows has neither.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/console-batch-run.test.ts > a version manager’s shim is checked by its real path and starts with the name it was found by, which is how it knows what to run",
+          "reason": "The shim is a POSIX shell script reached through a symbolic link; Windows runs its .cmd twin instead.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/console-batch-run.test.ts > a version manager’s shim a step through such a shim reaches the runner by that name",
+          "reason": "The shim is a POSIX shell script reached through a symbolic link; Windows runs its .cmd twin instead.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/console-batch-run.test.ts > a PATH entry inside a selected repository is left out of every child’s PATH, so a program the step starts by name cannot come from the checkout",
+          "reason": "The program the case plants is a POSIX shell script with an executable bit; Windows starts programs by extension.",
           "platforms": [
             "windows"
           ]
