@@ -59,6 +59,18 @@ it('creates the home and the lock directory, runs the action and releases the lo
   expect(existsSync(join(at, NAME))).toBe(false);
   expect(leftovers(at)).toEqual([]);
 });
+it('runs the action and the release in the step that publishes the lock, never after a yield', async () => {
+  const at = home();
+  let ran = false;
+  const done = withHomeLock(at, NAME, () => {
+    ran = existsSync(join(at, NAME));
+    return 'ran';
+  });
+  // A free lock is linked before the call first yields, so the action has run and the lock is gone already.
+  expect(ran).toBe(true);
+  expect(existsSync(join(at, NAME))).toBe(false);
+  expect(await done).toBe('ran');
+});
 it('never removes the lock of an owner on this host whose process is gone: it throws and says so', async () => {
   const at = home(),
     pid = deadPid(),

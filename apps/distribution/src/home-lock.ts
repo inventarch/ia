@@ -163,8 +163,9 @@ export class HomeLockLeftError extends DistributionError {
 /**
  * Runs `action` holding the lock `<home>/<name>`. Creates the home as a write would. Rejects with `HomeLockedError` when
  * another holder is still there after `waitMs`, measured on a monotonic clock, or with `signal`'s reason as soon as that
- * fires while no lock is published; it never removes another holder's lock. `action` is synchronous, so this call never
- * yields while it holds the lock.
+ * fires while no lock is published; it never removes another holder's lock. `action` is synchronous and runs in the same
+ * synchronous step that publishes the lock, together with the release, so nothing else (no timer, I/O callback or queued
+ * microtask) runs while this call holds the lock.
  * Once this call's lock is published, everything that follows (removing the staging file, the action) runs inside the
  * `finally` that releases it. A release Windows refuses for a moment is retried; one that still fails leaves the lock
  * and throws `IA-DIST-HOME-LOCK-LEFT` naming it, unless the action threw, whose error then stands.
@@ -195,8 +196,24 @@ export async function withHomeLock<T>(
   };
   const stage = `${lock}.${owner.token}.tmp`;
   writeFileSync(stage, JSON.stringify(owner) + '\n', { flag: 'wx', mode: 0o600 });
+  let outcome: { readonly value: T } | { readonly error: unknown } | undefined;
+  // Called by `acquire` right after the link that publishes the lock, before its promise settles: the lock is never
+  // held across a yield. It records the outcome rather than throwing, so a failure here is never taken for a refusal.
+  const held = (): void => {
+    let failed = false;
+    try {
+      removeStage(stage);
+      outcome = { value: action() };
+    } catch (error) {
+      failed = true;
+      outcome = { error };
+    } finally {
+      const left = release(lock, owner.token, removeLock);
+      if (left !== null && !failed) outcome = { error: left };
+    }
+  };
   try {
-    await acquire(stage, lock, waitMs, read, onBlocked, signal);
+    await acquire(stage, lock, waitMs, read, onBlocked, signal, held);
   } catch (error) {
     try {
       removeStage(stage);
@@ -205,17 +222,9 @@ export async function withHomeLock<T>(
     }
     throw error;
   }
-  let failed = false;
-  try {
-    removeStage(stage);
-    return action();
-  } catch (error) {
-    failed = true;
-    throw error;
-  } finally {
-    const left = release(lock, owner.token, removeLock);
-    if (left !== null && !failed) throw left;
-  }
+  if (outcome === undefined) throw new Error(`${lock} was acquired without running its action`);
+  if ('error' in outcome) throw outcome.error;
+  return outcome.value;
 }
 
 /**
@@ -242,7 +251,8 @@ function release(lock: string, token: string, remove: (path: string) => void): H
 
 /**
  * Publishes `stage` as `lock`, polling on a timer while another holder has it; refuses once `waitMs` has passed after a
- * failure, and stops with `signal`'s reason before any attempt once that has fired.
+ * failure, and stops with `signal`'s reason before any attempt once that has fired. `held` runs right after the link
+ * that publishes the lock, in the same synchronous step.
  */
 async function acquire(
   stage: string,
@@ -251,29 +261,32 @@ async function acquire(
   read: (path: string) => string,
   onBlocked: () => void,
   signal: AbortSignal | undefined,
+  held: () => void,
 ): Promise<void> {
   const started = performance.now();
   for (let lastLook = false; ; ) {
     signal?.throwIfAborted();
     try {
       linkSync(stage, lock);
-      return;
     } catch (error) {
       if (codeOf(error) !== 'EEXIST') throw error;
+      onBlocked();
+      if (performance.now() - started < waitMs) {
+        // The timer rejects only for the signal, which the top of the loop reports.
+        await delay(LOCK_POLL_MS, undefined, signal === undefined ? {} : { signal }).catch(() => {});
+        continue;
+      }
+      const holder = holderOf(lock, read);
+      // A lock released between the failed link and the read earns one more link, never another wait.
+      if (holder === 'gone' && !lastLook) {
+        lastLook = true;
+        continue;
+      }
+      throw locked(lock, holder);
     }
-    onBlocked();
-    if (performance.now() - started < waitMs) {
-      // The timer rejects only for the signal, which the top of the loop reports.
-      await delay(LOCK_POLL_MS, undefined, signal === undefined ? {} : { signal }).catch(() => {});
-      continue;
-    }
-    const holder = holderOf(lock, read);
-    // A lock released between the failed link and the read earns one more link, never another wait.
-    if (holder === 'gone' && !lastLook) {
-      lastLook = true;
-      continue;
-    }
-    throw locked(lock, holder);
+    // Published: the held section runs now, in this same step, and never throws.
+    held();
+    return;
   }
 }
 
