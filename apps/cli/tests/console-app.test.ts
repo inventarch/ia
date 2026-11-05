@@ -8,7 +8,8 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, writeFile
 import { delimiter, join } from 'node:path';
 import { PassThrough } from 'node:stream';
 import { afterAll, describe, expect, it } from 'vitest';
-import type { Check, CheckStatus, DoctorView } from '../src/doctor.js';
+import type { Check, CheckStatus, DoctorRequest, DoctorView } from '../src/doctor.js';
+import { collectDoctor } from '../src/doctor.js';
 import type { Fix } from '../src/fix.js';
 import { iaFix } from '../src/fix.js';
 import type { LocalCli } from '../src/local-cli.js';
@@ -596,7 +597,7 @@ const fakeHooks = (terminal: FakeTerminal): Hooks => {
 };
 function launch(
   extra: {
-    collect?: () => DoctorView;
+    collect?: (request: DoctorRequest) => DoctorView;
     spawn?: RunIO['spawn'];
     spawnDoctor?: SpawnDoctor;
     prepare?: (root: string) => void;
@@ -701,7 +702,7 @@ describe('runConsole', () => {
   };
   const emptyReport = { status: 0, stdout: JSON.stringify({ version: 1, checks: [], counts: {} }) };
   it.skipIf(process.platform === 'win32')(
-    'asks git whether the workspace copy is committed once for the console’s life, not at each load',
+    'asks git whether the workspace copy is committed once for the console’s life, not at each load or doctor row',
     async () => {
       // A git that logs each call's arguments and tracks nothing, first on the PATH of the process the console asks from.
       const bin = scratch('console-git-shim');
@@ -714,6 +715,8 @@ describe('runConsole', () => {
         let loads = 0;
         const run = launch({
           prepare: withCopy,
+          // The real collector: its `cli-version` row asks about the same copy, so it must use the same memo.
+          collect: collectDoctor,
           spawnDoctor: () => {
             loads += 1;
             return Promise.resolve(emptyReport);

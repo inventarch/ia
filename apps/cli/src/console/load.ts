@@ -82,7 +82,9 @@ export async function loadState(input: {
   const extensions = input.extensions ?? [];
   const consoles = extensions.flatMap((extension) => (extension.console === undefined ? [] : [extension.console]));
   const owned = runningOwner(extensions);
-  const view = input.collect(doctorRequest({ cwd: input.cwd, packageRoot, env, version, extensions }));
+  const view = input.collect(
+    doctorRequest({ cwd: input.cwd, packageRoot, env, version, extensions, committed: input.committed }),
+  );
   const found = discoverRoot(input.cwd, iaHomeOf(env));
   const root = found === undefined ? null : real(found);
   const dependency = root === null ? null : readCliDependency(root);
