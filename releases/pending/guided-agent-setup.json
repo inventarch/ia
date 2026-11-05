@@ -1,0 +1,15 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "Guide agent setup from ia init",
+  "summary": "Interactive ia init now asks which agent to configure, installs and binds the public workflows, preserves repository instructions, and sets up MCP discovery without a separate plugin install. Explicit setup can be previewed and resumed; existing CLI-only and scripted initialization forms remain available.",
+  "packages": [
+    "@inventarch/cli"
+  ],
+  "paths": [
+    "README.md",
+    "apps/cli/",
+    "docs/",
+    "tools/"
+  ]
+}

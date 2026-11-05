@@ -1078,7 +1078,8 @@
       "project": "apps/cli",
       "files": [
         "tests/adopt.test.ts",
-        "tests/init.test.ts"
+        "tests/init.test.ts",
+        "tests/setup.test.ts"
       ],
       "profile": "installed",
       "platforms": [

@@ -147,7 +147,7 @@ export const COMMANDS: readonly CommandSpec[] = [
   {
     name: 'init',
     group: 'workspace',
-    summary: 'Plan or create a new workspace',
+    summary: 'Set up a workspace and its agent, or preview explicit initialization options',
     // conflictRefusal (init.ts): the plan, which lists every conflict.
     catalog: {
       mode: 'effect',
@@ -156,6 +156,7 @@ export const COMMANDS: readonly CommandSpec[] = [
       next: 'ia position --root <directory>',
     },
     syntax: [
+      'ia init [<directory>] --setup --host claude|codex|none [--apply] [--yes] [--json]',
       'ia init [<directory>] [--id <provider/name>] [--system] [--host claude|codex|none]',
       '        [--apply] [--json] [--yes]',
       'ia init [<directory>] --from <plugin-directory> [--id <provider/name>] [--apply] [--json] [--yes]',
@@ -168,6 +169,12 @@ export const COMMANDS: readonly CommandSpec[] = [
         ...COMMON_OPTIONS.filter((entry) => entry.name !== 'root'),
         { ...ROOT, refuse: 'ia init takes its target as <directory>; --root is not accepted for this verb' },
         REGISTRY,
+        option({
+          name: 'setup',
+          kind: 'boolean',
+          conflicts: ['from', 'migrate', 'adopt', 'registry', 'decline', 'forget-decline', 'system'],
+          summary: 'Complete agent setup: public workflows, method bindings and portable host discovery; resume safely',
+        }),
         option({
           name: 'adopt',
           kind: 'value',

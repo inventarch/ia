@@ -14,7 +14,17 @@ owners: [inventarch]
 
 ## 1 Purpose
 
-Create a workspace that admits with zero errors and holds only what its owner needs: an installed language base, three authored starter records and a release descriptor. Without `--apply`, `ia init` prints the plan and writes nothing. `--apply` creates the workspace. Without a terminal, or with `--json`, it also needs `--yes`; otherwise it refuses with `IA-CLI-USAGE` (exit 2) and writes nothing.
+Create a workspace that admits with zero errors and holds only what its owner needs: an installed language base, three authored starter records and a release descriptor. Explicit initialization options retain the plan/apply contract: without `--apply` they print a plan and write nothing. `--apply` creates the workspace. Without a terminal, or with `--json`, it also needs `--yes`; otherwise it refuses with `IA-CLI-USAGE` (exit 2) and writes nothing.
+
+### Guided agent setup
+
+On an interactive terminal outside CI, plain `ia init [directory]` asks the user to choose Codex, Claude Code or CLI only. An empty answer or EOF cancels. After selection it shows one summary and asks for confirmation before writing or downloading. Explicit `--host`, `--apply`, `--yes`, migration, plugin lowering, adoption and decline options retain their existing behavior. `--setup --host <codex|claude|none>` is the explicit, resumable plan/apply form; JSON and noninteractive setup require the host choice as a flag. Setup does not combine with lowering, migration, adoption or `--system`.
+
+The implementation in [setup.ts](../../../apps/cli/src/setup.ts) composes ordinary commands: initialize the base with no host; install `@inventarch/public-kits`; populate missing method bindings from the three public kits' declared recommendations; write the chosen host's portable bootstrap through `ia host --commit`; validate. The public package is acquired through the existing npm transport, integrity checks and installation lock. A retry uses its recorded version. It installs no host plugin and needs no account.
+
+Existing instruction text and unrelated MCP configuration are preserved by the bootstrap writer. Conflicting MCP ownership is checked before initialization when the target directory exists. Existing exact, wildcard and default method choices are preserved; ambiguous bindings refuse. Every public kit must be present, and its recommended capabilities must exist. The work, knowledge and delivery lanes must all have bindings. New bindings are written atomically after the effect mandate check; a changed bindings file refuses rather than overwriting the observed version.
+
+Setup resolves a representative work, knowledge and delivery method through the runtime from the installed releases and requires each to supply instructions. An unavailable preserved choice refuses rather than being replaced. A failure reports the failed step and completed steps and names the same setup command to resume. It leaves completed work in place. A successful report establishes local configuration and validation, not that the agent has loaded it: the user opens or restarts the agent and accepts the host's own repository trust and MCP prompts. CLI-only selection skips workflows, bindings and host discovery and retains offline initialization.
 
 ## 2 Inputs
 
