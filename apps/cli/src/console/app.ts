@@ -2,7 +2,7 @@
  * The console's event loop: bare `ia` on an interactive terminal (consumer CLI contract §1.2). It loads the state, draws
  * the single-repo view, and feeds stdin through one key decoder, arming a short timer while a lone ESC could still
  * start a sequence. Enter runs the selected offer in the normal screen (run.ts) and reloads; `r` reloads; tab shows the
- * diagnostics; `?` the keys; `q`, Escape at the top level, or Ctrl-C quits with 0.
+ * diagnostics; `?` the keys; `q`, Ctrl-C, or Escape in the offers view quits with 0 (Escape elsewhere returns to the offers view).
  *
  * One offer runs at a time. Once a run starts or the console begins to finish, the rest of an already-decoded read is
  * discarded, and no key navigates while an offer runs. stdin has one owner at a time: the console's decoder, a
@@ -20,7 +20,7 @@ import type { Extension } from '../consumer.js';
 import { consents } from '../consumer.js';
 import type { DoctorRequest, DoctorView } from '../doctor.js';
 import { collectDoctor } from '../doctor.js';
-import { runnableCopy } from '../handoff.js';
+import { rememberCommitted, runnableCopy } from '../handoff.js';
 import type { LocalCli } from '../local-cli.js';
 import type { Env } from '../program.js';
 import type { Capabilities } from '../render.js';
@@ -74,8 +74,13 @@ const PROCESS: ProcessHooks = {
  * the workspaces root that hoists it, and none when the repository commits it or the user set `IA_NO_HANDOFF=1`. Then
  * every `ia` step runs on the running copy (`running`), as when no copy is installed.
  */
-export function resolveRepo(root: string, env: Env, running: string): LocalCli | null {
-  return runnableCopy(root, { env, running });
+export function resolveRepo(
+  root: string,
+  env: Env,
+  running: string,
+  committed?: (packageRoot: string) => boolean,
+): LocalCli | null {
+  return runnableCopy(root, { env, running, ...(committed === undefined ? {} : { committed }) });
 }
 
 export async function runConsole(input: {
@@ -106,6 +111,9 @@ export async function runConsole(input: {
   const screen = new Screen(io, caps.color);
   const print = (text: string): void => io.write(`${text}\n`);
 
+  // Whether git tracks a copy is asked once per copy for the console's life, not at each load and step (the call is
+  // synchronous and can take up to 2 s). An answer git could not give is not remembered (handoff.ts).
+  const committed = rememberCommitted();
   // One controller per load, aborted when the console finishes, so quitting never waits for a reload's doctor run.
   const loads = new Set<AbortController>();
   const load = async (): Promise<ConsoleState> => {
@@ -120,6 +128,7 @@ export async function runConsole(input: {
         collect: input.collect ?? collectDoctor,
         extensions,
         signal: controller.signal,
+        committed,
         ...(input.spawnDoctor === undefined ? {} : { spawnDoctor: input.spawnDoctor }),
       });
     } finally {
@@ -369,7 +378,7 @@ export async function runConsole(input: {
             await wait<void>((settle) => () => settle(), undefined);
           },
           print,
-          resolveRepo: input.resolveRepo ?? ((root) => resolveRepo(root, env, input.packageRoot)),
+          resolveRepo: input.resolveRepo ?? ((root) => resolveRepo(root, env, input.packageRoot, committed)),
           env,
           cwd: input.cwd,
         });

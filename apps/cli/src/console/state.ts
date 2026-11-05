@@ -139,7 +139,12 @@ const FLOWS: readonly Flow[] = ['preview-apply', 'preview-flag', 'confirm', 'imm
 const WRITES: readonly WritesTo[] = ['none', 'repo', 'user', 'machine'];
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === 'object' && !Array.isArray(value);
-/** A fix as another copy emitted it, kept only when it has the shape this copy runs. */
+/**
+ * A fix as another copy emitted it, kept only when it has the shape this copy runs. `external` is kept as emitted: it
+ * names a program that is not `ia` (a package manager, say), which does not depend on which copy runs it, so the console
+ * runs it as the program, on PATH, never as one of the copies. The flow is the emitting copy's own: contract §2.12 makes
+ * an `external` fix `confirm` there, and that copy has already run, so this copy does not re-check it.
+ */
 function readFix(value: unknown): Fix | null {
   if (!isRecord(value)) return null;
   const { program, argv, flow, writesTo } = value;
