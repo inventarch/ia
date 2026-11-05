@@ -12,7 +12,7 @@
 - **Agents start from a position.** `ia position` returns a deterministic, budgeted view of a seat: the records it rests on, the rules that apply, the mandates in force, and what is still unknown. `ia next` orders a plan's tasks by their declared prerequisites and gives each a verdict from recorded evidence.
 - **Authority you can read.** A `@mandate` states which moves a participant may make and where. IA's mandate-checked commands refuse a move it does not grant, and `ia author` writes a clean record only if the target file still matches the digest `ia preview` reported.
 - **Honest results.** Admission is not execution. A check with no evaluator reports `not-evaluated`, which is never a pass. A record that names an implementation never installs it or grants its effects.
-- **Open and method-neutral.** Everything here runs locally, and initialization and validation need no network connection. You can define your own words, systems, workspaces and methods with the same public contracts IA uses for its own vocabulary.
+- **Open and method-neutral.** Everything here runs locally. CLI-only initialization and validation need no network connection; guided agent setup downloads the public workflows. You can define your own words, systems, workspaces and methods with the same public contracts IA uses for its own vocabulary.
 
 > [!NOTE]
 > **IA 3.3** adds reusable knowledge packages and bounded local readers through `ia kb` and five MCP tools. Database and editor readers can opt into kernel and fixture conformance verification. Position requests can select a primitive explicitly, and the shipped authoring guides and native operation cases are expanded. See the [knowledge guide](packages/kb/README.md) and [database guide](packages/db/README.md) for the APIs and their limits.
@@ -59,20 +59,24 @@ To run IA from a source checkout instead, see [contributing and verification](#-
 
 ### 2. Initialize your project
 
-In an existing project directory, preview the setup, then apply it:
+In an existing project directory, start the guide:
 
 ```sh
 cd path/to/your-project
-ia init . --id local/my-project --host none
-ia init . --id local/my-project --host none --apply --yes
+ia init
 ```
 
-Choose your own `local/my-project` identity; its final component names your workspace. The first command writes nothing and lists what it would create. The second installs the language definitions bundled with the CLI, authors three starter records and captures the workspace:
+Choose Codex or Claude Code and review the setup summary. After one confirmation, IA creates the workspace, installs the public workflows, binds their methods, adds instructions and MCP configuration for your agent, and validates the result. Existing repository instructions and method choices are preserved. No separate plugin installation is needed. Open or restart your agent in this repository and enable its `ia` MCP server when prompted.
+
+For automation, preview with `ia init . --setup --host codex`, then add `--apply --yes`. The same command resumes incomplete setup. Use `claude` for Claude Code. For a CLI-only workspace, choose that option in the guide, or use `ia init . --host none --apply --yes`; this installs the bundled language offline and omits the workflows and agent files.
+
+The directory name supplies the workspace name; `--id local/my-project` selects another. Initialization creates these base files:
 
 ```text
 .ia/
 ├── .gitignore               # Keeps work/ and distributions/, which each clone rebuilds, out of version control
 ├── distributions.lock.json  # Direct requests and the versions they resolved to
+├── bindings.json            # Method choices when agent setup is selected
 ├── release.json             # The release descriptor
 └── src/
     └── workspace.ia         # @workspace my-project, its participant @agent my-project and @mandate my-project-mandate
@@ -205,7 +209,9 @@ Tasks
 
 ### 6. Connect your agent host
 
-Host registration is optional. Preview it, then rerun the same command with `--apply --yes`:
+Guided initialization already configures agent discovery. Open or restart your selected agent in the repository and enable its `ia` MCP server when prompted. If you chose CLI only, run `ia init --setup --host codex` (or `claude`) to preview adding the complete agent setup, then add `--apply --yes`.
+
+For a CLI-only workspace whose owner wants machine-local generated projections instead of the portable setup, these lower-level commands remain available. Preview first, then add `--apply --yes`:
 
 | Use with | Start here |
 | --- | --- |

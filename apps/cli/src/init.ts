@@ -1,4 +1,5 @@
 import { registryWorkspace } from './adopt.js';
+import { runSetup, wantsSetup } from './setup.js';
 import { HostPluginError, lowerPlugin, readPlugin } from '@inventarch/workspace-runtime/internal/host-plugin';
 import { adoptedBindings } from '@inventarch/db';
 import { adoptionId, OPEN_ATTRIBUTES, planAdoption, applyAdoption } from '@inventarch/distribution/registry';
@@ -13,7 +14,8 @@ export type { Base, BasePin } from './bundled-base.js';
  * docs/specs/workspace-initialization-apply/README.md (the apply spec) to reach the end state
  * docs/specs/workspace-initialization/README.md (the initialization spec) fixes.
  *
- * Without `--apply` it prints the reviewable plan: the owned paths, the target's classification (the apply spec §1),
+ * Plain interactive invocation delegates to setup.ts for guided agent setup. The explicit initializer below,
+ * without `--apply`, prints the reviewable plan: the owned paths, the target's classification (the apply spec §1),
  * the conflicts detected now, the starter it would write, the bundled base pin and the steps. It exits 0 whether or not
  * conflicts were found, because reporting them is the command's job.
  *
@@ -1628,6 +1630,7 @@ export async function runInit(context: Context): Promise<Result> {
     throw new UsageError(`--id must be <provider/name>; got ${id}`);
   const root = resolveTarget(host.cwd, args.positionals[0], (target) => respell(context, { positionals: [target] }));
   try {
+    if (wantsSetup(context)) return await runSetup(context, root);
     return await initialize(context, root, id);
   } catch (error) {
     // This verb's target is `<directory>`, which `--root` cannot carry, so a service refusal with no remedy of its own

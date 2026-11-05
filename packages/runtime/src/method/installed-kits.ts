@@ -143,10 +143,30 @@ function materialize(root: string, kit: LockedKit, home: string): string {
   if (manifest['id'] !== kit.id || manifest['version'] !== kit.version)
     throw new MethodError(`installed kit ${kit.id}: its manifest names another release`, 'IA-CORE-CLOSURE-INTEGRITY');
   const pins = pinsOf(manifest);
+  // A release archive carries its manifest, not the producer's descriptor. Reconstruct the descriptor so
+  // read roots retain its declared assets and installed methods have the same identity as folder kits.
+  const descriptor =
+    JSON.stringify({
+      formatVersion: 1,
+      id: kit.id,
+      version: kit.version,
+      distribution: manifest['distribution'],
+      engine: manifest['engine'],
+      language: manifest['language'],
+      dependencies: manifest['dependencies'],
+      license: manifest['license'],
+      description: manifest['description'],
+      source: manifest['source'],
+      assets: (manifest['files'] as { path: string; role: string }[])
+        .filter(({ role }) => role !== 'source')
+        .map(({ path, role }) => ({ path, role })),
+    }) + '\n';
   const parent = join(home, INSTALLED_KITS_DIRECTORY);
   const target = join(parent, kit.archive);
   const intact = (dir: string): boolean =>
     existsSync(join(dir, COMPLETE)) &&
+    existsSync(join(dir, '.ia', 'release.json')) &&
+    readFileSync(join(dir, '.ia', 'release.json'), 'utf8') === descriptor &&
     pins.every((pin) => existsSync(join(dir, pin.path)) && sha256(readFileSync(join(dir, pin.path))) === pin.sha256);
   if (intact(target)) return target;
   mkdirSync(parent, { recursive: true, mode: 0o700 });
@@ -174,6 +194,7 @@ function materialize(root: string, kit: LockedKit, home: string): string {
       ) + '\n',
     );
     mkdirSync(join(work, '.ia'), { recursive: true });
+    writeFileSync(join(work, '.ia', 'release.json'), descriptor);
     writeFileSync(join(work, '.ia', 'distributions.lock.json'), JSON.stringify(kitLock(root, manifest)) + '\n');
     writeFileSync(join(work, COMPLETE), JSON.stringify({ kit: kit.id, archive: kit.archive, manifest: kit.manifest }));
     rmSync(target, { recursive: true, force: true });

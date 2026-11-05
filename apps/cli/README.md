@@ -30,11 +30,14 @@ Use `npx ia` wherever this guide uses `ia`, and commit your `package.json` and l
 Then, in your project directory:
 
 ```sh
-ia init . --host none                 # the plan; writes nothing
-ia init . --host none --apply --yes   # install the bundled base, author the starter, capture
+ia init                             # choose your agent and confirm the complete setup
 ia validate
 ia position
 ```
+
+On an interactive terminal, plain `ia init` asks whether you use Codex, Claude Code or only the CLI. Agent setup installs and binds the public workflows and adds portable instructions and MCP discovery, preserving existing instructions and method choices. It needs npm network access on the first install, but no separate plugin installation. Restart your agent and enable its `ia` MCP server when prompted.
+
+For scripts, `ia init . --setup --host codex` previews the complete setup; add `--apply --yes` to apply or resume it. `--host claude` selects Claude Code. Explicit initialization commands retain their plan/apply behavior: `ia init . --host none --apply --yes` creates a CLI-only workspace offline. JSON and noninteractive invocations never ask which agent to use.
 
 Each project keeps its own records in its own `.ia/` directory. The [main quick start](https://github.com/inventarch/ia#-quick-start) continues with a first record, a plan and host setup. To run from a source checkout, build it as the [contributing section](https://github.com/inventarch/ia#-contributing-and-verification) describes and use `node /path/to/ia/apps/cli/dist/main.js` in place of `ia`.
 
@@ -42,7 +45,7 @@ Each project keeps its own records in its own `.ia/` directory. The [main quick 
 
 Bare `ia` on an interactive terminal opens a console: the workspace's health by area, and the offers that fix or set it up, each showing the commands it runs and what they change before you confirm. Outside a workspace it opens on every workspace you track, where one offer can be batched across several, each in a new git worktree and branch, with nothing pushed unless you choose to. In a pipe or with `CI` set it prints help instead. `ia --help` lists every command and `ia <command> --help` gives its full syntax. These rules hold across them:
 
-- **Plan, then apply.** `init`, `install`, `adopt`, `update`, `remove`, `project` and `host` print a plan and act only with `--apply`, which needs `--yes` without a terminal or with `--json`. A plan applies nothing, though acquiring for an install or update plan may fill the archive cache. `restore` has no preview, so it always takes `--apply`.
+- **Plan, then apply.** Explicit initialization options, `install`, `adopt`, `update`, `remove`, `project` and `host` print a plan and act only with `--apply`, which needs `--yes` without a terminal or with `--json`. Plain interactive `init` instead shows its setup summary and asks for confirmation in the same invocation. A plan applies nothing, though acquiring for an install or update plan may fill the archive cache. `restore` has no preview, so it always takes `--apply`.
 - **One next command.** Every consumer-command refusal names the one command to run next, on the `→` line or as `next` in the `--json` object `{version, ok: false, code, message, exit, where, next}`.
 - **One workspace.** `--root <path>` selects the workspace; by default it is the nearest ancestor holding `.ia/src`. `ia init` takes its directory as an argument instead. `--json` prints one JSON value, with no color, progress or prompts.
 

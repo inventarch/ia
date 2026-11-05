@@ -34,6 +34,8 @@ Every `--apply` (`init`, `adopt`, `install`, `update`, `remove`, `restore`, `pro
 
 ### 2.1 Initialization
 
+Plain interactive `ia init` outside CI opens the [agent setup guide](../workspace-initialization/README.md#guided-agent-setup): choose an agent, review one summary, then confirm initialization, default workflows and portable discovery. `--setup --host codex|claude|none` exposes the same flow as an explicit plan/apply command and can resume it. JSON, noninteractive invocations and explicit legacy options retain the behavior below.
+
 `init [directory]` previews. `--apply` installs the bundled language base, writes the three starter records and the release descriptor, and captures the workspace. The target is positional, so `--root` is refused. `--host claude` or `--host codex` also runs the host registration path, and `--host none` skips it. `--id` sets the package id, and `--system` also authors a local `@system` and `@distribution`. `--from <plugin-directory>` lowers a host plugin as a kit, `--migrate` rewrites a 1.1.0 starter, and `--adopt <id>` mounts a registry workspace. `--decline` and `--forget-decline` record or clear, in the IA home, that a repository should not be initialized; they write nothing in the repository. Once `--apply` has initialized the target, `init` offers to add it to the tracked list (§2.16). See [initialization](../workspace-initialization/README.md) and [apply](../workspace-initialization-apply/README.md).
 
 ### 2.2 Vocabulary and 2.3 formatting
