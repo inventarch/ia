@@ -370,6 +370,15 @@ describe('runOffer', () => {
       expect([value, commandLineToArgv(line).slice(1)]).toEqual([value, [value, 'next']]);
     }
   });
+  it('a long run of backslashes is quoted in linear time and still reads back exactly', () => {
+    // A run of backslashes that does not end the argument: a trailing-backslash regex retries it from every start.
+    const run = '\\'.repeat(100_000);
+    const started = performance.now();
+    const encoded = cmdArgument(`${run} x`);
+    expect(performance.now() - started).toBeLessThan(250);
+    expect(encoded).toBe(`"${run} x"`);
+    expect(cmdArgument(`a ${run}`)).toBe(`"a ${run}${run}"`);
+  });
   it('no accepted argument list leaves a character cmd.exe acts on outside its quotes', () => {
     // The re-review's probe: a quote in one argument used to leave a later argument's & live.
     expect(['a"b', 'a&echo REVIEW_SENTINEL'].map(cmdArgument)).toContain(null);

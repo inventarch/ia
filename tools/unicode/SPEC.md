@@ -15,9 +15,10 @@ No pnpm entry. Run the generator with Node:
 
 - `node tools/unicode/generate-width-table.mjs` writes the table from the vendored sources.
 - `node tools/unicode/generate-width-table.mjs --check` regenerates in memory and exits 1 when the committed table differs by one byte.
-- `--from <dir>` reads the sources from another directory; `--download` first fetches them from `https://www.unicode.org/Public/16.0.0/` into the vendored directory, writing nothing unless every fetched file has its pinned byte count and SHA-256.
+- `--from <dir>` reads the sources from another directory.
+- Any other argument refuses with exit 1 before anything is read. The generator never fetches: there is no network path, so nothing from the network reaches the disk through it.
 
-Exit 0 is success; exit 1 is a difference, a source whose byte count or SHA-256 is not the pinned one, or a table over 32 KiB.
+Exit 0 is success; exit 1 is an unknown argument, a difference, a source whose byte count or SHA-256 is not the pinned one, or a table over 32 KiB.
 
 ## Inputs
 
@@ -29,11 +30,11 @@ The three source files under `16.0.0/` (or `--from`), each pinned in the script 
 
 ## Prerequisites
 
-Node 22. No network, unless `--download` is given.
+Node 22. No network.
 
 ## Validation
 
-`apps/cli/tests/console-width.test.ts` (task `cli:test-unit`) checks that `build()` over the vendored files is byte-identical to the committed table, that the header's hashes and sizes match the vendored files, that small excerpts under `apps/cli/tests/fixtures/unicode/` merge into the expected ranges, and that the entry point refuses a source that is not the pinned one.
+`apps/cli/tests/console-width.test.ts` (task `cli:test-unit`) checks that `build()` over the vendored files is byte-identical to the committed table, that the header's hashes and sizes match the vendored files, that small excerpts under `apps/cli/tests/fixtures/unicode/` merge into the expected ranges, and that the entry point refuses a source that is not the pinned one and any argument it does not know, `--download` among them.
 
 ## Invariants
 
@@ -41,4 +42,4 @@ The vendored files are never edited. The emitted sets are sorted, merged and non
 
 ## Limits
 
-Moving to another Unicode version means vendoring its files, updating the pinned sizes and hashes and the version constant, and regenerating; the width rules in `width.ts` are not version-specific, but terminals that implement an older version may draw a newer emoji narrow.
+Moving to another Unicode version means fetching its files by hand from `https://www.unicode.org/Public/<version>/` and vendoring them, updating the pinned sizes and hashes and the version constant, and regenerating; the width rules in `width.ts` are not version-specific, but terminals that implement an older version may draw a newer emoji narrow.

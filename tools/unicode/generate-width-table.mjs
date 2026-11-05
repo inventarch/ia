@@ -2,13 +2,15 @@
 /**
  * Generates apps/cli/src/console/width-table.ts, the display-width tables of the console's one width function, from
  * three Unicode Character Database files of one pinned version. The sources are vendored unmodified under
- * tools/unicode/<version>/, so regeneration needs no network; each file's byte count and SHA-256 are pinned here and a
- * mismatch aborts. No dependency: Node built-ins only.
+ * tools/unicode/<version>/, so regeneration needs no network and has no path to it; each file's byte count and SHA-256
+ * are pinned here and a mismatch aborts. No dependency: Node built-ins only.
  *
  *   node tools/unicode/generate-width-table.mjs            regenerate the committed table
  *   node tools/unicode/generate-width-table.mjs --check    exit 1 when the committed table differs by one byte
  *   node tools/unicode/generate-width-table.mjs --from <dir>   read the sources from another directory
- *   node tools/unicode/generate-width-table.mjs --download     fetch the sources into the vendored directory first
+ *
+ * Any other argument refuses. To vendor another version, fetch its files by hand under tools/unicode/<version>/ and
+ * pin their byte counts and SHA-256 below (SPEC.md, Limits).
  */
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -149,36 +151,16 @@ export function readSources(directory) {
   return texts;
 }
 
-/**
- * Fetches every source, and writes them only once each has its pinned byte count and SHA-256, so nothing unverified
- * from the network ever reaches the disk.
- */
-async function download(directory) {
-  const verified = [];
-  for (const { path, bytes, sha256: pinned } of SOURCES) {
-    const response = await fetch(BASE_URL + path);
-    if (!response.ok) throw new Error(`${BASE_URL}${path}: HTTP ${response.status}`);
-    const buffer = Buffer.from(await response.arrayBuffer());
-    const digest = createHash('sha256').update(buffer).digest('hex');
-    if (buffer.length !== bytes || digest !== pinned)
-      throw new Error(
-        `${BASE_URL}${path}: ${buffer.length} bytes, sha256 ${digest}; pinned ${bytes} bytes, sha256 ${pinned}; nothing was written`,
-      );
-    verified.push({ path, buffer });
-  }
-  for (const { path, buffer } of verified) {
-    const file = resolve(directory, path);
-    mkdirSync(dirname(file), { recursive: true });
-    writeFileSync(file, buffer);
-  }
-}
-
-async function main(argv) {
+function main(argv) {
   const check = argv.includes('--check');
   const fromIndex = argv.indexOf('--from');
-  const from = fromIndex === -1 ? VENDORED : resolve(argv[fromIndex + 1] ?? '');
   if (fromIndex !== -1 && argv[fromIndex + 1] === undefined) throw new Error('--from needs a directory');
-  if (argv.includes('--download')) await download(VENDORED);
+  const known = (argument, index) =>
+    argument === '--check' || (fromIndex !== -1 && (index === fromIndex || index === fromIndex + 1));
+  const unknown = argv.find((argument, index) => !known(argument, index));
+  if (unknown !== undefined)
+    throw new Error(`unknown argument ${unknown}; the generator takes --check and --from <dir>`);
+  const from = fromIndex === -1 ? VENDORED : resolve(argv[fromIndex + 1]);
   const text = build(readSources(from));
   if (check) {
     let committed = '';
@@ -204,7 +186,7 @@ async function main(argv) {
 
 if (isEntry(process.argv[1], import.meta.url)) {
   try {
-    process.exitCode = await main(process.argv.slice(2));
+    process.exitCode = main(process.argv.slice(2));
   } catch (error) {
     process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
     process.exitCode = 1;
