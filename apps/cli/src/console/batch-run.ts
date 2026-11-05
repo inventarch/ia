@@ -7,7 +7,7 @@
  *
  * Per repository: refuse when planning did; `git fetch origin` and the base (`origin/HEAD`, then `origin/main`, then
  * `origin/master`); refuse a workspace whose `.ia/src` the base does not hold; refuse an existing worktree path or branch; `git worktree add --no-track -b <branch> <path> <base>`
- * (no upstream, ever); the package manager's install when the worktree holds a `package.json`, built for the worktree,
+ * (no upstream, ever), and when that fails, remove what it made (`undoAdd`); the package manager's install when the worktree holds a `package.json`, built for the worktree,
  * with no lifecycle script and frozen to a tracked lockfile (`batchInstallArgv`);
  * then each step. Before the install and before every step the real filesystem is checked (`containedStep`): the
  * step's `cwd` and each path it names must lead, through any link, into the worktree. An `ia` step runs on the copy
@@ -167,7 +167,8 @@ export function defaultRunner(env: Env, limits: { readonly timeoutMs?: number } 
 /**
  * The git commands that may run against the user's own repository, each as `git -C <its top level> <command> …`. They
  * read refs or change metadata (a remote-tracking update, a worktree and a branch added, and afterwards, when chosen,
- * the batch's own worktree removed, batch-next.ts); none reads or writes the user's working tree.
+ * the batch's own worktree removed, batch-next.ts, or what a failed `worktree add` made, `undoAdd`); none reads or
+ * writes the user's working tree.
  */
 export const METADATA_OPS: readonly string[] = [
   'rev-parse --show-toplevel',
@@ -177,6 +178,9 @@ export const METADATA_OPS: readonly string[] = [
   'worktree add --no-track -b',
   'ls-tree',
   'worktree remove',
+  'worktree list --porcelain',
+  'update-ref -d',
+  'config --get core.sshCommand',
 ];
 
 /**
@@ -206,6 +210,23 @@ export function gitTop(root: string, env: Env): string | null | { readonly refus
   }
   const again = programIn('git', env, [real]);
   return 'refused' in again ? { refused: again.refused } : real;
+}
+
+/**
+ * The top level of the work tree holding `path`, a folder above a repository, or null when it is in none or git cannot
+ * say. `git` was already judged against the repository (`gitTop`); that it lies under this folder is no refusal.
+ */
+export function enclosingTop(path: string, env: Env): string | null {
+  const git = programIn('git', env, []);
+  if ('refused' in git) return null;
+  const result = spawnGuardedSync(
+    git,
+    ['-C', path, 'rev-parse', '--show-toplevel'],
+    { cwd: path, env },
+    { checkouts: [] },
+  );
+  const top = result.status === 0 ? result.stdout.trim() : '';
+  return top === '' ? null : top;
 }
 
 const lastLine = (text: string): string =>
@@ -515,6 +536,48 @@ export const NOT_RUN = 'not run: batch stopped';
 /** The last line of a repository the batch was stopped in. */
 export const STOPPED = 'stopped: the batch was stopped';
 
+/**
+ * What a failed `git worktree add -b` left: a hook or a checkout that failed leaves the branch and sometimes the
+ * worktree, and a killed one leaves both, locked. Neither is `created`, so no later choice could reach them, and the
+ * same batch would be refused on them next time. Removed only when they are this run's: the path was free and the branch
+ * absent just before the add, and now the worktree on that path has that branch, still at the base, whose commit it was
+ * made from. Anything else (a branch that moved, a folder that is no worktree) is left and named; returns what is left.
+ */
+async function undoAdd(
+  git: (args: readonly string[]) => Promise<RunResult>,
+  worktree: string,
+  destination: string,
+  branch: string,
+  sha: string,
+): Promise<readonly string[]> {
+  const ref = `refs/heads/${branch}`;
+  /** The worktrees git lists, each as its lines; none when it cannot say, so nothing is taken for this run's. */
+  const worktrees = async (): Promise<readonly (readonly string[])[] | null> => {
+    const listed = await git(['worktree', 'list', '--porcelain']);
+    return listed.status === 0 ? listed.stdout.split(/\r?\n\r?\n/).map((block) => block.split(/\r?\n/)) : null;
+  };
+  const made = (await worktrees())?.find((lines) => {
+    const path = lines.find((line) => line.startsWith('worktree '))?.slice('worktree '.length);
+    return (
+      path !== undefined &&
+      fold(leadsTo(path) ?? path) === fold(destination) &&
+      lines.includes(`branch ${ref}`) &&
+      lines.includes(`HEAD ${sha}`)
+    );
+  });
+  // Twice forced: it holds what its failed checkout or hook wrote, and a killed add leaves it locked.
+  if (made !== undefined) await git(['worktree', 'remove', '--force', '--force', worktree]);
+  const after = await worktrees();
+  const free = after !== null && !after.some((lines) => lines.includes(`branch ${ref}`));
+  const head = await git(['rev-parse', '--verify', '--quiet', ref]);
+  // Only at the base, compared and deleted in one step by git.
+  if (free && head.status === 0 && head.stdout.trim() === sha) await git(['update-ref', '-d', ref, sha]);
+  const left: string[] = [];
+  if (existsSync(worktree)) left.push(`worktree ${worktree}`);
+  if ((await git(['rev-parse', '--verify', '--quiet', ref])).status === 0) left.push(`branch ${branch}`);
+  return left;
+}
+
 export async function runBatch(
   plan: { readonly repos: readonly RepoPlan[] },
   state: Pick<ConsoleState, 'running'>,
@@ -637,10 +700,18 @@ async function runRepo(
   const again = judge(now);
   if (again !== null) return refuse(again);
   if (io.signal.aborted) return stop();
+  const baseSha = await git(['rev-parse', '--verify', '--quiet', `refs/remotes/${base.base}^{commit}`]);
+  if (baseSha.refused !== undefined) return refuse(baseSha.refused);
   say(`creating ${worktree} on ${branch} from ${base.base}`);
   const added = await git(['worktree', 'add', '--no-track', '-b', branch, worktree, base.base]);
   if (added.refused !== undefined) return refuse(added.refused);
-  if (added.status !== 0) return done(false, `git worktree add failed: ${lastLine(added.stderr)}`);
+  if (added.status !== 0) {
+    const why = `git worktree add failed: ${lastLine(added.stderr)}`;
+    // git said a path or branch already exists, so something else made it since the probes: nothing here is this run's.
+    if (/already exists/.test(added.stderr) || baseSha.status !== 0) return done(false, why);
+    const left = await undoAdd(git, worktree, now, branch, baseSha.stdout.trim());
+    return done(false, left.length === 0 ? why : `${why}; left behind: ${left.join(', ')}`);
+  }
   created = true;
   from = base.base;
   // What was created is pinned: its real path must be the destination, and it is checked before every later command.

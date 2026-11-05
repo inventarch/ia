@@ -6,6 +6,7 @@
  * that the user's own checkout is touched only by the listed git metadata operations.
  */
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   readdirSync,
@@ -33,6 +34,7 @@ import {
   chooseBase,
   containedStep,
   defaultRunner,
+  enclosingTop,
   gitTop,
   METADATA_OPS,
   programIn,
@@ -1212,4 +1214,97 @@ describe('the fixture grammar', () => {
       });
     }
   });
+});
+
+describe('an enclosing repository', () => {
+  it('a repository nested in another is refused its default worktree; a lone one is not', () => {
+    const fx = fixture('batch-run-nested');
+    const { top: outer } = repo(fx, 'outer');
+    const inner = join(outer, 'vendor', 'inner');
+    mkdirSync(join(inner, '.ia/src'), { recursive: true });
+    git(inner, ['init', '--quiet', '-b', 'main'], fx.env);
+    const probe = {
+      top: (root: string) => gitTop(root, fx.env),
+      enclosing: (path: string) => enclosingTop(path, fx.env),
+    };
+    const plan = planBatch(
+      'fix:generation',
+      [rowOf(inner, [relock(inner)]), rowOf(outer, [relock(outer)])],
+      new Set([0, 1]),
+      { iaHome: join(fx.dir, 'home') },
+      probe,
+    );
+    expect(plan.repos[0]!.refused).toContain(`inside the enclosing repository ${outer}`);
+    expect(plan.repos[1]!.refused).toBeNull();
+  });
+});
+
+describe('a failed git worktree add', () => {
+  const failingHook = (top: string, body = 'exit 1') => {
+    const hook = join(top, '.git/hooks/post-checkout');
+    writeFileSync(hook, `#!/bin/sh\necho scratch > left-by-hook.txt\n${body}\n`);
+    chmodSync(hook, 0o755);
+  };
+  it.skipIf(process.platform === 'win32')(
+    'what the run made is removed: the worktree, dirty as it is, and the branch',
+    async () => {
+      const fx = fixture('batch-run-add-failed');
+      const { top } = repo(fx, 'alpha');
+      failingHook(top);
+      const { results, calls } = await batch(fx, [rowOf(top, [relock(top)])], 'fix:generation');
+      const result = only(results);
+      expect(result.last).toMatch(/git worktree add failed/);
+      expect(result.created).toBe(false);
+      expect(existsSync(result.worktree)).toBe(false);
+      expect(git(top, ['worktree', 'list', '--porcelain'], fx.env)).not.toContain(result.worktree);
+      expect(git(top, ['branch', '--list', result.branch], fx.env)).toBe('');
+      for (const call of calls.filter((entry) => entry.args[0] === '-C' && entry.args[1] === top)) {
+        const op = call.args.slice(2).join(' ');
+        expect(METADATA_OPS.some((allowed) => op === allowed || op.startsWith(`${allowed} `))).toBe(true);
+      }
+    },
+  );
+  it('a branch and a path someone else made after the probes are left alone', async () => {
+    const fx = fixture('batch-run-add-raced');
+    const { top } = repo(fx, 'alpha');
+    const racing =
+      (run: Runner): Runner =>
+      (file, args, options) => {
+        if (args.includes('add')) {
+          const branch = args[args.indexOf('-b') + 1]!;
+          git(top, ['branch', branch, 'origin/main'], fx.env);
+        }
+        return run(file, args, options);
+      };
+    const { results } = await batch(fx, [rowOf(top, [relock(top)])], 'fix:generation', undefined, racing);
+    const result = only(results);
+    expect(result.last).toMatch(/git worktree add failed/);
+    expect(git(top, ['branch', '--list', result.branch], fx.env)).not.toBe('');
+  });
+  it.skipIf(process.platform === 'win32')(
+    'a branch that moved away from the base is not this run’s to delete, and the result says it is left',
+    async () => {
+      const fx = fixture('batch-run-add-moved');
+      const { top } = repo(fx, 'alpha');
+      failingHook(top);
+      const moving =
+        (run: Runner): Runner =>
+        async (file, args, options) => {
+          const settled = await run(file, args, options);
+          if (args.includes('add')) {
+            const branch = args[args.indexOf('-b') + 1]!;
+            const tree = git(top, ['rev-parse', 'HEAD^{tree}'], fx.env).trim();
+            const parent = git(top, ['rev-parse', 'HEAD'], fx.env).trim();
+            const moved = git(top, ['commit-tree', tree, '-p', parent, '-m', 'moved'], fx.env).trim();
+            git(top, ['update-ref', `refs/heads/${branch}`, moved], fx.env);
+          }
+          return settled;
+        };
+      const { results } = await batch(fx, [rowOf(top, [relock(top)])], 'fix:generation', undefined, moving);
+      const result = only(results);
+      expect(git(top, ['branch', '--list', result.branch], fx.env)).not.toBe('');
+      expect(result.last).toContain('left behind');
+      expect(result.last).toContain(result.branch);
+    },
+  );
 });

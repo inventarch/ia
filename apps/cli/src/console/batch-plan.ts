@@ -111,8 +111,17 @@ function inside(parent: string, child: string, platform: NodeJS.Platform = proce
   return rel === '' || (!path.isAbsolute(rel) && rel !== '..' && !rel.startsWith(`..${path.sep}`));
 }
 
-/** The worktree for one repository, or why none may be made there. */
-function worktreeFor(top: string, branch: string, config: BatchConfig): { path: string } | { refused: string } {
+/**
+ * The worktree for one repository, or why none may be made there. Only the default place is held to `enclosing`: a
+ * `.ia-worktrees` beside a nested repository or a submodule would land in the work tree around it, while a configured
+ * `worktreeRoot` is where the user said to put them, and is the way out of that refusal.
+ */
+function worktreeFor(
+  top: string,
+  branch: string,
+  config: BatchConfig,
+  enclosing?: (path: string) => string | null,
+): { path: string } | { refused: string } {
   const slug = branch.replace(/^chore\//, '');
   const root = config.worktreeRoot;
   if (root !== undefined && !isAbsolute(root))
@@ -122,23 +131,37 @@ function worktreeFor(top: string, branch: string, config: BatchConfig): { path: 
   const path = join(root ?? join(dirname(top), '.ia-worktrees'), `${basename(top)}-${slug}`);
   if (inside(config.iaHome, path)) return { refused: `the worktree path ${path} is inside the IA home` };
   if (inside(top, path)) return { refused: `the worktree path ${path} is inside the repository ${top}` };
+  if (root === undefined) {
+    const around = enclosing?.(dirname(top)) ?? null;
+    if (around !== null)
+      return {
+        refused: `the worktree path ${path} is inside the enclosing repository ${around}; set worktreeRoot in the IA home's config.json to put worktrees elsewhere`,
+      };
+  }
   return { path };
 }
 
 /**
  * One batch: every selected row that offers `offerId`, in table order. A row whose root is in no git repository, or
  * whose worktree may not be made, or one of whose steps names a path outside its worktree, is refused, never skipped.
+ * So is a row whose worktree an earlier row of this plan already takes (a second workspace in one repository, or two
+ * repositories of one name under a `worktreeRoot`): the preview says so, rather than the second failing at run time.
  */
 export function planBatch(
   offerId: string,
   rows: readonly RepoRow[],
   selected: ReadonlySet<number>,
   config: BatchConfig,
-  /** The top level holding a root; null when it is in none; a refusal when its probe may not run. */
-  git: { readonly top: (root: string) => string | null | { readonly refused: string } },
+  git: {
+    /** The top level holding a root; null when it is in none; a refusal when its probe may not run. */
+    readonly top: (root: string) => string | null | { readonly refused: string };
+    /** The top level of the work tree holding a folder above a repository, or null (batch-run.ts `enclosingTop`). */
+    readonly enclosing?: (path: string) => string | null;
+  },
 ): { readonly repos: readonly RepoPlan[]; readonly deferred: readonly Step[] } {
   const repos: RepoPlan[] = [];
   const deferred = new Map<string, Step>();
+  const planned = new Map<string, string>();
   rows.forEach((row, index) => {
     if (!selected.has(index)) return;
     const offer = row.offers.find((entry) => entry.id === offerId && fires(entry));
@@ -165,8 +188,14 @@ export function planBatch(
     if (found === null) return refuse(`${root} is not inside a git repository`);
     if (typeof found !== 'string') return refuse(found.refused);
     const top = found;
-    const made = worktreeFor(top, branch, config);
+    const made = worktreeFor(top, branch, config, git.enclosing);
     if ('refused' in made) return refuse(made.refused, top);
+    const taken = planned.get(made.path);
+    if (taken !== undefined)
+      return refuse(
+        `the worktree path ${made.path} is already planned for ${taken}; run this workspace in a batch of its own`,
+        top,
+      );
     const workspace = join(made.path, relative(top, root));
     const steps: Step[] = [];
     for (const step of kept) {
@@ -174,6 +203,7 @@ export function planBatch(
       if ('refused' in rebased) return refuse(rebased.refused, top, made.path, workspace);
       steps.push(rebased.step);
     }
+    planned.set(made.path, root);
     repos.push({
       root,
       top,

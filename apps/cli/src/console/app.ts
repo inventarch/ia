@@ -41,7 +41,7 @@ import type { TrackedWorkspace } from '../tracked.js';
 import { findWorkspaces, readTracked, trackedRow, trackWorkspaces } from '../tracked.js';
 import { batchChoices, planBatch, selectNeeding } from './batch-plan.js';
 import type { Runner } from './batch-run.js';
-import { defaultRunner, gitTop } from './batch-run.js';
+import { defaultRunner, enclosingTop, gitTop } from './batch-run.js';
 import { batchScreen } from './batch-screen.js';
 import { sanitize } from './grid.js';
 import type { Input } from './keys.js';
@@ -797,7 +797,7 @@ export async function runConsole(input: {
               all.rows,
               all.selected,
               { iaHome: dir, ...(root === undefined ? {} : { worktreeRoot: root }) },
-              { top: (path) => gitTop(path, env) },
+              { top: (path) => gitTop(path, env), enclosing: (path) => enclosingTop(path, env) },
             );
             all.preview = { choice, ...plan };
           }
