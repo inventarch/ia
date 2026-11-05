@@ -142,8 +142,8 @@ const admitsPrerelease = (comparator: semver.Comparator): boolean =>
   comparator.semver.prerelease.length > 0 &&
   !(comparator.operator === '<' && comparator.semver.prerelease.join('.') === '0');
 /**
- * A range accepting exactly what both `a` and `b` accept, or null when none can be written. One that holds the other is
- * returned as written, so nested ranges keep their spelling. Otherwise it is their conjunction: sorted comparators, so
+ * A range accepting exactly what both `a` and `b` accept, or null when none can be written. When one lies inside the other,
+ * the narrower is returned as written, so nested ranges keep their spelling. Otherwise it is their conjunction: sorted comparators, so
  * either order writes the same bytes. A prerelease refuses a conjunction, because a prerelease comparator admits its
  * tuple's prereleases past the other side's comparators, which accept none of them; so does a result past `range`'s
  * length. Null therefore means "not provably satisfiable together", and is never an accepted set that is too wide.
