@@ -27,28 +27,58 @@ export type SpawnDoctor = (entry: string, root: string, signal?: AbortSignal) =>
 /** What decides which `info` rows count as "not set up": the ids a set-up offer answers. */
 export type SetupIds = (state: Omit<ConsoleState, 'areas'>) => ReadonlySet<string>;
 
-/** `<entry> doctor --json --root <root>` under `IA_NO_HANDOFF=1`, bounded at 20 s unless told otherwise; never throws. */
+/** How long a doctor gets to end after its SIGTERM, which the consumer route reads as "stop starting work". */
+export const DOCTOR_KILL_GRACE_MS = 2_000;
+/**
+ * `<entry> doctor --json --root <root>` under `IA_NO_HANDOFF=1`, bounded at 20 s unless told otherwise; never throws. At
+ * the bound or on an abort it gets a SIGTERM and, still running `DOCTOR_KILL_GRACE_MS` later, a SIGKILL. It settles only
+ * once the process has ended, so the pool's slot (workspaces-state.ts) stays held until then, and a run past its bound
+ * reads as timed out however it then ended.
+ */
 export function doctorProcess(env: Env, timeoutMs: number = DOCTOR_TIMEOUT_MS): SpawnDoctor {
   return (entry, root, signal) =>
     new Promise((settle) => {
-      execFile(
+      let timedOut = false;
+      let kill: ReturnType<typeof setTimeout> | undefined;
+      let bound: ReturnType<typeof setTimeout> | undefined = undefined;
+      const stop = (): void => {
+        if (kill !== undefined) return;
+        child.kill('SIGTERM');
+        kill = setTimeout(() => {
+          child.kill('SIGKILL');
+          // A process it started could hold the pipes open, and `close` would never come.
+          child.stdout?.destroy();
+          child.stderr?.destroy();
+        }, DOCTOR_KILL_GRACE_MS);
+        kill.unref();
+      };
+      const child = execFile(
         process.execPath,
         [entry, 'doctor', '--json', '--root', root],
         {
           cwd: root,
           env: { ...env, [NO_HANDOFF]: '1' },
-          timeout: timeoutMs,
           maxBuffer: 16 * 1024 * 1024,
           windowsHide: true,
           encoding: 'utf8',
-          ...(signal === undefined ? {} : { signal }),
         },
         (error, stdout) => {
-          if (error === null) settle({ status: 0, stdout });
+          clearTimeout(bound);
+          clearTimeout(kill);
+          signal?.removeEventListener('abort', stop);
+          if (timedOut) settle({ status: null, stdout, timedOut: true });
+          else if (error === null) settle({ status: 0, stdout });
           else if (typeof error.code === 'number') settle({ status: error.code, stdout });
           else settle({ status: null, stdout, timedOut: error.killed === true });
         },
       );
+      bound = setTimeout(() => {
+        timedOut = true;
+        stop();
+      }, timeoutMs);
+      bound.unref();
+      if (signal?.aborted === true) stop();
+      else signal?.addEventListener('abort', stop, { once: true });
     });
 }
 

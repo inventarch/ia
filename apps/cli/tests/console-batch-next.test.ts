@@ -644,6 +644,34 @@ describe('git routing variables', () => {
   });
 });
 
+describe('the push', () => {
+  it('names one ref: push.followTags does not carry a local tag along with it', async () => {
+    const fx = withGh('batch-next-follow-tags');
+    const { top } = repo(fx, 'alpha');
+    git(top, ['tag', '-a', 'v-local', '-m', 'local only'], fx.env);
+    git(top, ['config', 'push.followTags', 'true'], fx.env);
+    const { results } = await batch(fx, [rowOf(top, [relock(top)])]);
+    const run = defaultRunner(fx.env);
+    const committed = await commitPassed(results, 'Re-lock', run, fx.env);
+    const opened = await pushAndOpenPrs(committed, run, fx.env);
+    expect(opened[0]?.error).toBeNull();
+    expect(git(top, ['ls-remote', 'origin', 'chore/ia-fix-generation'], fx.env)).not.toBe('');
+    expect(git(top, ['ls-remote', '--tags', 'origin'], fx.env)).toBe('');
+  });
+  it('runs ssh in batch mode, and leaves a core.sshCommand to the user', async () => {
+    const fx = withGh('batch-next-ssh');
+    const plain = repo(fx, 'plain');
+    const own = repo(fx, 'own');
+    git(own.top, ['config', 'core.sshCommand', 'ssh -i /keys/work'], fx.env);
+    const { results } = await batch(fx, [rowOf(plain.top, [relock(plain.top)]), rowOf(own.top, [relock(own.top)])]);
+    const recorded = recorder(defaultRunner(fx.env));
+    const committed = await commitPassed(results, 'Re-lock', recorded.run, fx.env);
+    await pushAndOpenPrs(committed, recorded.run, fx.env);
+    const pushes = recorded.calls.filter((call) => call.args.includes('push'));
+    expect(pushes.map((call) => call.env['GIT_SSH_COMMAND'])).toEqual(['ssh -o BatchMode=yes', undefined]);
+  });
+});
+
 describe('the batch screen', () => {
   const screen = async (fx: Fixture, top: string, answers: readonly (string | null)[]) => {
     const rows = [rowOf(top, [relock(top)])];

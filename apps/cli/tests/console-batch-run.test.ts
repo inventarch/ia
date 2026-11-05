@@ -39,6 +39,7 @@ import {
   METADATA_OPS,
   programIn,
   runBatch,
+  spawnGuarded,
   spawnGuardedSync,
 } from '../src/console/batch-run.js';
 import { findProgram } from '../src/program.js';
@@ -1305,6 +1306,169 @@ describe('a failed git worktree add', () => {
       expect(git(top, ['branch', '--list', result.branch], fx.env)).not.toBe('');
       expect(result.last).toContain('left behind');
       expect(result.last).toContain(result.branch);
+    },
+  );
+});
+
+describe.skipIf(process.platform === 'win32')('a command’s whole process tree', () => {
+  const gone = async (pid: number): Promise<void> => {
+    for (let tries = 0; tries < 200; tries += 1) {
+      try {
+        process.kill(pid, 0);
+      } catch {
+        return;
+      }
+      await new Promise((resolved) => setTimeout(resolved, 25));
+    }
+    process.kill(pid, 'SIGKILL');
+    throw new Error(`process ${pid} is still running`);
+  };
+  const pidIn = async (file: string): Promise<number> => {
+    for (let tries = 0; tries < 200; tries += 1) {
+      if (existsSync(file) && readFileSync(file, 'utf8').trim() !== '') return Number(readFileSync(file, 'utf8'));
+      await new Promise((resolved) => setTimeout(resolved, 25));
+    }
+    throw new Error(`no pid in ${file}`);
+  };
+  /** A shell that waits on a process it started, which writes its pid to `file` and sleeps. */
+  const tree = (file: string) => ['-c', `/bin/sh -c 'echo $$ > "${file}"; exec /bin/sleep 600'; true`];
+  /** The listener `event` gained while `work` started, called by the test as the process would call it. */
+  const gained = async (event: 'SIGINT' | 'exit', before: readonly unknown[]): Promise<() => void> => {
+    for (let tries = 0; tries < 200; tries += 1) {
+      const added = process.listeners(event as 'SIGINT').filter((listener) => !before.includes(listener));
+      if (added.length > 0) return added[0] as () => void;
+      await new Promise((resolved) => setTimeout(resolved, 5));
+    }
+    throw new Error(`no ${event} listener was added`);
+  };
+  it('a timeout kills a process the command started, not only the command', async () => {
+    const fx = fixture('batch-run-tree-timeout');
+    const file = join(fx.dir, 'pid');
+    const run = defaultRunner(fx.env, { timeoutMs: 1_000 });
+    const result = await run('/bin/sh', tree(file), { cwd: fx.dir, env: fx.env });
+    expect(result.status).toBeNull();
+    await gone(await pidIn(file));
+  });
+  it('the command has no terminal of its own to stop on: opening one fails at once rather than waiting', async () => {
+    const fx = fixture('batch-run-tree-tty');
+    const run = defaultRunner(fx.env, { timeoutMs: 20_000 });
+    const result = await run('/bin/sh', ['-c', ': < /dev/tty && echo opened || echo refused'], {
+      cwd: fx.dir,
+      env: fx.env,
+    });
+    expect(result.stdout.trim()).toBe('refused');
+  });
+  it('the console’s own SIGINT reaches the command and what it started', async () => {
+    const fx = fixture('batch-run-tree-sigint');
+    const file = join(fx.dir, 'pid');
+    const before = process.listeners('SIGINT');
+    const settled = defaultRunner(fx.env)('/bin/sh', tree(file), { cwd: fx.dir, env: fx.env });
+    const pid = await pidIn(file);
+    (await gained('SIGINT', before))();
+    await gone(pid);
+    await settled;
+    expect(process.listeners('SIGINT')).toEqual(before);
+  });
+  it('the console ending takes the running command’s tree with it', async () => {
+    const fx = fixture('batch-run-tree-exit');
+    const file = join(fx.dir, 'pid');
+    const before = process.listeners('exit');
+    const settled = defaultRunner(fx.env)('/bin/sh', tree(file), { cwd: fx.dir, env: fx.env });
+    const pid = await pidIn(file);
+    (await gained('exit', before))();
+    await gone(pid);
+    await settled;
+    expect(process.listeners('exit')).toEqual(before);
+  });
+});
+
+describe('ssh prompts', () => {
+  const fetched = (calls: readonly Call[]) => calls.find((call) => call.args.includes('fetch'))!;
+  it('every child gets ssh in batch mode when the user names no ssh command', async () => {
+    const fx = fixture('batch-run-ssh');
+    const { top } = repo(fx, 'alpha');
+    const { calls } = await batch(fx, [rowOf(top, [relock(top)])], 'fix:generation');
+    expect(fetched(calls).env['GIT_SSH_COMMAND']).toBe('ssh -o BatchMode=yes');
+    for (const call of calls) expect(call.env['GIT_SSH_COMMAND']).toBe('ssh -o BatchMode=yes');
+  });
+  it.each([
+    ['GIT_SSH_COMMAND', 'my-ssh --flag'],
+    ['GIT_SSH', '/usr/local/bin/my-ssh'],
+  ])('%s in the environment is the user’s own and is kept', async (name, value) => {
+    const fx = fixture('batch-run-ssh-env');
+    const { top } = repo(fx, 'alpha');
+    const own = { ...fx, env: { ...fx.env, [name]: value } };
+    const { calls } = await batch(own, [rowOf(top, [relock(top)])], 'fix:generation');
+    expect(fetched(calls).env[name]).toBe(value);
+    if (name !== 'GIT_SSH_COMMAND') expect(fetched(calls).env['GIT_SSH_COMMAND']).toBeUndefined();
+  });
+  it('a core.sshCommand is the user’s own too: the environment, which would override it, stays unset', async () => {
+    const fx = fixture('batch-run-ssh-config');
+    const { top } = repo(fx, 'alpha');
+    git(top, ['config', 'core.sshCommand', 'ssh -i /keys/work'], fx.env);
+    const { calls } = await batch(fx, [rowOf(top, [relock(top)])], 'fix:generation');
+    expect(fetched(calls).env['GIT_SSH_COMMAND']).toBeUndefined();
+  });
+});
+
+describe('a version manager’s shim', () => {
+  it.skipIf(process.platform === 'win32')(
+    'is checked by its real path and starts with the name it was found by, which is how it knows what to run',
+    async () => {
+      const fx = fixture('batch-run-argv0');
+      const link = join(fx.shims, 'shimmed');
+      symlinkSync(process.execPath, link);
+      const found = programIn('shimmed', fx.env, []);
+      expect(found.path).toBe(realpathSync.native(process.execPath));
+      const result = await spawnGuarded(
+        defaultRunner(fx.env),
+        found as { path: string },
+        ['-p', 'process.argv0'],
+        { cwd: fx.dir, env: fx.env },
+        { checkouts: [] },
+      );
+      expect(result.stdout.trim()).toBe(link);
+    },
+  );
+  it.skipIf(process.platform === 'win32')('a step through such a shim reaches the runner by that name', async () => {
+    const fx = fixture('batch-run-argv0-step');
+    const { top } = repo(fx, 'alpha');
+    const link = join(fx.shims, 'shimmed');
+    symlinkSync(process.execPath, link);
+    const seen: (string | undefined)[] = [];
+    const watching =
+      (run: Runner): Runner =>
+      (file, args, options) => {
+        if (args.includes('-v')) seen.push(options.argv0);
+        return run(file, args, options);
+      };
+    const offer = offerOf('fix:shim', 'Shim', [external(['shimmed', '-v'])]);
+    const { results } = await batch(fx, [rowOf(top, [offer])], 'fix:shim', undefined, watching);
+    expect(only(results).ok).toBe(true);
+    expect(seen).toEqual([link]);
+  });
+});
+
+describe('a PATH entry inside a selected repository', () => {
+  it.skipIf(process.platform === 'win32')(
+    'is left out of every child’s PATH, so a program the step starts by name cannot come from the checkout',
+    async () => {
+      const fx = fixture('batch-run-path-entry');
+      const { top } = repo(fx, 'alpha');
+      const marker = join(fx.dir, 'ran-from-checkout');
+      mkdirSync(join(top, 'bin'));
+      const helper = join(top, 'bin', 'helper');
+      writeFileSync(helper, `#!/bin/sh\necho ran > "${marker}"\n`);
+      chmodSync(helper, 0o755);
+      const tool = join(fx.shims, 'tool');
+      writeFileSync(tool, '#!/bin/sh\nhelper 2>/dev/null\nexit 0\n');
+      chmodSync(tool, 0o755);
+      const own = { ...fx, env: { ...fx.env, PATH: [join(top, 'bin'), fx.env['PATH']].join(delimiter) } };
+      const offer = offerOf('fix:tool', 'Tool', [external(['tool'])]);
+      const { results, calls } = await batch(own, [rowOf(top, [offer])], 'fix:tool');
+      expect(only(results).ok).toBe(true);
+      expect(existsSync(marker)).toBe(false);
+      for (const call of calls) expect(call.env['PATH']!.split(delimiter)).not.toContain(join(top, 'bin'));
     },
   );
 });
