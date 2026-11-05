@@ -14,6 +14,7 @@ import { iaFix } from '../src/fix.js';
 import type { LocalCli } from '../src/local-cli.js';
 import type { ProcessHooks } from '../src/console/app.js';
 import { consoleSignals, resolveRepo, runConsole } from '../src/console/app.js';
+import type { Runner } from '../src/console/batch-run.js';
 import type { SpawnDoctor } from '../src/console/load.js';
 import type { Offer, Step } from '../src/console/offers.js';
 import { offersFor } from '../src/console/offers.js';
@@ -973,7 +974,16 @@ describe('runConsole', () => {
 /** The end of a long value, which the folder line always shows. */
 const tail = (text: string): string => text.slice(-12);
 /** The console started outside any workspace, with `tracked` workspaces in its IA home's tracked list. */
-function launchAll(tracked = 0, extra: { copies?: boolean; spawnDoctor?: SpawnDoctor; inside?: boolean } = {}) {
+function launchAll(
+  tracked = 0,
+  extra: {
+    copies?: boolean;
+    spawnDoctor?: SpawnDoctor;
+    inside?: boolean;
+    collect?: () => DoctorView;
+    runner?: Runner;
+  } = {},
+) {
   const base = scratch('console-all');
   const cwd = join(base, 'outside'),
     home = join(base, 'home');
@@ -1007,7 +1017,7 @@ function launchAll(tracked = 0, extra: { copies?: boolean; spawnDoctor?: SpawnDo
     cwd: start,
     packageRoot: RUNNING,
     version: '3.5.1',
-    collect: () => view([check('node', 'ok'), check('records', 'ok'), check('root', 'ok')]),
+    collect: extra.collect ?? (() => view([check('node', 'ok'), check('records', 'ok'), check('root', 'ok')])),
     spawn: async () => 0,
     setTimer: ((callback: () => void) => {
       timers.push(callback);
@@ -1016,10 +1026,84 @@ function launchAll(tracked = 0, extra: { copies?: boolean; spawnDoctor?: SpawnDo
     clearTimer: (() => {}) as typeof clearTimeout,
     hooks,
     ...(extra.spawnDoctor === undefined ? {} : { spawnDoctor: extra.spawnDoctor }),
+    ...(extra.runner === undefined ? {} : { runner: extra.runner }),
   });
   const shows = (text: string) => () => terminal.out.includes(text);
   return { base, cwd, home, roots, terminal, stdin, timers, hooks, exit, shows };
 }
+
+describe('opening a failed repository after a batch', () => {
+  /** A batch whose repository is refused once its worktree exists, stopped at "Press any key", the reload held. */
+  async function failedBatch() {
+    let release: (run: { status: number; stdout: string }) => void = () => {};
+    const reading = new Promise<{ status: number; stdout: string }>((settle) => {
+      release = settle;
+    });
+    // git and the worktree are faked; the copy in it is what makes opening it run a doctor.
+    const runner: Runner = async (_file, args) => {
+      const ok = (stdout = '') => ({ status: 0, stdout, stderr: '' });
+      if (args.includes('add')) {
+        const tree = args[args.indexOf('-b') + 2]!;
+        const installed = join(tree, 'node_modules/@inventarch/cli');
+        mkdirSync(join(tree, '.ia/src'), { recursive: true });
+        mkdirSync(join(installed, 'dist'), { recursive: true });
+        writeFileSync(join(tree, 'package.json'), JSON.stringify({ devDependencies: { '@inventarch/cli': '3.5.0' } }));
+        writeFileSync(
+          join(installed, 'package.json'),
+          JSON.stringify({ name: '@inventarch/cli', version: '3.5.0', bin: { ia: './dist/bin.js' } }),
+        );
+        writeFileSync(join(installed, 'dist/bin.js'), '');
+        return ok();
+      }
+      if (args.some((arg) => arg.startsWith('refs/heads/'))) return { status: 1, stdout: '', stderr: '' };
+      if (args.includes('symbolic-ref')) return ok('refs/remotes/origin/main\n');
+      return ok('abc123\n');
+    };
+    const fix = iaFix(['restore', '--apply'], 'repo').fix!;
+    const run = launchAll(1, {
+      runner,
+      collect: () => view([check('records', 'fail', { fix }), check('root', 'ok')]),
+      spawnDoctor: () => reading,
+    });
+    spawnSync('git', ['init', '--quiet'], { cwd: run.roots[0]! });
+    await until(run.shows('ws0'), 'the row to load');
+    run.stdin.write(' ');
+    run.stdin.write('b');
+    await until(run.shows('BATCH'), 'the batch list');
+    run.stdin.write('\r');
+    await until(run.shows('WOULD'), 'the preview');
+    run.stdin.write('\r');
+    await until(run.shows('Run this batch?'), 'the confirmation');
+    run.stdin.write('y\n');
+    await until(run.shows('Open a failed repo'), 'the next list');
+    run.stdin.write('1\n');
+    await until(run.shows('Press any key'), 'the wait');
+    const mark = run.terminal.out.length;
+    run.stdin.write('x');
+    await until(() => run.terminal.out.slice(mark).includes('Reading'), 'the note that it is being read');
+    return { run, mark, release };
+  }
+  it.skipIf(process.platform === 'win32')(
+    'no key reaches another workspace’s offers while it reads; its own view follows',
+    async () => {
+      const { run, mark, release } = await failedBatch();
+      // Help, then enter: on the console's own state these would draw its view and run its first offer.
+      run.stdin.write('?');
+      run.stdin.write('\r');
+      await settle();
+      expect(run.terminal.out.slice(mark)).not.toContain('KEYS');
+      release({ status: 0, stdout: JSON.stringify({ version: 1, checks: [], counts: {} }) });
+      await until(() => run.terminal.out.slice(mark).includes('esc back'), 'the opened workspace');
+      run.stdin.write('\x03');
+      expect(await run.exit).toBe(0);
+    },
+  );
+  it.skipIf(process.platform === 'win32')('q still quits while it reads', async () => {
+    const { run } = await failedBatch();
+    run.stdin.write('q');
+    expect(await run.exit).toBe(0);
+  });
+});
 
 describe('the all-workspaces view', () => {
   it('outside a workspace lands on all workspaces', async () => {

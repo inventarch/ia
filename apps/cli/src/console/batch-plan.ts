@@ -79,6 +79,15 @@ export function branchFor(offer: Offer): string {
   return `chore/${id.startsWith('ia-') ? id : `ia-${id}`}`;
 }
 
+/** The base every worktree starts from (batch-run.ts `findBase`), named before anything runs. */
+export const BATCH_BASE =
+  "origin's default branch after git fetch origin (origin/HEAD, else origin/main, else origin/master)";
+/** The install every repository's run begins with, as a preview says it. */
+export const installLine = (steps: readonly Step[]): string =>
+  installsFirst(steps) !== null
+    ? "by the first step, the package manager's own install"
+    : "the package manager's install, first, where the worktree holds a package.json";
+
 export interface RepoPlan {
   /** The tracked root. */
   readonly root: string;
