@@ -194,6 +194,23 @@ it('a CRLF instruction file keeps CRLF through install, update and remove, with 
   expect(read('CLAUDE.md')).toBe(original);
 });
 
+it.each([
+  ['a leading CRLF blank line', '\r\n# Project\r\n'],
+  ['a trailing CRLF blank line', '# Project\r\n\r\n'],
+  ['CRLF first, then a bare LF ending', '# Project\r\nOur notes.\n'],
+  ['LF first, then a CRLF ending', '# Project\nOur notes.\r\n'],
+  ['a leading LF blank line', '\n# Project\n'],
+  ['a trailing LF blank line', '# Project\n\n'],
+  ['plain CRLF', '# Project\r\nOur notes.\r\n'],
+  ['plain LF', '# Project\nOur notes.\n'],
+])('install then remove restores the file byte for byte: %s', (_name, original) => {
+  put('CLAUDE.md', original);
+  applyBootstrap(planBootstrap(root, 'claude', '3.5.0'));
+  expect(read('CLAUDE.md')).not.toBe(original);
+  applyBootstrap(planBootstrap(root, 'claude', '3.5.0', true));
+  expect(read('CLAUDE.md')).toBe(original);
+});
+
 it('a lowercase contributing.md is not CONTRIBUTING.md, on a case-insensitive volume too', () => {
   put('contributing.md', '# Contributing\n');
   const plan = planBootstrap(root, 'claude', '3.5.0');

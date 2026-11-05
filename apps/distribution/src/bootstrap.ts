@@ -123,7 +123,8 @@ function markdown(path: string, current: string | null, remove: boolean, contrib
   after = after.slice(terminator.length);
   const before = text.slice(0, start);
   if (!remove) return before + block.slice(0, -eol.length) + terminator + after;
-  const kept = (before.replace(/(?:\r?\n)+$/, eol) + after).replace(/^(?:\r?\n)+/, '');
+  // Install adds one blank separator line before the block (the file's first line when it had none); take out only that.
+  const kept = before === '' ? after.replace(/^(?:\r?\n)+/, '') : before.replace(/(\r?\n)\r?\n$/, '$1') + after;
   return kept.trim() === '' ? null : kept;
 }
 
