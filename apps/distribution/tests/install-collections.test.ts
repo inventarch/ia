@@ -301,6 +301,25 @@ it('an unreadable collection record refuses the install and is left as it was', 
   expect(read(root, INSTALL_PATHS.lock)).toBe(lockBefore);
   expect(existsSync(join(root, INSTALL_PATHS.pending))).toBe(false);
 });
+it('an unreadable collection record refuses a restore with verb-neutral wording and writes no store or generation file', async () => {
+  const dir = await registry(),
+    root = workspaceRoot();
+  await install(root, dir, ['acme/kit@^1.0.0']);
+  writeFileSync(join(root, KIT_COLLECTIONS), '{ not json');
+  const plan = planInstallation(root, lockAt(root)!, 'restore'),
+    stages: string[] = [];
+  let message = '';
+  try {
+    applyInstallation(plan, { checkpoint: (name) => stages.push(name) });
+  } catch (error) {
+    message = (error as Error).message;
+  }
+  expect(message).toMatch(/the next apply would replace it/);
+  expect(message).toMatch(/then run the command again/);
+  expect(message).not.toMatch(/ia install/);
+  expect(stages).toEqual([]);
+  expect(read(root, KIT_COLLECTIONS)).toBe('{ not json');
+});
 it('a restore of an unchanged lock does not rewrite the record', async () => {
   const dir = await registry(),
     root = workspaceRoot();
