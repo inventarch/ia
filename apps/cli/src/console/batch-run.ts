@@ -16,7 +16,7 @@
  */
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, lstatSync, realpathSync, statSync } from 'node:fs';
-import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { basename, delimiter, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { confirmedArgv, displayFix } from '../fix.js';
 import { NO_HANDOFF } from '../handoff.js';
@@ -41,8 +41,22 @@ export interface RunResult {
 }
 /** Starts a program with piped output and settles with its result; never throws. */
 export interface Runner {
-  (file: string, args: readonly string[], options: { readonly cwd: string; readonly env: Env }): Promise<RunResult>;
+  (
+    file: string,
+    args: readonly string[],
+    options: { readonly cwd: string; readonly env: Env; readonly argv0?: string },
+  ): Promise<RunResult>;
 }
+/** A program as a batch starts it: its canonical real path, and the name it was found by, when that was another. */
+export interface Program {
+  readonly path: string;
+  /**
+   * The `argv[0]` to start it with: the link it was found through. A version manager's shim (mise, volta) is a link to
+   * one binary that reads `argv[0]` to know what to run, so started by its real path alone it runs nothing it should.
+   */
+  readonly argv0?: string;
+}
+const programOf = (program: string | Program): Program => (typeof program === 'string' ? { path: program } : program);
 
 /**
  * Git's repository-local variables (`git rev-parse --local-env-vars`): set in the console's own environment, by a git
@@ -103,11 +117,12 @@ function stopTree(child: ReturnType<typeof spawn>, env: Env): void {
     if (existsSync(taskkill))
       spawnSync(taskkill, ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
   }
+  if (OWN_GROUP) signalGroup(child, 'SIGKILL');
   child.kill('SIGKILL');
 }
 /** A synchronous `git -C <cwd> …` by the checked `git`, through the guarded spawn, for the lockfile probe. */
-const gitWith =
-  (env: Env, git: string, guard: SpawnGuard): Git =>
+export const gitWith =
+  (env: Env, git: Program, guard: SpawnGuard): Git =>
   (cwd, args) => {
     const result = spawnGuardedSync(git, ['--no-optional-locks', '-C', cwd, ...args], { cwd, env }, guard);
     return result.status === 0 ? result.stdout.trim() : null;
@@ -124,17 +139,26 @@ export function defaultRunner(env: Env, limits: { readonly timeoutMs?: number } 
     new Promise((resolved) => {
       let settled = false;
       let timer: ReturnType<typeof setTimeout> | undefined;
+      let unwatch = (): void => {};
       const settle = (result: RunResult): void => {
         if (settled) return;
         settled = true;
         if (timer !== undefined) clearTimeout(timer);
+        unwatch();
         resolved(result);
       };
       const fail = (why: string): void => settle({ status: null, stdout: '', stderr: why });
       const childEnv = batchEnv(options.env);
-      let target: { file: string; args: readonly string[]; env: Env; verbatim: boolean };
+      let target: { file: string; args: readonly string[]; env: Env; verbatim: boolean; argv0?: string };
       const script = (path: string) => process.platform === 'win32' && /\.(?:cmd|bat)$/i.test(path);
-      if (isAbsolute(file) && !script(file)) target = { file, args, env: programEnv(childEnv), verbatim: false };
+      if (isAbsolute(file) && !script(file))
+        target = {
+          file,
+          args,
+          env: programEnv(childEnv),
+          verbatim: false,
+          ...(options.argv0 === undefined ? {} : { argv0: options.argv0 }),
+        };
       else {
         const program = isAbsolute(file) ? null : findProgram(file, env, 'program');
         if (program !== null) target = { file: program, args, env: programEnv(childEnv), verbatim: false };
@@ -160,7 +184,21 @@ export function defaultRunner(env: Env, limits: { readonly timeoutMs?: number } 
         stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true,
         windowsVerbatimArguments: target.verbatim,
+        detached: OWN_GROUP,
+        ...(target.argv0 === undefined ? {} : { argv0: target.argv0 }),
       });
+      if (OWN_GROUP) {
+        // The child is out of the terminal's reach, so the console passes on what the terminal's Ctrl-C sent it, and
+        // does not leave the tree behind when it ends, for whatever reason, with a command still running.
+        const interrupt = (): void => signalGroup(child, 'SIGINT');
+        const ending = (): void => signalGroup(child, 'SIGKILL');
+        process.on('SIGINT', interrupt);
+        process.on('exit', ending);
+        unwatch = () => {
+          process.off('SIGINT', interrupt);
+          process.off('exit', ending);
+        };
+      }
       child.stdout.setEncoding('utf8').on('data', (chunk: string) => {
         stdout += chunk;
       });
@@ -215,7 +253,7 @@ export function gitTop(root: string, env: Env): string | null | { readonly refus
   const checked = programIn('git', env, [root, holder]);
   if ('refused' in checked) return checked.path === null ? null : { refused: checked.refused };
   const result = spawnGuardedSync(
-    checked.path,
+    checked,
     ['-C', root, 'rev-parse', '--show-toplevel'],
     { cwd: root, env },
     { checkouts: [root, holder] },
@@ -262,7 +300,7 @@ async function findBase(
   top: string,
   run: Runner,
   env: Env,
-  gitPath: string,
+  gitPath: Program,
   guard: SpawnGuard = { checkouts: [top] },
 ): Promise<{ base: string } | { why: string }> {
   const git = (args: readonly string[]) => spawnGuarded(run, gitPath, ['-C', top, ...args], { cwd: top, env }, guard);
@@ -289,7 +327,13 @@ async function findBase(
 export async function chooseBase(top: string, run: Runner, env: Env = process.env): Promise<string | null> {
   const git = programIn('git', batchEnv(env), [top]);
   if ('refused' in git) return null;
-  const found = await findBase(top, run, batchEnv(env), git.path);
+  const scoped = batchEnv(env);
+  const found = await findBase(
+    top,
+    run,
+    withoutSshPrompt(scoped, gitWith(scoped, git, { checkouts: [top] }), top),
+    git,
+  );
   return 'base' in found ? found.base : null;
 }
 
@@ -333,7 +377,7 @@ export function programIn(
   name: string,
   env: Env,
   checkouts: readonly string[],
-): { readonly path: string } | { readonly path: string | null; readonly refused: string } {
+): Program | { readonly path: string | null; readonly refused: string } {
   const found = isAbsolute(name) ? name : (findProgram(name, env, 'program') ?? findProgram(name, env, 'script'));
   if (found === null) return { path: null, refused: `${name} was not found on a qualified PATH entry` };
   // The canonical real path, never a link's spelling: it is what runs, and what every spawn checks again.
@@ -342,7 +386,8 @@ export function programIn(
   for (const checkout of checkouts)
     if (within(leadsTo(checkout) ?? checkout, real))
       return { path: real, refused: `${name} resolves to ${real}, inside the repository` };
-  return { path: real };
+  // Windows does not dispatch on `argv[0]`, and a `.cmd` found by its path has no use for another.
+  return process.platform !== 'win32' && fold(found) !== fold(real) ? { path: real, argv0: found } : { path: real };
 }
 
 /**
@@ -386,34 +431,55 @@ function admit(program: string, args: readonly string[], cwd: string, guard: Spa
   return null;
 }
 /**
+ * A child's environment: no git routing variable, only qualified PATH entries, and none that leads into a checkout. The
+ * batch judges the programs it starts by itself (`programIn`), but one of those starting another by name would look on
+ * this PATH: an npm whose launcher runs `env node` would otherwise run a `node` a repository holds.
+ */
+function childEnv(env: Env, checkouts: readonly string[]): Record<string, string> {
+  const out = programEnv(batchEnv(env));
+  const roots = checkouts.map((checkout) => leadsTo(checkout) ?? checkout);
+  const kept = (out['PATH'] ?? '').split(delimiter).filter((entry) => {
+    const real = leadsTo(entry) ?? entry;
+    return !roots.some((root) => within(root, real));
+  });
+  out['PATH'] = kept.length > 0 || process.platform === 'win32' ? kept.join(delimiter) : '/usr/bin:/bin';
+  return out;
+}
+/**
  * The one way a batch starts a child: `admit` checks it immediately before, and the child gets `env` without git's
- * routing variables and with only qualified PATH entries (`programEnv`). A refused spawn starts nothing and settles
- * with `refused` set.
+ * routing variables and with only qualified PATH entries, none inside a checkout (`childEnv`). A refused spawn starts
+ * nothing and settles with `refused` set.
  */
 export async function spawnGuarded(
   run: Runner,
-  program: string,
+  program: string | Program,
   args: readonly string[],
   options: { readonly cwd: string; readonly env: Env },
   guard: SpawnGuard,
 ): Promise<RunResult> {
-  const why = admit(program, args, options.cwd, guard);
+  const { path, argv0 } = programOf(program);
+  const why = admit(path, args, options.cwd, guard);
   if (why !== null) return { status: null, stdout: '', stderr: why, refused: why };
-  return run(program, args, { cwd: options.cwd, env: programEnv(batchEnv(options.env)) });
+  return run(path, args, {
+    cwd: options.cwd,
+    env: childEnv(options.env, guard.checkouts),
+    ...(argv0 === undefined ? {} : { argv0 }),
+  });
 }
 /**
  * `spawnGuarded` for the synchronous probes: the same check and environment; a Windows `.cmd` or `.bat` runs through
  * cmd.exe named by its path, each argument quoted by `cmdArgument`, and one it cannot pass refuses the probe.
  */
 export function spawnGuardedSync(
-  program: string,
+  started: string | Program,
   args: readonly string[],
   options: { readonly cwd: string; readonly env: Env },
   guard: SpawnGuard,
 ): RunResult {
+  const { path: program, argv0 } = programOf(started);
   const why = admit(program, args, options.cwd, guard);
   if (why !== null) return { status: null, stdout: '', stderr: why, refused: why };
-  const env = programEnv(batchEnv(options.env)) as NodeJS.ProcessEnv;
+  const env = childEnv(options.env, guard.checkouts) as NodeJS.ProcessEnv;
   const common = {
     cwd: options.cwd,
     env,
@@ -421,6 +487,7 @@ export function spawnGuardedSync(
     windowsHide: true,
     timeout: BATCH_COMMAND_TIMEOUT_MS,
     killSignal: 'SIGKILL' as const,
+    ...(argv0 === undefined ? {} : { argv0 }),
   };
   let result: ReturnType<typeof spawnSync>;
   if (process.platform === 'win32' && /\.(?:cmd|bat)$/i.test(program)) {
@@ -614,11 +681,8 @@ export async function runBatch(
   // Every child of the batch, on the original or in a worktree, runs without git's routing variables.
   const scoped = { ...io, env: batchEnv(io.env) };
   // git is found once and judged against every repository of the batch, then always run by that absolute path.
-  const git = programIn(
-    'git',
-    scoped.env,
-    plan.repos.map((repo) => repo.top),
-  );
+  const tops = plan.repos.map((repo) => repo.top);
+  const git = programIn('git', scoped.env, tops);
   // Where each worktree really leads, fixed now, before anything is awaited.
   const destinations = plan.repos.map((repo) => leadsTo(repo.worktree));
   for (const [index, repo] of plan.repos.entries()) {
@@ -634,7 +698,7 @@ export async function runBatch(
       results.push({ ...repoResult(repo), ok: false, last: git.refused, refused: git.refused, created: false });
       continue;
     }
-    results.push(await runRepo(repo, state, scoped, say, git.path, destinations[index] ?? null));
+    results.push(await runRepo(repo, state, scoped, say, git, destinations[index] ?? null, tops));
   }
   return results;
 }
@@ -644,8 +708,10 @@ async function runRepo(
   state: Pick<ConsoleState, 'running'>,
   io: Parameters<typeof runBatch>[2],
   say: (line: string) => void,
-  gitPath: string,
+  gitPath: Program,
   destination: string | null,
+  /** Every repository of the batch: none is a place to run a program from, or to look for one. */
+  tops: readonly string[],
 ): Promise<RepoResult> {
   const { top, worktree, workspace, branch } = repo;
   let created = false;
@@ -666,9 +732,10 @@ async function runRepo(
   const refuse = (why: string): RepoResult => done(false, why, why);
   const stop = (): RepoResult => ({ ...done(false, STOPPED), stopped: true });
   if (repo.refused !== null) return refuse(repo.refused);
-  let guard: SpawnGuard = { checkouts: [top] };
+  let guard: SpawnGuard = { checkouts: tops };
+  const env = withoutSshPrompt(io.env, gitWith(io.env, gitPath, guard), top);
   const git = (args: readonly string[]) =>
-    spawnGuarded(io.run, gitPath, ['-C', top, ...args], { cwd: top, env: io.env }, guard);
+    spawnGuarded(io.run, gitPath, ['-C', top, ...args], { cwd: top, env }, guard);
   // Planning judged the path by its spelling; a link on the way (a configured root, or `.ia-worktrees` itself) could
   // still lead it into the checkout or the IA home, where git would then write. Judged by where it really leads.
   const checkout = leadsTo(top) ?? top;
@@ -684,7 +751,7 @@ async function runRepo(
   if (first !== null) return refuse(first);
 
   say('fetching origin');
-  const base = await findBase(top, io.run, io.env, gitPath, guard);
+  const base = await findBase(top, io.run, env, gitPath, guard);
   if ('why' in base) return refuse(base.why);
   // The offers were read from the local checkout, but the worktree starts from the base: a workspace the base does not
   // hold (added on a local branch, or not pushed) would leave the steps nothing to act on, so it is refused here.
@@ -740,14 +807,14 @@ async function runRepo(
   if (pinned === null || fold(pinned.real) !== fold(now))
     return refuse(`the worktree ${worktree} was replaced or moved since the batch created it`);
   const tree = pinned.real;
-  guard = { checkouts: [top], worktree: { path: worktree, pinned } };
+  guard = { checkouts: tops, worktree: { path: worktree, pinned } };
 
   const run = async (step: Step, label: string): Promise<string | null> => {
     const replaced = checkPinned(worktree, pinned);
     if (replaced !== null) return `refused:${label}: ${replaced}`;
     const outside = containedStep(step, workspace, worktree, tree);
     if (outside !== null) return `refused:${label}: ${outside}`;
-    let file: string, args: readonly string[], env: Env;
+    let file: string | Program, args: readonly string[], stepEnv: Env;
     if (step.program === 'ia') {
       // The copy is found again before every step, in the worktree only: an earlier step may have installed it.
       const found = io.resolveRepo(workspace);
@@ -762,20 +829,20 @@ async function runRepo(
       }
       file = process.execPath;
       args = [copy?.entry ?? runningEntry(state.running.packageRoot), ...confirmedArgv(step)];
-      env = { ...io.env, [NO_HANDOFF]: '1' };
+      stepEnv = { ...env, [NO_HANDOFF]: '1' };
     } else {
       const [name, ...rest] = step.argv;
       if (name === undefined) return `refused:${label}: the step names no program`;
       // The program the runner will start, judged by its real path and then run by it: never one the checkout holds.
-      const program = programIn(name, io.env, [top]);
+      const program = programIn(name, env, tops);
       if ('refused' in program) return `refused:${label}: ${program.refused}`;
-      file = program.path;
+      file = program;
       args = rest;
-      env = io.env;
+      stepEnv = env;
     }
     const shown = step.program === 'ia' ? displayFix({ ...step, argv: confirmedArgv(step) }) : displayFix(step);
     say(`$ ${shown}`);
-    const result = await spawnGuarded(io.run, file, args, { cwd: workspace, env }, guard);
+    const result = await spawnGuarded(io.run, file, args, { cwd: workspace, env: stepEnv }, guard);
     if (result.refused !== undefined) return `refused:${label}: ${result.refused}`;
     if (result.status === 0) return null;
     const how = result.status === null ? 'did not finish' : `exited ${result.status}`;
@@ -790,7 +857,7 @@ async function runRepo(
   if (manifest !== null) {
     const probe = checkPinned(worktree, pinned);
     if (probe !== null) return refuse(probe);
-    const listing = gitWith(io.env, gitPath, guard);
+    const listing = gitWith(env, gitPath, guard);
     const { manager, conflict } = detectPackageManager(manifest, listing);
     if (conflict.length > 0) return refuse(`package managers disagree: ${conflict.join(', ')}`);
     if (manager === null) return refuse(`no package manager is declared or locked in ${manifest}`);

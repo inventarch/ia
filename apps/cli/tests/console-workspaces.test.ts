@@ -3,7 +3,7 @@
  * few doctor runs at once, each row classified from the statuses its checks report (never from its offers), and the
  * summary's counts. Doctor collection and the copies' runs are injected; the roots are real directories.
  */
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import type { Extension } from '../src/consumer.js';
@@ -11,6 +11,7 @@ import type { Check, CheckStatus, DoctorView } from '../src/doctor.js';
 import type { TrackedWorkspace } from '../src/tracked.js';
 import type { DoctorRun } from '../src/console/state.js';
 import type { RepoRow } from '../src/console/workspaces-state.js';
+import { doctorProcess } from '../src/console/load.js';
 import { classify, loadAll, loadingRow, summarize } from '../src/console/workspaces-state.js';
 import { cleanup, scratch } from './scratch-fixture.js';
 
@@ -384,5 +385,71 @@ describe('summarize', () => {
     expect(total).toBe(healthy + failing + warning + missing + failed + unchecked + loading);
     expect(summarize([], { latest: null }, '3.5.1')).toMatchObject({ latest: null, behind: false, tracked: 0 });
     expect(summarize([], { latest: '3.5.1' }, '3.5.1').behind).toBe(false);
+  });
+});
+
+describe("the bound on a workspace copy's doctor", () => {
+  /** A doctor that treats SIGTERM as the consumer route does, as no reason to end, and would run on for `ms`. */
+  const stubborn = (ms: number) => {
+    const dir = scratch('console-doctor-bound');
+    const entry = join(dir, 'doctor.mjs');
+    const pidFile = join(dir, 'pid');
+    writeFileSync(
+      entry,
+      [
+        "import { writeFileSync } from 'node:fs';",
+        "process.on('SIGTERM', () => {});",
+        `writeFileSync(${JSON.stringify(pidFile)}, String(process.pid));`,
+        `setTimeout(() => process.exit(0), ${ms});`,
+        '',
+      ].join('\n'),
+    );
+    return { dir, entry, pidFile };
+  };
+  const alive = (pid: number): boolean => {
+    try {
+      process.kill(pid, 0);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const pidOf = async (file: string): Promise<number> => {
+    for (let tries = 0; tries < 400; tries += 1) {
+      if (existsSync(file) && readFileSync(file, 'utf8') !== '') return Number(readFileSync(file, 'utf8'));
+      await new Promise((settle) => setTimeout(settle, 10));
+    }
+    throw new Error('the doctor never started');
+  };
+  it('a doctor that outlasts its SIGTERM is killed and reported as timed out, well before its own end', async () => {
+    const { dir, entry, pidFile } = stubborn(60_000);
+    const started = Date.now();
+    const run = await doctorProcess({ ...process.env }, 1_000)(entry, dir);
+    expect(run).toMatchObject({ status: null, timedOut: true });
+    expect(Date.now() - started).toBeLessThan(20_000);
+    expect(alive(await pidOf(pidFile))).toBe(false);
+  });
+  it('a doctor that ends cleanly after its timeout still reads as timed out, not as no JSON', async () => {
+    const { dir, entry } = stubborn(1_500);
+    const run = await doctorProcess({ ...process.env }, 500)(entry, dir);
+    expect(run).toMatchObject({ status: null, timedOut: true });
+  });
+  it.skipIf(process.platform === 'win32')(
+    'an abort settles only once the doctor has ended, so its slot stays held',
+    async () => {
+      const { dir, entry, pidFile } = stubborn(60_000);
+      const controller = new AbortController();
+      const running = doctorProcess({ ...process.env }, 30_000)(entry, dir, controller.signal);
+      const pid = await pidOf(pidFile);
+      controller.abort();
+      await running;
+      expect(alive(pid)).toBe(false);
+    },
+  );
+  it('a doctor that answers in time answers as before', async () => {
+    const dir = scratch('console-doctor-answer');
+    const entry = join(dir, 'doctor.mjs');
+    writeFileSync(entry, "process.stdout.write('{}'); process.exitCode = 1;\n");
+    expect(await doctorProcess({ ...process.env }, 20_000)(entry, dir)).toEqual({ status: 1, stdout: '{}' });
   });
 });

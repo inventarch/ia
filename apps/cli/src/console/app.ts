@@ -22,7 +22,8 @@
  * `unhandledRejection` (exit 1), and on `SIGINT`, `SIGTERM`, `SIGHUP` and, on Windows, `SIGBREAK` (exit 128 plus the
  * signal's number: 130, 143, 129, 149). A process `exit` restores it synchronously. These handlers exist only while the
  * console runs. A signal while a step's child runs is the child's to handle; Ctrl-C at the console's own confirmation
- * declines it, and during a batch stops it after the step that is running.
+ * declines it, and during a batch stops it: batch-run.ts passes the signal on to the command in flight, in a process
+ * group of its own, and nothing further starts.
  */
 import { statSync } from 'node:fs';
 import { dirname, resolve as resolvePath } from 'node:path';
@@ -612,9 +613,9 @@ export async function runConsole(input: {
           print: (text) => print(sanitize(text)),
           line: readLine,
           run: (file, args, options) => {
-            // Ctrl-C while a batch command runs stops the batch: the terminal's signal reaches that command too (it shares
-            // the console's process group, or its console on Windows), which acts on it and usually ends, and nothing
-            // further starts.
+            // Ctrl-C while a batch command runs stops the batch: that command gets the signal too (the runner forwards it to
+            // the command's own process group, and on Windows it shares the console), acts on it and usually ends, and
+            // nothing further starts.
             waiting = { cancel: () => controller.abort() };
             return (input.runner ?? defaultRunner(env))(file, args, options).finally(() => {
               waiting = null;
@@ -639,7 +640,6 @@ export async function runConsole(input: {
       backToConsole();
       all.preview = null;
       if (outcome.next === 'open') {
-        ui.mode = 'repo';
         dropRefresh();
         ui.drilled = { root: outcome.root, row: null };
         ui.view = 'offers';
