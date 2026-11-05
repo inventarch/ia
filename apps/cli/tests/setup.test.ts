@@ -193,7 +193,10 @@ it('preserves existing method choices and can retry after npm fails', async () =
     env: { ...env, FAKE_NPM_VIEW: undefined },
   });
   expect(failed.exitCode).not.toBe(0);
-  expect(JSON.parse(failed.stdout).message).toContain('Completed: workspace');
+  const failure = JSON.parse(failed.stdout);
+  expect(failure.message).toContain('Completed: workspace');
+  expect(failure.next).toContain('ia init --setup --host codex');
+  expect(failure.details.causeNext).toContain('ia install');
   expect(existsSync(join(root, '.ia/release.json'))).toBe(true);
   expect(existsSync(join(root, 'AGENTS.md'))).toBe(false);
   const custom = {

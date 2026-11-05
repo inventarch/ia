@@ -147,7 +147,7 @@ export const COMMANDS: readonly CommandSpec[] = [
   {
     name: 'init',
     group: 'workspace',
-    summary: 'Set up a workspace and its agent, or preview explicit initialization options',
+    summary: 'Set up a workspace and its agent',
     // conflictRefusal (init.ts): the plan, which lists every conflict.
     catalog: {
       mode: 'effect',

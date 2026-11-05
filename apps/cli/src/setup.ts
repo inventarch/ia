@@ -161,7 +161,10 @@ async function command(context: Context, argv: string[]): Promise<CommandBody> {
       body.message ?? 'Setup verification failed',
       result.exitCode,
       body.where ?? null,
-      body.next ?? 'Run "ia doctor".',
+      'Run "ia doctor" from the target directory to inspect setup readiness.',
+      null,
+      undefined,
+      { causeNext: body.next ?? null },
     );
   return body;
 }
@@ -321,6 +324,13 @@ export async function runSetup(context: Context, root: string): Promise<Result> 
     completed.push(step);
   } catch (error) {
     const cause = error instanceof Error ? error.message : String(error);
+    const details = error instanceof Refusal ? error.details : null;
+    const causeNext =
+      details !== null && typeof details === 'object' && 'causeNext' in details && typeof details.causeNext === 'string'
+        ? details.causeNext
+        : error instanceof Refusal
+          ? error.next
+          : null;
     throw new Refusal(
       error instanceof Refusal ? error.code : 'IA-CLI-SETUP-FAILED',
       `Setup stopped at ${step}. Completed: ${completed.join(', ') || 'none'}. ${cause}`,
@@ -329,7 +339,7 @@ export async function runSetup(context: Context, root: string): Promise<Result> 
       `Fix the reported problem, then from the target directory run "${resume}" to resume.`,
       null,
       undefined,
-      { completed, step, causeNext: error instanceof Refusal ? error.next : null },
+      { completed, step, causeNext },
     );
   }
   return output(
