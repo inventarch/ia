@@ -5,7 +5,7 @@
  * decoder, arming a short timer while a lone ESC could still start a sequence.
  *
  * In a workspace's view, enter runs the selected offer in the normal screen (run.ts) and reloads; `r` reloads; `?`
- * shows the keys; `q`, Escape at the top level, or Ctrl-C quits with 0. In the all-workspaces view space selects a row,
+ * shows the keys; `q`, Ctrl-C, or Escape in the offers view quits with 0 (Escape elsewhere returns to the offers view). In the all-workspaces view space selects a row,
  * `a` selects every row a batchable offer fires on, enter opens a row's own view (Escape returns), `b` moves to the
  * batch list, where enter shows a batch's preview and enter again runs it in the normal screen (batch-screen.ts), and
  * `f` opens a folder line to find workspaces in. `b` and `f` are keys only while no line is open: in the folder line
@@ -32,7 +32,7 @@ import { consents } from '../consumer.js';
 import { iaHomeOf } from '../discovery.js';
 import type { DoctorRequest, DoctorView } from '../doctor.js';
 import { collectDoctor } from '../doctor.js';
-import { runnableCopy } from '../handoff.js';
+import { rememberCommitted, runnableCopy } from '../handoff.js';
 import type { LocalCli } from '../local-cli.js';
 import type { Env } from '../program.js';
 import type { Capabilities } from '../render.js';
@@ -96,8 +96,13 @@ const PROCESS: ProcessHooks = {
  * the workspaces root that hoists it, and none when the repository commits it or the user set `IA_NO_HANDOFF=1`. Then
  * every `ia` step runs on the running copy (`running`), as when no copy is installed.
  */
-export function resolveRepo(root: string, env: Env, running: string): LocalCli | null {
-  return runnableCopy(root, { env, running });
+export function resolveRepo(
+  root: string,
+  env: Env,
+  running: string,
+  committed?: (packageRoot: string) => boolean,
+): LocalCli | null {
+  return runnableCopy(root, { env, running, ...(committed === undefined ? {} : { committed }) });
 }
 
 const isDirectory = (path: string): boolean => {
@@ -139,8 +144,10 @@ export async function runConsole(input: {
   const print = (text: string): void => io.write(`${text}\n`);
   const collect = input.collect ?? collectDoctor;
   // Every step and batch run resolves the workspace's copy by the hand-off rule (handoff.ts `runnableCopy`).
-  const repoOf = input.resolveRepo ?? ((root: string) => resolveRepo(root, env, input.packageRoot));
-
+  // Whether git tracks a copy is asked once per copy for the console's life, not at each load and step (the call is
+  // synchronous and can take up to 2 s). An answer git could not give is not remembered (handoff.ts).
+  const committed = rememberCommitted();
+  const repoOf = input.resolveRepo ?? ((root: string) => resolveRepo(root, env, input.packageRoot, committed));
   // One controller per load, aborted when the console finishes, so quitting never waits for a reload's doctor run.
   const loads = new Set<AbortController>();
   const load = async (cwd: string): Promise<ConsoleState> => {
@@ -155,6 +162,7 @@ export async function runConsole(input: {
         collect,
         extensions,
         signal: controller.signal,
+        committed,
         ...(input.spawnDoctor === undefined ? {} : { spawnDoctor: input.spawnDoctor }),
       });
     } finally {
@@ -430,6 +438,7 @@ export async function runConsole(input: {
             extensions,
             signal: controller.signal,
             timeoutMs: WORKSPACE_DOCTOR_TIMEOUT_MS,
+            committed,
             ...(input.spawnDoctor === undefined ? {} : { spawnDoctor: input.spawnDoctor }),
           }),
         );
@@ -474,6 +483,7 @@ export async function runConsole(input: {
           collect,
           extensions,
           pool,
+          committed,
           ...(input.spawnDoctor === undefined ? {} : { spawnDoctor: input.spawnDoctor }),
           onRow: (index, row) => {
             if (controller.signal.aborted || finished) return;

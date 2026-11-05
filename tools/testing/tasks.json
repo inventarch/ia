@@ -917,6 +917,13 @@
           "platforms": [
             "windows"
           ]
+        },
+        {
+          "case": "tests/console-app.test.ts > runConsole asks git whether the workspace copy is committed once for the console’s life, not at each load",
+          "reason": "The case counts git calls through a POSIX shell shim placed on PATH, which Windows does not run.",
+          "platforms": [
+            "windows"
+          ]
         }
       ]
     },
@@ -2173,7 +2180,7 @@
         },
         {
           "case": "tests/host-plugin-node.test.ts > a node planted in the project or behind a relative PATH entry never starts the hook, and sh runs the recorded Node as written (crowncodes/ia#436)",
-          "reason": "On Windows the plugin hook keeps the earlier node command, which looks node up on PATH (host plugin distribution spec \u00a76.1); the injected-platform Windows rendering case checks that command byte for byte on every platform.",
+          "reason": "On Windows the plugin hook keeps the earlier node command, which looks node up on PATH (host plugin distribution spec §6.1); the injected-platform Windows rendering case checks that command byte for byte on every platform.",
           "platforms": [
             "windows"
           ]

@@ -122,6 +122,8 @@ export async function loadAll(input: {
   readonly onRow: (index: number, row: RepoRow) => void;
   readonly collect: (request: DoctorRequest) => DoctorView;
   readonly spawnDoctor?: SpawnDoctor;
+  /** Whether git tracks a copy (handoff.ts `committed`); the console passes one that remembers its answers. */
+  readonly committed?: (packageRoot: string) => boolean;
   readonly extensions?: readonly Extension[];
   /** The slots to run in; a pool of `limit` (4 by default) of its own when none is given. */
   readonly pool?: DoctorPool;
@@ -147,6 +149,7 @@ export async function loadAll(input: {
         extensions,
         signal,
         timeoutMs: WORKSPACE_DOCTOR_TIMEOUT_MS,
+        ...(input.committed === undefined ? {} : { committed: input.committed }),
         ...(input.spawnDoctor === undefined ? {} : { spawnDoctor: input.spawnDoctor }),
       });
       row = {

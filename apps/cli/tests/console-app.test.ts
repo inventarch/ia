@@ -4,8 +4,8 @@
  * the disk), that a decline spawns nothing, and that the terminal is restored on quit, on a throw and on a signal.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { delimiter, join } from 'node:path';
 import { PassThrough } from 'node:stream';
 import { afterAll, describe, expect, it } from 'vitest';
 import type { Check, CheckStatus, DoctorView } from '../src/doctor.js';
@@ -687,6 +687,78 @@ describe('runConsole', () => {
     expect(await run.exit).toBe(0);
     expect(signals[1]?.aborted).toBe(true);
     expect(run.restored()).toBe(true);
+  });
+  /** A workspace pinning the CLI with its own copy installed, so each load asks whether that copy is committed. */
+  const withCopy = (root: string): void => {
+    writeFileSync(join(root, 'package.json'), JSON.stringify({ devDependencies: { '@inventarch/cli': '3.6.0' } }));
+    const copy = join(root, 'node_modules/@inventarch/cli');
+    mkdirSync(join(copy, 'dist'), { recursive: true });
+    writeFileSync(
+      join(copy, 'package.json'),
+      JSON.stringify({ name: '@inventarch/cli', version: '3.6.0', bin: { ia: './dist/main.js' } }),
+    );
+    writeFileSync(join(copy, 'dist/main.js'), '');
+  };
+  const emptyReport = { status: 0, stdout: JSON.stringify({ version: 1, checks: [], counts: {} }) };
+  it.skipIf(process.platform === 'win32')(
+    'asks git whether the workspace copy is committed once for the console’s life, not at each load',
+    async () => {
+      // A git that logs each call's arguments and tracks nothing, first on the PATH of the process the console asks from.
+      const bin = scratch('console-git-shim');
+      const log = join(bin, 'calls.log');
+      writeFileSync(join(bin, 'git'), `#!/bin/sh\necho "$*" >> '${log}'\nexit 0\n`);
+      chmodSync(join(bin, 'git'), 0o755);
+      const path = process.env['PATH'];
+      process.env['PATH'] = `${bin}${delimiter}${path ?? ''}`;
+      try {
+        let loads = 0;
+        const run = launch({
+          prepare: withCopy,
+          spawnDoctor: () => {
+            loads += 1;
+            return Promise.resolve(emptyReport);
+          },
+        });
+        await until(run.entered, 'the console');
+        for (const wanted of [2, 3]) {
+          run.stdin.write('r');
+          await until(() => loads === wanted, `load ${wanted}`);
+        }
+        run.stdin.write('q');
+        expect(await run.exit).toBe(0);
+        // Only the question about the copy; the lockfile question (`ls-files -- <lockfiles>`) is another one.
+        const asked = readFileSync(log, 'utf8')
+          .trim()
+          .split('\n')
+          .filter((line) => line.endsWith('/node_modules/@inventarch/cli ls-files -- .'));
+        expect(asked).toHaveLength(1);
+      } finally {
+        if (path === undefined) delete process.env['PATH'];
+        else process.env['PATH'] = path;
+      }
+    },
+  );
+  it('a quit during the first load aborts it, never enters the screen, and exits 0', async () => {
+    const signals: (AbortSignal | undefined)[] = [];
+    const run = launch({
+      prepare: withCopy,
+      // The first load's doctor ends only when it is aborted.
+      spawnDoctor: (_entry, _root, signal) => {
+        signals.push(signal);
+        return new Promise((settle) => signal?.addEventListener('abort', () => settle({ status: null, stdout: '' })));
+      },
+    });
+    await until(() => signals.length === 1, 'the first load');
+    expect(run.entered()).toBe(false);
+    expect(signals[0]?.aborted).toBe(false);
+    // The process ending, as `q` ends it (the console has no keys to read before its first screen).
+    run.hooks.listeners.get('exit')!();
+    expect(await run.exit).toBe(0);
+    expect(signals[0]?.aborted).toBe(true);
+    await settle();
+    expect(run.entered()).toBe(false);
+    expect(run.terminal.raw).not.toContain(true);
+    expect(run.hooks.listeners.size).toBe(0);
   });
   it('a throw inside the loop restores the terminal and exits 1', async () => {
     let loads = 0;

@@ -10,6 +10,7 @@ import {
   handOff,
   handoffTarget,
   NO_HANDOFF,
+  rememberCommitted,
   rootFromArgv,
   runnableCopy,
 } from '../src/handoff.js';
@@ -347,5 +348,36 @@ describe('handOff', () => {
     const before = counts();
     expect(handOff(child("process.kill(process.pid, 'SIGTERM');"), [], { ...process.env }, 'x')).toBe(130);
     expect(counts()).toEqual(before);
+  });
+});
+
+describe('rememberCommitted', () => {
+  it('asks once per copy, however often it is asked', () => {
+    const asked: string[] = [];
+    const ask = rememberCommitted((packageRoot) => (asked.push(packageRoot), packageRoot === '/a'));
+    expect([ask('/a'), ask('/a'), ask('/b'), ask('/b'), ask('/a')]).toEqual([true, true, false, false, true]);
+    expect(asked).toEqual(['/a', '/b']);
+  });
+  it('is its own memo: another one asks again, so nothing outlives the console that made it', () => {
+    let asked = 0;
+    const probe = () => ((asked += 1), false);
+    rememberCommitted(probe)('/a');
+    rememberCommitted(probe)('/a');
+    expect(asked).toBe(2);
+  });
+  it('does not keep a question git could not answer: it reads as not committed now and is asked again', () => {
+    const answers: (boolean | null)[] = [null, true, false];
+    const ask = rememberCommitted(() => answers.shift()!);
+    expect(ask('/a')).toBe(false);
+    expect(ask('/a')).toBe(true);
+    expect(ask('/a')).toBe(true);
+  });
+  it('serves runnableCopy: the copy is refused or run from the remembered answer', () => {
+    const w = workspace('remember-runnable');
+    let asked = 0;
+    const ask = rememberCommitted(() => ((asked += 1), false));
+    expect(runnableCopy(w, { env: {}, running: '/elsewhere', committed: ask })).toMatchObject({ version: '9.9.9' });
+    expect(runnableCopy(w, { env: {}, running: '/elsewhere', committed: ask })).toMatchObject({ version: '9.9.9' });
+    expect(asked).toBe(1);
   });
 });

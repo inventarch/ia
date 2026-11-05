@@ -45,17 +45,14 @@ function insideWorkTree(dir: string): boolean {
 }
 
 /**
- * Whether the installed copy at `packageRoot` is the repository's: git tracks a file of it, or git could not say and a
- * `.git` exists at or above it. A copy committed to the repository is the repository's code, not an install the user
- * ran, so a typed command never runs it. Asked only when a hand-off is about to happen; git is found as program.ts
- * finds it and runs without the caller's `GIT_*` routing variables. When git exits non-zero, is stopped by its
- * timeout or cannot be started, the answer is the work tree's: inside one the copy is refused, so a git that cannot
- * answer never lets a repository's copy run. Only without git and without any `.git` above, or outside every
- * repository (git answers non-zero and no `.git` is above), is nothing tracked.
+ * What git says about the installed copy at `packageRoot`: whether it tracks any file of it, or `null` when git could
+ * not answer (it exited non-zero, was stopped by its timeout, was killed, could not start or is not on the path). Only
+ * an exit of 0 is an answer. git is found as program.ts finds it and runs without the caller's `GIT_*` routing
+ * variables.
  */
-export function committed(packageRoot: string): boolean {
+function askGit(packageRoot: string): boolean | null {
   const git = findProgram('git', process.env);
-  if (git === null) return insideWorkTree(packageRoot);
+  if (git === null) return null;
   const result = spawnSync(git, ['--no-optional-locks', '-C', packageRoot, 'ls-files', '--', '.'], {
     cwd: programHome(),
     env: programEnv(withoutGitRouting(process.env)),
@@ -63,8 +60,42 @@ export function committed(packageRoot: string): boolean {
     timeout: 2000,
     windowsHide: true,
   });
-  if (result.error !== undefined || result.status !== 0) return insideWorkTree(packageRoot);
+  if (result.error !== undefined || result.status !== 0) return null;
   return result.stdout.trim() !== '';
+}
+
+/**
+ * Whether the installed copy at `packageRoot` is the repository's: git tracks a file of it, or git could not say and a
+ * `.git` exists at or above it. A copy committed to the repository is the repository's code, not an install the user
+ * ran, so a typed command never runs it. Asked only when a hand-off is about to happen. When git exits non-zero, is
+ * stopped by its timeout or cannot be started, the answer is the work tree's: inside one the copy is refused, so a git
+ * that cannot answer never lets a repository's copy run. Only without git and without any `.git` above, or outside
+ * every repository (git answers non-zero and no `.git` is above), is nothing tracked.
+ */
+export function committed(packageRoot: string): boolean {
+  return askGit(packageRoot) ?? insideWorkTree(packageRoot);
+}
+
+/**
+ * `committed`, remembered per copy for as long as the returned function lives. The console makes one for its life, so
+ * the synchronous git call (2 s timeout) is made once per copy rather than at every load and every step. Only an answer
+ * git gave (an exit of 0) is remembered: a question it could not answer (a non-zero exit, a timeout, a kill, or no git
+ * on the path) reads as `committed` reads it this time, from the work tree, and is asked again next time instead of
+ * becoming the copy's answer for good. The memo only saves asking; which copy runs is still decided from the disk each
+ * time (`runnableCopy`).
+ */
+export function rememberCommitted(
+  ask: (packageRoot: string) => boolean | null = askGit,
+): (packageRoot: string) => boolean {
+  const known = new Map<string, boolean>();
+  return (packageRoot) => {
+    const remembered = known.get(packageRoot);
+    if (remembered !== undefined) return remembered;
+    const answer = ask(packageRoot);
+    if (answer === null) return insideWorkTree(packageRoot);
+    known.set(packageRoot, answer);
+    return answer;
+  };
 }
 
 const ROOT = '--root=';
