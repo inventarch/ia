@@ -38,7 +38,7 @@ import { collectPlan, UNMAPPED } from '../src/distribute.js';
 import type { PlanRequest } from '../src/distribute.js';
 
 import { quote as serviceQuote } from '../src/render.js';
-import { quoteCommandRoot as quote, cleanup, nextArgv, run, scratch } from './workspace-fixture.js';
+import { quoteCommandRoot as quote, cleanup, commandRoots, nextArgv, run, scratch } from './workspace-fixture.js';
 
 const BASE = 'https://registry.test/base/';
 /**
@@ -854,6 +854,7 @@ interface DoctorCheck {
   readonly status: string;
   readonly detail: string;
   readonly remedy: string | null;
+  readonly fix: unknown;
 }
 const registryRows = (stdout: string): DoctorCheck[] =>
   json<{ checks: DoctorCheck[] }>(stdout).checks.filter((check) => check.id.startsWith('registry-'));
@@ -877,6 +878,7 @@ it('doctor reports the registry each provider routes to and the level that chose
       status: 'info',
       detail: `${resolve(realpathSync(root), 'vendor/registry')} (from workspace: .ia/registries.json)`,
       remedy: null,
+      fix: null,
     },
     {
       id: `registry-${DEFAULT_PROVIDER}`,
@@ -884,6 +886,7 @@ it('doctor reports the registry each provider routes to and the level that chose
       status: 'info',
       detail: `${DEFAULT_BASE}/ (from default: built-in default)`,
       remedy: null,
+      fix: null,
     },
   ];
   expect(registryRows(doctor.stdout)).toEqual(expected.sort((a, b) => (a.id < b.id ? -1 : 1)));
@@ -921,6 +924,7 @@ it('doctor reports an HTTPS registry chosen by IA_REGISTRY without fetching from
       status: 'info',
       detail: `${BASE} (from env: IA_REGISTRY)`,
       remedy: null,
+      fix: null,
     },
   ]);
   expect(trapped).not.toHaveBeenCalled();
@@ -964,6 +968,7 @@ function expectMappedAndUnmapped(stdout: string, root: string): void {
     status: 'info',
     detail: `${resolve(realpathSync(root), 'vendor/registry')} (from workspace: .ia/registries.json)`,
     remedy: null,
+    fix: null,
   });
 }
 /** The generation row when the installed state cannot be read: its own finding, which the routing rows never replace. */
@@ -974,6 +979,12 @@ const expectUnreadGeneration = (stdout: string, root: string): void =>
     status: 'unknown',
     detail: 'Not checked; IA-DB-SOURCE-UNAVAILABLE',
     remedy: `ia recover installation --root ${quote(realpathSync(root))}`,
+    fix: {
+      program: 'ia',
+      argv: commandRoots(['recover', 'installation', '--root', realpathSync(root)]),
+      flow: 'confirm',
+      writesTo: 'repo',
+    },
   });
 
 it('doctor reports each provider of a fresh clone that carries only the portable lock', async () => {

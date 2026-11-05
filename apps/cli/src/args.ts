@@ -35,6 +35,11 @@ export interface OptionSpec {
   readonly excludesPositionals?: boolean;
   /** §2.1 rejects the common `--root` for `ia init`; the reason is stated rather than spelled as "unknown". */
   readonly refuse?: string;
+  /**
+   * The value names a filesystem path: `always`, or `maybe` for a mixed-domain value (a URL or an id) that is a path
+   * only when spelled as one. Data only: parsing never reads it; the console rebuilds such values for a worktree.
+   */
+  readonly path?: 'always' | 'maybe';
   readonly summary: string;
 }
 export interface PositionalSpec {
@@ -42,6 +47,8 @@ export interface PositionalSpec {
   readonly min: number;
   /** `Number.POSITIVE_INFINITY` for a repeatable positional. */
   readonly max: number;
+  /** The positionals from this index on name filesystem paths; data only, like `OptionSpec.path`. */
+  readonly path?: { readonly from: number };
 }
 export interface Grammar {
   readonly options: readonly OptionSpec[];

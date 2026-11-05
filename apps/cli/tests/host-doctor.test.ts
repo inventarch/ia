@@ -22,7 +22,7 @@ import { json, sha256 } from '@inventarch/distribution/services';
 import { collectDoctor } from '../src/doctor.js';
 import { applyHostProjection, renderProjectionFor } from '../src/host-projection.js';
 import { SETTINGS } from '../src/host.js';
-import { quoteCommandRoot as quote, cli, run, scratch, cleanup } from './workspace-fixture.js';
+import { quoteCommandRoot as quote, cli, commandRoots, run, scratch, cleanup } from './workspace-fixture.js';
 
 import {
   rootedCommandNext as rootedNext,
@@ -200,6 +200,12 @@ it('reports an upgraded 1.x projection as unknown until a receipt exists, then l
     status: 'unknown',
     detail: `No receipt at ${RECEIPT}: this projection was written before receipts, or its receipt was deleted; the remedy writes one`,
     remedy: rootedApply(root),
+    fix: {
+      program: 'ia',
+      argv: commandRoots(['host', 'claude', '--root', root, '--apply']),
+      flow: 'preview-apply',
+      writesTo: 'repo',
+    },
   });
   expect(legacy.checks.filter((check) => check.id.startsWith('projection-claude:'))).toEqual([]);
   // The remedy, followed literally, writes the receipt; its removed and foreign files are listed and not checked.

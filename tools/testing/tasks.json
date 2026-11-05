@@ -53,6 +53,7 @@
     "emitted": "Built package outputs, packed archive bytes, the native corpus and the host scripts an independent installed consumer executes.",
     "development-native-build": "CLI source, canonical generator source, native owners and their captured teaching manifest.",
     "selected-tests": "Owning production sources, every non-test helper, shared configuration and dependency sources; exclude only declared sibling test files, retaining selected and unassigned files.",
+    "selected-tests-unicode": "selected-tests plus the Unicode width-table generator and the Unicode data it vendors, which the console width tests read through the filesystem, since no import edge names them.",
     "selected-tests-workspace-records": "selected-tests plus authored workspace records, teaching resources and native fixture inventories read through the filesystem.",
     "language-conformance": "workspace-records plus the compliance language fixtures read by the language formatter and conformance suites.",
     "host-adapters": "workspace-records plus this repository's committed ia-authoring skills under .claude/skills and .agents/skills, the pending mandate-resolution note and consumed changeset history read by runtime tests through the filesystem, since no import edge names them.",
@@ -843,11 +844,29 @@
         "tests/briefing.test.ts",
         "tests/channel.test.ts",
         "tests/cli-version.test.ts",
+        "tests/console-app.test.ts",
+        "tests/console-batch-plan.test.ts",
+        "tests/console-entry.test.ts",
+        "tests/console-keys.test.ts",
+        "tests/console-layout-all.test.ts",
+        "tests/console-layout.test.ts",
+        "tests/console-offers.test.ts",
+        "tests/console-state.test.ts",
+        "tests/console-terminal.test.ts",
+        "tests/console-width.test.ts",
+        "tests/console-workspaces.test.ts",
+        "tests/doctor-extensions.test.ts",
         "tests/doctor-handoff.test.ts",
+        "tests/doctor-kits.test.ts",
+        "tests/fix.test.ts",
         "tests/handoff.test.ts",
         "tests/local-cli-fs-root.test.ts",
         "tests/local-cli.test.ts",
-        "tests/render.test.ts"
+        "tests/package-manager.test.ts",
+        "tests/render.test.ts",
+        "tests/tracked-identity.test.ts",
+        "tests/tracked.test.ts",
+        "tests/workspace-state.test.ts"
       ],
       "profile": "unit",
       "platforms": [
@@ -856,7 +875,7 @@
         "macos"
       ],
       "mode": "source",
-      "inputProfile": "selected-tests",
+      "inputProfile": "selected-tests-unicode",
       "dependsOn": [],
       "outputs": [
         "artifacts/tests/cli-test-unit"
@@ -873,6 +892,22 @@
           "reason": "The fixture asserts Windows separator normalization and command-directory preservation and runs only on win32.",
           "platforms": [
             "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/package-manager.test.ts > names a drive path on Windows",
+          "reason": "The case builds Windows drive paths and compares them case-insensitively as Windows does, so it runs only on win32.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/tracked.test.ts > tracks, finds and removes two directories that differ only by case",
+          "reason": "Windows and macOS volumes fold case by default, so two directories differing only by case cannot be created there; the identity rule is covered by the injected-stat sameRoot case on every platform.",
+          "platforms": [
+            "windows",
             "macos"
           ]
         },
@@ -981,6 +1016,7 @@
       "kind": "vitest",
       "project": "apps/cli",
       "files": [
+        "tests/doctor-fix.test.ts",
         "tests/host-doctor.test.ts"
       ],
       "profile": "installed",
@@ -1102,6 +1138,7 @@
       "kind": "vitest",
       "project": "apps/cli",
       "files": [
+        "tests/distribute-collections.test.ts",
         "tests/registry.test.ts"
       ],
       "profile": "installed",
@@ -1139,8 +1176,10 @@
         "tests/project.test.ts",
         "tests/read.test.ts",
         "tests/refusal-next.test.ts",
+        "tests/tracked-concurrency.test.ts",
         "tests/validate-checks.test.ts",
-        "tests/workspace-verbs.test.ts"
+        "tests/workspace-verbs.test.ts",
+        "tests/workspaces.test.ts"
       ],
       "profile": "installed",
       "platforms": [
@@ -1282,6 +1321,9 @@
       "project": "apps/cli",
       "files": [
         "tests/cli.test.ts",
+        "tests/console-batch-next.test.ts",
+        "tests/console-batch-run.test.ts",
+        "tests/console-entry-installed.test.ts",
         "tests/handoff-installed.test.ts",
         "tests/program.test.ts",
         "tests/protocols.test.ts",
@@ -1312,6 +1354,35 @@
         "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
       ],
       "skips": [
+        {
+          "case": "tests/console-batch-run.test.ts > a workspace subfolder committed as a link out of the worktree refuses the repo before the install",
+          "reason": "Git checks a committed symbolic link out as a link only where the platform lets it create one; on Windows the same run-time check is covered by the junction cases, which run everywhere.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/console-batch-run.test.ts > a workspace subfolder committed as a relative link that stays inside the worktree is accepted",
+          "reason": "Git checks a committed symbolic link out as a link only where the platform lets it create one, so on Windows there is no committed link for the base check to accept; its refusing twin is skipped there for the same reason.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/console-batch-run.test.ts > the .cmd route passes cmd.exe’s own characters through intact",
+          "reason": "Only Windows runs a package manager's .cmd shim through cmd.exe; the POSIX twin passes shell characters through a shell-script shim.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/console-batch-run.test.ts > a POSIX shim passes shell characters through intact",
+          "reason": "The shim is a POSIX shell script; Windows runs its .cmd twin through cmd.exe instead.",
+          "platforms": [
+            "windows"
+          ]
+        },
         {
           "case": "tests/handoff-installed.test.ts > the copy that handed off outlives a signal the child also receives",
           "reason": "The fixture needs a catchable signal; on Windows process.kill ends the target unconditionally.",
@@ -1362,16 +1433,20 @@
         "tests/decisions.test.ts",
         "tests/dependent-authoring.test.ts",
         "tests/guard-registration.test.ts",
+        "tests/home-lock.test.ts",
         "tests/host-home.test.ts",
         "tests/host-observe.test.ts",
         "tests/host.test.ts",
         "tests/hosts.test.ts",
         "tests/ia-home.test.ts",
         "tests/implementations.test.ts",
+        "tests/install-collections.test.ts",
         "tests/installation-core.test.ts",
         "tests/installed.test.ts",
         "tests/inventory.test.ts",
         "tests/json-edit.test.ts",
+        "tests/kit-collections.test.ts",
+        "tests/kit-inventory.test.ts",
         "tests/lifecycle-registration.test.ts",
         "tests/minting.test.ts",
         "tests/optional-pack-files.test.ts",
@@ -2174,6 +2249,7 @@
         "tests/inputs.test.ts",
         "tests/membership.test.ts",
         "tests/open-follows-links.test.ts",
+        "tests/paths.test.ts",
         "tests/preview.test.ts",
         "tests/retention.test.ts",
         "tests/runner-evidence.test.ts",

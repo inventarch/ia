@@ -1,0 +1,24 @@
+ CLI     ▲ running 3.5.1; this w… Records     ✔ 257 records · 2 w… Kits ○ no kits installed
+ Updates ▲ ia 3.5.2 is available… Lock        ✔ None installed     Host ○ No host registered in 用…
+ Plugin  ▲ ia 3.5.0 rendered the… Marketplace ✔ inventarch · ia ·…
+──────────────────────────────────────────┬─────────────────────────────────────────────────────────
+ NEEDS ATTENTION                          │ WHAT THIS DOES
+   ▲ Upgrade CLI to 3.5.2                 │ This workspace is not in your tracked list, which the
+   ▲ Refresh Claude plugin                │ all-workspaces view reads. It shows the command and
+ SET UP                                   │ runs it when you confirm.
+   ○ Add a kit…                           │
+   ○ Register a host: Claude              │ RUNS
+   ○ Register a host: Codex               │ ia workspaces add /srv/用户/项目/🚀/notes
+ › ○ Track this workspace                 │
+ MORE                                     │ CHANGES
+   · Diagnostics                          │ your IA home (tracked-workspaces.json)
+   · Check for updates now                │
+                                          │
+                                          │
+                                          │
+                                          │
+                                          │
+                                          │
+                                          │
+──────────────────────────────────────────┴─────────────────────────────────────────────────────────
+ ↑↓ move · enter run · tab workspaces · r refresh · ? help · q quit

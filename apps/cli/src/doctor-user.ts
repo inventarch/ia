@@ -9,7 +9,7 @@
  * detached, so doctor stays read-only. §7.3's `compatibility` row is local: the workspace's
  * `.ia/release.json` language versions against the versions this ia's parser reads.
  */
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { sameFile } from '@inventarch/db';
@@ -21,6 +21,9 @@ import type { UpdateCheck } from '@inventarch/distribution/updates';
 import {
   compareVersions,
   compatibility,
+  kitEntry,
+  kitEntryFresh,
+  kitUnitKeys,
   readIaConfig,
   readUpdateCheck,
   refreshDue,
@@ -30,12 +33,20 @@ import { localDate } from './briefing.js';
 import type { Channel } from './channel.js';
 import { describeChannel, detectChannel, updateInstruction } from './channel.js';
 import type { Check, CheckStatus, Section } from './doctor.js';
-import { quote } from './render.js';
 import { committed, HANDOFF_FROM, NO_HANDOFF } from './handoff.js';
 import { resolveWorkspaceCli } from './local-cli.js';
 import { readMarketplaceRecord } from './marketplace-record.js';
 import type { PackageManager } from './package-manager.js';
-import { detectPackageManager, installCommand, pinCommand, satisfies } from './package-manager.js';
+import {
+  detectPackageManager,
+  installArgv,
+  installCommand,
+  pinArgv,
+  pinCommand,
+  satisfies,
+} from './package-manager.js';
+import type { Fix, Remedy } from './fix.js';
+import { externalFix, iaFix } from './fix.js';
 
 export interface UserFacts {
   readonly channel: Channel;
@@ -50,16 +61,181 @@ export interface UserFacts {
   readonly updates: { readonly latest: string | null; readonly behind: number | null } | null;
   /** The refresh argument vector when one is due, else null. Doctor never runs it. */
   readonly refresh: readonly string[] | null;
+  /** The newest version the cache names for this copy's channel, whether or not it is newer than this copy. */
+  readonly cachedLatest: string | null;
+  /** The explicit "Check for updates now" argv, forced for a workspace, whatever the cache's age; null with `refreshNowWhy`. */
+  readonly refreshNow: readonly string[] | null;
+  readonly refreshNowWhy: string | null;
 }
+/**
+ * §11: the `ia-distribution refresh-updates` argv for this IA home and install channel, with `--root` for a workspace and
+ * `--force` when asked. Null only when the IA home is unresolved or unusable, or the mechanism cannot be found.
+ */
+export function refreshCommand(
+  input: {
+    readonly home: string | null;
+    readonly unusable: boolean;
+    readonly channel: Channel;
+    readonly current: string;
+    readonly root: string | undefined;
+  },
+  options: { readonly force: boolean },
+): readonly string[] | null {
+  if (input.home === null || input.unusable) return null;
+  const bin = distributionBin();
+  if (bin === null) return null;
+  const { channel } = input;
+  return [
+    process.execPath,
+    bin,
+    'refresh-updates',
+    '--home',
+    input.home,
+    '--channel',
+    channel.kind,
+    '--current',
+    input.current,
+    ...(channel.kind === 'npm' ? ['--name', channel.name] : []),
+    ...(channel.kind === 'checkout' ? ['--checkout', channel.root] : []),
+    ...(input.root === undefined ? [] : ['--root', input.root]),
+    ...(options.force && input.root !== undefined ? ['--force'] : []),
+  ];
+}
+/** A recorded time as the rows print it: `YYYY-MM-DD HH:MM UTC`, the same on every machine. */
+export const utcMinute = (iso: string): string => `${new Date(iso).toISOString().slice(0, 16).replace('T', ' ')} UTC`;
+const plural = (count: number, word: string): string => `${count} ${word}${count === 1 ? '' : 's'}`;
+/**
+ * §7.3 `kits` and one `kit-update:<id>` row per unit behind. A unit is current when its key's entry is under a week
+ * old and names a version no newer than the installed one; behind when it names a newer one; unknown when it has no
+ * key (an unmapped registry, say), no entry, no version or an entry a week old. A known update outranks an unknown
+ * unit, and a collection whose identity is unknown outranks both, with a reinstall as its fix.
+ */
+export function kitRows(kits: ReturnType<typeof kitUnitKeys> | null, stored: UpdateCheck | null, now: Date): Check[] {
+  const kitsRow = (status: CheckStatus, detail: string, remedy: Remedy | null = null): Check =>
+    row('kits', 'Environment', 'Kits', status, detail, remedy);
+  if (kits === null) return [kitsRow('unknown', 'Not checked; the installed kits could not be read')];
+  const problems = kits.problems.length === 0 ? '' : `; ${kits.problems.join('; ')}`;
+  const unknownIds = kits.unknownCollections.map((collection) => collection.id);
+  if (kits.units.length === 0 && unknownIds.length === 0)
+    return [
+      kits.problems.length > 0
+        ? kitsRow('unknown', `Not checked; ${kits.problems.join('; ')}`)
+        : kitsRow('info', 'no kits installed'),
+    ];
+  const read = kits.units.map(({ unit, key, why }) => {
+    const entry = key === null ? undefined : kitEntry(stored, key);
+    const age = entry === undefined ? Number.NaN : now.getTime() - Date.parse(entry.checkedAt);
+    const latest = entry?.latest ?? null;
+    const state =
+      latest !== null && compareVersions(latest, unit.version) > 0
+        ? 'behind'
+        : entry === undefined || latest === null || !(age < WEEK)
+          ? 'unknown'
+          : 'current';
+    return { unit, entry, latest, state, why };
+  });
+  const behind = read.filter((row) => row.state === 'behind'),
+    unread = read.filter((row) => row.state === 'unknown');
+  const times = read.flatMap((row) => (row.entry === undefined ? [] : [row.entry.checkedAt])).sort();
+  const checked = times.length === 0 ? '' : ` · checked ${utcMinute(times[0]!)}`;
+  const total = plural(read.length, 'kit');
+  const reasons = unread.flatMap((row) => (row.why === null ? [] : [`${row.unit.id}: ${row.why}`]));
+  const updates =
+    behind.length === 0 ? '' : `${behind.length} of ${total} ${behind.length === 1 ? 'has an update' : 'have updates'}`;
+  const updateRows = behind.map(({ unit, latest }) =>
+    row(
+      `kit-update:${unit.id}`,
+      'Environment',
+      'Kit update',
+      'warn',
+      `${unit.id} ${unit.version} → ${latest} (${unit.source.kind})`,
+      unit.source.kind === 'package'
+        ? iaFix(['install', '--package', `${unit.source.name}@${latest}`], 'repo')
+        : unit.source.kind === 'collection'
+          ? iaFix(['install', `${unit.id}@${latest}`], 'repo')
+          : // The remedy keeps the `ia update <id>` form. A release's request keeps its range unless --to replaces
+            // it, and a pin's range admits only itself, so the fix the console runs names the version.
+            {
+              remedy: iaFix(['update', unit.id], 'repo').remedy,
+              fix: iaFix(['update', unit.id, '--to', latest!], 'repo').fix,
+            },
+    ),
+  );
+  let summary: Check;
+  if (unknownIds.length > 0)
+    summary = kitsRow(
+      'warn',
+      `collection identity unknown: ${unknownIds.join(', ')}${updates === '' ? '' : `; ${updates}`}${checked}${problems}`,
+      iaFix(['install', ...unknownIds], 'repo'),
+    );
+  else if (behind.length > 0) summary = kitsRow('warn', `${updates}${checked}${problems}`);
+  else if (unread.length > 0)
+    summary = kitsRow(
+      'unknown',
+      `not checked: ${unread.length} of ${total}${times.length === 0 ? '' : ` (oldest check ${utcMinute(times[0]!)})`}${reasons.length === 0 ? '' : `; ${reasons.join('; ')}`}${problems}`,
+    );
+  else summary = kitsRow('ok', `${total}, all current${checked}${problems}`);
+  return [summary, ...updateRows];
+}
+/**
+ * §7.3 `marketplace`: which marketplace and plugin the IA home's record names, the ia that installed it and when the
+ * marketplace was last consulted, as recorded; it repeats nothing the plugin row judges.
+ */
+export function marketplaceRow(home: string | null): Check {
+  const marketplace = (status: CheckStatus, detail: string, remedy: Remedy | null = null): Check =>
+    row('marketplace', 'Environment', 'Marketplace', status, detail, remedy);
+  if (home === null) return marketplace('unknown', 'Not checked; the IA home could not be resolved');
+  const recorded = readMarketplaceRecord(home);
+  if (recorded.state === 'absent') return marketplace('info', 'no plugin installed from a marketplace', USER_APPLY);
+  if (recorded.state === 'invalid')
+    return marketplace(
+      'warn',
+      `The marketplace install record ${join(home, 'claude', 'marketplace-install.json')} cannot be read (${recorded.reason})`,
+      USER_APPLY,
+    );
+  return marketplace(
+    'ok',
+    `${recorded.marketplace} · ${recorded.plugin} · installed by ia ${recorded.cli} · last checked${recorded.checkedAt === null ? ': not recorded' : ` ${utcMinute(recorded.checkedAt)}`}`,
+  );
+}
+const realOrGiven = (path: string): string => {
+  try {
+    return realpathSync(path);
+  } catch {
+    return path;
+  }
+};
+/** The installed units' cache keys, or null when they cannot be read; local configuration only, never thrown. */
+function unitKeys(
+  root: string,
+  env: Readonly<Record<string, string | undefined>>,
+  userHome: string,
+): ReturnType<typeof kitUnitKeys> | null {
+  try {
+    return kitUnitKeys(root, { env, userHome });
+  } catch {
+    return null;
+  }
+}
+/** A row whose remedy is advice text has no fix; one given as a `Remedy` carries its own. */
 const row = (
   id: string,
   section: Section,
   title: string,
   status: CheckStatus,
   detail: string,
-  remedy: string | null = null,
-): Check => ({ id, section, title, status, detail, remedy });
-const USER_APPLY = 'ia host claude --user --apply';
+  remedy: string | Remedy | null = null,
+): Check => ({
+  id,
+  section,
+  title,
+  status,
+  detail,
+  remedy: typeof remedy === 'object' && remedy !== null ? remedy.remedy : remedy,
+  fix: typeof remedy === 'object' && remedy !== null ? remedy.fix : null,
+});
+/** The user-level plugin needs no workspace; it writes to the user's Claude configuration and the IA home. */
+const USER_APPLY = iaFix(['host', 'claude', '--user', '--apply'], 'user');
 const WEEK = 7 * 24 * 3600 * 1000;
 /**
  * The installed mechanism binary: `@inventarch/distribution`'s own `bin` entry, read from its package.json. Resolving the
@@ -150,42 +326,58 @@ export function cliVersionRow(input: {
   const { dependency, owner, local } = resolveWorkspaceCli(root);
   const managed = dependency === null ? root : dirname(dependency.manifest);
   const { manager, conflict } = detectPackageManager(owner);
-  const manage = (command: (manager: PackageManager) => string): string | null =>
-    manager === null ? null : command(manager);
+  // The remedy is the text a person types; the fix names its directory explicitly, since the console runs it at the
+  // workspace root, which the owner or an ancestor manifest is not (host-plugin-distribution §7.3).
+  const manage = (
+    command: (manager: PackageManager) => string,
+    argv: (manager: PackageManager) => readonly string[],
+  ): { readonly remedy: string | null; readonly fix: Fix | null } =>
+    manager === null
+      ? { remedy: null, fix: null }
+      : { remedy: command(manager), fix: externalFix(argv(manager), 'repo').fix };
   const shown = (path: string): string => {
     const from = relative(root, path);
     return (from === '' || from.startsWith('..') || isAbsolute(from) ? path : from).replaceAll('\\', '/');
   };
   // An install runs where the owner is; it is named when that is not the workspace itself.
-  const install = (): string | null => {
-    const command = manage(installCommand);
-    return command === null || owner === root ? command : `In ${owner}: ${command}`;
-  };
+  const install = manage(
+    (m) => (owner === root ? installCommand(m) : `In ${owner}: ${installCommand(m)}`),
+    (m) => installArgv(m, owner, root),
+  );
   const suffix =
     conflict.length > 0
       ? `; package managers disagree: ${conflict.join(', ')}`
       : manager === null
         ? '; no package manager declared or locked'
         : '';
-  const cli = (status: CheckStatus, detail: string, remedy: string | null = null): Check =>
-    row('cli-version', 'Environment', 'CLI version', status, detail + suffix, remedy);
+  const cli = (
+    status: CheckStatus,
+    detail: string,
+    action: { readonly remedy: string | null; readonly fix: Fix | null } = { remedy: null, fix: null },
+  ): Check => ({
+    ...row('cli-version', 'Environment', 'CLI version', status, detail + suffix, action.remedy),
+    fix: action.fix,
+  });
   if (dependency === null)
     return cli(
       'info',
       `no @inventarch/cli dependency; running ${version}`,
-      manage((m) => pinCommand(m, version, managed)),
+      manage(
+        (m) => pinCommand(m, version, managed),
+        (m) => pinArgv(m, version, managed, root),
+      ),
     );
   if (local === null) {
     const between = owner === managed ? 'it' : shown(owner);
     return cli(
       'warn',
       `${shown(dependency.manifest)} lists @inventarch/cli ${dependency.range}, which is not installed between the workspace and ${between}; running ${version}`,
-      install(),
+      install,
     );
   }
   const satisfied = satisfies(local.version, dependency.range);
   if (satisfied === false)
-    return cli('warn', `installed ${local.version} does not satisfy ${dependency.range}`, install());
+    return cli('warn', `installed ${local.version} does not satisfy ${dependency.range}`, install);
   if (!sameFile(local.packageRoot, input.packageRoot)) {
     const why =
       env[NO_HANDOFF] === '1'
@@ -444,23 +636,33 @@ export function userRows(input: {
       checks.push(row('updates-account', 'Environment', 'Account', 'info', notice));
   // A home holding src/ fails the ia-home row, and refresh-updates would refuse to write it, so nothing is started.
   const unusable = home !== null && existsSync(join(home, 'src'));
-  const bin = disabled || home === null || unusable || !refreshDue(cached, input.now) ? null : distributionBin();
-  const refresh =
-    bin === null || home === null
-      ? null
-      : [
-          process.execPath,
-          bin,
-          'refresh-updates',
-          '--home',
-          home,
-          '--channel',
-          updateChannel.kind,
-          '--current',
-          userVersion,
-          ...(updateChannel.kind === 'npm' ? ['--name', updateChannel.name] : []),
-          ...(updateChannel.kind === 'checkout' ? ['--checkout', updateChannel.root] : []),
-        ];
+  // The workspace at its real path, as the mechanism opens it: a root reached through a link reads the same.
+  const realRoot = input.root === undefined ? undefined : realOrGiven(input.root);
+  const command = (force: boolean): readonly string[] | null =>
+    refreshCommand({ home, unusable, channel: updateChannel, current: userVersion, root: realRoot }, { force });
+  // §11: due when the global stamp is a day old, or when an installed unit's own entry is missing or a day old.
+  const kits = realRoot === undefined ? null : unitKeys(realRoot, input.env, input.home);
+  const kitsDue =
+    kits !== null &&
+    kits.units.some((unit) => unit.key !== null && !kitEntryFresh(kitEntry(stored, unit.key), input.now));
+  const refresh = disabled || !(refreshDue(cached, input.now) || kitsDue) ? null : command(false);
+  // "Check for updates now": an explicit request outranks `updateCheck: false` and the day's freshness, but not the
+  // offline signal, and it refetches every installed unit.
+  const refreshNowWhy =
+    input.env['IA_NO_UPDATE_CHECK'] === '1'
+      ? 'IA_NO_UPDATE_CHECK=1 is set'
+      : home === null
+        ? 'the IA home could not be resolved'
+        : unusable
+          ? `${join(home, 'src')} makes the IA home unusable`
+          : null;
+  const refreshNow = refreshNowWhy === null ? command(input.root !== undefined) : null;
+
+  // §7.3: the installed kits against the per-registry cache, and the marketplace the plugin came from; local reads only.
+  if (input.root !== undefined) {
+    checks.push(...kitRows(kits, stored, input.now));
+    checks.push(marketplaceRow(home));
+  }
 
   // §7.3: only for a workspace this report describes.
   if (input.root !== undefined) {
@@ -508,14 +710,29 @@ export function userRows(input: {
               : decision.decision === 'declined-forever'
                 ? `Declined permanently on ${localDate(decision.at)}`
                 : 'Declined for today',
+            // Forgetting a decline writes only the IA home, never the repository.
             decision === null
               ? null
-              : `ia init ${input.supplied === undefined ? '' : `${quote(input.supplied)} `}--forget-decline`,
+              : iaFix(['init', ...(input.supplied === undefined ? [] : [input.supplied]), '--forget-decline'], 'user'),
           ),
     );
   }
   // The same directory on disk, however either path is spelled.
   const frameworkSource = channel.kind === 'checkout' && input.root !== undefined && sameFile(input.root, channel.root);
   const updates = disabled || cached === null ? null : { latest: newer, behind };
-  return { checks, facts: { channel, home, plugin, decision, frameworkSource, updates, refresh } };
+  return {
+    checks,
+    facts: {
+      channel,
+      home,
+      plugin,
+      decision,
+      frameworkSource,
+      updates,
+      cachedLatest: cached?.cli.latest ?? null,
+      refresh,
+      refreshNow,
+      refreshNowWhy: refreshNow === null ? (refreshNowWhy ?? 'the update mechanism could not be found') : null,
+    },
+  };
 }

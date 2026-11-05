@@ -149,6 +149,7 @@ it('applies the packet and its receipt, which doctor reads with no drift until a
       status: 'ok',
       detail: `No drift: the 2 files ${RECEIPT} lists are as written, and the records render the packet it names (${receipt.packetDigest.slice(0, 12)})`,
       remedy: null,
+      fix: null,
     },
   ]);
   // A plan now finds nothing to change, and so does `ia host`'s projection element, which reads the same state.
@@ -305,6 +306,25 @@ it('renders AGENTS.md and no agent file for codex, and refuses an unmarked AGENT
   });
 });
 
+it('ia project claude plans on a workspace with no descriptor', async () => {
+  const { root, env } = await initialized();
+  rmSync(resolve(root, '.ia/release.json'));
+  const planned = await project(root, env, 'claude');
+  expect(planned.exitCode, planned.stdout).toBe(0);
+  expect(JSON.parse(planned.stdout)).toMatchObject({
+    command: 'project',
+    host: 'claude',
+    apply: false,
+    plan: {
+      files: [
+        { path: RULES, action: 'create' },
+        { path: SKILL, action: 'create' },
+      ],
+      conflict: null,
+    },
+  });
+});
+
 it('refuses an unknown host, an uninitialized root and an unmarked claude file, each naming one next command', async () => {
   const { root, env } = await initialized();
   // An unknown host is usage, refused before anything is read, naming the claude plan with --root as given.
@@ -322,9 +342,9 @@ it('refuses an unknown host, an uninitialized root and an unmarked claude file, 
     'Run "ia project claude" to plan the Claude projection, or name codex in its place.',
   );
 
-  // A root with sources but no release descriptor is not initialized: the init of that directory, as it was given.
+  // A root with no .ia/src is not a workspace: the init of that directory, as it was given.
   const empty = resolve(scratch('project-empty'), 'bare');
-  mkdirSync(resolve(empty, '.ia/src'), { recursive: true });
+  mkdirSync(empty, { recursive: true });
   const uninitialized = await project(empty, env, 'claude');
   expect(uninitialized.exitCode).toBe(3);
   expect(JSON.parse(uninitialized.stdout)).toMatchObject({

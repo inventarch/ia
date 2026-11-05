@@ -1,0 +1,24 @@
+ CLI     ▲ running 3.5.1; this workspace's co… Records     ✔ 257 records · 2 warn            Kits ○ no kits installed
+ Updates ▲ ia 3.5.2 is available; this is 3.5… Lock        ✔ None installed                  Host ○ No host registered
+ Plugin  ▲ ia 3.5.0 rendered the plugin; this… Marketplace ✔ inventarch · ia · installed by…
+──────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────
+ NEEDS ATTENTION                                          │ WHAT THIS DOES
+ › ▲ Upgrade CLI to 3.5.2                                 │ ia 3.5.2 is available; this workspace pins 3.5.0. It shows the command and runs
+   ▲ Refresh Claude plugin                                │ it when you confirm. It runs 3 steps in order and stops at the first that
+ SET UP                                                   │ fails.
+   ○ Add a kit…                                           │
+   ○ Register a host: Claude                              │ RUNS
+   ○ Register a host: Codex                               │ 1. npm install -D @inventarch/cli@3.5.2
+   ○ Track this workspace                                 │ 2. ia validate
+ MORE                                                     │ 3. ia host claude --user --apply
+   · Diagnostics                                          │
+   · Check for updates now                                │ CHANGES
+                                                          │ this repo (package.json, lockfile)
+                                                          │ ~/.claude plugin and your IA home
+                                                          │
+                                                          │
+                                                          │
+                                                          │
+                                                          │
+──────────────────────────────────────────────────────────┴─────────────────────────────────────────────────────────────────────────────────
+ ↑↓ move · enter run · tab workspaces · r refresh · ? help · q quit

@@ -7,6 +7,7 @@
 import { inertCommandRoot } from '@inventarch/runtime';
 import { parseRegistryBase } from '@inventarch/distribution/registry';
 import { isAbsolute, relative, resolve } from 'node:path';
+import { stringWidth } from './console/width.js';
 
 export type Role = 'bold' | 'dim' | 'red' | 'yellow' | 'green' | 'cyan';
 export type SymbolName =
@@ -18,7 +19,9 @@ export type SymbolName =
   | 'step'
   | 'added'
   | 'removed'
-  | 'updated';
+  | 'updated'
+  | 'setup'
+  | 'unreported';
 export type Depth = 0 | 1 | 2;
 
 export interface Terminal {
@@ -103,6 +106,9 @@ const SYMBOLS: Readonly<Record<SymbolName, SymbolDefinition>> = {
   added: { unicode: '+', ascii: '+', role: 'green' },
   removed: { unicode: '-', ascii: '-', role: null },
   updated: { unicode: '~', ascii: '~', role: null },
+  // The console's area states: not set up, and a row a copy does not report.
+  setup: { unicode: '○', ascii: 'o', role: null },
+  unreported: { unicode: '—', ascii: '-', role: 'dim' },
 };
 /** Every symbol is one UTF-16 unit per display column, so length is its display width; no emoji is admitted. */
 export function statusSymbol(name: SymbolName, ascii: boolean): StatusSymbol {
@@ -158,7 +164,7 @@ export function remedyWords(text: string, role: Role | null = null, gap = 1): re
 }
 
 /**
- * Words wrap at the effective width; a token is never split, so an over-wide identifier overruns its line whole.
+ * Words wrap at the effective width, measured in display columns (console/width.ts); a token is never split, so an over-wide identifier overruns its line whole.
  * `firstColumn` differs from `column` only where a value starts past its label and then hangs back at the entry's
  * content column.
  */
@@ -181,7 +187,10 @@ export function wrapTokens(
       continue;
     }
     const gap = ' '.repeat(token.gap);
-    if ((lines.length === 0 ? firstColumn : column) + plain.length + gap.length + token.text.length <= caps.width) {
+    if (
+      (lines.length === 0 ? firstColumn : column) + stringWidth(plain) + gap.length + stringWidth(token.text) <=
+      caps.width
+    ) {
       plain += gap + token.text;
       styled += gap + text;
       continue;
@@ -472,7 +481,7 @@ function rewriteRootCommand(
     .filter((root): root is string => root !== undefined)
     .sort((a, b) => b.length - a.length)) {
     const inert = inertCommandRoot(root),
-      target = inert ? (process.platform === 'win32' ? root.replaceAll('\\', '/') : root) : '.',
+      target = commandRootTarget(root),
       before = next;
     if (target === root) continue;
     for (const value of new Set([quote(root), JSON.stringify(root)])) {
@@ -507,6 +516,38 @@ function rewriteRootCommand(
       : next.replace(new RegExp(ADVICE_COMMAND.source, 'g'), (_match, command: string) => `"${repair(command)}"`);
   }
   return { text: next, rootOmitted, manual };
+}
+/**
+ * The spelling `root` takes in a printed command: itself, with forward slashes on Windows, while every character in it
+ * is inert unquoted; otherwise `.`, and the command is run from the workspace root.
+ */
+const commandRootTarget = (root: string): string =>
+  inertCommandRoot(root) ? (process.platform === 'win32' ? root.replaceAll('\\', '/') : root) : '.';
+/**
+ * `rewriteRootCommand` over an argv rather than text: each root in it (a `--root` value, or `ia init`'s directory)
+ * spelled as `commandRootTarget` spells it, so a fix runs the command its remedy prints.
+ */
+export function safeRootArgv(argv: readonly string[], roots: readonly (string | undefined)[]): readonly string[] {
+  const known = [...new Set(roots)]
+    .filter((root): root is string => root !== undefined)
+    .sort((a, b) => b.length - a.length);
+  const map = (token: string, dotted: boolean): string => {
+    for (const root of known) {
+      const target = commandRootTarget(root);
+      if (token === root) return target;
+      if (dotted && root.startsWith('-') && token === `./${root}`)
+        return target.startsWith('-') ? `./${target}` : target;
+    }
+    return token;
+  };
+  const init = argv[0] === 'init',
+    separator = argv.indexOf('--');
+  return argv.map((token, index) => {
+    if (index > 0 && argv[index - 1] === '--root') return map(token, false);
+    if (token.startsWith('--root=')) return `--root=${map(token.slice('--root='.length), false)}`;
+    if (init && token !== '--' && (index === 1 || (separator === 1 && index === 2))) return map(token, true);
+    return token;
+  });
 }
 export function safeRootCommand(text: string, roots: readonly (string | undefined)[], context?: AdviceContext): string {
   return rewriteRootCommand(text, roots, context, true).text;

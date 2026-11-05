@@ -125,8 +125,12 @@ export const programHome = (): string => homedir();
  * switches only when its path matches cmd.exe with backslashes, so the caller passes them itself.
  */
 export function windowsShell(env: Env): string {
+  return windowsSystemProgram(env, 'cmd.exe');
+}
+/** A program in the Windows `System32` folder, found the way `windowsShell` finds cmd.exe. */
+export function windowsSystemProgram(env: Env, name: string): string {
   const root = variable(env, 'SystemRoot', 'win32');
-  return win32.join(root !== undefined && qualifiedPath(root, 'win32') ? root : 'C:\\Windows', 'System32', 'cmd.exe');
+  return win32.join(root !== undefined && qualifiedPath(root, 'win32') ? root : 'C:\\Windows', 'System32', name);
 }
 /**
  * cmd.exe's arguments for a script found by absolute path, passed with `windowsVerbatimArguments`: /d skips AutoRun

@@ -37,12 +37,14 @@ import { runPreview } from './preview.js';
 import { runAuthor } from './author.js';
 import { gatedNext, inertNext } from './profile.js';
 import type { Gate } from './profile.js';
+import type { ExtensionConsole } from './doctor-extensions.js';
 import { runProject } from './project.js';
 import { runRead } from './read.js';
 import { runKnowledge } from './kb.js';
 import { selectKnowledgeCommand } from './kb-commands.js';
 import { runValidate } from './validate.js';
 import { runVocabulary } from './vocabulary.js';
+import { runWorkspaces } from './workspaces.js';
 import type { AdviceContext, Capabilities, Terminal, Token } from './render.js';
 import {
   atom,
@@ -119,6 +121,8 @@ export interface Context {
    * command raises later names a next command the same actor may run. Absent where no dispatcher made one.
    */
   readonly gate?: Gate;
+  /** The extension table dispatch was given; doctor reads each extension's console checks from it. */
+  readonly extensions?: readonly Extension[];
 }
 
 /**
@@ -163,6 +167,17 @@ export class Interrupted extends Error {
     super('Interrupted.');
     this.name = 'Interrupted';
   }
+}
+
+/**
+ * Results whose handler answered an interruption itself, so §3's 130 does not replace them. Only §2.16's offer to track
+ * does this: it is asked after `init` has initialized the target, and a signal at its question declines it, so the
+ * completed `init` keeps its own report and exit code.
+ */
+const answered = new WeakSet<Result>();
+export function answeredInterruption(result: Result): Result {
+  answered.add(result);
+  return result;
 }
 
 const IA_CODE = /^IA-[A-Z]+-[A-Z-]+$/;
@@ -513,6 +528,7 @@ const HANDLERS: Readonly<Record<string, Handler>> = {
   remove: runDistribute('remove'),
   restore: runDistribute('restore'),
   recover: runRecovery,
+  workspaces: runWorkspaces,
   doctor: runDoctor,
   host: runHost,
 };
@@ -544,7 +560,12 @@ function parsedInvocation(command: CommandSpec, args: Arguments): string {
 }
 
 /** §1.2. Parse, then run; every class-2 check has already happened when a handler is entered. */
-export async function runCommand(command: CommandSpec, argv: readonly string[], host: Host): Promise<Result> {
+export async function runCommand(
+  command: CommandSpec,
+  argv: readonly string[],
+  host: Host,
+  extensions: readonly Extension[] = [],
+): Promise<Result> {
   const nested = command.name === 'kb' ? selectKnowledgeCommand(command, argv[0]) : undefined;
   if (nested) command = nested;
   const preliminary = resolveCapabilities(host.stdout, {});
@@ -572,7 +593,7 @@ export async function runCommand(command: CommandSpec, argv: readonly string[], 
       // §5: `--json` stdout is one parseable value with no prompt in it, so a terminal does not make it askable.
       if (json) throw new UsageError('--apply --json requires --yes; a --json run is never asked to confirm');
     }
-    const context: Context = { host, command, args, caps, json, gate };
+    const context: Context = { host, command, args, caps, json, gate, extensions };
     const handler = HANDLERS[command.name];
     if (handler === undefined)
       throw new Refusal(
@@ -584,7 +605,7 @@ export async function runCommand(command: CommandSpec, argv: readonly string[], 
       );
     host.signal?.throwIfAborted();
     const result = await handler(context);
-    host.signal?.throwIfAborted();
+    if (!answered.has(result)) host.signal?.throwIfAborted();
     return result;
   } catch (error) {
     const suppliedRoot = args?.value('root') ?? (command.name === 'init' ? args?.positionals[0] : undefined);
@@ -658,6 +679,11 @@ function machineOptions(rest: readonly string[]): readonly string[] {
 
 export interface Extension extends Namespace {
   readonly run: (args: readonly string[]) => Promise<{ readonly exitCode: number; readonly stdout: string }>;
+  /**
+   * What the extension contributes to the console, as data only (doctor-extensions.ts): areas, offers whose steps are
+   * its own commands, and the state file its doctor checks are read from. The public build declares none.
+   */
+  readonly console?: ExtensionConsole;
 }
 export interface Legacy {
   (args: readonly string[]): { readonly exitCode: number; readonly stdout: string };
@@ -689,7 +715,7 @@ export async function dispatch(
   if (command !== undefined) {
     const dispose = host.onConsumerRoute?.();
     try {
-      return await runCommand(command, argv.slice(1), host);
+      return await runCommand(command, argv.slice(1), host, extensions);
     } finally {
       dispose?.();
     }

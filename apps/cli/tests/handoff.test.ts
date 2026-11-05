@@ -4,7 +4,15 @@ import { resolve, sep } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { CORE_TOKENS } from '../src/commands.js';
 import { iaHomeOf } from '../src/discovery.js';
-import { committed, HANDOFF_FROM, handOff, handoffTarget, NO_HANDOFF, rootFromArgv } from '../src/handoff.js';
+import {
+  committed,
+  HANDOFF_FROM,
+  handOff,
+  handoffTarget,
+  NO_HANDOFF,
+  rootFromArgv,
+  runnableCopy,
+} from '../src/handoff.js';
 import { cleanup, scratch } from './scratch-fixture.js';
 
 afterAll(cleanup);
@@ -187,6 +195,54 @@ describe('handoffTarget', () => {
     expect(handoffTarget({ ...input, committed: isCommitted })).toBeNull();
     expect(asked).toEqual([realpathSync(resolve(w, 'node_modules/@inventarch/cli'))]);
     expect(handoffTarget({ ...input, committed: () => false })).toMatchObject({ version: '9.9.9' });
+  });
+});
+
+describe('runnableCopy', () => {
+  const copyOf = (w: string) => realpathSync(resolve(w, 'node_modules/@inventarch/cli'));
+  it('an ordinary installed copy is the one to run', () => {
+    const w = workspace('runnable-installed');
+    expect(runnableCopy(w, { env: {}, running, committed: () => false })).toMatchObject({
+      version: '9.9.9',
+      packageRoot: copyOf(w),
+    });
+  });
+  it('another copy is not run under the user’s IA_NO_HANDOFF=1', () => {
+    const w = workspace('runnable-off');
+    expect(runnableCopy(w, { env: { [NO_HANDOFF]: '1' }, running, committed: () => false })).toBeNull();
+  });
+  it('a copy the repository commits is not run', () => {
+    const w = workspace('runnable-committed');
+    const asked: string[] = [];
+    const isCommitted = (root: string) => {
+      asked.push(root);
+      return true;
+    };
+    expect(runnableCopy(w, { env: {}, running, committed: isCommitted })).toBeNull();
+    expect(asked).toEqual([copyOf(w)]);
+  });
+  it('the running copy itself is returned as found, and git is not asked about it', () => {
+    const w = workspace('runnable-self');
+    const asked: string[] = [];
+    const isCommitted = (root: string) => {
+      asked.push(root);
+      return true;
+    };
+    for (const env of [{}, { [NO_HANDOFF]: '1' }])
+      expect(runnableCopy(w, { env, running: copyOf(w), committed: isCommitted })).toMatchObject({ version: '9.9.9' });
+    expect(asked).toEqual([]);
+  });
+  it('a copy hoisted to the workspaces root that lists the member is found, as hand-off finds it', () => {
+    const repo = scratch('runnable-hoisted');
+    putJson(resolve(repo, 'package.json'), { workspaces: ['packages/*'] });
+    cliPackage(resolve(repo, 'node_modules/@inventarch/cli'));
+    const member = resolve(repo, 'packages/app');
+    mkdirSync(resolve(member, '.ia/src'), { recursive: true });
+    putJson(resolve(member, 'package.json'), { devDependencies: { '@inventarch/cli': '9.9.9' } });
+    expect(runnableCopy(member, { env: {}, running, committed: () => false })).toMatchObject({
+      packageRoot: realpathSync(resolve(repo, 'node_modules/@inventarch/cli')),
+    });
+    expect(target(['validate'], member)?.packageRoot).toBe(realpathSync(resolve(repo, 'node_modules/@inventarch/cli')));
   });
 });
 

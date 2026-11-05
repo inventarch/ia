@@ -1,0 +1,8 @@
+# EastAsianWidth excerpt for the generator test (Unicode 16.0.0 format).
+0000..001F     ; N  # Cc    [32] <control-0000>..<control-001F>
+1100..115F     ; W  # Lo    [96] HANGUL CHOSEONG KIYEOK..HANGUL CHOSEONG FILLER
+2329           ; W  # Ps         LEFT-POINTING ANGLE BRACKET
+232A           ; W  # Pe         RIGHT-POINTING ANGLE BRACKET
+3000           ; F  # Zs         IDEOGRAPHIC SPACE
+FF01..FF60     ; F  # Po    [96] FULLWIDTH EXCLAMATION MARK..FULLWIDTH RIGHT WHITE PARENTHESIS
+FF61           ; H  # Po         HALFWIDTH IDEOGRAPHIC FULL STOP
