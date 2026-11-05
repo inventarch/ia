@@ -1071,26 +1071,29 @@ describe('the all-workspaces view', () => {
       for (const path of denied) chmodSync(path, 0o755);
     }
   });
-  it.skipIf(unprivileged)('an opened workspace whose root turns unreadable goes back to the table on refresh', async () => {
-    const denied: string[] = [];
-    try {
-      const run = await launchAll(1);
-      await until(run.shows('Healthy 1'), 'the row to load');
-      run.stdin.write('\r');
-      await until(run.shows('esc back'), 'the repo view');
-      chmodSync(run.roots[0]!, 0o000);
-      denied.push(run.roots[0]!);
-      const mark = run.terminal.out.length;
-      run.stdin.write('r');
-      await until(() => run.terminal.out.slice(mark).includes('ws0 is unreadable.'), 'the table');
-      expect(run.terminal.out.slice(mark)).toContain('space select');
-      expect(run.terminal.out.slice(mark)).toContain('Unreadable 1');
-      run.stdin.write('q');
-      expect(await run.exit).toBe(0);
-    } finally {
-      for (const path of denied) chmodSync(path, 0o755);
-    }
-  });
+  it.skipIf(unprivileged)(
+    'an opened workspace whose root turns unreadable goes back to the table on refresh',
+    async () => {
+      const denied: string[] = [];
+      try {
+        const run = await launchAll(1);
+        await until(run.shows('Healthy 1'), 'the row to load');
+        run.stdin.write('\r');
+        await until(run.shows('esc back'), 'the repo view');
+        chmodSync(run.roots[0]!, 0o000);
+        denied.push(run.roots[0]!);
+        const mark = run.terminal.out.length;
+        run.stdin.write('r');
+        await until(() => run.terminal.out.slice(mark).includes('ws0 is unreadable.'), 'the table');
+        expect(run.terminal.out.slice(mark)).toContain('space select');
+        expect(run.terminal.out.slice(mark)).toContain('Unreadable 1');
+        run.stdin.write('q');
+        expect(await run.exit).toBe(0);
+      } finally {
+        for (const path of denied) chmodSync(path, 0o755);
+      }
+    },
+  );
   it('f opens the folder line in text mode: b, q and j are typed, not commands', async () => {
     const run = await launchAll(1);
     await until(run.shows('Healthy 1'), 'the row to load');

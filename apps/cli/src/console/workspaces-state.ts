@@ -30,7 +30,15 @@ export interface RepoRow {
   /** Why the workspace's copy could not report (or the row could not load), or null. */
   readonly failure: string | null;
 }
-export type RepoClass = 'loading' | 'missing' | 'unreadable' | 'failed' | 'failing' | 'warning' | 'unchecked' | 'healthy';
+export type RepoClass =
+  | 'loading'
+  | 'missing'
+  | 'unreadable'
+  | 'failed'
+  | 'failing'
+  | 'warning'
+  | 'unchecked'
+  | 'healthy';
 
 /** The parallel doctor runs at once. */
 export const DOCTOR_LIMIT = 4;

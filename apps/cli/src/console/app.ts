@@ -453,9 +453,7 @@ export async function runConsole(input: {
           if (aside !== null) all.rows[target.row!] = aside;
           toAll();
           all.message =
-            aside === null
-              ? 'The opened workspace can no longer be read.'
-              : `${aside.tracked.id} is ${aside.state}.`;
+            aside === null ? 'The opened workspace can no longer be read.' : `${aside.tracked.id} is ${aside.state}.`;
           return;
         }
         state = loaded;
