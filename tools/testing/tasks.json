@@ -1362,6 +1362,13 @@
           ]
         },
         {
+          "case": "tests/console-batch-run.test.ts > a workspace subfolder committed as a relative link that stays inside the worktree is accepted",
+          "reason": "Git checks a committed symbolic link out as a link only where the platform lets it create one, so on Windows there is no committed link for the base check to accept; its refusing twin is skipped there for the same reason.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
           "case": "tests/console-batch-run.test.ts > the .cmd route passes cmd.exe’s own characters through intact",
           "reason": "Only Windows runs a package manager's .cmd shim through cmd.exe; the POSIX twin passes shell characters through a shell-script shim.",
           "platforms": [
