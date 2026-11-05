@@ -472,7 +472,7 @@ function rewriteRootCommand(
     .filter((root): root is string => root !== undefined)
     .sort((a, b) => b.length - a.length)) {
     const inert = inertCommandRoot(root),
-      target = inert ? (process.platform === 'win32' ? root.replaceAll('\\', '/') : root) : '.',
+      target = commandRootTarget(root),
       before = next;
     if (target === root) continue;
     for (const value of new Set([quote(root), JSON.stringify(root)])) {
@@ -507,6 +507,38 @@ function rewriteRootCommand(
       : next.replace(new RegExp(ADVICE_COMMAND.source, 'g'), (_match, command: string) => `"${repair(command)}"`);
   }
   return { text: next, rootOmitted, manual };
+}
+/**
+ * The spelling `root` takes in a printed command: itself, with forward slashes on Windows, while every character in it
+ * is inert unquoted; otherwise `.`, and the command is run from the workspace root.
+ */
+const commandRootTarget = (root: string): string =>
+  inertCommandRoot(root) ? (process.platform === 'win32' ? root.replaceAll('\\', '/') : root) : '.';
+/**
+ * `rewriteRootCommand` over an argv rather than text: each root in it (a `--root` value, or `ia init`'s directory)
+ * spelled as `commandRootTarget` spells it, so a fix runs the command its remedy prints.
+ */
+export function safeRootArgv(argv: readonly string[], roots: readonly (string | undefined)[]): readonly string[] {
+  const known = [...new Set(roots)]
+    .filter((root): root is string => root !== undefined)
+    .sort((a, b) => b.length - a.length);
+  const map = (token: string, dotted: boolean): string => {
+    for (const root of known) {
+      const target = commandRootTarget(root);
+      if (token === root) return target;
+      if (dotted && root.startsWith('-') && token === `./${root}`)
+        return target.startsWith('-') ? `./${target}` : target;
+    }
+    return token;
+  };
+  const init = argv[0] === 'init',
+    separator = argv.indexOf('--');
+  return argv.map((token, index) => {
+    if (index > 0 && argv[index - 1] === '--root') return map(token, false);
+    if (token.startsWith('--root=')) return `--root=${map(token.slice('--root='.length), false)}`;
+    if (init && token !== '--' && (index === 1 || (separator === 1 && index === 2))) return map(token, true);
+    return token;
+  });
 }
 export function safeRootCommand(text: string, roots: readonly (string | undefined)[], context?: AdviceContext): string {
   return rewriteRootCommand(text, roots, context, true).text;

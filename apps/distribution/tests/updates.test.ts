@@ -14,25 +14,32 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { homedir, tmpdir } from 'node:os';
+import { homedir, hostname, tmpdir } from 'node:os';
 import { delimiter, dirname, isAbsolute, join } from 'node:path';
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import { runBounded } from '@tools/testing/subprocess.js';
 import { HOME_MARKER } from '../src/ia-home.js';
 import { runNative } from '../src/native-command.js';
 import {
   compareVersions,
   compatibility,
+  liveKitSource,
   liveSources,
+  newestVersion,
   readIaConfig,
   accountOfferEnabled,
   readUpdateCheck,
   refreshDue,
   refreshUpdates,
   UPDATE_CHECK,
+  UPDATE_CHECK_LOCK,
   updateCheckDisabled,
 } from '../src/updates.js';
-import type { Sources } from '../src/updates.js';
+import type { RefreshInput, Sources } from '../src/updates.js';
+import { canonicalDistributionJson } from '@inventarch/db/distribution';
+import { HomeLockedError } from '../src/home-lock.js';
+import { registryAddCollection } from '../src/registry-build.js';
+import { buildFixtureRegistry } from './registry-fixture.js';
 
 const made: string[] = [];
 const temp = () => {
@@ -52,10 +59,10 @@ const unused: Sources = {
   },
 };
 
-it('refreshes from npm for the npm channel and records a failed source as not checked', () => {
+it('refreshes from npm for the npm channel and records a failed source as not checked', async () => {
   const home = join(temp(), '.ia'),
     now = new Date('2026-09-23T12:00:00Z');
-  refreshUpdates(
+  await refreshUpdates(
     { home, channel: 'npm', current: '0.2.0', name: '@inventarch/cli', checkout: null, now },
     { ...unused, npm: () => '0.3.0' },
   );
@@ -65,7 +72,7 @@ it('refreshes from npm for the npm channel and records a failed source as not ch
     cli: { channel: 'npm', current: '0.2.0', latest: '0.3.0', behind: null, checked: true },
     packages: { checked: false },
   });
-  refreshUpdates(
+  await refreshUpdates(
     { home, channel: 'npm', current: '0.2.0', name: '@inventarch/cli', checkout: null, now },
     { ...unused, npm: () => null },
   );
@@ -73,10 +80,10 @@ it('refreshes from npm for the npm channel and records a failed source as not ch
   // The hook keeps nudgedOn in its own plugin data.
   expect(readFileSync(join(home, UPDATE_CHECK), 'utf8')).not.toContain('nudgedOn');
 });
-it('counts commits behind upstream for a checkout without fetching, and never asks npm', () => {
+it('counts commits behind upstream for a checkout without fetching, and never asks npm', async () => {
   const home = join(temp(), '.ia');
   const seen: string[][] = [];
-  refreshUpdates(
+  await refreshUpdates(
     { home, channel: 'checkout', current: '0.2.0', name: null, checkout: '/src', now: new Date() },
     {
       ...unused,
@@ -89,20 +96,24 @@ it('counts commits behind upstream for a checkout without fetching, and never as
   );
   expect(readUpdateCheck(home)?.cli).toMatchObject({ behind: 4, latest: null, checked: true });
   expect(seen.flat()).not.toContain('fetch');
-  refreshUpdates(
+  await refreshUpdates(
     { home, channel: 'checkout', current: '0.2.0', name: null, checkout: '/src', now: new Date() },
     { ...unused, git: () => null },
   );
   expect(readUpdateCheck(home)?.cli).toMatchObject({ behind: null, checked: false });
 });
-it('an unknown channel has no source: nothing is asked and the check is recorded as not checked', () => {
+it('an unknown channel has no source: nothing is asked and the check is recorded as not checked', async () => {
   const home = join(temp(), '.ia');
   expect(
-    refreshUpdates({ home, channel: 'unknown', current: '0.2.0', name: null, checkout: null, now: new Date() }, unused)
-      .cli.checked,
+    (
+      await refreshUpdates(
+        { home, channel: 'unknown', current: '0.2.0', name: null, checkout: null, now: new Date() },
+        unused,
+      )
+    ).cli.checked,
   ).toBe(false);
 });
-it('writes through the IA home, which it creates and marks, and keeps the private account section', () => {
+it('writes through the IA home, which it creates and marks, and keeps the private account section', async () => {
   const home = join(temp(), '.ia');
   mkdirSync(join(home, 'state'), { recursive: true });
   writeFileSync(
@@ -115,7 +126,7 @@ it('writes through the IA home, which it creates and marks, and keeps the privat
       account: { notices: ['Your organization supports language 1.0'] },
     }),
   );
-  refreshUpdates(
+  await refreshUpdates(
     { home, channel: 'npm', current: '0.2.0', name: '@inventarch/cli', checkout: null, now: new Date() },
     { ...unused, npm: () => '0.2.0' },
   );
@@ -218,6 +229,377 @@ it('refresh-updates is the one mechanism command without a workspace, and valida
     ['refresh-updates', '--home', home, '--channel', 'checkout', '--current', '0.2.0', '--checkout', 'relative'],
   ])
     await expect(runNative(argv), argv.join(' ')).rejects.toMatchObject({ code: 'IA-DIST-INPUT-INVALID' });
+});
+
+// §11 kit entries: one per (registry, kind, id) key of a workspace's installed units, merged under the store lock.
+const HEX = (c: string): string => c.repeat(64);
+/**
+ * A workspace whose lock requests one release per id (each `acme/<name>` at `1.0.0`) and maps the `acme` provider to
+ * `registry` (a directory name inside it) in `.ia/registries.json`.
+ */
+function kitWorkspace(ids: readonly string[], registry = 'vendor/registry'): string {
+  const root = temp();
+  mkdirSync(join(root, '.ia', 'src'), { recursive: true });
+  writeFileSync(
+    join(root, '.ia', 'registries.json'),
+    JSON.stringify({ format: 'ia.registries.v1', registries: { acme: registry } }),
+  );
+  const sorted = [...ids].sort();
+  const packages = sorted.map((id, n) => ({
+    id,
+    version: '1.0.0',
+    archive: HEX('abcdef'[n]!),
+    manifest: HEX('f'),
+    location: `sha256:${HEX('abcdef'[n]!)}`,
+    dependencies: [],
+  }));
+  writeFileSync(
+    join(root, '.ia', 'distributions.lock.json'),
+    canonicalDistributionJson({
+      formatVersion: 1,
+      engine: '^0.1.0',
+      requests: sorted.map((id) => ({ id, range: '1.0.0' })),
+      packages,
+    }),
+  );
+  return realpathSync(root);
+}
+/** A kit source that answers from `versions` (null for an id it lacks) and records every key it is asked. */
+function recording(versions: Readonly<Record<string, string | null>>, fail: readonly string[] = []) {
+  const asked: { kind: string; id: string; registry: string }[] = [];
+  const sources: Sources = {
+    ...unused,
+    kit: async (unit) => {
+      asked.push({ kind: unit.kind, id: unit.id, registry: unit.registry });
+      if (fail.includes(unit.id)) throw new Error('registry down');
+      return versions[unit.id] ?? null;
+    },
+  };
+  return { sources, asked };
+}
+const refresh = (home: string, root: string | undefined, sources: Sources, extra: Partial<RefreshInput> = {}) =>
+  refreshUpdates(
+    {
+      home,
+      channel: 'unknown',
+      current: '0.2.0',
+      name: null,
+      checkout: null,
+      now: new Date('2026-11-03T12:00:00Z'),
+      env: {},
+      ...(root === undefined ? {} : { root }),
+      ...extra,
+    },
+    sources,
+  );
+const entriesOf = (home: string) =>
+  (readUpdateCheck(home)?.packages.entries ?? []).map((entry) => `${entry.kind} ${entry.id} ${entry.latest}`).sort();
+function seed(home: string, entries: readonly object[]): void {
+  mkdirSync(join(home, 'state'), { recursive: true });
+  writeFileSync(
+    join(home, UPDATE_CHECK),
+    JSON.stringify({
+      schema: 'ia.update-check.v1',
+      checkedAt: '2026-11-03T00:00:00Z',
+      cli: { channel: 'unknown', current: '0.2.0', latest: null, behind: null, checked: false },
+      packages: { checked: true, entries },
+    }),
+  );
+}
+
+it('reads the old packages form', () => {
+  const home = join(temp(), '.ia');
+  mkdirSync(join(home, 'state'), { recursive: true });
+  writeFileSync(
+    join(home, UPDATE_CHECK),
+    JSON.stringify({
+      schema: 'ia.update-check.v1',
+      checkedAt: '2026-11-03T00:00:00Z',
+      cli: { channel: 'npm', current: '0.2.0', latest: null, behind: null, checked: false },
+      packages: { checked: false },
+    }),
+  );
+  expect(readUpdateCheck(home)?.packages).toEqual({ checked: false });
+  // An entry that cannot be read is dropped; the rest stay.
+  seed(home, [
+    { registry: 'npm', kind: 'package', id: '@acme/kits', latest: '1.2.0', checkedAt: '2026-11-03T00:00:00Z' },
+    { registry: 'npm', kind: 'nope', id: 'x', latest: null, checkedAt: '2026-11-03T00:00:00Z' },
+  ]);
+  expect(entriesOf(home)).toEqual(['package @acme/kits 1.2.0']);
+});
+it('merges entries across refreshes and keeps other workspaces’ keys', async () => {
+  const home = join(temp(), '.ia');
+  await refresh(home, kitWorkspace(['acme/a']), recording({ 'acme/a': '1.1.0' }).sources);
+  await refresh(home, kitWorkspace(['acme/b']), recording({ 'acme/b': '2.0.0' }).sources);
+  expect(entriesOf(home)).toEqual(['release acme/a 1.1.0', 'release acme/b 2.0.0']);
+  expect(readUpdateCheck(home)?.packages.checked).toBe(true);
+});
+it('two registries for one kit id keep two entries', async () => {
+  const home = join(temp(), '.ia');
+  const first = recording({ 'acme/x': '1.1.0' }),
+    second = recording({ 'acme/x': '1.2.0' });
+  await refresh(home, kitWorkspace(['acme/x'], 'vendor/one'), first.sources);
+  await refresh(home, kitWorkspace(['acme/x'], 'vendor/two'), second.sources);
+  expect(first.asked[0]!.registry).not.toBe(second.asked[0]!.registry);
+  expect(readUpdateCheck(home)?.packages.entries?.map((entry) => entry.registry)).toEqual([
+    first.asked[0]!.registry,
+    second.asked[0]!.registry,
+  ]);
+});
+it('one stale key refetches only that key, and without force a fresh key is not fetched', async () => {
+  const home = join(temp(), '.ia'),
+    root = kitWorkspace(['acme/a', 'acme/b']);
+  const first = recording({ 'acme/a': '1.0.0', 'acme/b': '1.0.0' });
+  await refresh(home, root, first.sources);
+  const [a, b] = readUpdateCheck(home)!.packages.entries!;
+  seed(home, [a!, { ...b!, checkedAt: '2026-11-01T00:00:00Z' }]);
+  const second = recording({ 'acme/a': '9.0.0', 'acme/b': '1.1.0' });
+  await refresh(home, root, second.sources);
+  expect(second.asked.map((unit) => unit.id)).toEqual(['acme/b']);
+  expect(entriesOf(home)).toEqual(['release acme/a 1.0.0', 'release acme/b 1.1.0']);
+});
+it('a registry failure records latest null for that key only', async () => {
+  const home = join(temp(), '.ia');
+  await refresh(
+    home,
+    kitWorkspace(['acme/a', 'acme/b']),
+    recording({ 'acme/a': '1.1.0', 'acme/b': '2.0.0' }, ['acme/b']).sources,
+  );
+  expect(entriesOf(home)).toEqual(['release acme/a 1.1.0', 'release acme/b null']);
+});
+it('the newest non-withdrawn version wins even when the index lists it last or withdrawn first', () => {
+  expect(
+    newestVersion([
+      { version: '3.0.0', withdrawn: true },
+      { version: '1.0.0', withdrawn: false },
+      { version: '1.10.0', withdrawn: false },
+      { version: '1.9.0', withdrawn: false },
+    ]),
+  ).toBe('1.10.0');
+  expect(newestVersion([{ version: '1.0.0', withdrawn: true }])).toBeNull();
+});
+it('a package is asked of npm, a collection of the kit index, a release of the release index', async () => {
+  const { dir } = await buildFixtureRegistry([
+    { id: 'acme/rel', version: '1.2.0' },
+    { id: 'acme/rel', version: '1.0.0' },
+  ]);
+  made.push(dir);
+  registryAddCollection(dir, 'kit', {
+    format: 'ia.registry-kit.v1',
+    id: 'acme/kit',
+    releases: ['3.0.0', '1.0.0'].map((version) => ({
+      version,
+      withdrawn: false,
+      distributions: [{ id: 'acme/rel', range: '^1.0.0' }],
+    })),
+  });
+  const npm: string[] = [];
+  const kit = liveKitSource({
+    npm: (name) => {
+      npm.push(name);
+      return '4.0.0';
+    },
+  });
+  expect(await kit({ registry: 'npm', kind: 'package', id: '@acme/kits' })).toBe('4.0.0');
+  expect(npm).toEqual(['@acme/kits']);
+  expect(await kit({ registry: dir, kind: 'collection', id: 'acme/kit' })).toBe('3.0.0');
+  expect(await kit({ registry: dir, kind: 'release', id: 'acme/rel' })).toBe('1.2.0');
+  // Each kind is asked of its own index: a release id has no kit index, and a kit id no release index.
+  expect(await kit({ registry: dir, kind: 'collection', id: 'acme/rel' })).toBeNull();
+  expect(await kit({ registry: dir, kind: 'release', id: 'acme/kit' })).toBeNull();
+  expect(npm).toEqual(['@acme/kits']);
+});
+it('an entry older than 30 days is dropped', async () => {
+  const home = join(temp(), '.ia');
+  seed(home, [
+    { registry: 'npm', kind: 'package', id: '@acme/old', latest: '1.0.0', checkedAt: '2026-09-01T00:00:00Z' },
+  ]);
+  await refresh(home, kitWorkspace(['acme/a']), recording({ 'acme/a': '1.0.0' }).sources);
+  expect(entriesOf(home)).toEqual(['release acme/a 1.0.0']);
+});
+it('force refetches a fresh key and its cached latest changes', async () => {
+  const home = join(temp(), '.ia'),
+    root = kitWorkspace(['acme/a', 'acme/b']);
+  await refresh(home, root, recording({ 'acme/a': '1.0.0', 'acme/b': '1.0.0' }).sources);
+  const fresh = recording({ 'acme/a': '1.1.0', 'acme/b': '1.0.0' });
+  await refresh(home, root, fresh.sources);
+  expect(fresh.asked).toEqual([]);
+  const forced = recording({ 'acme/a': '1.1.0', 'acme/b': '1.0.0' });
+  // An explicit check made a minute later.
+  await refresh(home, root, forced.sources, { force: true, now: new Date('2026-11-03T12:01:00Z') });
+  expect(forced.asked.map((unit) => unit.id)).toEqual(['acme/a', 'acme/b']);
+  expect(entriesOf(home)).toEqual(['release acme/a 1.1.0', 'release acme/b 1.0.0']);
+  await expect(refresh(home, undefined, forced.sources, { force: true })).rejects.toMatchObject({
+    code: 'IA-DIST-INPUT-INVALID',
+  });
+});
+it('interleaved refreshes from two workspaces keep both', async () => {
+  const home = join(temp(), '.ia');
+  const later = new Date('2026-11-03T12:01:00Z');
+  await refresh(home, kitWorkspace(['acme/a']), recording({ 'acme/a': '1.1.0' }).sources, {
+    // B runs to completion between A's lookups and A's write.
+    afterFetch: async () => {
+      await refresh(home, kitWorkspace(['acme/b']), recording({ 'acme/b': '2.0.0' }).sources, {
+        now: later,
+        current: '0.3.0',
+      });
+    },
+  });
+  expect(entriesOf(home)).toEqual(['release acme/a 1.1.0', 'release acme/b 2.0.0']);
+  // The newer run's CLI fields stand.
+  expect(readUpdateCheck(home)).toMatchObject({ checkedAt: later.toISOString(), cli: { current: '0.3.0' } });
+});
+it('a held store lock leaves the file untouched', async () => {
+  const home = join(temp(), '.ia');
+  seed(home, []);
+  const before = readFileSync(join(home, UPDATE_CHECK), 'utf8');
+  writeFileSync(
+    join(home, UPDATE_CHECK_LOCK),
+    JSON.stringify({
+      token: 'held',
+      pid: process.pid,
+      start: null,
+      host: hostname(),
+      createdAt: new Date().toISOString(),
+    }),
+  );
+  await expect(
+    refresh(home, kitWorkspace(['acme/a']), recording({ 'acme/a': '1.1.0' }).sources, { lockWaitMs: 100 }),
+  ).rejects.toBeInstanceOf(HomeLockedError);
+  expect(readFileSync(join(home, UPDATE_CHECK), 'utf8')).toBe(before);
+  expect(existsSync(join(home, UPDATE_CHECK_LOCK))).toBe(true);
+});
+it('refresh-updates --root rejects a relative path, --force without --root is rejected, and the cache exists when runNative resolves', async () => {
+  const home = join(temp(), '.ia'),
+    root = kitWorkspace([]);
+  const base = ['refresh-updates', '--home', home, '--channel', 'unknown', '--current', '0.2.0'];
+  for (const argv of [
+    [...base, '--root', 'relative'],
+    [...base, '--force'],
+  ])
+    await expect(runNative(argv), argv.join(' ')).rejects.toMatchObject({ code: 'IA-DIST-INPUT-INVALID' });
+  expect(await runNative([...base, '--root', root, '--force'])).toMatchObject({ exitCode: 0 });
+  expect(existsSync(join(home, UPDATE_CHECK))).toBe(true);
+});
+
+it('IA_NO_UPDATE_CHECK=1 stops every lookup, forced or not, and writes nothing', async () => {
+  const fetched: string[] = [];
+  vi.stubGlobal('fetch', async (input: string | URL) => {
+    fetched.push(String(input));
+    return new Response('no', { status: 404 });
+  });
+  try {
+    const home = join(temp(), '.ia'),
+      root = kitWorkspace(['acme/a']);
+    const throwing: Sources = {
+      npm: () => {
+        throw new Error('npm must not be asked');
+      },
+      git: () => {
+        throw new Error('git must not run');
+      },
+      kit: async () => {
+        throw new Error('no kit source may be asked');
+      },
+    };
+    const offline = { IA_NO_UPDATE_CHECK: '1' };
+    await refreshUpdates(
+      {
+        home,
+        channel: 'npm',
+        current: '0.2.0',
+        name: '@inventarch/cli',
+        checkout: null,
+        now: new Date(),
+        root,
+        force: true,
+        env: offline,
+      },
+      throwing,
+    );
+    // The live kit source, which opens the workspace's registry over fetch, is not reached either.
+    await refreshUpdates(
+      {
+        home,
+        channel: 'unknown',
+        current: '0.2.0',
+        name: null,
+        checkout: null,
+        now: new Date(),
+        root,
+        force: true,
+        env: offline,
+      },
+      { npm: throwing.npm, git: throwing.git },
+    );
+    expect(fetched).toEqual([]);
+    expect(existsSync(join(home, UPDATE_CHECK))).toBe(false);
+    // The command line reads the process environment.
+    vi.stubEnv('IA_NO_UPDATE_CHECK', '1');
+    const result = await runNative([
+      'refresh-updates',
+      '--home',
+      home,
+      '--channel',
+      'unknown',
+      '--current',
+      '0.2.0',
+      '--root',
+      root,
+      '--force',
+    ]);
+    expect(result).toMatchObject({ exitCode: 0 });
+    expect(fetched).toEqual([]);
+    expect(existsSync(join(home, UPDATE_CHECK))).toBe(false);
+  } finally {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  }
+});
+
+it('IA_NO_UPDATE_CHECK=1 still counts a checkout against its upstream, which needs no network', async () => {
+  const fetched: string[] = [];
+  vi.stubGlobal('fetch', async (input: string | URL) => {
+    fetched.push(String(input));
+    return new Response('no', { status: 404 });
+  });
+  try {
+    const home = join(temp(), '.ia'),
+      root = kitWorkspace(['acme/a']);
+    const counted: string[][] = [];
+    const check = await refreshUpdates(
+      {
+        home,
+        channel: 'checkout',
+        current: '0.2.0',
+        name: null,
+        checkout: '/src',
+        now: new Date(),
+        root,
+        force: true,
+        env: { IA_NO_UPDATE_CHECK: '1' },
+      },
+      {
+        npm: () => {
+          throw new Error('npm must not be asked');
+        },
+        git: (_cwd, args) => {
+          counted.push([...args]);
+          return '3';
+        },
+        kit: async () => {
+          throw new Error('no kit source may be asked');
+        },
+      },
+    );
+    expect(counted).toEqual([['rev-list', '--count', 'HEAD..@{upstream}']]);
+    expect(check.cli).toMatchObject({ channel: 'checkout', behind: 3, checked: true });
+    expect(readUpdateCheck(home)?.cli).toMatchObject({ behind: 3, checked: true });
+    expect(readUpdateCheck(home)?.packages.entries).toBeUndefined();
+    expect(fetched).toEqual([]);
+  } finally {
+    vi.unstubAllGlobals();
+  }
 });
 
 // crowncodes/ia#436: refresh-updates run by hand from a directory the repository controls never starts an npm or git planted there,
@@ -340,3 +722,38 @@ it(
   },
   PROCESS_CASE,
 );
+
+it('a cache stamped in the future (a clock stepped back) is replaced by the next refresh, forced or not', async () => {
+  for (const force of [false, true]) {
+    const home = join(temp(), '.ia'),
+      root = kitWorkspace(['acme/a']),
+      now = new Date();
+    await refresh(home, root, recording({ 'acme/a': '1.0.0' }).sources, { now });
+    // The clock then steps back a year: every stamp the cache holds lies in the future.
+    const future = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+      stored = readUpdateCheck(home)!;
+    writeFileSync(
+      join(home, UPDATE_CHECK),
+      JSON.stringify({
+        ...stored,
+        checkedAt: future,
+        packages: {
+          checked: true,
+          entries: [
+            ...stored.packages.entries!.map((entry) => ({ ...entry, checkedAt: future })),
+            { registry: 'npm', kind: 'package', id: '@acme/gone', latest: '9.0.0', checkedAt: future },
+          ],
+        },
+      }),
+    );
+    const next = recording({ 'acme/a': '1.1.0' });
+    const check = await refresh(home, root, next.sources, { now, force });
+    expect(
+      next.asked.map((unit) => unit.id),
+      `force ${force}`,
+    ).toEqual(['acme/a']);
+    expect(check.checkedAt, `force ${force}`).toBe(now.toISOString());
+    expect(refreshDue(check, now), `force ${force}`).toBe(false);
+    expect(entriesOf(home), `force ${force}`).toEqual(['release acme/a 1.1.0']);
+  }
+});

@@ -44,6 +44,19 @@ import {
 } from './files.js';
 
 import { planInstallationSnapshot, type InstallOperation, type NativeInstallationPlan } from './installation-core.js';
+import type { CollectionsJournal, ExpandedCollection } from './kit-collections.js';
+import {
+  emptyRecord,
+  journalKitCollections,
+  KIT_COLLECTIONS,
+  mergeKitCollections,
+  readKitCollections,
+  removeCollectionsJournal,
+  serializeKitCollections,
+  settleKitCollections,
+  settleOrphanJournal,
+  writeKitCollections,
+} from './kit-collections.js';
 import { distributionSnapshot } from './snapshot.js';
 export type { InstallOperation } from './installation-core.js';
 export interface InstallationPlan {
@@ -64,6 +77,12 @@ export interface InstallationPlan {
 }
 export interface InstallOptions {
   readonly checkpoint?: (name: string) => void;
+  /**
+   * The registry collections this operation expanded (`resolveFromRegistries`'s `expandedCollections`); their identity
+   * is recorded beside the lock (kit-collections.ts). Every apply merges the record, so an operation that names none
+   * still removes the rows whose members it moved.
+   */
+  readonly collections?: readonly ExpandedCollection[];
 }
 /** The workspace archive cache: `<digest>.ia.tgz` files only, each written once by `cacheArchive`. */
 export const ARCHIVE_CACHE = '.ia/distributions/cache';
@@ -247,6 +266,40 @@ function acquire(root: string, recovering = false): () => void {
     syncDirectory(dirname(target));
   };
 }
+/**
+ * The collections journal this apply writes, or null when the record does not change. The merge starts from the record
+ * that describes the lock before the operation, or from none when it describes another (an older CLI changed the lock).
+ * A record left with no collection and no unknown entry is removed rather than written empty.
+ */
+function collectionsChange(
+  root: string,
+  plan: InstallationPlan,
+  expanded: readonly ExpandedCollection[],
+  pending: { readonly beforeActive: string | null; readonly beforeLock: string | null; readonly afterLock: string },
+): CollectionsJournal | null {
+  const read = readKitCollections(root);
+  // The file's own bytes, readable or not, so a rollback puts back exactly what was there.
+  const before = bytes(root, KIT_COLLECTIONS, DISTRIBUTION_LIMITS.metadata)?.toString('utf8') ?? null;
+  const current =
+    read.state === 'present' && pending.beforeLock !== null && read.record.lock === sha256(pending.beforeLock)
+      ? read.record
+      : null;
+  const merged = mergeKitCollections(current, expanded, plan.lock, pending.afterLock);
+  const after = emptyRecord(merged) ? null : serializeKitCollections(merged);
+  if (after === before) return null;
+  return { formatVersion: 1, beforeActive: pending.beforeActive, afterActive: json(plan.pointer), before, after };
+}
+/**
+ * Whether applying `plan` now would write `.ia/kit-collections.json`: the same merge the apply makes, against the lock
+ * on disk, so a preview can name the record among the files it would write.
+ */
+export function collectionsWouldChange(plan: InstallationPlan, expanded: readonly ExpandedCollection[]): boolean {
+  const root = workspace(plan.root),
+    beforeLock = bytes(root, INSTALL_PATHS.lock, DISTRIBUTION_LIMITS.metadata)?.toString('utf8') ?? null;
+  return (
+    collectionsChange(root, plan, expanded, { beforeActive: null, beforeLock, afterLock: json(plan.lock) }) !== null
+  );
+}
 export function applyInstallation(
   input: unknown,
   options: InstallOptions = {},
@@ -257,6 +310,8 @@ export function applyInstallation(
     checkpoint = options.checkpoint ?? (() => {});
   try {
     noPending(root);
+    // A collections journal no pending.json stands beside was left by a recovery that did not read it; settle it first.
+    settleOrphanJournal(root);
     if (
       json(state(root)) !== json(plan.binding) ||
       json(planInstallation(root, plan.lock, plan.operation)) !== json(plan)
@@ -301,9 +356,19 @@ export function applyInstallation(
       afterActive: json(plan.pointer),
       afterLock: json(plan.lock),
     };
+    // Built before pending.json is written, so a collection whose member the lock lacks refuses with nothing to recover
+    // (the immutable store and generation files already written change nothing that counts).
+    const collections = collectionsChange(root, plan, options.collections ?? [], pending);
     replace(root, INSTALL_PATHS.pending, Buffer.from(json(pending)));
     checkpoint('pending');
     if (json(state(root)) !== json(plan.binding)) fail('STALE-PLAN', 'Workspace changed after pending write');
+    // The record changes before the lock does, bound by its journal to the activation it belongs to.
+    if (collections !== null) {
+      journalKitCollections(root, collections);
+      checkpoint('collections-journal');
+      writeKitCollections(root, collections.after);
+      checkpoint('collections');
+    }
     replace(root, INSTALL_PATHS.lock, Buffer.from(pending.afterLock));
     checkpoint('portable-lock');
     // Lock replacement is expected; recheck source and the old pointer immediately before commit.
@@ -317,6 +382,11 @@ export function applyInstallation(
     readInstalledGeneration(root, plan.pointer);
     replace(root, INSTALL_PATHS.active, Buffer.from(pending.afterActive));
     checkpoint('active');
+    // The journal never outlives pending.json in a run of this CLI.
+    if (collections !== null) {
+      removeCollectionsJournal(root);
+      checkpoint('collections-journal-removed');
+    }
     replace(root, INSTALL_PATHS.pending, null);
     checkpoint('complete');
     return { status: 'installed', generation: plan.pointer.generation, counter: plan.pointer.counter, host: 'pending' };
@@ -372,6 +442,9 @@ export function recoverInstallation(
       committed ? Buffer.from(afterLock) : beforeLock === null ? null : Buffer.from(beforeLock),
     );
     checkpoint('recovery-lock');
+    // The collection record follows the activation: as the operation left it when it committed, as before otherwise.
+    settleKitCollections(root, committed);
+    checkpoint('recovery-collections');
     replace(root, INSTALL_PATHS.pending, null);
     checkpoint('recovery-complete');
     return { status: 'recovered', committed };

@@ -18,6 +18,7 @@ import { readHomeFile, writeHomeFile } from '@inventarch/distribution/ia-home';
 import { inertCommandRoot } from '@inventarch/runtime';
 import { UsageError } from './args.js';
 import { withTrackedLock } from './tracked-lock.js';
+import type { LockOptions } from './tracked-lock.js';
 import { Refusal } from './consumer.js';
 import { quote } from './render.js';
 
@@ -391,19 +392,24 @@ export function trackWorkspace(
   home: string,
   input: Input,
   now: Date = new Date(),
+  lock: LockOptions = {},
 ): { readonly status: 'added' | 'already'; readonly row: TrackedWorkspace } {
-  return withTrackedLock(home, () => {
-    const loaded = load(home);
-    const result = admit(
-      home,
-      loaded.path,
-      loaded.rows.map((entry) => entry.row),
-      input,
-      now,
-    );
-    if (result.status === 'added') save(home, loaded, [...loaded.rows.map((entry) => entry.raw), result.row]);
-    return result;
-  });
+  return withTrackedLock(
+    home,
+    () => {
+      const loaded = load(home);
+      const result = admit(
+        home,
+        loaded.path,
+        loaded.rows.map((entry) => entry.row),
+        input,
+        now,
+      );
+      if (result.status === 'added') save(home, loaded, [...loaded.rows.map((entry) => entry.raw), result.row]);
+      return result;
+    },
+    lock,
+  );
 }
 /**
  * `ia workspaces find --apply`: every root not yet tracked, under its default id, in one write. Each root is checked as

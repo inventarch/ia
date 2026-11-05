@@ -9,6 +9,7 @@
 import { lstatSync, realpathSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { UsageError } from './args.js';
+import { findCommand, ownedOptions } from './commands.js';
 import type { Context, Result } from './consumer.js';
 import { confirm, discoverRoot, iaHomeOf, Refusal } from './consumer.js';
 import { homeSrcRemedy } from './home-remedy.js';
@@ -35,8 +36,11 @@ import {
 
 const ACTIONS = ['list', 'add', 'find', 'remove'] as const;
 type Action = (typeof ACTIONS)[number];
-/** The options only one action reads; any other action refuses them as usage rather than ignoring them. */
-const OWNED: Readonly<Record<string, Action>> = { id: 'add', label: 'add', depth: 'find', apply: 'find' };
+/**
+ * The options only one action reads; any other action refuses them as usage rather than ignoring them. Read from the
+ * command spec's `actions`, the table a fix's flow reads too (fix.ts).
+ */
+export const OWNED = ownedOptions(findCommand('workspaces')!) as Readonly<Record<string, Action>>;
 
 /** A row as `--json` prints it: `label` is null rather than absent, so every row has one shape. */
 const shown = (row: TrackedWorkspace) => ({ id: row.id, root: row.root, label: row.label ?? null, added: row.added });

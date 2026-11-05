@@ -1,6 +1,6 @@
 import { adoptedBindings, readInputs } from '@inventarch/db';
 import type { Check } from './doctor.js';
-import { quote } from './render.js';
+import { iaFix } from './fix.js';
 
 /** A mount is healthy only when the pinned native sources still match, independent of registry availability. */
 export function sourceBindingRows(root: string): readonly Check[] {
@@ -15,6 +15,7 @@ export function sourceBindingRows(root: string): readonly Check[] {
       status: 'ok',
       detail: `${binding.tree}/.ia/src @${binding.placement ?? 'adopted'} (band ${binding.placement === 'open' ? 50 : 90}); pinned ${binding.revision}`,
       remedy: null,
+      fix: null,
     }));
   } catch (error) {
     return [
@@ -24,7 +25,7 @@ export function sourceBindingRows(root: string): readonly Check[] {
         title: 'Source mounts',
         status: 'fail',
         detail: error instanceof Error ? error.message : String(error),
-        remedy: `ia validate --root ${quote(root)}`,
+        ...iaFix(['validate', '--root', root], 'none'),
       },
     ];
   }

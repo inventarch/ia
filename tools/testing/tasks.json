@@ -843,10 +843,14 @@
         "tests/briefing.test.ts",
         "tests/channel.test.ts",
         "tests/cli-version.test.ts",
+        "tests/doctor-extensions.test.ts",
         "tests/doctor-handoff.test.ts",
+        "tests/doctor-kits.test.ts",
+        "tests/fix.test.ts",
         "tests/handoff.test.ts",
         "tests/local-cli-fs-root.test.ts",
         "tests/local-cli.test.ts",
+        "tests/package-manager.test.ts",
         "tests/render.test.ts",
         "tests/tracked-identity.test.ts",
         "tests/tracked.test.ts",
@@ -874,6 +878,14 @@
         {
           "case": "tests/render.test.ts > preserves the command directory when only root separators change",
           "reason": "The fixture asserts Windows separator normalization and command-directory preservation and runs only on win32.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/package-manager.test.ts > names a drive path on Windows",
+          "reason": "The case builds Windows drive paths and compares them case-insensitively as Windows does, so it runs only on win32.",
           "platforms": [
             "linux",
             "macos"
@@ -992,6 +1004,7 @@
       "kind": "vitest",
       "project": "apps/cli",
       "files": [
+        "tests/doctor-fix.test.ts",
         "tests/host-doctor.test.ts"
       ],
       "profile": "installed",
@@ -1113,6 +1126,7 @@
       "kind": "vitest",
       "project": "apps/cli",
       "files": [
+        "tests/distribute-collections.test.ts",
         "tests/registry.test.ts"
       ],
       "profile": "installed",
@@ -1375,16 +1389,20 @@
         "tests/decisions.test.ts",
         "tests/dependent-authoring.test.ts",
         "tests/guard-registration.test.ts",
+        "tests/home-lock.test.ts",
         "tests/host-home.test.ts",
         "tests/host-observe.test.ts",
         "tests/host.test.ts",
         "tests/hosts.test.ts",
         "tests/ia-home.test.ts",
         "tests/implementations.test.ts",
+        "tests/install-collections.test.ts",
         "tests/installation-core.test.ts",
         "tests/installed.test.ts",
         "tests/inventory.test.ts",
         "tests/json-edit.test.ts",
+        "tests/kit-collections.test.ts",
+        "tests/kit-inventory.test.ts",
         "tests/lifecycle-registration.test.ts",
         "tests/minting.test.ts",
         "tests/optional-pack-files.test.ts",

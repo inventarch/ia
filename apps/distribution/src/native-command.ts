@@ -1,4 +1,5 @@
-import { isAbsolute } from 'node:path';
+import { existsSync } from 'node:fs';
+import { isAbsolute, join } from 'node:path';
 import {
   canonicalDistributionJson as json,
   decodeDistributionLock,
@@ -41,6 +42,7 @@ import {
 } from './services.js';
 import { bytes, fail, utf8, workspace } from './files.js';
 import { registryAdd, registryWithdraw } from './registry-build.js';
+import { HomeLockedError, HomeLockLeftError } from './home-lock.js';
 import { refreshUpdates, UPDATE_CHANNELS } from './updates.js';
 import type { UpdateChannel } from './updates.js';
 
@@ -66,11 +68,13 @@ export const NATIVE_HELP = `Native distribution commands:
   gc --root <workspace> [--apply]
   registry add --registry <absolute directory> --archive <absolute file> [--name <text>] [--selection-root <absolute workspace>]
   registry withdraw --registry <absolute directory> --id <provider/name> --version <semver>
-  refresh-updates --home <absolute IA home> --channel checkout|npm|unknown --current <version> [--name <package>] [--checkout <absolute directory>]
+  refresh-updates --home <absolute IA home> --channel checkout|npm|unknown --current <version> [--name <package>] [--checkout <absolute directory>] [--root <absolute workspace> [--force]]
 Catalog entries are {path,withdrawn} or {url,digest,withdrawn}; immutable HTTPS
 locations end in /<sha256>.ia.tgz. Workspace paths stay inside the explicit root;
 registry commands take absolute paths. refresh-updates writes only the IA home's
-update cache; it never fetches git, and asks npm only for the npm channel.
+update cache; it never fetches git, and asks npm only for the npm channel. With
+--root it looks up the workspace's installed kits whose cached entry is missing or a
+day old (every one with --force), each from its own source.
 Plans are reviewable data; apply rechecks all inputs and writes only install state.
 Host activation and public publication are separate operations.
 `;
@@ -122,7 +126,7 @@ function parse(argv: readonly string[]): { command: string; flags: Map<string, s
   shape['recover-guard'] = ['root'];
   shape['registry add'] = ['registry', 'archive', 'name', 'selection-root'];
   shape['registry withdraw'] = ['registry', 'id', 'version'];
-  shape['refresh-updates'] = ['home', 'channel', 'current', 'name', 'checkout'];
+  shape['refresh-updates'] = ['home', 'channel', 'current', 'name', 'checkout', 'root', 'force'];
   if (!Object.hasOwn(shape, command)) fail('INPUT-INVALID', 'Unknown native command');
   const flags = new Map<string, string>();
   for (; at < argv.length; at++) {
@@ -130,7 +134,7 @@ function parse(argv: readonly string[]): { command: string; flags: Map<string, s
       name = flag.slice(2);
     if (!flag.startsWith('--') || !shape[command]!.includes(name) || flags.has(name))
       fail('INPUT-INVALID', 'Unknown/duplicate native argument');
-    const value = ['offline', 'allow-withdrawn', 'apply'].includes(name) ? 'true' : argv[++at];
+    const value = ['offline', 'allow-withdrawn', 'apply', 'force'].includes(name) ? 'true' : argv[++at];
     if (value === undefined || value.startsWith('--')) fail('INPUT-INVALID', `Missing ${flag}`);
     flags.set(name, value);
   }
@@ -177,17 +181,38 @@ export async function runNative(argv: readonly string[]): Promise<{ result: unkn
     if (!(UPDATE_CHANNELS as readonly string[]).includes(channel))
       fail('INPUT-INVALID', `--channel must be one of ${UPDATE_CHANNELS.join(', ')}`);
     if (checkout !== null && !isAbsolute(checkout)) fail('INPUT-INVALID', '--checkout must be absolute');
-    return {
-      result: refreshUpdates({
-        home,
-        channel: channel as UpdateChannel,
-        current: need('current'),
-        name: flags.get('name') ?? null,
-        checkout,
-        now: new Date(),
-      }),
-      exitCode: 0,
-    };
+    const root = flags.get('root'),
+      force = flags.has('force');
+    if (root !== undefined && !isAbsolute(root)) fail('INPUT-INVALID', '--root must be absolute');
+    if (root !== undefined && !existsSync(join(workspace(root), '.ia', 'src')))
+      fail('INPUT-INVALID', '--root must be a workspace');
+    if (force && root === undefined) fail('INPUT-INVALID', '--force needs --root');
+    try {
+      return {
+        result: await refreshUpdates({
+          home,
+          channel: channel as UpdateChannel,
+          current: need('current'),
+          name: flags.get('name') ?? null,
+          checkout,
+          now: new Date(),
+          ...(root === undefined ? {} : { root: workspace(root), force }),
+        }),
+        exitCode: 0,
+      };
+    } catch (error) {
+      // The cache was written, but this refresh's own lock is left: an explicit refresh says so, the detached one exits
+      // quietly as it does for a held lock.
+      if (error instanceof HomeLockLeftError) {
+        if (force)
+          fail('HOME-LOCK-LEFT', `The update cache was refreshed, but its lock could not be removed: ${error.message}`);
+        return { result: { refreshed: true, lockLeft: error.lock }, exitCode: 0 };
+      }
+      if (!(error instanceof HomeLockedError)) throw error;
+      // The detached refresh leaves a cache another refresh is writing alone; an explicit one says which lock held it.
+      if (force) fail('HOME-LOCKED', `The update cache is locked by another refresh (${error.held}): ${error.lock}`);
+      return { result: { skipped: 'locked', lock: error.lock }, exitCode: 0 };
+    }
   }
   const root = workspace(need(command === 'pack' ? 'source-root' : 'root'));
   const read = (path: string, limit: number = DISTRIBUTION_LIMITS.metadata): Buffer =>

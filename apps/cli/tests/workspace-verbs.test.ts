@@ -450,6 +450,7 @@ it('diagnoses runtime, workspace and installation state in five buckets without 
     status: 'info',
     detail: `${home} (not created yet)`,
     remedy: null,
+    fix: null,
   });
   expect(machine.checks.find((check) => check.id === 'plugin-claude')).toEqual({
     id: 'plugin-claude',
@@ -457,6 +458,7 @@ it('diagnoses runtime, workspace and installation state in five buckets without 
     status: 'info',
     detail: 'Not installed',
     remedy: 'ia host claude --user --apply',
+    fix: { program: 'ia', argv: ['host', 'claude', '--user', '--apply'], flow: 'preview-apply', writesTo: 'user' },
   });
   expect(machine.checks.find((check) => check.id === 'workspace-decision')).toEqual({
     id: 'workspace-decision',
@@ -464,6 +466,7 @@ it('diagnoses runtime, workspace and installation state in five buckets without 
     status: 'info',
     detail: 'None recorded',
     remedy: null,
+    fix: null,
   });
   expect(existsSync(home)).toBe(false);
 
