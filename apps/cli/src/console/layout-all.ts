@@ -10,6 +10,7 @@ import { displayFix } from '../fix.js';
 import type { Capabilities, Role, SymbolName } from '../render.js';
 import { statusSymbol } from '../render.js';
 import type { BatchChoice, RepoPlan } from './batch-plan.js';
+import { BATCH_BASE, installLine } from './batch-plan.js';
 import type { Grid } from './grid.js';
 import type { Prompt } from './layout-repo.js';
 import { canvas, MIN_COLUMNS, MIN_ROWS, SIDE_BY_SIDE, wrap } from './layout-repo.js';
@@ -239,6 +240,14 @@ function previewPane(preview: BatchPreview, repos: readonly RepoRow[], width: nu
       { text: `  worktree ${truncateMiddle(plan.worktree, Math.max(1, width - 11), ascii)}`, role: null },
       { text: `  branch   ${plan.branch}`, role: null },
     );
+    // What the confirmation preview says too: a commit afterwards holds what the base and the install bring.
+    for (const [name, value] of [
+      ['base', BATCH_BASE],
+      ['install', installLine(plan.steps)],
+    ] as const)
+      wrap(value, Math.max(1, width - 11), ascii).forEach((text, line) =>
+        out.push({ text: `  ${(line === 0 ? name : '').padEnd(8)} ${text}`, role: null }),
+      );
     // Each command in full, wrapped under its number: the preview is what the confirmation agrees to.
     plan.steps.forEach((step, index) =>
       wrap(`${index + 1}. ${displayFix(step)}`, Math.max(1, width - 11), ascii).forEach((text, line) =>

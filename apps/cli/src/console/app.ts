@@ -249,6 +249,7 @@ export async function runConsole(input: {
   return new Promise<number>((resolve) => {
     let finished = false,
       running = false,
+      opening = false,
       child = false;
     // A confirmation, one-key wait or batch the console itself owns; Ctrl-C cancels it.
     let waiting: { readonly cancel: () => void } | null = null;
@@ -644,7 +645,16 @@ export async function runConsole(input: {
         ui.drilled = { root: outcome.root, row: null };
         ui.view = 'offers';
         ui.selected = 0;
+        // Its view holds the console's own state and offers until this returns: the table stays up, and no key but quit
+        // acts, so nothing can draw or run those under this workspace's name.
+        opening = true;
+        all.message = `Reading ${outcome.root}…`;
+        render();
         await reload();
+        opening = false;
+        all.message = null;
+        if (finished) return;
+        ui.mode = 'repo';
       } else if (outcome.next === 'deferred') {
         const steps = outcome.steps;
         await run(
@@ -807,6 +817,10 @@ export async function runConsole(input: {
     };
     const navigate = (entry: Input): void => {
       if (entry.kind !== 'key' || running || finished) return;
+      if (opening) {
+        if (entry.key === 'quit' || entry.key === 'interrupt') finish(0);
+        return;
+      }
       if (ui.mode === 'all') return navigateAll(entry);
       const key = entry.key;
       const top = ui.view === 'offers';

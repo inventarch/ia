@@ -718,6 +718,8 @@ describe('the batch screen', () => {
     const worktree = ran.plan.repos[0]!.worktree;
     expect(ran.outcome).toEqual({ next: 'return' });
     expect(ran.printed.some((line) => line.startsWith('ok     chore/ia-fix-generation'))).toBe(true);
+    // The base this repository really resolved to, not the preview's rule for finding one.
+    expect(ran.printed.some((line) => line.startsWith('ok ') && line.includes('from origin/main'))).toBe(true);
     // The commit was the first choice; it then leaves the list.
     expect(ran.printed.some((line) => /^ok {5}chore\/ia-fix-generation .* committed [0-9a-f]+$/.test(line))).toBe(true);
     expect(git(worktree, ['log', '-1', '--format=%s'], fx.env).trim()).toBe('chore: Re-lock');

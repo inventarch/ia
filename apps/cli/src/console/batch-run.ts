@@ -86,6 +86,20 @@ export const GIT_LOCAL_ENV: readonly string[] = [
  * would hold the sequential batch with no one answering. A remote that needs a credential then fails for its repository.
  */
 export const NO_PROMPT: Readonly<Record<string, string>> = { GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never' };
+/** What keeps ssh from asking, for a password, a passphrase or a host key, or opening an askpass dialog. */
+export const SSH_NO_PROMPT = 'ssh -o BatchMode=yes';
+/**
+ * `env` for the commands of the repository at `directory`, with ssh that never asks (`SSH_NO_PROMPT`), unless the user
+ * names their own ssh: `GIT_SSH_COMMAND` or `GIT_SSH` in the environment, or `core.sshCommand`, which the variable
+ * would otherwise override and so lose the key or the program they chose. An ssh of their own is theirs; elsewhere than
+ * Windows it still has no terminal to ask on (`defaultRunner`), and everywhere it is bounded by the command's timeout.
+ */
+export function withoutSshPrompt(env: Env, git: Git, directory: string): Env {
+  const names = Object.keys(env).map((name) => (process.platform === 'win32' ? name.toUpperCase() : name));
+  if (names.includes('GIT_SSH_COMMAND') || names.includes('GIT_SSH')) return env;
+  if (git(directory, ['config', '--get', 'core.sshCommand']) !== null) return env;
+  return { ...env, GIT_SSH_COMMAND: SSH_NO_PROMPT };
+}
 /**
  * `env` without git's repository-local variables and with `NO_PROMPT` set; Windows compares names without case, as its
  * environment does.
@@ -105,11 +119,25 @@ export function batchEnv(env: Env, platform: NodeJS.Platform = process.platform)
  */
 export const BATCH_COMMAND_TIMEOUT_MS = 10 * 60_000;
 /**
- * Ends `child` and, on Windows, every process it started (a `.cmd` runs its program as cmd.exe's child). On POSIX only
- * the child itself is killed, so a grandchild (an install's own scripts) can outlive it and keep writing into the
- * worktree while later steps run there, or as the worktree is removed: killing the whole group would
- * need the child spawned `detached`, in a process group of its own, and the terminal's Ctrl-C would then no longer
- * reach the command in flight, which is how a stopped batch ends it (app.ts).
+ * Whether a child gets a process group of its own. Node's `detached` makes it a session as well, with no controlling
+ * terminal: nothing in it can stop on the terminal or take the terminal's Ctrl-C, and opening `/dev/tty` fails, so
+ * whatever would ask there (ssh, git, a hook, a signing key's passphrase) fails at once instead of holding the batch.
+ * Windows has no such groups, and keeps `stopTree`'s taskkill.
+ */
+const OWN_GROUP = process.platform !== 'win32';
+/** Sends `signal` to the child's whole group; one already gone is not an error. */
+function signalGroup(child: ReturnType<typeof spawn>, signal: NodeJS.Signals): void {
+  if (child.pid === undefined) return;
+  try {
+    process.kill(-child.pid, signal);
+  } catch {
+    // Every process of the group has ended.
+  }
+}
+/**
+ * Ends `child` and every process it started that stayed in its group (on Windows, in its tree: a `.cmd` runs its
+ * program as cmd.exe's child), so a grandchild (an install's own scripts) cannot go on writing into the worktree while
+ * later steps run there, or as it is removed. A process that made a session of its own has left the tree, and stays.
  */
 function stopTree(child: ReturnType<typeof spawn>, env: Env): void {
   if (process.platform === 'win32' && child.pid !== undefined) {
@@ -600,7 +628,7 @@ export interface RepoResult {
   readonly pinned?: Pinned | null;
   /** Ctrl-C stopped the batch before this repository finished, or before it started (`not run: batch stopped`). */
   readonly stopped?: boolean;
-  /** The remote-tracking branch the worktree was made from (`origin/main`), which its PR is opened against. */
+  /** The base this repository resolved to (`origin/main`): what its worktree was made from, and its PR's target. */
   readonly base?: string;
 }
 
@@ -753,6 +781,7 @@ async function runRepo(
   say('fetching origin');
   const base = await findBase(top, io.run, env, gitPath, guard);
   if ('why' in base) return refuse(base.why);
+  from = base.base;
   // The offers were read from the local checkout, but the worktree starts from the base: a workspace the base does not
   // hold (added on a local branch, or not pushed) would leave the steps nothing to act on, so it is refused here.
   const inRepo = relative(top, repo.root).split(sep).join('/');
@@ -801,7 +830,6 @@ async function runRepo(
     return done(false, left.length === 0 ? why : `${why}; left behind: ${left.join(', ')}`);
   }
   created = true;
-  from = base.base;
   // What was created is pinned: its real path must be the destination, and it is checked before every later command.
   pinned = pinWorktree(worktree);
   if (pinned === null || fold(pinned.real) !== fold(now))
