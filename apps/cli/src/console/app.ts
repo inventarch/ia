@@ -1,11 +1,19 @@
 /**
- * The console's event loop: bare `ia` on an interactive terminal (consumer CLI contract §1.2). It loads the state, draws
- * the single-repo view, and feeds stdin through one key decoder, arming a short timer while a lone ESC could still
- * start a sequence. Enter runs the selected offer in the normal screen (run.ts) and reloads; `r` reloads; tab shows the
- * diagnostics; `?` the keys; `q`, Escape at the top level, or Ctrl-C quits with 0.
+ * The console's event loop: bare `ia` on an interactive terminal (consumer CLI contract §1.2). It loads the state and
+ * draws one of two views: inside a workspace, that workspace's own view; outside any, the all-workspaces view over the
+ * tracked list, with Find highlighted when the list is empty. Tab switches between them. It feeds stdin through one key
+ * decoder, arming a short timer while a lone ESC could still start a sequence.
  *
- * One offer runs at a time. Once a run starts or the console begins to finish, the rest of an already-decoded read is
- * discarded, and no key navigates while an offer runs. stdin has one owner at a time: the console's decoder, a
+ * In a workspace's view, enter runs the selected offer in the normal screen (run.ts) and reloads; `r` reloads; `?`
+ * shows the keys; `q`, Escape at the top level, or Ctrl-C quits with 0. In the all-workspaces view space selects a row,
+ * `a` selects every row a batchable offer fires on, enter opens a row's own view (Escape returns), `b` moves to the
+ * batch list, where enter shows a batch's preview and enter again runs it in the normal screen (batch-screen.ts), and
+ * `f` opens a folder line to find workspaces in. `b` and `f` are keys only while no line is open: in the folder line
+ * every character is text. The tracked rows load in the background, each repainting as it arrives; quitting aborts
+ * the loads still running.
+ *
+ * One offer or batch runs at a time. Once a run starts or the console begins to finish, the rest of an already-decoded
+ * read is discarded, and no key navigates while a run goes on. stdin has one owner at a time: the console's decoder, a
  * confirmation line or a one-key wait; before a child starts the console pauses stdin and lets go of it, and takes it
  * back only for its own input.
  *
@@ -14,10 +22,14 @@
  * `unhandledRejection` (exit 1), and on `SIGINT`, `SIGTERM`, `SIGHUP` and, on Windows, `SIGBREAK` (exit 128 plus the
  * signal's number: 130, 143, 129, 149). A process `exit` restores it synchronously. These handlers exist only while the
  * console runs. A signal while a step's child runs is the child's to handle; Ctrl-C at the console's own confirmation
- * declines it.
+ * declines it, and during a batch stops it after the step that is running.
  */
+import { statSync } from 'node:fs';
+import { dirname, resolve as resolvePath } from 'node:path';
+import { readIaConfig } from '@inventarch/distribution/updates';
 import type { Extension } from '../consumer.js';
 import { consents } from '../consumer.js';
+import { iaHomeOf } from '../discovery.js';
 import type { DoctorRequest, DoctorView } from '../doctor.js';
 import { collectDoctor } from '../doctor.js';
 import { runnableCopy } from '../handoff.js';
@@ -25,9 +37,17 @@ import type { LocalCli } from '../local-cli.js';
 import type { Env } from '../program.js';
 import type { Capabilities } from '../render.js';
 import { resolveCapabilities } from '../render.js';
+import type { TrackedWorkspace } from '../tracked.js';
+import { findWorkspaces, readTracked, trackedRow, trackWorkspaces } from '../tracked.js';
+import { batchChoices, planBatch, selectNeeding } from './batch-plan.js';
+import type { Runner } from './batch-run.js';
+import { defaultRunner, gitTop } from './batch-run.js';
+import { batchScreen } from './batch-screen.js';
 import { sanitize } from './grid.js';
 import type { Input } from './keys.js';
 import { KeyDecoder } from './keys.js';
+import type { BatchPreview, FoundList } from './layout-all.js';
+import { itemAt, itemCount, layoutAll } from './layout-all.js';
 import type { Prompt, View } from './layout-repo.js';
 import { geometry, layoutRepo, listScroll } from './layout-repo.js';
 import type { SpawnDoctor } from './load.js';
@@ -40,6 +60,8 @@ import type { ConsoleState } from './state.js';
 import type { TerminalIO } from './terminal.js';
 import { Screen } from './terminal.js';
 import { graphemes } from './width.js';
+import type { RepoRow } from './workspaces-state.js';
+import { doctorPool, loadAll, loadingRow, summarize, WORKSPACE_DOCTOR_TIMEOUT_MS } from './workspaces-state.js';
 
 export const ESCAPE_TIMEOUT_MS = 50;
 
@@ -78,6 +100,14 @@ export function resolveRepo(root: string, env: Env, running: string): LocalCli |
   return runnableCopy(root, { env, running });
 }
 
+const isDirectory = (path: string): boolean => {
+  try {
+    return statSync(path).isDirectory();
+  } catch {
+    return false;
+  }
+};
+
 export async function runConsole(input: {
   readonly io: TerminalIO;
   readonly input: NodeJS.ReadableStream;
@@ -93,6 +123,8 @@ export async function runConsole(input: {
   readonly spawnDoctor?: SpawnDoctor;
   readonly resolveRepo?: (root: string) => LocalCli | null;
   readonly hooks?: ProcessHooks;
+  /** The runner a batch's git, package-manager and `ia` commands go through; the real one by default. */
+  readonly runner?: Runner;
 }): Promise<number> {
   const { io, env } = input;
   const hooks = input.hooks ?? PROCESS;
@@ -105,19 +137,22 @@ export async function runConsole(input: {
   const caps: Capabilities = resolveCapabilities({ env, isTTY: true, columns: io.columns() }, {});
   const screen = new Screen(io, caps.color);
   const print = (text: string): void => io.write(`${text}\n`);
+  const collect = input.collect ?? collectDoctor;
+  // Every step and batch run resolves the workspace's copy by the hand-off rule (handoff.ts `runnableCopy`).
+  const repoOf = input.resolveRepo ?? ((root: string) => resolveRepo(root, env, input.packageRoot));
 
   // One controller per load, aborted when the console finishes, so quitting never waits for a reload's doctor run.
   const loads = new Set<AbortController>();
-  const load = async (): Promise<ConsoleState> => {
+  const load = async (cwd: string): Promise<ConsoleState> => {
     const controller = new AbortController();
     loads.add(controller);
     try {
       return await loadState({
-        cwd: input.cwd,
+        cwd,
         env,
         packageRoot: input.packageRoot,
         version: input.version,
-        collect: input.collect ?? collectDoctor,
+        collect,
         extensions,
         signal: controller.signal,
         ...(input.spawnDoctor === undefined ? {} : { spawnDoctor: input.spawnDoctor }),
@@ -127,15 +162,55 @@ export async function runConsole(input: {
     }
   };
 
+  /** The console's own workspace, or the running copy's view outside one. */
+  let home: ConsoleState;
+  /** The workspace view's state: `home`, or a workspace opened from the table. */
   let state: ConsoleState;
   let offers: readonly Offer[];
   const ui: {
+    mode: 'repo' | 'all';
+    /** The workspace opened from the table, and its row (null for a worktree opened after a batch). */
+    drilled: { readonly root: string; readonly row: number | null } | null;
     selected: number;
     scroll: { list: number; pane: number };
     view: View;
     message: string | null;
     prompt: Prompt | null;
-  } = { selected: 0, scroll: { list: 0, pane: 0 }, view: 'offers', message: null, prompt: null };
+  } = {
+    mode: 'repo',
+    drilled: null,
+    selected: 0,
+    scroll: { list: 0, pane: 0 },
+    view: 'offers',
+    message: null,
+    prompt: null,
+  };
+  const all: {
+    rows: RepoRow[];
+    loaded: boolean;
+    controller: AbortController | null;
+    selected: Set<number>;
+    cursor: number;
+    preview: BatchPreview | null;
+    found: FoundList | null;
+    message: string | null;
+  } = {
+    rows: [],
+    loaded: false,
+    controller: null,
+    selected: new Set(),
+    cursor: 0,
+    preview: null,
+    found: null,
+    message: null,
+  };
+  let batchController: AbortController | null = null;
+  // Every workspace doctor the console starts, the table's and an opened workspace's refresh, shares these slots.
+  const pool = doctorPool();
+  /** The opened workspace's refresh in flight, and how many have been asked for: only the newest may land. */
+  let refresh: AbortController | null = null;
+  let refreshes = 0;
+  const homeDir = (): string | null => home?.facts.home ?? iaHomeOf(env) ?? null;
 
   const decoder = new KeyDecoder();
   // stdin's one owner, or null. `epoch` changes whenever ownership changes or a run starts, which ends the dispatch of
@@ -174,7 +249,7 @@ export async function runConsole(input: {
     let finished = false,
       running = false,
       child = false;
-    // A confirmation or one-key wait the console itself owns; Ctrl-C cancels it.
+    // A confirmation, one-key wait or batch the console itself owns; Ctrl-C cancels it.
     let waiting: { readonly cancel: () => void } | null = null;
     let keyHandler: (key: Input) => void = () => {};
     let unsubscribe: (() => void) | null = null,
@@ -187,13 +262,16 @@ export async function runConsole(input: {
       unsubscribeError?.();
       unsubscribeError = null;
     };
-    /** The one teardown: stdin let go, handlers removed, the terminal given back. */
+    /** The one teardown: stdin let go, handlers removed, background loads aborted, the terminal given back. */
     const finish = (code: number, error?: unknown, sync = false): void => {
       if (finished) return;
       finished = true;
       for (const controller of loads) controller.abort();
       release();
       removeHooks();
+      all.controller?.abort();
+      batchController?.abort();
+      refresh?.abort();
       screen.leave(sync);
       waiting?.cancel();
       if (error !== undefined) {
@@ -232,6 +310,7 @@ export async function runConsole(input: {
     // The failed stream is not trusted with the restoration: it is written synchronously, through what survives.
     unsubscribeError = io.onError?.((error) => finish(1, error, true)) ?? null;
 
+    const choices = () => batchChoices(all.rows, all.selected);
     const render = (): void => {
       if (finished) return;
       // Only the console's own screen is drawn on; elsewhere a resize only marks the next frame as a full one.
@@ -241,9 +320,43 @@ export async function runConsole(input: {
       }
       const columns = io.columns(),
         rows = io.rows();
+      if (ui.mode === 'all') {
+        screen.frame(
+          layoutAll({
+            repos: all.rows,
+            summary: summarize(all.rows, { latest: home.facts.latest }, input.version),
+            selected: all.selected,
+            cursor: all.cursor,
+            choices: choices(),
+            preview: all.preview,
+            found: all.found,
+            message: all.message,
+            prompt: ui.prompt,
+            repoTab: home.root !== null,
+            caps,
+            columns,
+            rows,
+          }),
+        );
+        return;
+      }
       const at = geometry(state.areas.length, columns, rows);
       if (at !== null) ui.scroll.list = listScroll(offers, ui.selected, at.list.height, ui.scroll.list);
-      screen.frame(layoutRepo({ state, offers, ...ui, caps, columns, rows }));
+      screen.frame(
+        layoutRepo({
+          state,
+          offers,
+          selected: ui.selected,
+          scroll: ui.scroll,
+          view: ui.view,
+          message: ui.message,
+          prompt: ui.prompt,
+          caps,
+          columns,
+          rows,
+          drilled: ui.drilled !== null,
+        }),
+      );
     };
     const guard = (work: () => void | Promise<void>): void => {
       try {
@@ -275,19 +388,111 @@ export async function runConsole(input: {
     };
     const takeConsole = (): void => own(consoleInput);
 
+    /** A tracked row rebuilt from a freshly loaded state. */
+    const rowFrom = (tracked: TrackedWorkspace, loaded: ConsoleState): RepoRow => ({
+      tracked,
+      state: loaded.repoFailure === null ? 'ready' : 'failed',
+      console: loaded,
+      offers: offersFor(loaded, consoles),
+      failure: loaded.repoFailure,
+    });
+    /** Stops the opened workspace's refresh, if one is in flight: its result could only be stale now. */
+    const dropRefresh = (): void => {
+      refresh?.abort();
+      refresh = null;
+      refreshes += 1;
+    };
     const reload = async (): Promise<void> => {
-      state = await load();
+      const target = ui.drilled;
+      if (target === null) {
+        // Guarded like the opened workspace's refresh below: a newer refresh, or a workspace opened from the table
+        // while this one loads, makes its result stale, and it is dropped rather than drawn over that view.
+        dropRefresh();
+        const mine = refreshes;
+        const loaded = await load(input.cwd);
+        if (finished || mine !== refreshes || ui.drilled !== target) return;
+        home = loaded;
+        state = home;
+      } else {
+        // A workspace opened from the table is read in the shared slots, bounded and cancellable; a newer refresh
+        // cancels this one, and a result is kept only while that same opening is still on screen.
+        dropRefresh();
+        const controller = new AbortController();
+        refresh = controller;
+        const mine = refreshes;
+        const loaded = await pool.run(controller.signal, () =>
+          loadState({
+            cwd: target.root,
+            env,
+            packageRoot: input.packageRoot,
+            version: input.version,
+            collect,
+            extensions,
+            signal: controller.signal,
+            timeoutMs: WORKSPACE_DOCTOR_TIMEOUT_MS,
+            ...(input.spawnDoctor === undefined ? {} : { spawnDoctor: input.spawnDoctor }),
+          }),
+        );
+        if (refresh === controller) refresh = null;
+        if (loaded === null || finished || mine !== refreshes || ui.drilled !== target || controller.signal.aborted)
+          return;
+        state = loaded;
+        const row = target.row === null ? undefined : all.rows[target.row];
+        if (row !== undefined && target.row !== null && row.tracked.root === target.root)
+          all.rows[target.row] = rowFrom(row.tracked, loaded);
+      }
       offers = offersFor(state, consoles);
       ui.selected = Math.min(ui.selected, Math.max(0, offers.length - 1));
     };
-    const prompt = (label: string, accept: (value: string) => string | null): Promise<string | null> =>
+    /** The tracked list, every row loading, then each loaded through its own copy in the background. */
+    const loadRows = (): void => {
+      all.controller?.abort();
+      const controller = new AbortController();
+      all.controller = controller;
+      all.loaded = true;
+      all.preview = null;
+      const dir = homeDir();
+      let tracked: readonly TrackedWorkspace[] = [];
+      try {
+        tracked = dir === null ? [] : readTracked(dir);
+        if (dir === null) all.message = 'The IA home cannot be found, so no workspaces are tracked.';
+      } catch (error) {
+        all.message = error instanceof Error ? error.message : String(error);
+      }
+      const before = all.rows.map((row) => row.tracked.root);
+      all.rows = tracked.map(loadingRow);
+      // A selection survives a reload when the rows are the same.
+      if (before.join('\n') !== all.rows.map((row) => row.tracked.root).join('\n')) all.selected = new Set();
+      all.cursor = Math.min(all.cursor, itemCount(all.rows.length, choices().length) - 1);
+      guard(() =>
+        loadAll({
+          tracked,
+          env,
+          packageRoot: input.packageRoot,
+          version: input.version,
+          signal: controller.signal,
+          collect,
+          extensions,
+          pool,
+          ...(input.spawnDoctor === undefined ? {} : { spawnDoctor: input.spawnDoctor }),
+          onRow: (index, row) => {
+            if (controller.signal.aborted || finished) return;
+            all.rows[index] = row;
+            render();
+          },
+        }),
+      );
+    };
+
+    const prompt = (label: string, accept: (value: string) => string | null, initial = ''): Promise<string | null> =>
       new Promise((settle) => {
         decoder.mode = 'text';
-        ui.prompt = { label, value: '', error: null };
+        ui.prompt = { label, value: initial, error: null };
+        const back = keyHandler;
         const done = (value: string | null): void => {
           decoder.mode = 'keys';
           ui.prompt = null;
-          keyHandler = navigate;
+          keyHandler = back;
           // The rest of the read that ended the prompt is not navigation.
           epoch += 1;
           render();
@@ -320,12 +525,39 @@ export async function runConsole(input: {
         waiting = { cancel: () => end(cancelled) };
         own(reader(end));
       });
-    const run = async (offer: Offer): Promise<void> => {
+    /** One line typed in the normal screen after `question`; null when cancelled. */
+    const readLine = async (question: string): Promise<string | null> => {
+      if (finished) return null;
+      io.write(question);
+      const answer = await wait<string | null>((settle) => {
+        let buffer = '';
+        return (chunk) => {
+          buffer += chunk;
+          const end = buffer.search(/\r?\n|\r/);
+          if (end !== -1) settle(buffer.slice(0, end));
+        };
+      }, null);
+      if (answer === null) io.write('\n');
+      return answer;
+    };
+    const waitKey = async (): Promise<void> => {
+      if (finished) return;
+      screen.raw(true);
+      await wait<void>((settle) => () => settle(), undefined);
+    };
+    const backToConsole = (): void => {
+      if (finished) return;
+      screen.enter();
+      takeConsole();
+      screen.invalidate();
+    };
+
+    const run = async (offer: Offer, on: ConsoleState = state): Promise<void> => {
       running = true;
       // Keys already decoded from the read that started this run are dropped.
       epoch += 1;
       try {
-        const result = await runOffer(offer, state, {
+        const result = await runOffer(offer, on, {
           screen: {
             leave: () => {
               release();
@@ -348,28 +580,11 @@ export async function runConsole(input: {
               child = false;
             }
           },
-          ask: async (question) => {
-            if (finished) return false;
-            io.write(`${question} [y/N] `);
-            const answer = await wait<string | null>((settle) => {
-              let buffer = '';
-              return (chunk) => {
-                buffer += chunk;
-                const end = buffer.search(/\r?\n|\r/);
-                if (end !== -1) settle(buffer.slice(0, end));
-              };
-            }, null);
-            if (answer === null) io.write('\n');
-            return consents(answer);
-          },
+          ask: async (question) => consents(await readLine(`${question} [y/N] `)),
           prompt,
-          waitKey: async () => {
-            if (finished) return;
-            screen.raw(true);
-            await wait<void>((settle) => () => settle(), undefined);
-          },
+          waitKey,
           print,
-          resolveRepo: input.resolveRepo ?? ((root) => resolveRepo(root, env, input.packageRoot)),
+          resolveRepo: repoOf,
           env,
           cwd: input.cwd,
         });
@@ -382,13 +597,233 @@ export async function runConsole(input: {
       await reload();
       render();
     };
+
+    /** The preview's batch, in the normal screen; then whatever its "next" choice leads to. */
+    const runBatchFlow = async (preview: BatchPreview): Promise<void> => {
+      running = true;
+      epoch += 1;
+      let controller = new AbortController();
+      batchController = controller;
+      let outcome: Awaited<ReturnType<typeof batchScreen>> = { next: 'return' };
+      try {
+        release();
+        screen.leave();
+        outcome = await batchScreen(preview, home.running, {
+          print: (text) => print(sanitize(text)),
+          line: readLine,
+          run: (file, args, options) => {
+            // Ctrl-C while a batch command runs stops the batch: the terminal's signal reaches that command too (it shares
+            // the console's process group, or its console on Windows), which acts on it and usually ends, and nothing
+            // further starts.
+            waiting = { cancel: () => controller.abort() };
+            return (input.runner ?? defaultRunner(env))(file, args, options).finally(() => {
+              waiting = null;
+            });
+          },
+          resolveRepo: repoOf,
+          env,
+          signal: controller.signal,
+          // Each choice after the run gets its own controller, so a Ctrl-C during the run leaves them choosable.
+          nextSignal: () => {
+            controller = new AbortController();
+            batchController = controller;
+            return controller.signal;
+          },
+        });
+        print('Press any key to return to the console.');
+        await waitKey();
+      } finally {
+        running = false;
+        batchController = null;
+      }
+      backToConsole();
+      all.preview = null;
+      if (outcome.next === 'open') {
+        ui.mode = 'repo';
+        dropRefresh();
+        ui.drilled = { root: outcome.root, row: null };
+        ui.view = 'offers';
+        ui.selected = 0;
+        await reload();
+      } else if (outcome.next === 'deferred') {
+        const steps = outcome.steps;
+        await run(
+          {
+            id: 'deferred',
+            answers: [],
+            title: 'Steps left out of the batch',
+            explain: '',
+            steps,
+            changes: [],
+            group: 'more',
+            area: null,
+            writesTo: [...new Set(steps.map((step) => step.writesTo))],
+            batchable: false,
+          },
+          home,
+        );
+      }
+      if (finished) return;
+      loadRows();
+      render();
+    };
+
+    const openFind = (): void =>
+      guard(async () => {
+        const accept = (value: string): string | null =>
+          value.trim() === ''
+            ? 'Enter a folder.'
+            : isDirectory(resolvePath(input.cwd, value.trim()))
+              ? null
+              : 'Not a folder.';
+        const folder = await prompt('Folder', accept, dirname(input.cwd));
+        if (folder === null || finished) return;
+        const dir = homeDir();
+        const absolute = resolvePath(input.cwd, folder.trim());
+        try {
+          const roots = findWorkspaces(absolute, { iaHome: dir ?? undefined });
+          const tracked = dir === null ? [] : readTracked(dir);
+          const known = new Set(
+            roots.flatMap((root, index) => (trackedRow(tracked, root) === undefined ? [] : [index])),
+          );
+          all.found = {
+            folder: absolute,
+            roots,
+            tracked: known,
+            selected: new Set(roots.flatMap((_, index) => (known.has(index) ? [] : [index]))),
+            cursor: 0,
+          };
+          all.message = roots.length === 0 ? `No workspaces under ${absolute}.` : null;
+        } catch (error) {
+          all.message = error instanceof Error ? error.message : String(error);
+        }
+        render();
+      });
+    const trackFound = (found: FoundList): void => {
+      const dir = homeDir();
+      const roots = found.roots.filter((_, index) => found.selected.has(index));
+      all.found = null;
+      if (dir === null) all.message = 'The IA home cannot be found.';
+      else
+        try {
+          const added = trackWorkspaces(dir, roots);
+          all.message = `Tracked ${added.length} ${added.length === 1 ? 'workspace' : 'workspaces'}.`;
+        } catch (error) {
+          all.message = error instanceof Error ? error.message : String(error);
+        }
+      loadRows();
+    };
+
+    const toAll = (): void => {
+      ui.mode = 'all';
+      if (ui.drilled !== null) dropRefresh();
+      ui.drilled = null;
+      state = home;
+      offers = offersFor(home, consoles);
+      if (!all.loaded) loadRows();
+    };
+    const navigateAll = (key: Input & { kind: 'key' }): void => {
+      const found = all.found;
+      const count = itemCount(all.rows.length, choices().length);
+      const name = key.key;
+      if (name === 'quit' || name === 'interrupt') return finish(0);
+      if (name === 'escape') {
+        if (found !== null) all.found = null;
+        else if (all.preview !== null) all.preview = null;
+        else return finish(0);
+      } else if (found !== null) {
+        if (name === 'up' || name === 'down')
+          all.found = {
+            ...found,
+            cursor: Math.max(0, Math.min(found.roots.length - 1, found.cursor + (name === 'up' ? -1 : 1))),
+          };
+        else if (name === 'space' && !found.tracked.has(found.cursor) && found.roots.length > 0) {
+          const selected = new Set(found.selected);
+          if (selected.has(found.cursor)) selected.delete(found.cursor);
+          else selected.add(found.cursor);
+          all.found = { ...found, selected };
+        } else if (name === 'enter') return trackFound(found);
+      } else if (name === 'tab') {
+        if (home.root !== null) {
+          ui.mode = 'repo';
+          ui.view = 'offers';
+        }
+      } else if (name === 'up' || name === 'down') {
+        all.cursor = Math.max(0, Math.min(count - 1, all.cursor + (name === 'up' ? -1 : 1)));
+        all.preview = null;
+      } else if (name === 'space') {
+        const item = itemAt(all.cursor, all.rows.length, choices().length);
+        if (item.kind === 'repo') {
+          if (all.selected.has(item.index)) all.selected.delete(item.index);
+          else all.selected.add(item.index);
+          all.preview = null;
+        }
+      } else if (name === 'select-all') {
+        all.selected = new Set(selectNeeding(all.rows));
+        all.preview = null;
+      } else if (name === 'batch') all.cursor = all.rows.length;
+      else if (name === 'find') return openFind();
+      else if (name === 'refresh') loadRows();
+      else if (name === 'enter') {
+        const listed = choices();
+        const item = itemAt(all.cursor, all.rows.length, listed.length);
+        all.message = null;
+        if (item.kind === 'find') return openFind();
+        if (item.kind === 'repo') {
+          const row = all.rows[item.index]!;
+          if (row.console === null)
+            all.message = row.state === 'missing' ? `${row.tracked.id} is missing.` : 'Still reading this workspace.';
+          else {
+            ui.mode = 'repo';
+            dropRefresh();
+            ui.drilled = { root: row.tracked.root, row: item.index };
+            ui.view = 'offers';
+            ui.selected = 0;
+            state = row.console;
+            offers = row.offers;
+          }
+        } else {
+          const choice = listed[item.index]!;
+          if (all.preview !== null && all.preview.choice.offerId === choice.offerId) {
+            const preview = all.preview;
+            return guard(() => runBatchFlow(preview));
+          }
+          const dir = homeDir();
+          if (dir === null) all.message = 'The IA home cannot be found.';
+          else {
+            const root = readIaConfig(dir)?.worktreeRoot;
+            const plan = planBatch(
+              choice.offerId,
+              all.rows,
+              all.selected,
+              { iaHome: dir, ...(root === undefined ? {} : { worktreeRoot: root }) },
+              { top: (path) => gitTop(path, env) },
+            );
+            all.preview = { choice, ...plan };
+          }
+        }
+      }
+      render();
+    };
     const navigate = (entry: Input): void => {
       if (entry.kind !== 'key' || running || finished) return;
+      if (ui.mode === 'all') return navigateAll(entry);
       const key = entry.key;
-      if (key === 'quit' || key === 'interrupt' || (key === 'escape' && ui.view === 'offers')) return finish(0);
-      if (key === 'escape' || (key === 'tab' && ui.view !== 'offers')) ui.view = 'offers';
-      else if (key === 'tab') ui.view = 'diagnostics';
-      else if (key === 'help') ui.view = 'help';
+      const top = ui.view === 'offers';
+      if (ui.drilled !== null && top && (key === 'quit' || key === 'escape')) {
+        dropRefresh();
+        ui.mode = 'all';
+        ui.drilled = null;
+        state = home;
+        offers = offersFor(home, consoles);
+        render();
+        return;
+      }
+      if (key === 'quit' || key === 'interrupt' || (key === 'escape' && top)) return finish(0);
+      if (key === 'escape' || (key === 'tab' && !top)) ui.view = 'offers';
+      else if (key === 'tab') {
+        toAll();
+      } else if (key === 'help') ui.view = 'help';
       else if (key === 'up' || key === 'down') {
         const step = key === 'up' ? -1 : 1;
         if (ui.view === 'offers') {
@@ -403,7 +838,7 @@ export async function runConsole(input: {
           await reload();
           render();
         });
-      } else if (key === 'enter' && ui.view === 'offers') {
+      } else if (key === 'enter' && top) {
         const offer = offers[ui.selected];
         if (offer === undefined) return;
         ui.message = null;
@@ -411,7 +846,7 @@ export async function runConsole(input: {
         else if (offer.view === 'diagnostics') ui.view = 'diagnostics';
         else return guard(() => run(offer));
       }
-      // select-all, batch and find belong to the all-workspaces view, which this view does not have.
+      // select-all, batch and find belong to the all-workspaces view.
       render();
     };
     keyHandler = navigate;
@@ -419,6 +854,8 @@ export async function runConsole(input: {
     guard(async () => {
       await reload();
       if (finished) return;
+      // Outside any workspace the console opens on every tracked one; with none tracked, Find is the first item.
+      if (home.root === null) toAll();
       screen.enter();
       unsubscribe = io.onResize(() => guard(render));
       if (typeof (input.input as NodeJS.ReadStream).setEncoding === 'function')
