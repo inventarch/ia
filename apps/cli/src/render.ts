@@ -7,6 +7,7 @@
 import { inertCommandRoot } from '@inventarch/runtime';
 import { parseRegistryBase } from '@inventarch/distribution/registry';
 import { isAbsolute, relative, resolve } from 'node:path';
+import { stringWidth } from './console/width.js';
 
 export type Role = 'bold' | 'dim' | 'red' | 'yellow' | 'green' | 'cyan';
 export type SymbolName =
@@ -18,7 +19,9 @@ export type SymbolName =
   | 'step'
   | 'added'
   | 'removed'
-  | 'updated';
+  | 'updated'
+  | 'setup'
+  | 'unreported';
 export type Depth = 0 | 1 | 2;
 
 export interface Terminal {
@@ -103,6 +106,9 @@ const SYMBOLS: Readonly<Record<SymbolName, SymbolDefinition>> = {
   added: { unicode: '+', ascii: '+', role: 'green' },
   removed: { unicode: '-', ascii: '-', role: null },
   updated: { unicode: '~', ascii: '~', role: null },
+  // The console's area states: not set up, and a row a copy does not report.
+  setup: { unicode: '○', ascii: 'o', role: null },
+  unreported: { unicode: '—', ascii: '-', role: 'dim' },
 };
 /** Every symbol is one UTF-16 unit per display column, so length is its display width; no emoji is admitted. */
 export function statusSymbol(name: SymbolName, ascii: boolean): StatusSymbol {
@@ -158,7 +164,7 @@ export function remedyWords(text: string, role: Role | null = null, gap = 1): re
 }
 
 /**
- * Words wrap at the effective width; a token is never split, so an over-wide identifier overruns its line whole.
+ * Words wrap at the effective width, measured in display columns (console/width.ts); a token is never split, so an over-wide identifier overruns its line whole.
  * `firstColumn` differs from `column` only where a value starts past its label and then hangs back at the entry's
  * content column.
  */
@@ -181,7 +187,10 @@ export function wrapTokens(
       continue;
     }
     const gap = ' '.repeat(token.gap);
-    if ((lines.length === 0 ? firstColumn : column) + plain.length + gap.length + token.text.length <= caps.width) {
+    if (
+      (lines.length === 0 ? firstColumn : column) + stringWidth(plain) + gap.length + stringWidth(token.text) <=
+      caps.width
+    ) {
       plain += gap + token.text;
       styled += gap + text;
       continue;

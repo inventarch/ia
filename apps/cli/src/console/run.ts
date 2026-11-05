@@ -1,0 +1,250 @@
+/**
+ * Running an offer (consumer CLI contract §1.2): in the normal screen, with inherited stdio, so the user sees the real output. Each
+ * step follows its flow: a preview-apply form previews, asks, then applies with `--apply --yes`; a preview-flag form
+ * runs with `--preview`, asks, then as given; a confirm step is shown, asked and run in its confirmed form (a required
+ * `--apply` gains `--yes`, so the child never asks again); an immediate step runs straight away. A decline, a non-zero
+ * exit, a program that cannot start, or a step that needs the repo copy when none resolves stops the recipe.
+ *
+ * Which copy runs a step is decided at that step, from the disk (`resolveRepo`), never from the state's snapshot: a
+ * step that installs or replaces the workspace's copy changes which entry the next step runs. An `ia` step is spawned
+ * as `process.execPath <entry> …argv` with `IA_NO_HANDOFF=1`; an external one by the absolute path `findProgram` finds
+ * on qualified PATH entries (a Windows `.cmd` through cmd.exe named by its path), or as given when it is absolute.
+ */
+import { spawn as spawnChild } from 'node:child_process';
+import { isAbsolute, join } from 'node:path';
+import type { Fix } from '../fix.js';
+import { confirmedArgv, previewArgv } from '../fix.js';
+import { NO_HANDOFF } from '../handoff.js';
+import type { LocalCli } from '../local-cli.js';
+import type { Env } from '../program.js';
+import { findProgram, programEnv, windowsShell, windowsShellArgs } from '../program.js';
+import type { Offer, Step } from './offers.js';
+import { runsOn } from './offers.js';
+import type { ConsoleState } from './state.js';
+import { sanitize } from './grid.js';
+import type { Screen } from './terminal.js';
+
+export interface SpawnOptions {
+  readonly cwd: string;
+  readonly env: Env;
+  readonly windowsVerbatimArguments?: boolean;
+}
+/** Starts a program with inherited stdio and settles with its exit code, or null when it ended on a signal. */
+export interface Spawner {
+  (file: string, args: readonly string[], options: SpawnOptions): Promise<number | null>;
+}
+export interface RunIO {
+  readonly screen: Pick<Screen, 'enter' | 'leave' | 'invalidate'>;
+  readonly spawn: Spawner;
+  /** A yes/no question in the normal screen; only an explicit yes consents. */
+  readonly ask: (question: string) => Promise<boolean>;
+  /** One line of input in the console; null when cancelled. */
+  readonly prompt: (label: string, accept: (value: string) => string | null) => Promise<string | null>;
+  readonly waitKey: () => Promise<void>;
+  readonly print: (text: string) => void;
+  /** The workspace's own copy as the disk has it now, by hand-off's rule (handoff.ts `runnableCopy`), or null. */
+  readonly resolveRepo: (root: string) => LocalCli | null;
+  readonly env: Env;
+  /** The working directory outside a workspace. */
+  readonly cwd: string;
+}
+
+/** The running copy's entry, which never hands off. */
+export const runningEntry = (packageRoot: string): string => join(packageRoot, 'dist', 'main.js');
+
+/**
+ * One argument on the line cmd.exe runs a `.cmd` program with, which forwards it (`%*`) to a program that splits its
+ * line by the Windows argv rules (CommandLineToArgvW and the C runtime). Plain text passes as typed. Anything else is
+ * put in quotes, with a run of backslashes before the closing quote doubled, so the program reads back exactly this
+ * argument; and cmd.exe, which sees it inside quotes, leaves a caret, an ampersand, a pipe, a redirection or a bang
+ * alone. Null, refused, for `%`, which cmd.exe expands even inside quotes; for any double quote, since cmd.exe knows
+ * no escape for one: every quote toggles its quoting for the rest of the line, so a quote in one argument would leave
+ * a later argument's `&` live; and for a control character, since cmd.exe ends the command at a line break.
+ */
+export function cmdArgument(value: string): string | null {
+  if (/[%"\x00-\x1f]/.test(value)) return null;
+  if (/^[\w\-.:\\/@+~]+$/.test(value)) return value;
+  const trailing = /\\*$/.exec(value)![0].length;
+  return `"${value}${'\\'.repeat(trailing)}"`;
+}
+
+/**
+ * One argument, or one piece of text, as the normal screen shows it: as written, so a path reads as typed, unless it
+ * holds a control character (C0, DEL or C1) or a lone surrogate, starts with a double quote or is empty; then as a
+ * JSON string literal, with DEL and C1 escaped too (a lone surrogate JSON escapes itself). So no control character
+ * reaches the terminal, no character is lost to UTF-8 output, and what is shown reads back exactly: `JSON.parse` when
+ * it starts with a quote, as written otherwise.
+ */
+export function shownArgument(text: string): string {
+  if (text !== '' && !text.startsWith('"') && !/[\x00-\x1f\x7f-\x9f]|\p{Cs}/u.test(text)) return text;
+  return JSON.stringify(text).replace(
+    /[\x7f-\x9f]/g,
+    (character) => `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`,
+  );
+}
+/** A command as a confirmation shows it: each argument by `shownArgument`. */
+function shownArgv(program: Fix['program'], argv: readonly string[]): string {
+  const parts = argv.map(shownArgument);
+  return (program === 'ia' ? ['ia', ...parts] : parts).join(' ');
+}
+
+/** The default spawner: inherited stdio, and this process deaf to the terminal's signals while the child decides. */
+export const spawnInherited: Spawner = (file, args, options) =>
+  new Promise((settle, reject) => {
+    const ignore = (): void => {};
+    const signals: NodeJS.Signals[] = [
+      'SIGINT',
+      'SIGTERM',
+      'SIGHUP',
+      ...(process.platform === 'win32' ? (['SIGBREAK'] as const) : []),
+    ];
+    for (const signal of signals) process.on(signal, ignore);
+    const done = (): void => {
+      for (const signal of signals) process.off(signal, ignore);
+    };
+    const child = spawnChild(file, [...args], {
+      cwd: options.cwd,
+      env: options.env as NodeJS.ProcessEnv,
+      stdio: 'inherit',
+      windowsVerbatimArguments: options.windowsVerbatimArguments === true,
+    });
+    child.once('error', (error) => {
+      done();
+      reject(error);
+    });
+    child.once('exit', (code) => {
+      done();
+      settle(code);
+    });
+  });
+
+interface Target {
+  readonly file: string;
+  readonly args: readonly string[];
+  readonly options: SpawnOptions;
+  readonly copy: 'running' | 'repo' | 'external';
+}
+/** How one form of a step is started, or why it cannot be. */
+function target(
+  step: Fix,
+  argv: readonly string[],
+  state: ConsoleState,
+  repo: LocalCli | null,
+  io: RunIO,
+): Target | string {
+  const cwd = state.root ?? io.cwd;
+  if (step.program === 'ia') {
+    const on = runsOn({ ...step, argv }, { running: state.running, repo });
+    const entry = on === 'repo' && repo !== null ? repo.entry : runningEntry(state.running.packageRoot);
+    return {
+      file: process.execPath,
+      args: [entry, ...argv],
+      options: { cwd, env: { ...io.env, [NO_HANDOFF]: '1' } },
+      copy: on === 'repo' ? 'repo' : 'running',
+    };
+  }
+  const [name, ...rest] = argv;
+  if (name === undefined) return 'the step names no program';
+  const env = programEnv(io.env);
+  if (isAbsolute(name)) return { file: name, args: rest, options: { cwd, env }, copy: 'external' };
+  const program = findProgram(name, io.env, 'program');
+  if (program !== null) return { file: program, args: rest, options: { cwd, env }, copy: 'external' };
+  const script = findProgram(name, io.env, 'script');
+  if (script === null) return `${name} was not found on a qualified PATH entry`;
+  const quoted = rest.map(cmdArgument);
+  if (quoted.some((value) => value === null)) return `cmd.exe cannot pass an argument of ${name} unchanged`;
+  return {
+    file: windowsShell(io.env),
+    args: windowsShellArgs(script, quoted as string[]),
+    options: { cwd, env, windowsVerbatimArguments: true },
+    copy: 'external',
+  };
+}
+const shown = (step: Fix, argv: readonly string[]): string => shownArgv(step.program, argv);
+
+export async function runOffer(
+  offer: Offer,
+  state: ConsoleState,
+  io: RunIO,
+): Promise<{ readonly completed: number; readonly exitCode: number | null }> {
+  if (offer.disabled !== undefined) return { completed: 0, exitCode: null };
+  // What the normal screen shows goes through `shownArgument` and `shownArgv`; the argv that runs is untouched. The grid's
+  // replacement stays as a last net for anything that was not.
+  const say = (text: string): void => io.print(sanitize(text));
+  const confirm = (question: string): Promise<boolean> => io.ask(sanitize(question));
+  let steps: readonly Step[] = offer.steps;
+  if (offer.input !== undefined) {
+    const value = await io.prompt(offer.input.label, offer.input.accept);
+    if (value === null) return { completed: 0, exitCode: null };
+    steps = offer.input.build(value);
+  }
+  let left = false;
+  const leave = (): void => {
+    if (left) return;
+    io.screen.leave();
+    left = true;
+  };
+  let completed = 0,
+    exitCode: number | null = null,
+    outcome = '';
+  for (const [index, step] of steps.entries()) {
+    const label = steps.length > 1 ? `Step ${index + 1} of ${steps.length}: ` : '';
+    // The target is resolved now, from the disk: an earlier step may have installed or replaced the repo copy.
+    const repo = state.root === null ? null : io.resolveRepo(state.root);
+    leave();
+    if (step.requires === 'repo-copy' && repo === null) {
+      outcome = `Stopped at step ${index + 1}: the repo copy is not installed.`;
+      break;
+    }
+    const run = async (argv: readonly string[]): Promise<{ code: number | null; copy: Target['copy'] } | string> => {
+      const started = target(step, argv, state, repo, io);
+      if (typeof started === 'string') return started;
+      say(`$ ${shown(step, argv)}`);
+      try {
+        return { code: await io.spawn(started.file, started.args, started.options), copy: started.copy };
+      } catch (error) {
+        // A program that cannot start (ENOENT, EACCES) is a failed step, not the console's end.
+        return `could not start: ${error instanceof Error ? error.message : String(error)}`;
+      }
+    };
+    let result: Awaited<ReturnType<typeof run>> | null = null;
+    const preview = previewArgv(step);
+    if (step.flow === 'immediate') result = await run(step.argv);
+    else {
+      say(`${label}${shownArgument(offer.title)}`);
+      if (preview !== null) {
+        const previewed = await run(preview);
+        if (typeof previewed === 'string' || previewed.code !== 0) result = previewed;
+      }
+      if (result === null) {
+        const final = step.flow === 'preview-flag' ? step.argv : confirmedArgv(step);
+        if (!(await confirm(`${preview === null ? 'Run' : 'Apply'}: ${shown(step, final)}?`))) {
+          outcome = `Declined; ${index === 0 ? 'nothing ran' : `stopped before step ${index + 1}`}.`;
+          break;
+        }
+        result = await run(final);
+      }
+    }
+    if (typeof result === 'string') {
+      outcome = `Stopped at step ${index + 1}: ${shownArgument(result)}.`;
+      break;
+    }
+    if (result.code !== 0) {
+      exitCode = result.code;
+      const how = result.code === null ? 'ended by a signal' : `exited ${result.code}`;
+      outcome =
+        result.code === 2 && result.copy === 'repo'
+          ? `Stopped at step ${index + 1}: this workspace's ia ${shownArgument(repo?.version ?? '')} refused the command as usage (exit 2); it may be older than the command this console runs.`
+          : `Stopped at step ${index + 1}: ${shown(step, step.argv)} ${how}.`;
+      break;
+    }
+    completed += 1;
+  }
+  if (!left) return { completed, exitCode };
+  say(outcome === '' ? (steps.length > 1 ? `Done: ${completed} steps.` : 'Done.') : outcome);
+  say('Press any key to return to the console.');
+  await io.waitKey();
+  io.screen.enter();
+  io.screen.invalidate();
+  return { completed, exitCode };
+}

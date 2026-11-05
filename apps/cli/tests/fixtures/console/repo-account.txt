@@ -1,0 +1,4 @@
+ CLI     ▲ running 3.5.1; this w… Records     ✔ 257 records · 2 w… Kits    ○ no kits installed
+ Updates ▲ ia 3.5.2 is available… Lock        ✔ None installed     Host    ○ No host registered
+ Plugin  ▲ ia 3.5.0 rendered the… Marketplace ✔ inventarch · ia ·… Account — not reported
+──────────────────────────────────────────┬─────────────────────────────────────────────────────────

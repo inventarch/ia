@@ -1,0 +1,10 @@
+# emoji-data excerpt for the generator test (Unicode 16.0.0 format).
+0023          ; Emoji                # E0.0   [1] (#)       hash sign
+002A          ; Emoji                # E0.0   [1] (*)       asterisk
+0030..0039    ; Emoji                # E0.0  [10] (0..9)    digit zero..digit nine
+2764          ; Emoji                # E0.6   [1] heart
+1F680         ; Emoji                # E0.6   [1] rocket
+231A..231B    ; Emoji_Presentation   # E0.6   [2] watch..hourglass done
+1F680         ; Emoji_Presentation   # E0.6   [1] rocket
+1F3FB..1F3FF  ; Emoji_Modifier       # E1.0   [5] light skin tone..dark skin tone
+1F3FB..1F3FF  ; Emoji_Component      # E1.0   [5] light skin tone..dark skin tone

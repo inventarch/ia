@@ -1,0 +1,15 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "Bare ia opens a console",
+  "summary": "On an interactive terminal, bare ia now opens a full-screen console for the workspace: its health by area from ia doctor's rows (the running copy's user-state rows, every other row from the workspace's own installed ia), and the offers that fix or set it up, each showing the commands it runs and what they change. Enter runs an offer in the normal screen, previewing first where the command can and asking before it applies; the upgrade recipe pins a newer @inventarch/cli and runs the next steps on the copy it installed. In a pipe, under redirection or with CI set, bare ia prints the same help as ia --help. The console adds no dependency; text is measured by grapheme cluster with Unicode 16.0.0 widths, and the package now ships THIRD_PARTY_NOTICES.txt with the Unicode license for the derived width table.",
+  "packages": [
+    "@inventarch/cli"
+  ],
+  "paths": [
+    "README.md",
+    "apps/cli/",
+    "docs/",
+    "tools/"
+  ]
+}
