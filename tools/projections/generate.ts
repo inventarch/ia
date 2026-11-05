@@ -90,9 +90,9 @@ function staleSteward(bytes: Buffer, path: string): boolean {
   return LEGACY_STEWARDS[path]?.includes(createHash('sha256').update(bytes).digest('hex')) ?? false;
 }
 /**
- * The removal of a steward-guard registration this checkout owns, or null when it owns none. This repository has no
- * `.ia/release.json`, so `ia host` refuses here and only a hand-made or 1.x registration can exist; it is retired
- * through apps/distribution's guard registration, as `applyHostProjection` retires a consumer's.
+ * The removal of a steward-guard registration this checkout owns, or null when it owns none. A registration here is a
+ * hand-made or 1.x one; it is retired through apps/distribution's guard registration, as `applyHostProjection` retires
+ * a consumer's.
  */
 function retirement(root: string): GuardPlan | null {
   try {

@@ -170,6 +170,21 @@
       "types": "./dist/updates.d.ts",
       "default": "./dist/updates.js"
     },
+    "./kit-collections": {
+      "development": "./src/kit-collections.ts",
+      "types": "./dist/kit-collections.d.ts",
+      "default": "./dist/kit-collections.js"
+    },
+    "./kit-inventory": {
+      "development": "./src/kit-inventory.ts",
+      "types": "./dist/kit-inventory.d.ts",
+      "default": "./dist/kit-inventory.js"
+    },
+    "./home-lock": {
+      "development": "./src/home-lock.ts",
+      "types": "./dist/home-lock.d.ts",
+      "default": "./dist/home-lock.js"
+    },
     "./services": {
       "development": "./src/services.ts",
       "types": "./dist/services.d.ts",
@@ -224,6 +239,10 @@
       "types": "./dist/guard-registration.d.ts",
       "default": "./dist/guard-registration.js"
     },
+    "./internal/home-lock": {
+      "types": "./dist/home-lock.d.ts",
+      "default": "./dist/home-lock.js"
+    },
     "./internal/host-home": {
       "types": "./dist/host-home.d.ts",
       "default": "./dist/host-home.js"
@@ -267,6 +286,14 @@
     "./internal/json-edit": {
       "types": "./dist/json-edit.d.ts",
       "default": "./dist/json-edit.js"
+    },
+    "./internal/kit-collections": {
+      "types": "./dist/kit-collections.d.ts",
+      "default": "./dist/kit-collections.js"
+    },
+    "./internal/kit-inventory": {
+      "types": "./dist/kit-inventory.d.ts",
+      "default": "./dist/kit-inventory.js"
     },
     "./internal/lifecycle-registration": {
       "types": "./dist/lifecycle-registration.d.ts",
@@ -464,6 +491,18 @@
         "types": "./dist/updates.d.ts",
         "default": "./dist/updates.js"
       },
+      "./kit-collections": {
+        "types": "./dist/kit-collections.d.ts",
+        "default": "./dist/kit-collections.js"
+      },
+      "./kit-inventory": {
+        "types": "./dist/kit-inventory.d.ts",
+        "default": "./dist/kit-inventory.js"
+      },
+      "./home-lock": {
+        "types": "./dist/home-lock.d.ts",
+        "default": "./dist/home-lock.js"
+      },
       "./services": {
         "types": "./dist/services.d.ts",
         "default": "./dist/services.js"
@@ -516,6 +555,10 @@
         "types": "./dist/guard-registration.d.ts",
         "default": "./dist/guard-registration.js"
       },
+      "./internal/home-lock": {
+        "types": "./dist/home-lock.d.ts",
+        "default": "./dist/home-lock.js"
+      },
       "./internal/host-home": {
         "types": "./dist/host-home.d.ts",
         "default": "./dist/host-home.js"
@@ -559,6 +602,14 @@
       "./internal/json-edit": {
         "types": "./dist/json-edit.d.ts",
         "default": "./dist/json-edit.js"
+      },
+      "./internal/kit-collections": {
+        "types": "./dist/kit-collections.d.ts",
+        "default": "./dist/kit-collections.js"
+      },
+      "./internal/kit-inventory": {
+        "types": "./dist/kit-inventory.d.ts",
+        "default": "./dist/kit-inventory.js"
       },
       "./internal/lifecycle-registration": {
         "types": "./dist/lifecycle-registration.d.ts",

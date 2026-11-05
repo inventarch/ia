@@ -70,6 +70,7 @@ import {
   renderProjectionFor,
 } from './host-projection.js';
 import { codeOf } from './session.js';
+import { hasWorkspaceSource, shipsPackage } from './workspace-state.js';
 import type { Capabilities, Field, SymbolName } from './render.js';
 import {
   atom,
@@ -247,6 +248,13 @@ export const HOST_LOCK = `${HOSTS_AREA}/lock.json`;
  * instead of such a remedy.
  */
 export const THEN_RERUN = ', then rerun.';
+/** The recovery `command` (`recover`, `recover-host`, …) of `root`, as argv after `ia`. */
+export const recoverArgv = (command: string, root: string): readonly string[] => [
+  'recover',
+  command === 'recover' ? 'installation' : command.replace(/^recover-/, ''),
+  '--root',
+  root,
+];
 /** An installed CLI recovery, delegating the named distribution mechanism with an explicit root. */
 export const recoverCommand = (command: string, root: string): string =>
   `ia recover ${command === 'recover' ? 'installation' : command.replace(/^recover-/, '')} --root ${quote(root)}`;
@@ -322,17 +330,23 @@ export function pinnedRelease(packageRoot: string): Pinned {
 }
 
 /**
- * §4: the target must be initialized and admit; anything else names ia init or ia validate. `named` is the root as the
- * init it names spells it: `ia host` names the resolved root, and `ia project` the root as its invocation typed it.
+ * §4: the target must be a workspace, that is, hold `.ia/src`; anything else names ia init. Admission is checked where
+ * the workspace is read (the renderers and `requireAdmittedWorkspace`), so a workspace that does not admit names
+ * ia validate. A release descriptor is not asked for: a workspace that admits and ships no package is set up fully.
+ * `named` is the root as the init it names spells it: `ia host` names the resolved root, and `ia project` the root as
+ * its invocation typed it.
  */
-export function requireInitialized(root: string, named: string = root): void {
-  if (!existsSync(resolve(root, '.ia/release.json')))
+export function requireWorkspace(root: string, named: string = root): void {
+  if (!hasWorkspaceSource(root))
     throw new Refusal(
       'IA-CLI-CONFLICT',
-      'The target is not an initialized workspace: .ia/release.json is absent',
+      'The target is not a workspace: .ia/src is absent',
       3,
       { path: root },
-      `Run "ia init ${quote(named)}" first.`,
+      // `ia init` refuses a folder that already carries a release descriptor, so that one restores its sources instead.
+      shipsPackage(root)
+        ? `Restore the authored sources under .ia/src from source control, then run "ia validate --root ${quote(named)}".`
+        : `Run "ia init ${quote(named)}" first.`,
     );
 }
 /** The journal a failed transaction left behind, if any, with the command that recovers it. */
@@ -477,8 +491,10 @@ export const projectedHosts = (root: string): readonly HostName[] =>
  * `ia host <host> --apply` for a registered host, and `ia project <host> --apply` for a projection `ia project` wrote
  * without a registration, which `ia host` would also register an MCP server for.
  */
+export const projectionRerunArgv = (root: string, host: HostName): readonly string[] =>
+  existsSync(resolve(root, STATE.mcp(host))) ? ['host', host, '--apply'] : ['project', host, '--apply'];
 export const projectionRerun = (root: string, host: HostName): string =>
-  existsSync(resolve(root, STATE.mcp(host))) ? `ia host ${host} --apply` : `ia project ${host} --apply`;
+  `ia ${projectionRerunArgv(root, host).join(' ')}`;
 /** §6: a pending journal refuses the whole verb and names the recovery that clears it. `ia project` shares it. */
 export function requireIdle(root: string, supplied: string): void {
   try {
@@ -647,7 +663,7 @@ export function collectHost(context: Context): HostView {
   if (selected !== undefined && name === 'codex')
     throw new UsageError('--context applies to claude only; Codex hooks are unavailable');
   const supplied = requireRoot(context);
-  requireInitialized(supplied);
+  requireWorkspace(supplied);
   // Host registration spec §4's gate: until the binding's coordinate, bootstrap and policy are derived and one context
   // run from a v2 payload is observed generating, the context element refuses. The spec fixes this code for the gate.
   if (selected !== undefined)

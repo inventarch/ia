@@ -208,6 +208,7 @@ it('tags the agent commands for the packet catalog in table order, each naming o
     'remove',
     'restore',
     'recover',
+    'workspaces',
     'doctor',
     'host',
     'kb',

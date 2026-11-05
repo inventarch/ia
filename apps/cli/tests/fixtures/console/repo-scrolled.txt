@@ -1,0 +1,20 @@
+ CLI     ▲ running 3.5.1;… Records     ✔ 257 record… Kits ○ no kits installed
+ Updates ▲ ia 3.5.2 is av… Lock        ✔ None insta… Host ○ No host registered
+ Plugin  ▲ ia 3.5.0 rende… Marketplace ✔ inventarch…
+────────────────────────────────────────────────────────────────────────────────
+   ○ Register a host: Claude
+   ○ Register a host: Codex
+   ○ Track this workspace
+ MORE
+   · Diagnostics
+ › · Check for updates now
+────────────────────────────────────────────────────────────────────────────────
+ WHAT THIS DOES
+ Asks the update source for the newest ia and every installed kit, even if
+ checked today. It runs straight away.
+
+ RUNS
+ /node /cli.js refresh-updates --force
+
+────────────────────────────────────────────────────────────────────────────────
+ ↑↓ move · enter run · tab workspaces · r refresh · ? help · q quit

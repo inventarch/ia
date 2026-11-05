@@ -7,6 +7,7 @@
 import type { MODE_MOVES, Mode, PacketCatalogRow } from '@inventarch/runtime';
 import type { Grammar, OptionSpec, PositionalSpec } from './args.js';
 import { none, positionals } from './args.js';
+import type { Flow } from './fix.js';
 import { knowledgeCommand, knowledgeCatalog } from './kb-commands.js';
 
 /** The frozen machine routes admitted by `packages/runtime/src/door.ts`; see the contract’s “Exit classes and protocol boundaries”. */
@@ -49,13 +50,33 @@ export interface CommandSpec {
    * them.
    */
   readonly catalog?: CatalogTag;
+  /**
+   * The flow a fix of this command takes when its grammar decides none (consumer CLI contract §2.12, rule 5); the
+   * command declares it because neither `--apply` nor `--preview` describes how it writes.
+   */
+  readonly flow?: Flow;
+  /**
+   * A command whose first positional is an action: the options only that action accepts (`owns`; any other action
+   * refuses them as usage) and the action's own declared flow. A fix's flow reads the grammar of the action it names.
+   */
+  readonly actions?: Readonly<Record<string, CommandAction>>;
 }
+export interface CommandAction {
+  readonly owns?: readonly string[];
+  readonly flow?: Flow;
+}
+/** Each option an action owns, mapped to that action: the one table a command's refusal and a fix's flow both read. */
+export const ownedOptions = (spec: CommandSpec): Readonly<Record<string, string>> =>
+  Object.fromEntries(
+    Object.entries(spec.actions ?? {}).flatMap(([action, entry]) => (entry.owns ?? []).map((name) => [name, action])),
+  );
 
 const option = (spec: OptionSpec): OptionSpec => spec;
 export const ROOT: OptionSpec = option({
   name: 'root',
   kind: 'value',
   placeholder: '<path>',
+  path: 'always',
   summary: 'Workspace root (default: nearest ancestor with .ia/src)',
 });
 /** §2.0. Shared consumer options; `init` (§2.1) and `vocabulary` (§2.2) refuse `--root`, each with its own reason. */
@@ -79,6 +100,7 @@ const REGISTRY: OptionSpec = option({
   kind: 'value',
   conflicts: ['catalog', 'offline'],
   placeholder: '<url|dir>',
+  path: 'maybe',
   summary: 'Registry for every id in this command (default: per-provider configuration)',
 });
 
@@ -111,6 +133,7 @@ const EDIT_OPTIONS: readonly OptionSpec[] = [
     name: 'at',
     kind: 'value',
     placeholder: '<path>',
+    path: 'always',
     summary: 'File for a new record, under an authored root in .ia/src (default <first authored root>/<word>.ia)',
   }),
 ];
@@ -169,6 +192,7 @@ export const COMMANDS: readonly CommandSpec[] = [
           name: 'from',
           kind: 'value',
           placeholder: '<plugin-directory>',
+          path: 'always',
           summary:
             'Lower a Claude, Codex or Grok plugin into the new workspace as a kit; the kit supplies its own system',
           conflicts: ['migrate', 'adopt', 'system', 'decline', 'forget-decline'],
@@ -204,7 +228,7 @@ export const COMMANDS: readonly CommandSpec[] = [
           summary: 'Remove a recorded decline for this repository',
         }),
       ],
-      positionals: positionals('directory', 0, 1),
+      positionals: { ...positionals('directory', 0, 1), path: { from: 0 } },
     },
   },
   {
@@ -243,7 +267,7 @@ export const COMMANDS: readonly CommandSpec[] = [
         }),
         ACTOR,
       ],
-      positionals('path', 0, Number.POSITIVE_INFINITY),
+      { ...positionals('path', 0, Number.POSITIVE_INFINITY), path: { from: 0 } },
     ),
   },
   {
@@ -337,7 +361,7 @@ export const COMMANDS: readonly CommandSpec[] = [
         }),
         option({ name: 'write', kind: 'boolean', summary: 'Rewrite differing files in place' }),
       ],
-      positionals('path', 0, Number.POSITIVE_INFINITY),
+      { ...positionals('path', 0, Number.POSITIVE_INFINITY), path: { from: 0 } },
     ),
   },
   {
@@ -352,6 +376,7 @@ export const COMMANDS: readonly CommandSpec[] = [
           kind: 'value',
           excludesPositionals: true,
           placeholder: '<file>',
+          path: 'always',
           summary: 'Record source file, relative to --root',
         }),
         option({
@@ -419,6 +444,7 @@ export const COMMANDS: readonly CommandSpec[] = [
         name: 'seat',
         kind: 'value',
         placeholder: '<id|path>',
+        path: 'maybe',
         summary:
           "A record identity, or a workspace path, ./ first for one spelled as an identity (default: the repository's @workspace)",
       }),
@@ -522,6 +548,7 @@ export const COMMANDS: readonly CommandSpec[] = [
           name: 'out',
           kind: 'value',
           placeholder: '<directory>',
+          path: 'always',
           summary: 'With --product plugin: the absent or empty directory to write',
           conflicts: ['check'],
         }),
@@ -535,6 +562,7 @@ export const COMMANDS: readonly CommandSpec[] = [
           name: 'compare',
           kind: 'value',
           placeholder: '<plugin-directory>',
+          path: 'always',
           summary: 'With --product plugin --check only: also compare against the original plugin directory',
         }),
       ],
@@ -605,12 +633,14 @@ export const COMMANDS: readonly CommandSpec[] = [
         kind: 'value',
         required: true,
         placeholder: '<file>',
+        path: 'always',
         summary: 'Release descriptor, relative to --root',
       }),
       option({
         name: 'out',
         kind: 'value',
         placeholder: '<dir>',
+        path: 'always',
         summary: 'Output directory (default <root>/.ia/work/dist)',
       }),
       option({ name: 'force', kind: 'boolean', summary: 'Overwrite an existing archive' }),
@@ -642,6 +672,7 @@ export const COMMANDS: readonly CommandSpec[] = [
           kind: 'value',
           excludesPositionals: true,
           placeholder: '<file>',
+          path: 'always',
           summary: 'Request set file, relative to --root',
         }),
         REGISTRY,
@@ -649,6 +680,7 @@ export const COMMANDS: readonly CommandSpec[] = [
           name: 'catalog',
           kind: 'value',
           placeholder: '<file>',
+          path: 'always',
           summary: 'Release catalog file, relative to --root',
         }),
         option({ name: 'offline', kind: 'boolean', summary: 'Use only the local cache' }),
@@ -656,6 +688,7 @@ export const COMMANDS: readonly CommandSpec[] = [
           name: 'plan-out',
           kind: 'value',
           placeholder: '<file>',
+          path: 'always',
           summary: 'New plan file under <root>/.ia/work/',
         }),
         option({ name: 'apply', kind: 'boolean', summary: 'Apply the plan rather than previewing it' }),
@@ -698,6 +731,7 @@ export const COMMANDS: readonly CommandSpec[] = [
           name: 'catalog',
           kind: 'value',
           placeholder: '<file>',
+          path: 'always',
           summary: 'Release catalog file, relative to --root',
         }),
         option({ name: 'offline', kind: 'boolean', summary: 'Use only the local cache' }),
@@ -705,6 +739,7 @@ export const COMMANDS: readonly CommandSpec[] = [
           name: 'plan-out',
           kind: 'value',
           placeholder: '<file>',
+          path: 'always',
           summary: 'New plan file under <root>/.ia/work/',
         }),
         option({ name: 'apply', kind: 'boolean', summary: 'Apply the plan rather than previewing it' }),
@@ -723,6 +758,7 @@ export const COMMANDS: readonly CommandSpec[] = [
           name: 'plan-out',
           kind: 'value',
           placeholder: '<file>',
+          path: 'always',
           summary: 'New plan file under <root>/.ia/work/',
         }),
         option({ name: 'apply', kind: 'boolean', summary: 'Apply the plan rather than previewing it' }),
@@ -745,6 +781,7 @@ export const COMMANDS: readonly CommandSpec[] = [
         kind: 'value',
         conflicts: ['offline'],
         placeholder: '<file>',
+        path: 'always',
         summary: 'Release catalog file, relative to --root',
       }),
       option({ name: 'offline', kind: 'boolean', summary: 'Use only the local cache' }),
@@ -757,6 +794,8 @@ export const COMMANDS: readonly CommandSpec[] = [
     group: 'distribution',
     summary: 'Recover an interrupted installation or host transaction',
     syntax: ['ia recover [installation|host|guard|lifecycle] --root <directory> [--json]'],
+    // It writes without a preview, so a fix that runs it is confirmed first.
+    flow: 'confirm',
     grammar: {
       options: COMMON_OPTIONS.map((entry) =>
         entry.name === 'root'
@@ -764,6 +803,48 @@ export const COMMANDS: readonly CommandSpec[] = [
           : entry,
       ),
       positionals: positionals('recovery', 0, 1),
+    },
+  },
+  {
+    // §2.16: the tracked list in the IA home. A user-state command, not an agent one, so it carries no catalog row; it
+    // opens no workspace, so `--root` is refused as `init` refuses it, and `add` takes its directory as a positional.
+    name: 'workspaces',
+    group: 'workspace',
+    summary: 'Track the workspaces you keep current',
+    syntax: [
+      'ia workspaces list [--json]',
+      'ia workspaces add [directory] [--id <id>] [--label <text>] [--json]',
+      'ia workspaces find <folder> [--depth <n>] [--apply] [--yes] [--json]',
+      'ia workspaces remove <id|directory> [--json]',
+    ],
+    // `add` and `remove` write at once; `find` previews unless --apply.
+    actions: {
+      list: {},
+      add: { owns: ['id', 'label'], flow: 'confirm' },
+      find: { owns: ['depth', 'apply'] },
+      remove: { flow: 'confirm' },
+    },
+    grammar: {
+      options: [
+        ...COMMON_OPTIONS.filter((entry) => entry.name !== 'root'),
+        { ...ROOT, refuse: 'ia workspaces reads no workspace root; --root is not accepted for this verb' },
+        option({
+          name: 'id',
+          kind: 'value',
+          placeholder: '<id>',
+          summary: 'add: the id (default: its @workspace name)',
+        }),
+        option({ name: 'label', kind: 'value', placeholder: '<text>', summary: 'add: a label shown with the row' }),
+        option({
+          name: 'depth',
+          kind: 'value',
+          integer: { min: 1, max: 8 },
+          placeholder: '<n>',
+          summary: 'find: levels below the folder to search (default: 4)',
+        }),
+        option({ name: 'apply', kind: 'boolean', summary: 'find: track the untracked workspaces found' }),
+      ],
+      positionals: { ...positionals('action', 1, 2), path: { from: 1 } },
     },
   },
   {

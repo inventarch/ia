@@ -1,0 +1,24 @@
+ CLI     [warn] running 3.5.1; t~ Records     [ok] 257 records - ~ Kits o no kits installed
+ Updates [warn] ia 3.5.2 is avai~ Lock        [ok] None installed  Host o No host registered
+ Plugin  [warn] ia 3.5.0 rendere~ Marketplace [ok] inventarch - i~
+------------------------------------------+---------------------------------------------------------
+ NEEDS ATTENTION                          | WHAT THIS DOES
+ > [warn] Upgrade CLI to 3.5.2            | ia 3.5.2 is available; this workspace pins 3.5.0. It
+   [warn] Refresh Claude plugin           | shows the command and runs it when you confirm. It runs
+ SET UP                                   | 3 steps in order and stops at the first that fails.
+   o Add a kit...                         |
+   o Register a host: Claude              | RUNS
+   o Register a host: Codex               | 1. npm install -D @inventarch/cli@3.5.2
+   o Track this workspace                 | 2. ia validate
+ MORE                                     | 3. ia host claude --user --apply
+   . Diagnostics                          |
+   . Check for updates now                | CHANGES
+                                          | this repo (package.json, lockfile)
+                                          | ~/.claude plugin and your IA home
+                                          |
+                                          |
+                                          |
+                                          |
+                                          |
+------------------------------------------+---------------------------------------------------------
+ j/k move | enter run | tab workspaces | r refresh | ? help | q quit

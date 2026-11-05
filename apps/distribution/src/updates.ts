@@ -1,11 +1,19 @@
 import { spawnSync } from 'node:child_process';
 import type { SpawnSyncReturns } from 'node:child_process';
 import { SUPPORTED_VERSIONS } from '@inventarch/language';
+import { withHomeLock } from './home-lock.js';
 import { readHomeFile, writeHomeFile } from './ia-home.js';
+import { fail } from './files.js';
+import { installedUnits } from './kit-inventory.js';
+import type { InstalledUnit, InstalledUnits } from './kit-inventory.js';
+import { registryChooser } from './registry-config.js';
+import { openRegistry, parseRegistryBase, registryBudget, registryLocation } from './registry-source.js';
 import { findProgram, programEnv, programHome, windowsShell, windowsShellArgs } from './program.js';
 
 /** Host plugin distribution spec §11. Public layer only: `account` is written by the private layer and kept as found; `nudgedOn` lives in the hook's plugin data, never here. */
 export const UPDATE_CHECK = 'state/update-check.json';
+/** The store lock every write of the cache holds (home-lock.ts), so two refreshes never drop each other's entries. */
+export const UPDATE_CHECK_LOCK = 'state/update-check.json.lock';
 export const IA_CONFIG = 'config.json';
 export type UpdateChannel = 'checkout' | 'npm' | 'unknown';
 export const UPDATE_CHANNELS: readonly UpdateChannel[] = ['checkout', 'npm', 'unknown'];
@@ -19,12 +27,46 @@ export interface UpdateCheck {
     readonly behind: number | null;
     readonly checked: boolean;
   };
-  readonly packages: { readonly checked: false };
+  /**
+   * The installed units' newest versions, one entry per `(registry, kind, id)` key, each with the time it was fetched.
+   * An older reader keeps only `checked: false` and ignores the rest.
+   */
+  readonly packages: { readonly checked: boolean; readonly entries?: readonly KitUpdateEntry[] };
   readonly account?: { readonly notices?: readonly string[] };
+}
+export interface KitUpdateEntry {
+  readonly registry: string;
+  readonly kind: 'package' | 'collection' | 'release';
+  readonly id: string;
+  /** The newest non-withdrawn version, or null when its source could not answer. */
+  readonly latest: string | null;
+  readonly checkedAt: string;
+}
+const KINDS: readonly KitUpdateEntry['kind'][] = ['package', 'collection', 'release'];
+/** One cache entry, or null when it cannot be read; such an entry is dropped. */
+function kitUpdateEntry(value: unknown): KitUpdateEntry | null {
+  if (!record(value)) return null;
+  const { registry, kind, id, latest, checkedAt } = value;
+  if (
+    typeof registry !== 'string' ||
+    !KINDS.includes(kind as KitUpdateEntry['kind']) ||
+    typeof id !== 'string' ||
+    (latest !== null && typeof latest !== 'string') ||
+    typeof checkedAt !== 'string' ||
+    Number.isNaN(Date.parse(checkedAt))
+  )
+    return null;
+  return { registry, kind: kind as KitUpdateEntry['kind'], id, latest: latest as string | null, checkedAt };
 }
 const DAY = 24 * 3600 * 1000;
 const record = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
+/** `packages` in its older `{checked: false}` form or with entries; an entry that cannot be read is dropped. */
+function packagesOf(value: unknown): UpdateCheck['packages'] {
+  if (!record(value) || !Array.isArray(value['entries'])) return { checked: false };
+  const entries = value['entries'].map(kitUpdateEntry).filter((entry): entry is KitUpdateEntry => entry !== null);
+  return entries.length === 0 ? { checked: false } : { checked: value['checked'] === true, entries };
+}
 /** The cached check, or null when it is absent, unreadable or not this schema. Never throws and never writes. */
 export function readUpdateCheck(home: string): UpdateCheck | null {
   try {
@@ -59,7 +101,7 @@ export function readUpdateCheck(home: string): UpdateCheck | null {
             : null,
         checked: cli['checked'],
       },
-      packages: { checked: false },
+      packages: packagesOf(value['packages']),
       ...(account === undefined ? {} : { account: notices === undefined ? {} : { notices } }),
     };
   } catch {
@@ -69,9 +111,14 @@ export function readUpdateCheck(home: string): UpdateCheck | null {
 /**
  * `~/.ia/config.json`, or null when it is absent or unreadable. Never throws and never writes. Its booleans:
  * `updateCheck` (default true) and `accountOffer` (default true; false suppresses the `ia` plugin's once-per-session
- * account offer for this IA home).
+ * account offer for this IA home). Its one path: `worktreeRoot`, where the console makes a batch's worktrees.
  */
-export function readIaConfig(home: string): { readonly updateCheck?: boolean; readonly accountOffer?: boolean } | null {
+export function readIaConfig(home: string): {
+  readonly updateCheck?: boolean;
+  readonly accountOffer?: boolean;
+  /** Where the console makes a batch's worktrees, instead of `.ia-worktrees` beside each repository. */
+  readonly worktreeRoot?: string;
+} | null {
   try {
     const text = readHomeFile(home, IA_CONFIG),
       value: unknown = text === null ? null : JSON.parse(text);
@@ -79,6 +126,7 @@ export function readIaConfig(home: string): { readonly updateCheck?: boolean; re
       ? {
           ...(typeof value['updateCheck'] === 'boolean' ? { updateCheck: value['updateCheck'] } : {}),
           ...(typeof value['accountOffer'] === 'boolean' ? { accountOffer: value['accountOffer'] } : {}),
+          ...(typeof value['worktreeRoot'] === 'string' ? { worktreeRoot: value['worktreeRoot'] } : {}),
         }
       : null;
   } catch {
@@ -102,6 +150,8 @@ export const updateCheckDisabled = (
 export interface Sources {
   readonly npm: (name: string) => string | null;
   readonly git: (cwd: string, args: readonly string[]) => string | null;
+  /** A unit's newest version: npm for a package, the registry's kit or release index otherwise (`liveKitSource`). */
+  readonly kit?: (unit: KitUnitKey) => Promise<string | null>;
 }
 /** npm's package-name grammar; the name reaches cmd.exe on Windows, so anything else is never looked up. */
 const NPM_NAME = /^(?:@[a-z0-9][a-z0-9._~-]*\/)?[a-z0-9][a-z0-9._~-]*$/;
@@ -162,32 +212,205 @@ export interface RefreshInput {
   readonly name: string | null;
   readonly checkout: string | null;
   readonly now: Date;
+  /** The workspace whose installed units (`installedUnits`) are looked up; without it no kit entry changes. */
+  readonly root?: string | undefined;
+  /** Look up every unit of `root`, however fresh its entry; needs `root`. */
+  readonly force?: boolean | undefined;
+  /** The environment registry selection reads (`registryChooser`); the process's by default. */
+  readonly env?: Readonly<Record<string, string | undefined>> | undefined;
+  /** The user's home directory, for the per-user registry file. */
+  readonly userHome?: string | undefined;
+  /** How long to wait for the store lock; `HOME_LOCK_WAIT_MS` by default. */
+  readonly lockWaitMs?: number | undefined;
+  /** Runs after the lookups and before the store lock is taken; tests interleave another refresh here. */
+  readonly afterFetch?: (() => void | Promise<void>) | undefined;
 }
-/** §11: one refresh. npm is asked only for the npm channel; a checkout is counted against its upstream as of the last fetch, and nothing fetches. An unavailable source is `checked: false`, never "up to date". Packages wait for the registry. */
-export function refreshUpdates(input: RefreshInput, sources: Sources = liveSources): UpdateCheck {
+/** A unit's cache key: `registry` is `npm` for a package, else the location of the registry chosen for its id. */
+export interface KitUnitKey {
+  readonly registry: string;
+  readonly kind: KitUpdateEntry['kind'];
+  readonly id: string;
+}
+const sameKey = (a: KitUnitKey, b: KitUnitKey): boolean =>
+  a.registry === b.registry && a.kind === b.kind && a.id === b.id;
+/** §11: the cached entry for `key`, or undefined. */
+export const kitEntry = (check: UpdateCheck | null, key: KitUnitKey): KitUpdateEntry | undefined =>
+  check?.packages.entries?.find((entry) => sameKey(entry, key));
+/** An entry fetched within the last 24 hours; any other is due. */
+export const kitEntryFresh = (entry: KitUpdateEntry | undefined, now: Date): boolean => {
+  if (entry === undefined) return false;
+  const age = now.getTime() - Date.parse(entry.checkedAt);
+  return age >= 0 && age < DAY;
+};
+/**
+ * Each installed unit of `root` with its cache key, or the reason none can be named (an unmapped provider, say). Local
+ * configuration only: the chooser reads the workspace, environment and user registry files, never a registry.
+ */
+export function kitUnitKeys(
+  root: string,
+  options: { readonly env: Readonly<Record<string, string | undefined>>; readonly userHome?: string | undefined },
+): {
+  readonly units: readonly {
+    readonly unit: InstalledUnit;
+    readonly key: KitUnitKey | null;
+    readonly why: string | null;
+  }[];
+  readonly unknownCollections: InstalledUnits['unknownCollections'];
+  readonly problems: readonly string[];
+} {
+  const installed = installedUnits(root);
+  const choose = registryChooser({
+    root,
+    env: options.env,
+    cwd: root,
+    ...(options.userHome === undefined ? {} : { home: options.userHome }),
+  });
+  return {
+    units: installed.units.map((unit) => {
+      if (unit.source.kind === 'package')
+        return { unit, key: { registry: 'npm', kind: 'package', id: unit.id }, why: null };
+      try {
+        const registry = registryLocation(choose(unit.id).base);
+        return { unit, key: { registry, kind: unit.source.kind, id: unit.id }, why: null };
+      } catch (error) {
+        const code = (error as { code?: unknown }).code;
+        return { unit, key: null, why: typeof code === 'string' ? code : String(error) };
+      }
+    }),
+    unknownCollections: installed.unknownCollections,
+    problems: installed.problems,
+  };
+}
+const LOOKUP_TIMEOUT_MS = 15_000,
+  MAX_LOOKUPS = 20,
+  ENTRY_TTL = 30 * DAY;
+/** The newest non-withdrawn version, by explicit comparison: an index's order is never relied on. */
+export const newestVersion = (
+  releases: readonly { readonly version: string; readonly withdrawn: boolean }[],
+): string | null =>
+  releases
+    .filter((release) => !release.withdrawn)
+    .map((release) => release.version)
+    .sort((a, b) => compareVersions(b, a))[0] ?? null;
+/** The live kit source: npm for a package, the registry's kit index for a collection, its release index for a release. */
+export function liveKitSource(sources: Pick<Sources, 'npm'>): NonNullable<Sources['kit']> {
+  const budget = registryBudget();
+  return async (unit) => {
+    if (unit.kind === 'package') return sources.npm(unit.id);
+    const controller = new AbortController(),
+      timer = setTimeout(() => controller.abort(), LOOKUP_TIMEOUT_MS);
+    try {
+      const registry = await openRegistry(parseRegistryBase(unit.registry, unit.registry), {
+        budget,
+        signal: controller.signal,
+      });
+      const index =
+        unit.kind === 'collection' ? await registry.index('kit', unit.id) : await registry.index('release', unit.id);
+      return newestVersion(index.releases);
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+}
+/** A lookup bounded by the 15 s per-unit timeout, whatever the source does; a failure or a timeout is null. */
+async function bounded(lookup: () => Promise<string | null>): Promise<string | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      lookup().catch(() => null),
+      new Promise<null>((done) => {
+        timer = setTimeout(() => done(null), LOOKUP_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+/**
+ * §11: one refresh. npm is asked only for the npm channel; a checkout is counted against its upstream as of the last
+ * fetch, and nothing fetches. An unavailable source is `checked: false`, never "up to date". With `root`, each installed
+ * unit whose entry is missing or older than 24 hours (every unit, with `force`) is looked up, at most 20 per run, and a
+ * failed lookup records `latest: null` for that key only. The lookups hold no lock; the write re-reads the cache under
+ * the store lock and merges, so a refresh for another workspace that finished meanwhile keeps its entries. Throws
+ * `HomeLockedError`, writing nothing, when the store lock stays held.
+ */
+export async function refreshUpdates(input: RefreshInput, sources: Sources = liveSources): Promise<UpdateCheck> {
+  if (input.force === true && input.root === undefined)
+    fail('INPUT-INVALID', 'Forcing a refresh needs a workspace root');
+  // §11: `IA_NO_UPDATE_CHECK=1` is the offline signal: even a forced refresh makes no network lookup, npm's or a
+  // registry's. A checkout's count against its upstream is local (it fetches nothing), so it still runs; any other
+  // refresh has nothing left to do, writes nothing and returns the cache as it stands.
+  const offline = (input.env ?? process.env)['IA_NO_UPDATE_CHECK'] === '1';
+  if (offline && !(input.channel === 'checkout' && input.checkout !== null))
+    return (
+      readUpdateCheck(input.home) ?? {
+        schema: 'ia.update-check.v1',
+        checkedAt: input.now.toISOString(),
+        cli: { channel: input.channel, current: input.current, latest: null, behind: null, checked: false },
+        packages: { checked: false },
+      }
+    );
   let latest: string | null = null,
     behind: number | null = null;
-  if (input.channel === 'npm' && input.name !== null) latest = sources.npm(input.name);
+  if (!offline && input.channel === 'npm' && input.name !== null) latest = sources.npm(input.name);
   if (input.channel === 'checkout' && input.checkout !== null) {
     const count = sources.git(input.checkout, ['rev-list', '--count', 'HEAD..@{upstream}']);
     behind = count !== null && /^\d+$/.test(count) ? Number(count) : null;
   }
-  const previous = readUpdateCheck(input.home);
-  const check: UpdateCheck = {
-    schema: 'ia.update-check.v1',
-    checkedAt: input.now.toISOString(),
-    cli: {
-      channel: input.channel,
-      current: input.current,
-      latest,
-      behind,
-      checked: latest !== null || behind !== null,
-    },
-    packages: { checked: false },
-    ...(previous?.account === undefined ? {} : { account: previous.account }),
+  const checkedAt = input.now.toISOString();
+  const fetched: KitUpdateEntry[] = [];
+  if (!offline && input.root !== undefined) {
+    const stored = readUpdateCheck(input.home),
+      kit = sources.kit ?? liveKitSource(sources);
+    const keys = kitUnitKeys(input.root, { env: input.env ?? process.env, userHome: input.userHome })
+      .units.flatMap((row) => (row.key === null ? [] : [row.key]))
+      .filter((key) => input.force === true || !kitEntryFresh(kitEntry(stored, key), input.now))
+      .slice(0, MAX_LOOKUPS);
+    for (const key of keys) fetched.push({ ...key, latest: await bounded(() => kit(key)), checkedAt });
+  }
+  await input.afterFetch?.();
+  const cli: UpdateCheck['cli'] = {
+    channel: input.channel,
+    current: input.current,
+    latest,
+    behind,
+    checked: latest !== null || behind !== null,
   };
-  writeHomeFile(input.home, UPDATE_CHECK, JSON.stringify(check, null, 2) + '\n');
-  return check;
+  return withHomeLock(
+    input.home,
+    UPDATE_CHECK_LOCK,
+    () => {
+      const previous = readUpdateCheck(input.home);
+      // A stamp later than the clock at this merge was not written by a refresh that finished meanwhile: it lies in
+      // the future (the clock stepped back after it was written), so it is replaced or dropped, never kept.
+      const start = input.now.getTime(),
+        merged = Math.max(start, Date.now());
+      const future = (stamp: string): boolean => Date.parse(stamp) > merged;
+      // The CLI fields and the global stamp are this run's unless a refresh that finished meanwhile is newer.
+      const newer = previous !== null && Date.parse(previous.checkedAt) > start && !future(previous.checkedAt);
+      const entries = [...(previous?.packages.entries ?? [])];
+      for (const entry of fetched) {
+        const at = entries.findIndex((stored) => sameKey(stored, entry));
+        if (at === -1) entries.push(entry);
+        else if (Date.parse(entries[at]!.checkedAt) < start || future(entries[at]!.checkedAt)) entries[at] = entry;
+      }
+      const kept = entries.filter(
+        (entry) => start - Date.parse(entry.checkedAt) < ENTRY_TTL && !future(entry.checkedAt),
+      );
+      const check: UpdateCheck = {
+        schema: 'ia.update-check.v1',
+        checkedAt: newer ? previous.checkedAt : checkedAt,
+        cli: newer ? previous.cli : cli,
+        packages: { checked: kept.length > 0, ...(kept.length === 0 ? {} : { entries: kept }) },
+        ...(previous?.account === undefined ? {} : { account: previous.account }),
+      };
+      writeHomeFile(input.home, UPDATE_CHECK, JSON.stringify(check, null, 2) + '\n');
+      return check;
+    },
+    input.lockWaitMs === undefined ? {} : { waitMs: input.lockWaitMs },
+  );
 }
 const NUMERIC = /^\d+$/;
 const split = (v: string): { readonly core: number[]; readonly pre: string[] | null } => {

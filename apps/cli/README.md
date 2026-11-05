@@ -40,7 +40,7 @@ Each project keeps its own records in its own `.ia/` directory. The [main quick 
 
 ## ⌨️ Commands
 
-`ia --help` lists every command and `ia <command> --help` gives its full syntax. These rules hold across them:
+Bare `ia` on an interactive terminal opens a console: the workspace's health by area, and the offers that fix or set it up, each showing the commands it runs and what they change before you confirm. Outside a workspace it opens on every workspace you track, where one offer can be batched across several, each in a new git worktree and branch, with nothing pushed unless you choose to. In a pipe or with `CI` set it prints help instead. `ia --help` lists every command and `ia <command> --help` gives its full syntax. These rules hold across them:
 
 - **Plan, then apply.** `init`, `install`, `adopt`, `update`, `remove`, `project` and `host` print a plan and act only with `--apply`, which needs `--yes` without a terminal or with `--json`. A plan applies nothing, though acquiring for an install or update plan may fill the archive cache. `restore` has no preview, so it always takes `--apply`.
 - **One next command.** Every consumer-command refusal names the one command to run next, on the `→` line or as `next` in the `--json` object `{version, ok: false, code, message, exit, where, next}`.
@@ -92,6 +92,7 @@ If the file changed since the preview, `ia author` refuses with `IA-CLI-EDIT-STA
 | `ia read <locator>` | Prints the body behind a locator with its `sha256` and the line `body not certified by this read`. |
 | `ia inspect [<identity>]` | Shows a workspace overview, or one record (by identity or `--path <file>`) with its edges, `--edges in\|out\|both` and `--depth` 0 to 3. |
 | `ia vocabulary [<word>]` | Looks up the catalogue shipped with the package, with `--schema`, `--example`, `--domain`, `--kind` and `--search`. It opens no workspace. |
+| `ia workspaces list\|add\|find\|remove` | Keeps your own list of the workspaces you keep current, in the IA home. `add [<directory>]` tracks one, `find <folder>` looks for them (and tracks them with `--apply`), `list` shows each with `present` or `missing`, and `remove <id\|directory>` drops one. `ia init --apply` offers to track the workspace it creates. The list is not the MCP server's. |
 
 ```sh
 ia position

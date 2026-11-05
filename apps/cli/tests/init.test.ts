@@ -53,6 +53,7 @@ import {
   readBase,
   readProvenance,
   resolveTarget,
+  trackQuestion,
 } from '../src/init.js';
 
 import { GUARD_SCOPE, MACHINE_LOCAL, MCP_APPROVAL, rootedNext } from '../src/host.js';
@@ -1200,6 +1201,161 @@ it('asks once on a terminal, and a declined question writes nothing', async () =
 });
 
 /*
+ * Consumer CLI contract §2.16: once the workspace is initialized, `ia init` offers to track it in the IA home's
+ * tracked list. It asks on a terminal, prints the `ia workspaces add` hint without one, and says nothing under --json.
+ */
+const trackedFile = (home: string): string => resolve(home, 'tracked-workspaces.json');
+it('init --apply on a terminal asks to track and tracks on yes', async () => {
+  const root = target(),
+    home = resolve(scratch('init-track-home'), '.ia'),
+    prompts: string[] = [];
+  const result = await run(['init', root, '--apply'], {
+    env: { IA_HOME: home },
+    interactive: true,
+    answers: ['y', 'y'],
+    prompts,
+  });
+  expect(result.exitCode, result.stderr).toBe(0);
+  expect(prompts.filter((text) => text.endsWith('[y/N] '))).toEqual([
+    'Apply these changes? [y/N] ',
+    `Track ${realpathSync(root)} in your workspace list? [y/N] `,
+  ]);
+  expect(JSON.parse(readFileSync(trackedFile(home), 'utf8')).workspaces).toEqual([
+    { id: 'demo', root: realpathSync(root), added: expect.any(String) },
+  ]);
+  expect(result.stderr).not.toContain('ia workspaces add');
+  // A declined question tracks nothing, and init still succeeds.
+  const declined = target('other'),
+    other = await run(['init', declined, '--apply'], {
+      env: { IA_HOME: home },
+      interactive: true,
+      answers: ['y', 'n'],
+    });
+  expect(other.exitCode).toBe(0);
+  expect(JSON.parse(readFileSync(trackedFile(home), 'utf8')).workspaces).toHaveLength(1);
+});
+
+it('a signal at the question to track declines it: init keeps its receipt and its exit code', async () => {
+  // As the real prompt does, the read rejects when the signal fires; the second variant answers yes as it fires.
+  for (const answer of [null, 'y']) {
+    const root = target(),
+      home = resolve(scratch('init-track-home'), '.ia'),
+      controller = new AbortController(),
+      prompts: string[] = [];
+    const host = makeHost({ env: { IA_HOME: home }, interactive: true, prompts });
+    let asked = 0;
+    const result = await dispatch(
+      ['init', root, '--apply'],
+      {
+        ...host,
+        signal: controller.signal,
+        interaction: {
+          ...host.interaction,
+          read: async () => {
+            asked += 1;
+            if (asked === 1) return 'y';
+            controller.abort(new Error('Interrupted.'));
+            if (answer === null) throw controller.signal.reason;
+            return answer;
+          },
+        },
+      },
+      () => {
+        throw new Error('Unexpected machine route');
+      },
+      [],
+    );
+    expect(prompts.filter((text) => text.endsWith('[y/N] '))).toEqual([
+      'Apply these changes? [y/N] ',
+      trackQuestion(realpathSync(root)),
+    ]);
+    // The line break ends the question the signal cut short, so the report starts on its own line.
+    expect(prompts.at(-1)).toBe('\n');
+    expect(result.exitCode, result.stderr).toBe(0);
+    expect(result.stdout).toContain('Initialized local/demo; release descriptor .ia/release.json.');
+    expect(result.stderr).not.toContain('Interrupted.');
+    expect(result.stderr).not.toContain('again');
+    expect(existsSync(resolve(root, '.ia/release.json'))).toBe(true);
+    expect(existsSync(trackedFile(home))).toBe(false);
+  }
+});
+
+it('a question to track that cannot be read declines it: init keeps its receipt and its exit code', async () => {
+  // No signal: the read itself fails (a closed stdin, a broken terminal). Tracking is never init's exit code (§2.16).
+  const root = target(),
+    home = resolve(scratch('init-track-home'), '.ia'),
+    prompts: string[] = [];
+  const host = makeHost({ env: { IA_HOME: home }, interactive: true, prompts });
+  let asked = 0;
+  const result = await dispatch(
+    ['init', root, '--apply'],
+    {
+      ...host,
+      interaction: {
+        ...host.interaction,
+        read: async () => {
+          asked += 1;
+          if (asked === 1) return 'y';
+          throw new Error('stdin closed');
+        },
+      },
+    },
+    () => {
+      throw new Error('Unexpected machine route');
+    },
+    [],
+  );
+  expect(result.exitCode, result.stderr).toBe(0);
+  expect(result.stdout).toContain('Initialized local/demo; release descriptor .ia/release.json.');
+  expect(result.stderr).toMatch(/^Track it (with|from the workspace root with): ia workspaces add /m);
+  expect(existsSync(trackedFile(home))).toBe(false);
+});
+
+it('init --apply --yes without a terminal prints the hint and tracks nothing', async () => {
+  const root = target(),
+    home = resolve(scratch('init-track-home'), '.ia');
+  const result = await run(['init', root, '--apply', '--yes'], { env: { IA_HOME: home } });
+  expect(result.exitCode, result.stderr).toBe(0);
+  // An inert root is printed with forward slashes on Windows, so every shell there reads it alike.
+  const real = realpathSync(root);
+  expect(result.stderr).toBe(
+    `Track it with: ia workspaces add ${serviceQuote(process.platform === 'win32' ? real.replaceAll('\\', '/') : real)}\n`,
+  );
+  expect(existsSync(trackedFile(home))).toBe(false);
+});
+
+it.each(['$(touch PWNED)', '`touch PWNED`', 'semi;colon'])(
+  'init --apply --yes never prints a root holding %s in its track hint',
+  async (name) => {
+    const root = target(`b${name}`),
+      home = resolve(scratch('init-track-home'), '.ia');
+    const result = await run(['init', root, '--apply', '--yes', '--host', 'none'], { env: { IA_HOME: home } });
+    expect(result.exitCode, result.stderr).toBe(0);
+    expect(result.stderr).toBe(
+      'Track it from the workspace root with: ia workspaces add . (its path is omitted because it contains shell syntax)\n',
+    );
+    expect(existsSync(trackedFile(home))).toBe(false);
+  },
+);
+
+it('init --apply --json never asks and never prints the hint on stdout', async () => {
+  const root = target(),
+    home = resolve(scratch('init-track-home'), '.ia'),
+    prompts: string[] = [];
+  const result = await run(['init', root, '--apply', '--yes', '--json'], {
+    env: { IA_HOME: home },
+    interactive: true,
+    prompts,
+  });
+  expect(result.exitCode, result.stderr).toBe(0);
+  expect(prompts).toEqual([]);
+  expect(result.stdout.trim().split('\n')).toHaveLength(1);
+  expect(result.stdout).not.toContain('ia workspaces add');
+  expect(result.stderr).toBe('');
+  expect(existsSync(trackedFile(home))).toBe(false);
+});
+
+/*
  * Host plugin distribution spec §3: a workspace is never created in, around or inside the IA home. The plain
  * `ia init` in a new terminal targets the user's home directory, which holds `~/.ia`, so this is one command away.
  */
@@ -1280,8 +1436,12 @@ it.each(['claude', 'codex'] as const)(
       prompts,
     });
     expect(result.exitCode, result.stderr).toBe(0);
-    // One question, and its summary names the host step it covers.
-    expect(prompts.filter((text) => text.endsWith('[y/N] '))).toEqual(['Apply these changes? [y/N] ']);
+    // One question covers the host step, and its summary names it; the only other is §2.16's offer to track the
+    // workspace, asked once it is initialized and declined here at EOF.
+    expect(prompts.filter((text) => text.endsWith('[y/N] '))).toEqual([
+      'Apply these changes? [y/N] ',
+      trackQuestion(realpathSync(root)),
+    ]);
     expect(prompts.join('').replace(/\s+/g, ' ')).toContain(
       `--host ${selected} selected; registered after initialization by ia host`,
     );

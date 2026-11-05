@@ -39,7 +39,12 @@ import type { Context, Result } from './consumer.js';
 import { confirm, Refusal, refusalOf } from './consumer.js';
 import { homeSrcRemedy, hostHome, located } from './home-remedy.js';
 import type { Capabilities } from './render.js';
-import { PUBLIC_MARKETPLACE, removeMarketplaceRecord, writeMarketplaceRecord } from './marketplace-record.js';
+import {
+  PUBLIC_MARKETPLACE,
+  readMarketplaceRecord,
+  removeMarketplaceRecord,
+  writeMarketplaceRecord,
+} from './marketplace-record.js';
 import { blockSymbolWidth, commandFacts, document, entry, headerLine, indentOf, quote, words } from './render.js';
 
 export interface UserHostView {
@@ -195,13 +200,22 @@ export interface UserHostApplied {
  * failed uninstall leaves the marketplace Claude still points at. A failing command refuses naming itself and the
  * rerun, and the commands before it have run; so does an update Claude reports it held back (`updateHeld`). The public
  * install is recorded as soon as `install` exits 0, so a refresh that fails after it does not hide the install from
- * `ia doctor` and workspace plans. A rerun converges: registration repeats four idempotent commands, and removal asks
- * claude again what is left (the “Registration” contract).
+ * `ia doctor` and workspace plans; that write keeps the previous record's `checkedAt`. Only once every command has
+ * exited 0 is the record written again with `checkedAt` from `now`, the last time the marketplace was consulted
+ * successfully. A rerun converges: registration repeats four idempotent commands, and removal asks claude again what
+ * is left (the “Registration” contract).
  */
-export function applyUserHost(view: UserHostView, runner: ClaudeRunner): UserHostApplied {
+export function applyUserHost(
+  view: UserHostView,
+  runner: ClaudeRunner,
+  now: () => Date = () => new Date(),
+): UserHostApplied {
   if (!view.remove && view.source === 'local')
     marketplaceStep(view, () => materializeMarketplace(view.home, view.files));
   const ran: string[][] = [];
+  const previous = readMarketplaceRecord(view.home);
+  const checkedBefore = previous.state === 'present' ? previous.checkedAt : null;
+  let recorded = false;
   if (view.claude)
     for (const command of view.commands) {
       const result = runner.run(command);
@@ -217,9 +231,12 @@ export function applyUserHost(view: UserHostView, runner: ClaudeRunner): UserHos
           `Fix what claude reported above, then rerun "${rerunOf(view.remove, view.source === 'local' && !view.remove)}".`,
         );
       ran.push([...command]);
-      if (!view.remove && view.source === 'marketplace' && command[1] === 'install')
-        writeMarketplaceRecord(view.home, PLUGIN_ID, view.plugin.cli);
+      if (!view.remove && view.source === 'marketplace' && command[1] === 'install') {
+        writeMarketplaceRecord(view.home, PLUGIN_ID, view.plugin.cli, checkedBefore);
+        recorded = true;
+      }
     }
+  if (recorded) writeMarketplaceRecord(view.home, PLUGIN_ID, view.plugin.cli, now().toISOString());
   if (view.remove) {
     marketplaceStep(view, () => removeMarketplace(view.home));
     removeMarketplaceRecord(view.home);

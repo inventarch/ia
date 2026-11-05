@@ -1,0 +1,24 @@
+ Latest 3.5.1  Global 3.4.0 ▲  Tracked 2  Healthy 2  Attention 0  Missing 0
+─────────────────────────────────────────────────────────┬──────────────────────────────────────────
+         workspace        cli      records  lock    kits │ 用户项目 workspace
+ › [x] ✔ 用户项目 worksp… — 3.5.0  ✔ 0      —       — ?  │ /srv/repos/w
+   [ ] ✔ 🚀 rocket 👨‍👩‍👧 fa… — 3.5.0  ✔ 0      —       — ?  │ pins @inventarch/cli 3.5.0
+                                                         │
+ BATCH ON 1 SELECTED                                     │
+   Nothing to batch on the selection.                    │
+ MORE                                                    │
+    Find workspaces in a folder…                         │
+                                                         │
+                                                         │
+                                                         │
+                                                         │
+                                                         │
+                                                         │
+                                                         │
+                                                         │
+                                                         │
+                                                         │
+                                                         │
+                                                         │
+─────────────────────────────────────────────────────────┴──────────────────────────────────────────
+ space select · a select needing · enter open · b batch · f find · r refresh · q quit

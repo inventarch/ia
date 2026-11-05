@@ -61,6 +61,10 @@
       "{projectRoot}/**/*",
       "sharedGlobals"
     ],
+    "selected-tests-unicode": [
+      "selected-tests",
+      "{workspaceRoot}/tools/unicode/**/*"
+    ],
     "selected-tests-workspace-records": [
       "selected-tests",
       "{workspaceRoot}/.ia/src/**/*",

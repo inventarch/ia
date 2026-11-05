@@ -2,7 +2,7 @@ import { pathKey } from '@inventarch/db';
 import { governingMandates, MOVES } from '@inventarch/runtime';
 import { generateHooks } from '@inventarch/workspace-runtime/internal/generate';
 import type { Check } from './doctor.js';
-import { quote } from './render.js';
+import { iaFix } from './fix.js';
 import { codeOf, openEditor } from './session.js';
 
 /**
@@ -15,7 +15,8 @@ const EDIT_TOOLS = ['Write', 'Edit', 'MultiEdit'] as const;
 
 export function sourceProtectionCheck(root: string): Check {
   const row = { id: 'source-protection', section: 'Workspace', title: 'Source protection' } as const;
-  const remedy = `ia position --shape governance --root ${quote(root)}`;
+  // A read, so the console runs it at once.
+  const governance = iaFix(['position', '--shape', 'governance', '--root', root], 'none');
   try {
     const editor = openEditor(root);
     try {
@@ -41,6 +42,7 @@ export function sourceProtectionCheck(root: string): Check {
           status: 'info',
           detail: 'No authored mandate declares a move, word or execution-limit restriction.',
           remedy: null,
+          fix: null,
         };
       const hooks = generateHooks(reader, within, 'claude').filter((hook) =>
         hook.paths.some((path) => SOURCE_TREES.has(pathKey(path))),
@@ -51,13 +53,14 @@ export function sourceProtectionCheck(root: string): Check {
           ...row,
           status: 'warn',
           detail: `${mandates.length} authored mandate(s) declare restrictions, but no supported hook explicitly covers all .ia/src sources for ${missing.join(', ')}. Direct source edits can change those restrictions. An owner can declare a PreToolUse hook with paths [".ia/src/**"] and tools [Write, Edit, MultiEdit], then register it for a supported host. Existing hook paths are never widened.`,
-          remedy,
+          ...governance,
         };
       return {
         ...row,
         status: 'info',
         detail: `${mandates.length} authored mandate(s) declare restrictions; ${hooks.map((hook) => hook.identity).join(', ')} explicitly select .ia/src for all edit tools. This checks declarations only, not host registration or enforcement. The edit guard checks Synthesis; it does not enforce word exclusions or execution limits on file bytes.`,
         remedy: null,
+        fix: null,
       };
     } finally {
       editor.close();
@@ -67,7 +70,7 @@ export function sourceProtectionCheck(root: string): Check {
       ...row,
       status: 'unknown',
       detail: `Not checked; ${codeOf(error, 'the workspace authority could not be read')}`,
-      remedy,
+      ...governance,
     };
   }
 }

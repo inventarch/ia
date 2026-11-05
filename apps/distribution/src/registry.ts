@@ -5,7 +5,12 @@ export { openRegistry, parseRegistryBase, registryBudget, registryLocation } fro
 export type { Registry, RegistryBase, RegistryBudget } from './registry-source.js';
 export { DEFAULT_REGISTRIES, registryChooser, registryFor, userConfigDir } from './registry-config.js';
 export type { RegistryChoice, RegistryLevel, RegistryOptions } from './registry-config.js';
-export { registryWithdrawals, resolveFromRegistries, unpublishedPins } from './registry-resolve.js';
+export {
+  CollectionConflictError,
+  registryWithdrawals,
+  resolveFromRegistries,
+  unpublishedPins,
+} from './registry-resolve.js';
 export type { Acquirer, RegistryResolution, RegistryResolveRequest } from './registry-resolve.js';
 export {
   collectionIndexPath,

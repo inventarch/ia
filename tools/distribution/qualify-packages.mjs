@@ -108,8 +108,22 @@ try {
     for (const script of ['preinstall', 'install', 'postinstall'])
       assert.ok(!installed.scripts?.[script], `${source.name}: consumers must not require lifecycle scripts`);
     assert.equal(installed.license, 'Apache-2.0');
-    for (const notice of ['LICENSE', 'NOTICE'])
-      assert.equal(readFileSync(resolve(installedRoot, notice), 'utf8'), readFileSync(resolve(root, notice), 'utf8'));
+    assert.equal(
+      readFileSync(resolve(installedRoot, 'LICENSE'), 'utf8'),
+      readFileSync(resolve(root, 'LICENSE'), 'utf8'),
+    );
+    // Every NOTICE is the repository's; the CLI's adds one line naming the third-party notices it ships beside it.
+    const notice = readFileSync(resolve(installedRoot, 'NOTICE'), 'utf8');
+    if (source.name === '@inventarch/cli') {
+      assert.equal(notice, readFileSync(resolve(root, 'apps/cli/NOTICE'), 'utf8'));
+      assert.ok(notice.startsWith(readFileSync(resolve(root, 'NOTICE'), 'utf8')), `${source.name}: NOTICE differs`);
+      assert.ok(notice.includes('THIRD_PARTY_NOTICES.txt'), `${source.name}: NOTICE does not name its notices`);
+      assert.equal(
+        readFileSync(resolve(installedRoot, 'THIRD_PARTY_NOTICES.txt'), 'utf8'),
+        readFileSync(resolve(root, 'apps/cli/THIRD_PARTY_NOTICES.txt'), 'utf8'),
+        `${source.name}: THIRD_PARTY_NOTICES.txt is missing or differs`,
+      );
+    } else assert.equal(notice, readFileSync(resolve(root, 'NOTICE'), 'utf8'));
     for (const [name, version] of Object.entries(installed.dependencies ?? {})) {
       assert.ok(
         !/^(workspace:|catalog:|link:|file:|https?:|git[+:]|github:|gitlab:|bitbucket:)/.test(version),
