@@ -118,7 +118,13 @@ it('an empty .ia/src counts as a workspace for the guard: both routes plan, with
     expect(planned.exitCode, `${argv.join(' ')}: ${planned.stdout}`).toBe(0);
     expect(planned.stdout).not.toContain('ia init');
     expect(planned.stdout).not.toContain('not a workspace');
-    expect(JSON.parse(planned.stdout)).toMatchObject({ command: 'host', host: 'claude' });
+    const envelope = JSON.parse(planned.stdout);
+    expect(envelope).toMatchObject({ command: 'host', host: 'claude' });
+    // The ordinary route lists its plan elements; a conflict there still exits 0, so check each one. The --commit envelope has none.
+    if (!argv.includes('--commit')) {
+      expect(envelope.plan.elements.length, argv.join(' ')).toBeGreaterThan(0);
+      for (const element of envelope.plan.elements) expect(element.conflict, `${element.id}`).toBeNull();
+    }
   }
 });
 
