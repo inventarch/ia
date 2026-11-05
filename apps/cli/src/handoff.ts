@@ -6,7 +6,7 @@
  * the flag, and this copy answers, as it does for any typed command it cannot place.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { sameFile } from '@inventarch/db/internal/paths';
 import { discoverRoot } from './discovery.js';
@@ -76,24 +76,80 @@ export function committed(packageRoot: string): boolean {
   return askGit(packageRoot) ?? insideWorkTree(packageRoot);
 }
 
+/** The variables that move git's repository or index away from the one found up from the copy's directory. */
+const GIT_LOCATION = ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_COMMON_DIR', 'GIT_CEILING_DIRECTORIES'];
+
+/** A file's identity on disk: device, inode, size and times, or `-` when it is absent. Any change reads as another file. */
+const identity = (path: string): string => {
+  try {
+    const stat = statSync(path, { bigint: true });
+    return `${stat.dev}:${stat.ino}:${stat.size}:${stat.mtimeNs}:${stat.ctimeNs}`;
+  } catch {
+    return '-';
+  }
+};
+
+/**
+ * The index git reads for `dir`: the first `.git` up from it that git would take (a directory with `HEAD`, or a file
+ * naming its `gitdir:` as a linked worktree or submodule has), or null outside a repository.
+ */
+function gitIndexOf(dir: string): string | null {
+  for (let at = dir; ; at = dirname(at)) {
+    const dotGit = join(at, '.git');
+    try {
+      const stat = statSync(dotGit);
+      if (stat.isDirectory() && existsSync(join(dotGit, 'HEAD'))) return join(dotGit, 'index');
+      if (stat.isFile()) {
+        const gitdir = /^gitdir:\s*(.+?)\s*$/m.exec(readFileSync(dotGit, 'utf8'))?.[1];
+        if (gitdir !== undefined) return join(resolve(at, gitdir), 'index');
+      }
+    } catch {
+      // Not there, or not readable: git looks further up, and so does this.
+    }
+    if (dirname(at) === at) return null;
+  }
+}
+
+/**
+ * What git's answer about the copy at `packageRoot` depends on, as the disk shows it: the copy's real path, its
+ * `package.json`, and the index of the repository git finds from it. `git ls-files` reads only that index, so the answer
+ * cannot change while all three stay the same: committing or adding the copy rewrites the index, and a copy moved into the
+ * path (or a link pointed elsewhere) changes the path or the manifest. Null while a GIT_ variable chooses the repository.
+ */
+function copyState(packageRoot: string, env: Readonly<Record<string, string | undefined>>): string | null {
+  if (GIT_LOCATION.some((name) => env[name] !== undefined)) return null;
+  const at = real(packageRoot);
+  const index = gitIndexOf(at);
+  return [at, identity(join(at, 'package.json')), index ?? '-', index === null ? '-' : identity(index)].join('\0');
+}
+
 /**
  * `committed`, remembered per copy for as long as the returned function lives. The console makes one for its life, so
- * the synchronous git call (2 s timeout) is made once per copy rather than at every load and every step. Only an answer
- * git gave (an exit of 0) is remembered: a question it could not answer (a non-zero exit, a timeout, a kill, or no git
- * on the path) reads as `committed` reads it this time, from the work tree, and is asked again next time instead of
- * becoming the copy's answer for good. The memo only saves asking; which copy runs is still decided from the disk each
+ * the synchronous git call (2 s timeout) is made once per copy rather than at every load and every step. An answer is
+ * kept only with the disk state it was given for (`copyState`: a few `stat` calls per ask): once the copy is replaced at
+ * its path or the repository's index changes, git is asked again, so a committed copy never runs on an answer about
+ * another copy or an older index. Only an answer git gave (an exit of 0) is remembered: a question it could not answer
+ * (a non-zero exit, a timeout, a kill, or no git on the path) reads as `committed` reads it this time, from the work
+ * tree, and is asked again next time. Nothing is remembered while a GIT_ variable chooses the repository. The memo only
+ * saves asking; which copy runs is still decided from the disk each
  * time (`runnableCopy`).
  */
 export function rememberCommitted(
   ask: (packageRoot: string) => boolean | null = askGit,
+  env: Readonly<Record<string, string | undefined>> = process.env,
 ): (packageRoot: string) => boolean {
-  const known = new Map<string, boolean>();
+  const known = new Map<string, { readonly state: string; readonly answer: boolean }>();
   return (packageRoot) => {
+    // Read before asking, so a change while git answers is seen as a change next time rather than kept.
+    const state = copyState(packageRoot, env);
     const remembered = known.get(packageRoot);
-    if (remembered !== undefined) return remembered;
+    if (state !== null && remembered?.state === state) return remembered.answer;
     const answer = ask(packageRoot);
-    if (answer === null) return insideWorkTree(packageRoot);
-    known.set(packageRoot, answer);
+    if (answer === null || state === null) {
+      known.delete(packageRoot);
+      return answer ?? insideWorkTree(packageRoot);
+    }
+    known.set(packageRoot, { state, answer });
     return answer;
   };
 }

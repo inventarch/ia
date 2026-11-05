@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { chmodSync, copyFileSync, mkdirSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, mkdirSync, realpathSync, renameSync, symlinkSync, writeFileSync } from 'node:fs';
 import { resolve, sep } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { CORE_TOKENS } from '../src/commands.js';
@@ -379,5 +379,40 @@ describe('rememberCommitted', () => {
     expect(runnableCopy(w, { env: {}, running: '/elsewhere', committed: ask })).toMatchObject({ version: '9.9.9' });
     expect(runnableCopy(w, { env: {}, running: '/elsewhere', committed: ask })).toMatchObject({ version: '9.9.9' });
     expect(asked).toBe(1);
+  });
+  it('asks again when another copy is moved into the path, so a committed one moved in is refused', () => {
+    const w = workspace('remember-replaced');
+    const copy = resolve(w, 'node_modules/@inventarch/cli');
+    let asked = 0;
+    let tracked = false;
+    const ask = rememberCommitted(() => ((asked += 1), tracked));
+    expect(runnableCopy(w, { env: {}, running: '/elsewhere', committed: ask })).toMatchObject({ version: '9.9.9' });
+    // The same copy again is not asked about; another one, which the repository commits, replaces it at that path.
+    expect(runnableCopy(w, { env: {}, running: '/elsewhere', committed: ask })).toMatchObject({ version: '9.9.9' });
+    renameSync(copy, resolve(scratch('remember-replaced-old'), 'cli'));
+    renameSync(cliPackage(resolve(scratch('remember-replaced-new'), 'cli')), copy);
+    tracked = true;
+    expect(runnableCopy(w, { env: {}, running: '/elsewhere', committed: ask })).toBeNull();
+    expect(asked).toBe(2);
+  });
+  it('asks again once the repository starts tracking the copy, so a newly committed copy is refused', () => {
+    const git = (cwd: string, ...args: string[]) => spawnSync('git', args, { cwd, encoding: 'utf8' });
+    const w = workspace('remember-tracked');
+    expect(git(w, 'init', '-q').status).toBe(0);
+    let asked = 0;
+    const ask = rememberCommitted((packageRoot) => ((asked += 1), committed(packageRoot)));
+    expect(runnableCopy(w, { env: {}, running: '/elsewhere', committed: ask })).toMatchObject({ version: '9.9.9' });
+    expect(runnableCopy(w, { env: {}, running: '/elsewhere', committed: ask })).toMatchObject({ version: '9.9.9' });
+    expect(asked).toBe(1);
+    expect(git(w, 'add', '-f', 'node_modules/@inventarch/cli/package.json').status).toBe(0);
+    expect(runnableCopy(w, { env: {}, running: '/elsewhere', committed: ask })).toBeNull();
+    expect(asked).toBe(2);
+  });
+  it('does not remember while a GIT_ variable chooses the repository, since the disk then cannot say what changed', () => {
+    let asked = 0;
+    const ask = rememberCommitted(() => ((asked += 1), false), { GIT_DIR: '/somewhere/.git' });
+    ask('/a');
+    ask('/a');
+    expect(asked).toBe(2);
   });
 });

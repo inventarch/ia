@@ -145,7 +145,8 @@ export async function runConsole(input: {
   const collect = input.collect ?? collectDoctor;
   // Every step and batch run resolves the workspace's copy by the hand-off rule (handoff.ts `runnableCopy`).
   // Whether git tracks a copy is asked once per copy for the console's life, not at each load and step (the call is
-  // synchronous and can take up to 2 s). An answer git could not give is not remembered (handoff.ts).
+  // synchronous and can take up to 2 s). It is asked again when the copy at that path or the repository's index changes,
+  // and an answer git could not give is not remembered (handoff.ts `rememberCommitted`).
   const committed = rememberCommitted();
   const repoOf = input.resolveRepo ?? ((root: string) => resolveRepo(root, env, input.packageRoot, committed));
   // One controller per load, aborted when the console finishes, so quitting never waits for a reload's doctor run.
