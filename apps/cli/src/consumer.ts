@@ -43,6 +43,7 @@ import { runKnowledge } from './kb.js';
 import { selectKnowledgeCommand } from './kb-commands.js';
 import { runValidate } from './validate.js';
 import { runVocabulary } from './vocabulary.js';
+import { runWorkspaces } from './workspaces.js';
 import type { AdviceContext, Capabilities, Terminal, Token } from './render.js';
 import {
   atom,
@@ -163,6 +164,17 @@ export class Interrupted extends Error {
     super('Interrupted.');
     this.name = 'Interrupted';
   }
+}
+
+/**
+ * Results whose handler answered an interruption itself, so §3's 130 does not replace them. Only §2.16's offer to track
+ * does this: it is asked after `init` has initialized the target, and a signal at its question declines it, so the
+ * completed `init` keeps its own report and exit code.
+ */
+const answered = new WeakSet<Result>();
+export function answeredInterruption(result: Result): Result {
+  answered.add(result);
+  return result;
 }
 
 const IA_CODE = /^IA-[A-Z]+-[A-Z-]+$/;
@@ -513,6 +525,7 @@ const HANDLERS: Readonly<Record<string, Handler>> = {
   remove: runDistribute('remove'),
   restore: runDistribute('restore'),
   recover: runRecovery,
+  workspaces: runWorkspaces,
   doctor: runDoctor,
   host: runHost,
 };
@@ -584,7 +597,7 @@ export async function runCommand(command: CommandSpec, argv: readonly string[], 
       );
     host.signal?.throwIfAborted();
     const result = await handler(context);
-    host.signal?.throwIfAborted();
+    if (!answered.has(result)) host.signal?.throwIfAborted();
     return result;
   } catch (error) {
     const suppliedRoot = args?.value('root') ?? (command.name === 'init' ? args?.positionals[0] : undefined);

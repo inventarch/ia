@@ -92,6 +92,7 @@ import type { DistributionLock, ReleaseDescriptor } from '@inventarch/db/distrib
 import { verifyArchive } from '@inventarch/distribution/archive';
 import { assertHostRegistrationIdle } from '@inventarch/distribution/host';
 import { assertHomeOutsideWorkspace } from '@inventarch/distribution/host-home';
+import { assertIaHomeUsable } from '@inventarch/distribution/ia-home';
 import type { DeclineKind } from '@inventarch/distribution/decisions';
 import { applyInstallation, cacheArchive, planInstallation } from '@inventarch/distribution/install';
 import type { ProjectionAction } from '@inventarch/distribution/projection';
@@ -108,7 +109,7 @@ import { parseArguments, UsageError } from './args.js';
 import { captureFailure, collectCapture, CURRENT } from './capture.js';
 import { findCommand } from './commands.js';
 import type { Context, Result } from './consumer.js';
-import { confirm, iaHomeOf, Interrupted, Refusal, refusalOf, respell } from './consumer.js';
+import { answeredInterruption, confirm, iaHomeOf, Interrupted, Refusal, refusalOf, respell } from './consumer.js';
 import { clearDecline, runDecline } from './decline.js';
 import { CONFIRMATION, registeredProjections } from './distribute.js';
 import type { HostApplied } from './host.js';
@@ -139,6 +140,7 @@ import { located } from './home-remedy.js';
 import { findProgram, programEnv, programHome } from './program.js';
 import type { Session } from './session.js';
 import { codeOf, openSession } from './session.js';
+import { commandPath, PATH_OMITTED, readTracked, trackedRow, trackWorkspace } from './tracked.js';
 import type { AdviceContext, Capabilities, Field, SymbolName } from './render.js';
 import {
   atom,
@@ -1686,12 +1688,75 @@ async function initialize(context: Context, root: string, id: string | undefined
     return { exitCode: 0, stdout: renderDeclined(view, caps, args.positionals[0], host), stderr: '' };
   // The project effect, last (SPEC `init`): the `ia host` path, whose apply writes the receipt.
   const project = selected === 'none' ? undefined : (done: string) => registerHost(context, selected, root, done);
+  let result: Result;
   try {
-    return rendered(await applyInit(view, { packageRoot: host.packageRoot, signal: host.signal, project }));
+    result = rendered(await applyInit(view, { packageRoot: host.packageRoot, signal: host.signal, project }));
   } finally {
     // Once the descriptor, the completion point, is written, the target is initialized whatever an effect after it
     // did, so its recorded decline is forgotten (`clearDecline`).
     if (existsSync(resolve(root, DESCRIPTOR_PATH))) clearDecline(host.env, root);
+  }
+  return offerTracking(context, root, result);
+}
+
+/** §2.16's question, asked once the workspace is initialized. */
+export const trackQuestion = (root: string): string => `Track ${root} in your workspace list? [y/N] `;
+/**
+ * Contract §2.16: once `--apply` has initialized the target, offer to add it to the IA home's tracked list. On a
+ * terminal without `--yes` it asks, and tracks on yes; otherwise it prints the one `ia workspaces add` line on stderr
+ * and writes nothing. `--json` says nothing, so its stderr stays as empty as its stdout is single. A root already
+ * tracked, or an IA home that cannot hold the list (a malformed variable, a home holding src/, an invalid list), is
+ * passed over in silence. Tracking is the user's own list, so a failure is one stderr line and never init's exit code,
+ * and a signal at the question declines it (`answeredInterruption`).
+ */
+async function offerTracking(context: Context, root: string, result: Result): Promise<Result> {
+  const { args, json, host } = context;
+  const home = iaHomeOf(host.env);
+  if (json || home === undefined) return result;
+  let real: string;
+  try {
+    assertIaHomeUsable(home);
+    real = realpathSync(root);
+    if (trackedRow(readTracked(home), real) !== undefined) return result;
+  } catch {
+    return result;
+  }
+  const said = (line: string): Result => ({ ...result, stderr: `${result.stderr}${line}\n` });
+  // apps/cli/SPEC.md: a root a shell would act on is never printed in a suggested command.
+  const hint = (): Result => {
+    const path = commandPath(real);
+    return said(
+      path !== undefined
+        ? `Track it with: ia workspaces add ${path}`
+        : `Track it from the workspace root with: ia workspaces add . (${PATH_OMITTED})`,
+    );
+  };
+  // `--yes` answered init's one question; it never stands for a second one, so a --yes run is shown the command.
+  if (!host.interaction.interactive || args.flag('yes')) return hint();
+  // A signal that came before the question is not an answer to it, so §3's interruption stands.
+  if (host.signal?.aborted) return result;
+  let yes: boolean;
+  try {
+    yes = await confirm(host.interaction, '', trackQuestion(real));
+  } catch {
+    // A question that cannot be read (a closed stdin, a broken terminal) is not a yes, and tracking is never init's
+    // exit code, so it declines with the one line a terminal without a question gets. A signal is handled below.
+    if (!host.signal?.aborted) return hint();
+    yes = false;
+  }
+  // A signal at the question declines it. The workspace is initialized, so init's report and exit code stand, and the
+  // rerun §3 would name refuses as already initialized. The line break ends the question the signal cut short.
+  if (host.signal?.aborted) {
+    host.interaction.write('\n');
+    return answeredInterruption(result);
+  }
+  if (!yes) return result;
+  try {
+    const { row } = trackWorkspace(home, { root: real });
+    return said(`Tracked ${row.id} in your workspace list.`);
+  } catch (error) {
+    const refusal = refusalOf(error);
+    return said(`Not tracked: ${refusal.message}.${refusal.next === null ? '' : ` ${refusal.next}`}`);
   }
 }
 

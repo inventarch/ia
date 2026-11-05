@@ -767,6 +767,41 @@ export const COMMANDS: readonly CommandSpec[] = [
     },
   },
   {
+    // §2.16: the tracked list in the IA home. A user-state command, not an agent one, so it carries no catalog row; it
+    // opens no workspace, so `--root` is refused as `init` refuses it, and `add` takes its directory as a positional.
+    name: 'workspaces',
+    group: 'workspace',
+    summary: 'Track the workspaces you keep current',
+    syntax: [
+      'ia workspaces list [--json]',
+      'ia workspaces add [directory] [--id <id>] [--label <text>] [--json]',
+      'ia workspaces find <folder> [--depth <n>] [--apply] [--yes] [--json]',
+      'ia workspaces remove <id|directory> [--json]',
+    ],
+    grammar: {
+      options: [
+        ...COMMON_OPTIONS.filter((entry) => entry.name !== 'root'),
+        { ...ROOT, refuse: 'ia workspaces reads no workspace root; --root is not accepted for this verb' },
+        option({
+          name: 'id',
+          kind: 'value',
+          placeholder: '<id>',
+          summary: 'add: the id (default: its @workspace name)',
+        }),
+        option({ name: 'label', kind: 'value', placeholder: '<text>', summary: 'add: a label shown with the row' }),
+        option({
+          name: 'depth',
+          kind: 'value',
+          integer: { min: 1, max: 8 },
+          placeholder: '<n>',
+          summary: 'find: levels below the folder to search (default: 4)',
+        }),
+        option({ name: 'apply', kind: 'boolean', summary: 'find: track the untracked workspaces found' }),
+      ],
+      positionals: positionals('action', 1, 2),
+    },
+  },
+  {
     name: 'doctor',
     group: 'distribution',
     summary: 'Report runtime, workspace and installation state',

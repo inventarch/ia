@@ -848,6 +848,8 @@
         "tests/local-cli-fs-root.test.ts",
         "tests/local-cli.test.ts",
         "tests/render.test.ts",
+        "tests/tracked-identity.test.ts",
+        "tests/tracked.test.ts",
         "tests/workspace-state.test.ts"
       ],
       "profile": "unit",
@@ -874,6 +876,14 @@
           "reason": "The fixture asserts Windows separator normalization and command-directory preservation and runs only on win32.",
           "platforms": [
             "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/tracked.test.ts > tracks, finds and removes two directories that differ only by case",
+          "reason": "Windows and macOS volumes fold case by default, so two directories differing only by case cannot be created there; the identity rule is covered by the injected-stat sameRoot case on every platform.",
+          "platforms": [
+            "windows",
             "macos"
           ]
         },
@@ -1140,8 +1150,10 @@
         "tests/project.test.ts",
         "tests/read.test.ts",
         "tests/refusal-next.test.ts",
+        "tests/tracked-concurrency.test.ts",
         "tests/validate-checks.test.ts",
-        "tests/workspace-verbs.test.ts"
+        "tests/workspace-verbs.test.ts",
+        "tests/workspaces.test.ts"
       ],
       "profile": "installed",
       "platforms": [
@@ -2175,6 +2187,7 @@
         "tests/inputs.test.ts",
         "tests/membership.test.ts",
         "tests/open-follows-links.test.ts",
+        "tests/paths.test.ts",
         "tests/preview.test.ts",
         "tests/retention.test.ts",
         "tests/runner-evidence.test.ts",
