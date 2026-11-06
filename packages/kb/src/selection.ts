@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { readWorkspaceBytes } from '@inventarch/db';
 import { LIMITS } from './format.js';
-import { verifySelection } from './package.js';
+import { selectsRecord, verifySelection } from './package.js';
 import type { KnowledgeSelection } from './package.js';
 
 /** Read and validate the optional workspace selector before choosing membership or reading bodies. */
@@ -28,6 +28,6 @@ export function selectableKnowledgeRecord(
     record.placement.kind === 'authored' &&
     record.source.path.startsWith('.ia/src/') &&
     !record.source.path.startsWith('.ia/src/floor/') &&
-    (selection === undefined || selection.records.includes(record.identity))
+    (selection === undefined || selectsRecord(selection, record.identity))
   );
 }

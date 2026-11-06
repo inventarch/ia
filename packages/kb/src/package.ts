@@ -36,6 +36,7 @@ export interface KnowledgePackage {
   readonly associations: readonly ResourceAssociation[];
   readonly digest: string;
 }
+const recordSets = new WeakMap<KnowledgeSelection, ReadonlySet<string>>();
 export function verifySelection(input: unknown, capture = false): KnowledgeSelection {
   const limit = capture
     ? { records: LIMITS.captureRecords, files: LIMITS.captureFiles, bytes: LIMITS.captureSelectionBytes }
@@ -63,12 +64,16 @@ export function verifySelection(input: unknown, capture = false): KnowledgeSelec
   )
     fail('Explicit body resource paths required');
   if (s.resources.length > limit.files) fail('Knowledge selection resource limit exceeded');
-  if (
-    new Set(s.records).size !== s.records.length ||
-    new Set(s.resources.map((p) => p.toLowerCase())).size !== s.resources.length
-  )
+  const records = new Set(s.records);
+  if (records.size !== s.records.length || new Set(s.resources.map((p) => p.toLowerCase())).size !== s.resources.length)
     fail('Duplicate selection');
-  return frozen(s);
+  const selection = frozen(s);
+  recordSets.set(selection, records);
+  return selection;
+}
+/** Whether a selection lists a record: from the set built when it was verified, else by scanning its records. */
+export function selectsRecord(selection: KnowledgeSelection, identity: string): boolean {
+  return recordSets.get(selection)?.has(identity) ?? selection.records.includes(identity);
 }
 const profile = (f: Foundation) => ({ ...f.native, capture: f.capture.revision, grammar: f.grammar, engine: f.engine });
 export function verifyPackage(input: unknown): KnowledgePackage {
@@ -176,7 +181,7 @@ export function packageFromCommit(request: PackageRequest): KnowledgePackage {
       return node;
     });
     selected = new Set(nodes.map((n) => n.source.path));
-    if (reader.records().some((n) => selected.has(n.source.path) && !selection.records.includes(n.identity)))
+    if (reader.records().some((n) => selected.has(n.source.path) && !selectsRecord(selection, n.identity)))
       fail('Mixed native file includes unselected records');
   } finally {
     reader.close();
