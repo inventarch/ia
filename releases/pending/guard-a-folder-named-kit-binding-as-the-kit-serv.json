@@ -8,8 +8,6 @@
     "@inventarch/runtime"
   ],
   "paths": [
-    "apps/mcp-door/",
-    "packages/runtime/",
-    "tools/"
+    "packages/runtime/"
   ]
 }

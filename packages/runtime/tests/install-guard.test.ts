@@ -15,6 +15,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   MethodError,
+  findKit,
   folderKits,
   implementationDigest,
   kitInstallMatches,
@@ -24,6 +25,7 @@ import {
   resolveMethod,
   retainKit,
   sourcesDigest,
+  workspaceKits,
 } from '../src/method/index.js';
 import type { Kit } from '../src/method/index.js';
 
@@ -428,6 +430,55 @@ describe('resolveMethod with a bound kit', () => {
         code: 'IA-CORE-KIT-RESTORE-REQUIRED',
         message: expect.stringContaining('z/ia-kb-kit'),
       });
+    });
+    it('with two held rows sharing the folder, the guarded kit is the served kit (differential)', () => {
+      // Both rows are installed, so a guard that asked about the wrong one would still pass. The pin is keyed by the
+      // guarded id and read in place of the served kit, so the kit that runs reveals which row the guard picked.
+      const SECOND = 'z/ia-kb-kit';
+      const secondRecord = '#! ia 1.0\n\n@workspace kb2\n';
+      const secondManifest = JSON.stringify({
+        id: SECOND,
+        version: '0.9.0',
+        dependencies: [],
+        files: [
+          { path: '.ia/src/workspace.ia', bytes: secondRecord.length, sha256: sha(secondRecord), role: 'source' },
+        ],
+      });
+      const secondArchive = 'f'.repeat(64);
+      holdInStore();
+      write(join(dir, '.ia', 'distributions', 'store', secondArchive, 'distribution.json'), secondManifest);
+      write(join(dir, '.ia', 'distributions', 'store', secondArchive, '.ia', 'src', 'workspace.ia'), secondRecord);
+      const secondRow = { id: SECOND, version: '0.9.0', archive: secondArchive, manifest: sha(secondManifest) };
+      writeLock(lockWith({ entries: [carrier([entryRow, secondRow])] }));
+      bindFolder();
+      const old = join(dir, 'old', 'ia-kb-kit');
+      write(join(old, '.ia', 'release.json'), { id: KIT, version: '0.1.0' });
+      write(join(old, 'releases.json'), { kit: KIT, releases: [{ version: '0.1.0', archive: OTHER, records: [] }] });
+      const kept = retainKit(folderKits(join(dir, 'old'), 'bundled')[0]!, store);
+      write(join(runRoot, 'binding.json'), {
+        format: 3,
+        revision: 1,
+        workspace: { root: dir, revision: 'r' },
+        task: null,
+        kits: {
+          [KIT]: {
+            version: '0.1.0',
+            archive: OTHER,
+            sources: sourcesDigest(kept.dir),
+            implementation: implementationDigest(kept),
+            retained: kept.retained,
+          },
+        },
+        keys: { 'knowledge.find': { kit: KIT, capability: 'kb-retrieve', profile: null } },
+        supersedes: null,
+      });
+      const served = findKit(
+        'ia-kb-kit',
+        workspaceKits({ bundled, home: null }, dir, { IA_HOME: home, IA_CORE_RUN_ROOT: runRoot }).kits,
+      );
+      expect(served.id).toBe(KIT);
+      expect(resolve()).toMatchObject({ code: REACHED });
+      expect(restoredKit).toMatchObject({ id: served.id, version: '0.1.0', retained: kept.retained });
     });
     it('refuses with the restore its store lacks, not as an unknown kit', () => {
       writeLock(lockWith({ entries: [carrier([{ id: KIT, version: '0.9.0', archive, manifest: sha(manifest) }])] }));
