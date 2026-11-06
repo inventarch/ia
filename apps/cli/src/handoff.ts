@@ -7,12 +7,12 @@
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, realpathSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { sameFile } from '@inventarch/db/internal/paths';
 import { discoverRoot } from './discovery.js';
 import { resolveWorkspaceCli } from './local-cli.js';
 import type { LocalCli } from './local-cli.js';
-import { findProgram, programEnv, programHome } from './program.js';
+import { findProgram, programEnv, programHome, withoutGitRouting } from './program.js';
 
 /** Set only by the copy that hands off, to its package root's real path; any non-empty value stops a second hand-off. */
 export const HANDOFF_FROM = 'IA_HANDOFF_FROM';
@@ -33,22 +33,38 @@ const real = (path: string): string => {
   }
 };
 
+/** Whether a `.git` directory or file exists at `dir` or any parent: a work tree git was, or would have been, asked about. */
+function insideWorkTree(dir: string): boolean {
+  let current = real(dir);
+  for (;;) {
+    if (existsSync(join(current, '.git'))) return true;
+    const parent = dirname(current);
+    if (parent === current) return false;
+    current = parent;
+  }
+}
+
 /**
- * Whether git tracks any file of the installed copy at `packageRoot`. A copy committed to the repository is the
- * repository's code, not an install the user ran, so a typed command never runs it. Asked only when a hand-off is about
- * to happen; git is found as program.ts finds it, and without git or a repository nothing is tracked.
+ * Whether the installed copy at `packageRoot` is the repository's: git tracks a file of it, or git could not say and a
+ * `.git` exists at or above it. A copy committed to the repository is the repository's code, not an install the user
+ * ran, so a typed command never runs it. Asked only when a hand-off is about to happen; git is found as program.ts
+ * finds it and runs without the caller's `GIT_*` routing variables. When git exits non-zero, is stopped by its
+ * timeout or cannot be started, the answer is the work tree's: inside one the copy is refused, so a git that cannot
+ * answer never lets a repository's copy run. Only without git and without any `.git` above, or outside every
+ * repository (git answers non-zero and no `.git` is above), is nothing tracked.
  */
 export function committed(packageRoot: string): boolean {
   const git = findProgram('git', process.env);
-  if (git === null) return false;
+  if (git === null) return insideWorkTree(packageRoot);
   const result = spawnSync(git, ['--no-optional-locks', '-C', packageRoot, 'ls-files', '--', '.'], {
     cwd: programHome(),
-    env: programEnv(process.env),
+    env: programEnv(withoutGitRouting(process.env)),
     encoding: 'utf8',
     timeout: 2000,
     windowsHide: true,
   });
-  return result.status === 0 && result.stdout.trim() !== '';
+  if (result.error !== undefined || result.status !== 0) return insideWorkTree(packageRoot);
+  return result.stdout.trim() !== '';
 }
 
 const ROOT = '--root=';
@@ -75,7 +91,8 @@ export function rootFromArgv(argv: readonly string[], cwd: string, iaHome: strin
  * the copy resolveWorkspaceCli finds, up to the workspaces root that hoists it. A copy other than `running` is refused
  * when the user set `IA_NO_HANDOFF=1` or the repository commits it, so neither a typed command (handoffTarget) nor the
  * console (console/load.ts, console/app.ts) ever runs the repository's own code. The running copy is returned as found,
- * since running it runs nothing new; git is asked only about another copy.
+ * since running it runs nothing new; git is asked only about another copy, and a git that cannot answer inside a work
+ * tree refuses the copy (committed).
  */
 export function runnableCopy(
   root: string,

@@ -14,7 +14,17 @@ import type { Context, Result } from './consumer.js';
 import { confirm, discoverRoot, iaHomeOf, Refusal } from './consumer.js';
 import { homeSrcRemedy } from './home-remedy.js';
 import type { Capabilities, StatusSymbol, Token } from './render.js';
-import { atom, document, entry, sectionLabel, statusSymbol, style, words } from './render.js';
+import {
+  atom,
+  document,
+  entry,
+  sectionLabel,
+  statusSymbol,
+  style,
+  terminalSafe,
+  terminalText,
+  words,
+} from './render.js';
 import type { TrackedState, TrackedWorkspace } from './tracked.js';
 import {
   checkTrackId,
@@ -149,7 +159,7 @@ function list(context: Context, home: string): Result {
     ]);
   const present = rows.filter((row) => row.state === 'present').length;
   return human([
-    [sectionLabel('Tracked workspaces', caps), ...table(rows, caps)],
+    [sectionLabel('Tracked workspaces', caps), ...table(terminalSafe(rows), caps)],
     line(
       words(`${rows.length} tracked: ${present} present, ${rows.length - present} missing.`),
       present === rows.length ? 'success' : 'warning',
@@ -169,8 +179,9 @@ function add(context: Context, home: string, directory: string | undefined): Res
       null,
       'Run "ia workspaces add <directory>" naming the workspace to track.',
     );
-  const { status, row } = trackWorkspace(home, { root, id: args.value('id'), label: args.value('label') });
-  if (context.json) return json({ status, workspace: withState(row) });
+  const { status, row: tracked } = trackWorkspace(home, { root, id: args.value('id'), label: args.value('label') });
+  if (context.json) return json({ status, workspace: withState(tracked) });
+  const row = terminalSafe(tracked);
   return human([
     status === 'added'
       ? line([...words(`Tracked ${row.id} at`), atom(`${row.root}.`)], 'success', caps)
@@ -202,7 +213,9 @@ async function find(context: Context, home: string, folder: string): Promise<Res
     const summary = document([
       [
         sectionLabel('Track', caps),
-        ...untracked.flatMap((row) => line([atom(row.id, null, 0), atom(row.root, null, 2)], 'info', caps)),
+        ...untracked.flatMap((row) =>
+          line([atom(terminalText(row.id), null, 0), atom(terminalText(row.root), null, 2)], 'info', caps),
+        ),
       ],
     ]);
     applied =
@@ -218,37 +231,45 @@ async function find(context: Context, home: string, folder: string): Promise<Res
   if (context.json) return json({ folder: walked, found, applied, added: added.map((row) => row.id) });
   if (found.length === 0)
     return human([
-      line([...words('No workspaces found under'), atom(walked), ...words(`to depth ${depth}.`)], 'info', caps),
+      line(
+        [...words('No workspaces found under'), atom(terminalText(walked)), ...words(`to depth ${depth}.`)],
+        'info',
+        caps,
+      ),
     ]);
   const now = new Set(added.map((row) => row.id));
   const rows = found.map(
     (row) =>
       ({
-        id: row.id,
-        root: row.root,
+        id: terminalText(row.id),
+        root: terminalText(row.root),
         state: row.tracked || now.has(row.id) ? 'tracked' : clashing.has(row.root) ? 'clash' : 'new',
       }) as const,
   );
   const pending = rows.filter((row) => row.state !== 'tracked').length,
     folderPath = commandPath(walked);
   return human([
-    [sectionLabel(`Workspaces under ${middle(walked, caps.width - 17, caps.ascii)}`, caps), ...table(rows, caps)],
+    [
+      sectionLabel(`Workspaces under ${middle(terminalText(walked), caps.width - 17, caps.ascii)}`, caps),
+      ...table(rows, caps),
+    ],
     ...clashes.map((clash) => {
-      const remedy = clashRemedy(clash);
+      const remedy = clashRemedy(clash),
+        shownClash = terminalSafe(clash);
       return line(
         [
           ...(clash.queued
             ? [
-                ...words(`Two found workspaces would both take the id ${clash.id}:`),
-                atom(clash.other),
+                ...words(`Two found workspaces would both take the id ${shownClash.id}:`),
+                atom(shownClash.other),
                 ...words('and'),
-                atom(`${clash.root}.`),
+                atom(`${shownClash.root}.`),
               ]
             : [
-                ...words(`The id ${clash.id} is already tracked for`),
-                atom(`${clash.other},`),
+                ...words(`The id ${shownClash.id} is already tracked for`),
+                atom(`${shownClash.other},`),
                 ...words('so'),
-                atom(clash.root),
+                atom(shownClash.root),
                 ...words('needs another id.'),
               ]),
           ...words(remedy.before),
@@ -289,9 +310,14 @@ async function find(context: Context, home: string, folder: string): Promise<Res
 function remove(context: Context, home: string, target: string): Result {
   const removed = untrackWorkspace(home, target, context.host.cwd);
   if (context.json) return json({ removed: shown(removed) });
+  const shownRemoved = terminalSafe(removed);
   return human([
     line(
-      [...words(`Untracked ${removed.id}`), atom(`(${removed.root}).`), ...words('Nothing on disk was changed.')],
+      [
+        ...words(`Untracked ${shownRemoved.id}`),
+        atom(`(${shownRemoved.root}).`),
+        ...words('Nothing on disk was changed.'),
+      ],
       'success',
       context.caps,
     ),
