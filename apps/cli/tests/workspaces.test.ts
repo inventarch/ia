@@ -393,3 +393,18 @@ it('list keeps to 80 columns with a 128-character id, and --json keeps it whole'
   expect(listed.stdout).toContain(id.slice(0, 8));
   expect(JSON.parse((await run(['workspaces', 'list', '--json'], { env })).stdout).workspaces[0].id).toBe(id);
 });
+it('prints roots with each control character as visible escape text, and leaves --json unchanged', async () => {
+  const { home: at, env } = home(),
+    root = `${sep}gone\u001b]0;title\u0007\u001b[2J`,
+    row = { id: 'odd', root, added: '2026-01-01T00:00:00.000Z' };
+  mkdirSync(at, { recursive: true });
+  writeFileSync(resolve(at, TRACKED_FILE), JSON.stringify({ format: 'ia-tracked-workspaces-1', workspaces: [row] }));
+  const listed = await run(['workspaces', 'list'], { env });
+  expect(listed.exitCode, listed.stderr).toBe(0);
+  expect(listed.stdout).not.toMatch(/[\u0007\u001b]/);
+  expect(listed.stdout).toContain(`${sep}gone\\u001b]0;title\\u0007\\u001b[2J`);
+  const json = await run(['workspaces', 'list', '--json'], { env });
+  expect(json.stdout).toBe(
+    `{"version":1,"workspaces":[{"id":"odd","root":${JSON.stringify(root)},"label":null,"added":"2026-01-01T00:00:00.000Z","state":"missing"}]}\n`,
+  );
+});
