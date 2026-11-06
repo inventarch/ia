@@ -165,11 +165,12 @@ function save(home: string, loaded: Loaded, rows: readonly object[]): void {
 export function readTracked(home: string): readonly TrackedWorkspace[] {
   return load(home).rows.map((entry) => entry.row);
 }
-export function trackedState(row: Pick<TrackedWorkspace, 'root'>): TrackedState {
+export function trackedState(
+  row: Pick<TrackedWorkspace, 'root'>,
+  stat: (path: string) => { isDirectory(): boolean } | undefined = (path) => statSync(path, { throwIfNoEntry: false }),
+): TrackedState {
   try {
-    return statSync(join(row.root, '.ia/src'), { throwIfNoEntry: false })?.isDirectory() === true
-      ? 'present'
-      : 'missing';
+    return stat(join(row.root, '.ia/src'))?.isDirectory() === true ? 'present' : 'missing';
   } catch (error) {
     return absent(error) ? 'missing' : 'unreadable';
   }

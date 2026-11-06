@@ -437,3 +437,17 @@ it('sameRoot compares exact real paths when either side cannot be read, never fo
   expect(sameRoot('/w/REPO', '/w/held', stat, real)).toBe(false);
   expect(sameRoot('/w/held', '/w/held', stat, real)).toBe(true);
 });
+
+it('trackedState reads a stat that failed from its code: ENOENT and ENOTDIR are missing, anything else unreadable', () => {
+  const row = { root: '/w/repo' };
+  const failing = (code: string) => (): never => {
+    throw Object.assign(new Error(), { code });
+  };
+  expect(trackedState(row, failing('ENOTDIR'))).toBe('missing');
+  expect(trackedState(row, failing('ENOENT'))).toBe('missing');
+  for (const code of ['EACCES', 'EPERM', 'ELOOP', ''] as const)
+    expect(trackedState(row, failing(code))).toBe('unreadable');
+  expect(trackedState(row, () => undefined)).toBe('missing');
+  expect(trackedState(row, () => ({ isDirectory: () => false }))).toBe('missing');
+  expect(trackedState(row, () => ({ isDirectory: () => true }))).toBe('present');
+});

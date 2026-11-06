@@ -493,4 +493,16 @@ describe('setAside and ownRoot', () => {
     expect(ownRoot(root, loaded(base))).toBe(false);
     expect(ownRoot(root, loaded(null))).toBe(false);
   });
+  it('a volume that reports no inode never makes two folders one: it falls back to the exact real path', () => {
+    const parent = join(scratch('own-ino'), 'parent'),
+      child = join(parent, 'child');
+    const loaded = (at: string) => ({ root: at }) as unknown as ConsoleState;
+    const same = () => ({ dev: 1n, ino: 7n });
+    const none = () => ({ dev: 1n, ino: 0n });
+    // A stat that answers one identity for both is one root; an inode of 0 or all ones is no identity at all.
+    expect(ownRoot(child, loaded(parent), same)).toBe(true);
+    expect(ownRoot(child, loaded(parent), none)).toBe(false);
+    expect(ownRoot(child, loaded(parent), () => ({ dev: 1n, ino: 2n ** 64n - 1n }))).toBe(false);
+    expect(ownRoot(parent, loaded(parent), none)).toBe(true);
+  });
 });

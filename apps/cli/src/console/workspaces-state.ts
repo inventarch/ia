@@ -109,8 +109,12 @@ export const loadingRow = (tracked: TrackedWorkspace): RepoRow => ({
  * missing or unreadable after the check would otherwise load as the workspace around it, or as none. Compared as the
  * tracked list compares roots (`sameRoot`), so a volume that reports no inode numbers never makes two roots one.
  */
-export const ownRoot = (root: string, state: ConsoleState): boolean =>
-  state.root !== null && sameRoot(state.root, root);
+export const ownRoot = (
+  root: string,
+  state: ConsoleState,
+  stat?: Parameters<typeof sameRoot>[2],
+  real?: Parameters<typeof sameRoot>[3],
+): boolean => state.root !== null && sameRoot(state.root, root, stat, real);
 /** Why a root that is there did not load as itself: the IA home's own `.ia`, say, or one that came back since. */
 export const NOT_ITSELF = 'the folder did not load as itself';
 /**
