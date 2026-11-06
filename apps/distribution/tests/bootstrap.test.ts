@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { parse } from 'smol-toml';
-import { BLOCK_BEGIN, BLOCK_END, applyBootstrap, planBootstrap } from '../src/bootstrap.js';
+import { BLOCK_BEGIN, BLOCK_END, applyBootstrap, instructionBlock, planBootstrap } from '../src/bootstrap.js';
 import { COPILOT_FOLDER } from '../src/hosts.js';
 
 let root: string;
@@ -211,6 +211,45 @@ it.each([
   expect(read('CLAUDE.md')).toBe(original);
 });
 
+it.each([
+  ['CRLF', '\r\n'],
+  ['LF', '\n'],
+])("updating an LF block inside a %s file writes the closing line in the file's own ending", (_name, eol) => {
+  // An LF block, as main or v3.5.0 wrote it, inside a file whose own ending is `eol`.
+  put('CLAUDE.md', `# P${eol}${eol}${instructionBlock()}tail${eol}`);
+  applyBootstrap(planBootstrap(root, 'claude', '3.5.0'));
+  const updated = read('CLAUDE.md');
+  if (eol === '\r\n') expect(updated).not.toMatch(bareLf);
+  expect(updated.endsWith(`${BLOCK_END}${eol}tail${eol}`)).toBe(true);
+  expect(planBootstrap(root, 'claude', '3.5.0').files[0]!.action).toBe('unchanged');
+});
+
+it.each([
+  ['CRLF', '\r\n'],
+  ['LF', '\n'],
+])("installing on a %s file with no trailing newline appends in the file's own ending", (_name, eol) => {
+  put('CLAUDE.md', `# Project${eol}Our notes.`);
+  applyBootstrap(planBootstrap(root, 'claude', '3.5.0'));
+  const installed = read('CLAUDE.md');
+  if (eol === '\r\n') expect(installed).not.toMatch(bareLf);
+  expect(installed.startsWith(`# Project${eol}Our notes.${eol}${eol}${BLOCK_BEGIN}${eol}`)).toBe(true);
+});
+
+it.each([
+  ['CRLF', '\r\n'],
+  ['LF', '\n'],
+])('removing a block that starts a %s file also takes out the blank lines after it', (_name, eol) => {
+  put('CLAUDE.md', `${instructionBlock().replace(/\n/g, eol)}${eol}# Project${eol}`);
+  applyBootstrap(planBootstrap(root, 'claude', '3.5.0', true));
+  expect(read('CLAUDE.md')).toBe(`# Project${eol}`);
+});
+
+it('removing a hand-placed block trims only the one separator install adds before it', () => {
+  put('CLAUDE.md', '# A\n\n\n\n' + instructionBlock());
+  applyBootstrap(planBootstrap(root, 'claude', '3.5.0', true));
+  expect(read('CLAUDE.md')).toBe('# A\n\n\n');
+});
+
 it('a lowercase contributing.md is not CONTRIBUTING.md, on a case-insensitive volume too', () => {
   put('contributing.md', '# Contributing\n');
   const plan = planBootstrap(root, 'claude', '3.5.0');
@@ -260,14 +299,16 @@ for (const [name, terminator] of [
   ['LF', '\n'],
   ['no terminator at the end of the file', ''],
 ] as const)
-  it(`replacing an old block keeps its closing ${name}`, () => {
+  it(`replacing an old block writes its closing line in the file's own ending, found as ${name}`, () => {
     const head = '# Project\n\n';
     const tail = terminator === '' ? '' : 'tail\n';
     put('CLAUDE.md', head + OLD_BLOCK + terminator + tail);
     const plan = planBootstrap(root, 'claude', '3.5.0');
     const after = plan.files[0]!.after!;
     expect(after.startsWith(head + BLOCK_BEGIN)).toBe(true);
-    expect(after.endsWith(`${BLOCK_END}${terminator}${tail}`)).toBe(true);
+    // The file is LF, so a CRLF terminator found after the old block comes out as LF; none at the end stays none.
+    const closing = terminator === '' ? '' : '\n';
+    expect(after.endsWith(`${BLOCK_END}${closing}${tail}`)).toBe(true);
     expect(after).not.toContain(`${BLOCK_END}\n\r\n`);
     expect(after).toMatch(MARKER);
     applyBootstrap(plan);

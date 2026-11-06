@@ -108,6 +108,7 @@ function markdown(path: string, current: string | null, remove: boolean, contrib
   const start = text.indexOf(BLOCK_BEGIN),
     endAt = text.indexOf(BLOCK_END);
   // The block is written in the file's own line ending (its first one; LF for an empty file), so no file ends up mixed.
+  // Only LF and CRLF are recognised: a lone CR is not a line ending here, and a file with only those gets LF.
   const eol = /\r?\n/.exec(text)?.[0] ?? '\n';
   const block = instructionBlock({ contributing }).replace(/\n/g, eol);
   if (start < 0 && endAt < 0) {
@@ -118,9 +119,10 @@ function markdown(path: string, current: string | null, remove: boolean, contrib
   if (start < 0 || endAt < start || text.indexOf(BLOCK_BEGIN, start + 1) >= 0)
     fail('LOCAL-MODIFICATION', `${path} holds an incomplete or repeated IA bootstrap block`);
   let after = text.slice(endAt + BLOCK_END.length);
-  // The closing line's own terminator (CRLF, LF or none at the end of the file) is kept as it was found.
-  const terminator = after.startsWith('\r\n') ? '\r\n' : after.startsWith('\n') ? '\n' : '';
-  after = after.slice(terminator.length);
+  // The closing line is rewritten in the file's own ending too; at the end of the file it stays without one.
+  const found = after.startsWith('\r\n') ? 2 : after.startsWith('\n') ? 1 : 0;
+  const terminator = found === 0 ? '' : eol;
+  after = after.slice(found);
   const before = text.slice(0, start);
   if (!remove) return before + block.slice(0, -eol.length) + terminator + after;
   // Install adds one blank separator line before the block (the file's first line when it had none); take out only that.
