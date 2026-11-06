@@ -1,0 +1,13 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "Honor shared authored-root ownership in CLI edits",
+  "summary": "Preview and author accept a workspace sharing the deepest authored root independently of name ordering. Root matching follows exact native declaration spelling on every platform; differently cased foreign roots, foreign child roots and mandate restrictions remain protected.",
+  "packages": [
+    "@inventarch/cli"
+  ],
+  "paths": [
+    ".ia/src/records/shared-root-authoring.ia",
+    "apps/cli/"
+  ]
+}

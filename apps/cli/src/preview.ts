@@ -272,8 +272,17 @@ function rootsOf(snapshot: Snapshot, within: string, workspace: string | undefin
 function unowned(roots: Roots, path: string): string | undefined {
   if (!pathKey(path).startsWith('.ia/src/') || !path.endsWith('.ia')) return `${path} is no .ia file inside .ia/src`;
   if (pathKey(path).startsWith('.ia/src/floor/')) return `${path} is floor source`;
-  const holder = roots.declared.find((root) => contains(root.root, path));
-  if (holder === undefined || holder.workspace !== roots.workspace || holder.placement !== 'authored')
+  // Native membership compares canonical root spellings exactly, even on a case-insensitive volume.
+  const holder = roots.declared.find(
+    (root) => root.root === '' || path === root.root || path.startsWith(`${root.root}/`),
+  );
+  // Membership is shared by every declarer of the winning root; an ancestor is not an owner of it.
+  const owned =
+    holder !== undefined &&
+    roots.declared.some(
+      (root) => root.root === holder.root && root.workspace === roots.workspace && root.placement === 'authored',
+    );
+  if (!owned)
     return roots.workspace === undefined
       ? `${path} lies under no authored root: this repository authors no @workspace`
       : `${path} lies under no authored root ${roots.workspace} declares in composition.sources`;
@@ -358,8 +367,8 @@ function targetFile(
  * `path` as the volume spells it. Each component that exists is named by its directory entry, matched exactly; a
  * component another spelling answers (a case variant on a case-insensitive volume, or an 8.3 short name) is replaced by
  * the entry's own name, found by a case-insensitive match or the volume's real path. Components below the first one
- * that does not exist are kept as typed. A mandate's covers and the authored roots are spelled as the volume spells
- * them, so a path is judged only in that spelling.
+ * that does not exist are kept as typed. A path is judged in the volume's spelling; authored root declarations are
+ * compared exactly as native membership compares them, and mandate covers retain their own matching rules.
  */
 function onDisk(root: string, path: string): string {
   const parts = path.split('/'),
