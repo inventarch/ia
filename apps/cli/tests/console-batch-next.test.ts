@@ -12,7 +12,7 @@ import { resolveRepo } from '../src/console/app.js';
 import type { Step } from '../src/console/offers.js';
 import { planBatch } from '../src/console/batch-plan.js';
 import type { RepoResult, Runner } from '../src/console/batch-run.js';
-import { defaultRunner, gitTop, METADATA_OPS, runBatch } from '../src/console/batch-run.js';
+import { defaultRunner, enclosingTop, gitTop, METADATA_OPS, runBatch } from '../src/console/batch-run.js';
 import { commitPassed, ghReady, nextChoices, pushAndOpenPrs, removeWorktrees } from '../src/console/batch-next.js';
 import { batchScreen, previewLines } from '../src/console/batch-screen.js';
 import type { RepoRow } from '../src/console/workspaces-state.js';
@@ -40,7 +40,7 @@ async function batch(fx: Fixture, rows: readonly RepoRow[], offerId = 'fix:gener
     rows,
     new Set(rows.keys()),
     { iaHome: join(fx.dir, 'home') },
-    { top: (root) => gitTop(root, fx.env) },
+    { top: (root) => gitTop(root, fx.env), enclosing: (path) => enclosingTop(path, fx.env) },
   );
   const results = await runBatch(
     plan,
@@ -115,7 +115,7 @@ describe('nextChoices', () => {
       roots.map((root) => rowOf(root, [upgrade])),
       new Set([0, 1, 2]),
       { iaHome: resolve('/srv/ia-home') },
-      { top: (root) => root },
+      { top: (root) => root, enclosing: () => null },
     );
     const choices = nextChoices(
       plan.repos.map((entry) => result({ root: entry.root })),
@@ -135,7 +135,7 @@ describe('the preview', () => {
       [rowOf(root, [relock(root)]), rowOf(resolve('/srv/repos/beta'), [relock(resolve('/srv/repos/beta'))])],
       new Set([0, 1]),
       { iaHome: resolve('/srv/ia-home') },
-      { top: (path) => (path.endsWith('beta') ? null : path) },
+      { top: (path) => (path.endsWith('beta') ? null : path), enclosing: () => null },
     );
     return previewLines({ choice: { offerId: 'fix:generation', title: 'Re-lock', repos: 2 }, ...plan });
   };
@@ -173,7 +173,7 @@ describe('the preview of an offer whose first step is the install', () => {
       [rowOf(root, [offer])],
       new Set([0]),
       { iaHome: resolve('/srv/ia-home') },
-      { top: (path) => path },
+      { top: (path) => path, enclosing: () => null },
     );
     const lines = previewLines({ choice: { offerId: 'fix:cli-version', title: 'Install', repos: 1 }, ...plan });
     expect(lines).toContain("  install  by the first step, the package manager's own install");
@@ -606,7 +606,7 @@ describe('git routing variables', () => {
       rows,
       new Set([0]),
       { iaHome: join(fx.dir, 'home') },
-      { top: (root) => gitTop(root, routed) },
+      { top: (root) => gitTop(root, routed), enclosing: (path) => enclosingTop(path, routed) },
     );
     expect(plan.repos[0]?.refused).toBeNull();
     const recorded = recorder(defaultRunner(routed));
@@ -633,14 +633,17 @@ describe('git routing variables', () => {
     expect(git(top, ['symbolic-ref', 'HEAD'], fx.env)).toBe(branch);
     expect(readFileSync(join(top, '.git', 'index')).equals(index)).toBe(true);
     expect(git(top, ['status', '--porcelain'], fx.env)).toBe(porcelain);
-    // No recorded child (git on either side, the install, the steps, gh) was handed a routing variable.
+    // No recorded child (git on either side, the install, the steps, gh) was handed a routing variable, and the only
+    // command-line configuration it gets is the batch's own empty core.askPass.
     expect(recorded.calls.length).toBeGreaterThan(5);
-    for (const call of recorded.calls)
+    for (const call of recorded.calls) {
+      expect(Object.keys(call.env).filter((name) => /^GIT_(DIR|WORK_TREE|INDEX_FILE)$/i.test(name))).toEqual([]);
       expect(
-        Object.keys(call.env).filter((name) =>
-          /^GIT_(DIR|WORK_TREE|INDEX_FILE|CONFIG_(COUNT|KEY_\d+|VALUE_\d+))$/i.test(name),
+        Object.fromEntries(
+          Object.entries(call.env).filter(([name]) => /^GIT_CONFIG_(COUNT|KEY_\d+|VALUE_\d+)$/i.test(name)),
         ),
-      ).toEqual([]);
+      ).toEqual({ GIT_CONFIG_COUNT: '1', GIT_CONFIG_KEY_0: 'core.askPass', GIT_CONFIG_VALUE_0: '' });
+    }
   });
 });
 
@@ -680,7 +683,7 @@ describe('the batch screen', () => {
       rows,
       new Set([0]),
       { iaHome: join(fx.dir, 'home') },
-      { top: (root) => gitTop(root, fx.env) },
+      { top: (root) => gitTop(root, fx.env), enclosing: (path) => enclosingTop(path, fx.env) },
     );
     const printed: string[] = [];
     const asked: string[] = [];

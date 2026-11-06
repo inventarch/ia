@@ -1440,8 +1440,43 @@
           ]
         },
         {
-          "case": "tests/console-batch-run.test.ts > a command’s whole process tree the console’s own SIGINT reaches the command and what it started",
+          "case": "tests/console-batch-run.test.ts > a command’s whole process tree the batch’s stop reaches the command and what it started, through its signal, not a process listener",
           "reason": "The case runs /bin/sh and signals a process group; Windows has neither.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/console-batch-run.test.ts > a command’s whole process tree a command started after the stop runs: the clean-up of a failed add is not interrupted",
+          "reason": "The case runs /bin/sh and a process group of its own, which Windows does not have.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/console-batch-run.test.ts > no prompt, and no command without an end git asks no askpass program for a credential, from the environment or from core.askPass",
+          "reason": "The askpass program is a POSIX shell script with an executable bit; Windows git would run it through its own sh, which this case does not set up.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/console-batch-run.test.ts > a PATH entry inside a selected repository an entry inside another repository of the batch is left out of every repository’s children too",
+          "reason": "Kept with its one-repository sibling, which is POSIX only; the PATH it builds and compares is spelled the POSIX way, and Windows' case-folded Path is covered by the de-duplication cases.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/console-batch-run.test.ts > a PATH entry inside a selected repository a PATH with nothing left falls back to /usr/bin:/bin",
+          "reason": "The /usr/bin:/bin fallback is POSIX only; Windows keeps an empty PATH.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/console-batch-run.test.ts > a worktree that really leads into another repository of the batch a worktreeRoot linked into another repository is refused at run time, before anything is created",
+          "reason": "The worktreeRoot is a directory symbolic link, which Windows creates only with a privilege the runner lacks.",
           "platforms": [
             "windows"
           ]

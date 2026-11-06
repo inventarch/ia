@@ -614,13 +614,15 @@ export async function runConsole(input: {
           print: (text) => print(sanitize(text)),
           line: readLine,
           run: (file, args, options) => {
-            // Ctrl-C while a batch command runs stops the batch: that command gets the signal too (the runner forwards it to
-            // the command's own process group, and on Windows it shares the console), acts on it and usually ends, and
-            // nothing further starts.
+            // Ctrl-C while a batch command runs stops the batch: that command gets the signal too (the runner sends it
+            // to the command's own process group when this run's signal aborts, and on Windows it shares the console),
+            // acts on it and usually ends, and nothing further starts.
             waiting = { cancel: () => controller.abort() };
-            return (input.runner ?? defaultRunner(env))(file, args, options).finally(() => {
-              waiting = null;
-            });
+            return (input.runner ?? defaultRunner(env))(file, args, { ...options, signal: controller.signal }).finally(
+              () => {
+                waiting = null;
+              },
+            );
           },
           resolveRepo: repoOf,
           env,
@@ -650,9 +652,12 @@ export async function runConsole(input: {
         opening = true;
         all.message = `Reading ${outcome.root}…`;
         render();
-        await reload();
-        opening = false;
-        all.message = null;
+        try {
+          await reload();
+        } finally {
+          opening = false;
+          all.message = null;
+        }
         if (finished) return;
         ui.mode = 'repo';
       } else if (outcome.next === 'deferred') {

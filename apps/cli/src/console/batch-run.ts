@@ -27,7 +27,7 @@ import type { Env } from '../program.js';
 import { withoutGitRouting } from '../program.js';
 import { findProgram, programEnv, windowsShell, windowsShellArgs, windowsSystemProgram } from '../program.js';
 import type { RepoPlan } from './batch-plan.js';
-import { installsFirst, pathArguments } from './batch-plan.js';
+import { BASE_FALLBACKS, installsFirst, pathArguments } from './batch-plan.js';
 import type { Step } from './offers.js';
 import { cmdArgument, runningEntry } from './run.js';
 import type { ConsoleState } from './state.js';
@@ -45,7 +45,13 @@ export interface Runner {
   (
     file: string,
     args: readonly string[],
-    options: { readonly cwd: string; readonly env: Env; readonly argv0?: string },
+    options: {
+      readonly cwd: string;
+      readonly env: Env;
+      readonly argv0?: string;
+      /** The batch's stop: when it aborts, the command's process group gets SIGINT, as the terminal's Ctrl-C would. */
+      readonly signal?: AbortSignal;
+    },
   ): Promise<RunResult>;
 }
 /** A program as a batch starts it: its canonical real path, and the name it was found by, when that was another. */
@@ -65,7 +71,21 @@ export { GIT_LOCAL_ENV } from '../program.js';
  * (stdin is ignored, but git opens the terminal itself) and Git Credential Manager never opens a dialog, either of which
  * would hold the sequential batch with no one answering. A remote that needs a credential then fails for its repository.
  */
-export const NO_PROMPT: Readonly<Record<string, string>> = { GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never' };
+export const NO_PROMPT: Readonly<Record<string, string>> = {
+  GIT_TERMINAL_PROMPT: '0',
+  GCM_INTERACTIVE: 'never',
+  // `core.askPass` set empty, as `-c core.askPass=` would, but for every git a child starts too (git 2.31 and later):
+  // git asks an askpass program before it looks at GIT_TERMINAL_PROMPT, and an empty one is no program. The console's
+  // own GIT_CONFIG_COUNT and its keys are never passed on (`withoutGitRouting`), so this is the only entry.
+  GIT_CONFIG_COUNT: '1',
+  GIT_CONFIG_KEY_0: 'core.askPass',
+  GIT_CONFIG_VALUE_0: '',
+};
+/**
+ * The askpass programs no batch child inherits: git and ssh would start one (a terminal's credential dialog, such as
+ * an editor's) and the sequential batch would wait on it until the command's timeout.
+ */
+export const ASKPASS_ENV: readonly string[] = ['GIT_ASKPASS', 'SSH_ASKPASS'];
 /** What keeps ssh from asking, for a password, a passphrase or a host key, or opening an askpass dialog. */
 export const SSH_NO_PROMPT = 'ssh -o BatchMode=yes';
 /**
@@ -81,13 +101,14 @@ export function withoutSshPrompt(env: Env, git: Git, directory: string): Env {
   return { ...env, GIT_SSH_COMMAND: SSH_NO_PROMPT };
 }
 /**
- * `env` without git's repository-local variables and with `NO_PROMPT` set; Windows compares names without case, as its
- * environment does.
+ * `env` without git's repository-local variables or an askpass program (`ASKPASS_ENV`), and with `NO_PROMPT` set;
+ * Windows compares names without case, as its environment does.
  */
 export function batchEnv(env: Env, platform: NodeJS.Platform = process.platform): Env {
   const out: Record<string, string | undefined> = {};
   for (const [name, value] of Object.entries(withoutGitRouting(env, platform))) {
-    if ((platform === 'win32' ? name.toUpperCase() : name) in NO_PROMPT) continue;
+    const key = platform === 'win32' ? name.toUpperCase() : name;
+    if (key in NO_PROMPT || ASKPASS_ENV.includes(key)) continue;
     out[name] = value;
   }
   return { ...out, ...NO_PROMPT };
@@ -195,14 +216,18 @@ export function defaultRunner(env: Env, limits: { readonly timeoutMs?: number } 
         ...(target.argv0 === undefined ? {} : { argv0: target.argv0 }),
       });
       if (OWN_GROUP) {
-        // The child is out of the terminal's reach, so the console passes on what the terminal's Ctrl-C sent it, and
-        // does not leave the tree behind when it ends, for whatever reason, with a command still running.
+        // The child is out of the terminal's reach, so the batch's stop (the console's Ctrl-C) is passed on to it, and
+        // a console that exits with a command still running does not leave the tree behind. A console killed outright
+        // (SIGKILL, a hard crash) runs no `exit` listener, and the child, in a session of its own, gets no SIGHUP: that
+        // command then runs on to its end.
         const interrupt = (): void => signalGroup(child, 'SIGINT');
         const ending = (): void => signalGroup(child, 'SIGKILL');
-        process.on('SIGINT', interrupt);
+        // Only a stop that comes while it runs: a command started after the stop (the clean-up of a failed add) runs.
+        const signal = options.signal;
+        signal?.addEventListener('abort', interrupt, { once: true });
         process.on('exit', ending);
         unwatch = () => {
-          process.off('SIGINT', interrupt);
+          signal?.removeEventListener('abort', interrupt);
           process.off('exit', ending);
         };
       }
@@ -279,26 +304,38 @@ export function gitTop(root: string, env: Env): string | null | { readonly refus
 }
 
 /**
- * The top level of the work tree holding `path`, a folder above a repository, or null when it is in none or git cannot
- * say. `git` was already judged against the repository (`gitTop`); that it lies under this folder is no refusal.
+ * The top level of the work tree holding `path`, a folder above a repository, by its real path; null only when git
+ * says plainly that `path` is in no work tree; a refusal whenever git cannot say (it may not run, it fails for another
+ * reason, such as an enclosing repository of dubious ownership, or the top level it names cannot be resolved), since
+ * a worktree there could be inside a work tree no one checked. `git` was already judged against the repository
+ * (`gitTop`); that it lies under this folder is no refusal. git runs as a batch child does (`batchEnv`), in English, so
+ * its "not a git repository" is read the same in every locale.
  */
-export function enclosingTop(path: string, env: Env): string | null {
-  const git = programIn('git', env, []);
-  if ('refused' in git) return null;
+export function enclosingTop(path: string, env: Env): string | null | { readonly refused: string } {
+  const scoped: Env = { ...batchEnv(env), LC_ALL: 'C', LANGUAGE: 'C' };
+  const cannot = (why: string) => ({ refused: `git cannot say whether ${path} is in another work tree: ${why}` });
+  const git = programIn('git', scoped, []);
+  if ('refused' in git) return cannot(git.refused);
   const result = spawnGuardedSync(
     git,
     ['-C', path, 'rev-parse', '--show-toplevel'],
-    { cwd: path, env },
+    { cwd: path, env: scoped },
     { checkouts: [] },
   );
-  const top = result.status === 0 ? result.stdout.trim() : '';
+  if (result.refused !== undefined) return cannot(result.refused);
+  if (result.status !== 0)
+    return /not a git repository|must be run in a work tree/.test(result.stderr)
+      ? null
+      : cannot(lastLine(result.stderr) || `git rev-parse exited ${result.status ?? 'on a signal'}`);
+  const top = result.stdout.trim();
+  // An older git run inside a git directory prints no top level: that folder is in no work tree.
   if (top === '') return null;
   // git writes the top level with forward slashes, and Windows may spell it with a short name; `gitTop` names its
   // repository by real path, so the folder around it is named the same way.
   try {
     return realpathSync.native(resolve(top));
   } catch {
-    return null;
+    return cannot(`its top level ${top} cannot be resolved`);
   }
 }
 
@@ -327,8 +364,7 @@ async function findBase(
     ...(head.status === 0 && head.stdout.trim().startsWith('refs/remotes/')
       ? [head.stdout.trim().slice('refs/remotes/'.length)]
       : []),
-    'origin/main',
-    'origin/master',
+    ...BASE_FALLBACKS,
   ];
   for (const candidate of candidates) {
     const found = await git(['rev-parse', '--verify', '--quiet', `refs/remotes/${candidate}^{commit}`]);
@@ -753,10 +789,18 @@ async function runRepo(
   // Planning judged the path by its spelling; a link on the way (a configured root, or `.ia-worktrees` itself) could
   // still lead it into the checkout or the IA home, where git would then write. Judged by where it really leads.
   const checkout = leadsTo(top) ?? top;
+  // Every other repository of the batch, by where it really leads: git would write a worktree there into its tree.
+  const others = tops
+    .filter((entry) => fold(entry) !== fold(top))
+    .map((entry) => ({ entry, real: leadsTo(entry) ?? entry }))
+    .filter(({ real }) => fold(real) !== fold(checkout));
   const home = repo.iaHome === undefined ? null : leadsTo(repo.iaHome);
   const judge = (real: string | null): string | null => {
     if (real === null) return `the worktree path ${worktree} passes through a link that leads nowhere`;
     if (within(checkout, real)) return `the worktree path ${worktree} leads inside the repository, to ${real}`;
+    const other = others.find((entry) => within(entry.real, real));
+    if (other !== undefined)
+      return `the worktree path ${worktree} leads inside ${other.entry}, another repository of this batch, to ${real}`;
     if (home !== null && within(home, real))
       return `the worktree path ${worktree} leads inside the IA home, to ${real}`;
     return null;

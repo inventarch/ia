@@ -5,6 +5,7 @@
  * and the run-time containment check. Every spawn is recorded, so the tests assert the argv and cwd themselves, and
  * that the user's own checkout is touched only by the listed git metadata operations.
  */
+import { spawnSync } from 'node:child_process';
 import {
   chmodSync,
   existsSync,
@@ -42,6 +43,7 @@ import {
   spawnGuarded,
   spawnGuardedSync,
 } from '../src/console/batch-run.js';
+import type { Env } from '../src/program.js';
 import { findProgram } from '../src/program.js';
 import type { RepoRow } from '../src/console/workspaces-state.js';
 import type { Call, Fixture } from './batch-fixture.js';
@@ -91,7 +93,7 @@ async function batch(
       rows,
       new Set(rows.keys()),
       { iaHome: join(fx.dir, 'home') },
-      { top: (root) => gitTop(root, fx.env) },
+      { top: (root) => gitTop(root, fx.env), enclosing: (path) => enclosingTop(path, fx.env) },
     );
   const recorded = recorder(wrap(defaultRunner(fx.env)));
   const progress: string[] = [];
@@ -185,7 +187,7 @@ describe('worktree, branch and base', () => {
         [rowOf(root, [relock(root)])],
         new Set([0]),
         { iaHome: home, ...(worktreeRoot === undefined ? {} : { worktreeRoot }) },
-        { top: (path) => gitTop(path, fx.env) },
+        { top: (path) => gitTop(path, fx.env), enclosing: (path) => enclosingTop(path, fx.env) },
       );
     // A configured worktree root that is a link into the user's checkout.
     const configured = repo(fx, 'configured', { 'inside/keep.txt': '' });
@@ -290,7 +292,7 @@ describe('worktree, branch and base', () => {
       [rowOf(top, [relock(top)])],
       new Set([0]),
       { iaHome: join(fx.dir, 'home') },
-      { top: (root) => gitTop(root, fx.env) },
+      { top: (root) => gitTop(root, fx.env), enclosing: (path) => enclosingTop(path, fx.env) },
     );
     const relink = (path: string): void => {
       if (process.platform === 'win32') rmdirSync(path);
@@ -368,7 +370,7 @@ describe('worktree, branch and base', () => {
       [rowOf(top, [relock(top)])],
       new Set([0]),
       { iaHome: join(fx.dir, 'home') },
-      { top: (root) => gitTop(root, fx.env) },
+      { top: (root) => gitTop(root, fx.env), enclosing: (path) => enclosingTop(path, fx.env) },
     );
     const { results, calls } = await batch({ ...fx, env }, [], 'fix:generation', plan);
     expect(only(results).refused).toMatch(/^git resolves to .*, inside the repository$/);
@@ -594,7 +596,7 @@ describe('containment before each step', () => {
       [rowOf(top, [offer])],
       new Set([0]),
       { iaHome: join(fx.dir, 'home') },
-      { top: (root) => gitTop(root, fx.env) },
+      { top: (root) => gitTop(root, fx.env), enclosing: (path) => enclosingTop(path, fx.env) },
     );
     const worktree = plan.repos[0]!.worktree;
     // The install makes both links, so the check before each later step sees them: one leads to the user's checkout.
@@ -643,7 +645,7 @@ describe('containment before each step', () => {
       [rowOf(top, [relock(top)])],
       new Set([0]),
       { iaHome: join(fx.dir, 'home') },
-      { top: (root) => gitTop(root, fx.env) },
+      { top: (root) => gitTop(root, fx.env), enclosing: (path) => enclosingTop(path, fx.env) },
     );
     const forged: RepoPlan = { ...plan.repos[0]!, steps: [ia(['recover', '--root', '../../x'])] };
     const { results, calls } = await batch(fx, [], 'fix:generation', { repos: [forged] });
@@ -687,7 +689,7 @@ it.skipIf(process.platform === 'win32')(
       [rowOf(root, [relock(root)])],
       new Set([0]),
       { iaHome: join(fx.dir, 'home') },
-      { top: () => top },
+      { top: () => top, enclosing: () => null },
     );
     const { results } = await batch(fx, [], 'fix:generation', plan);
     expect(only(results).refused).toMatch(/leads outside the worktree/);
@@ -715,7 +717,7 @@ it.skipIf(process.platform === 'win32')(
       [rowOf(root, [relock(root)])],
       new Set([0]),
       { iaHome: join(fx.dir, 'home') },
-      { top: () => top },
+      { top: () => top, enclosing: () => null },
     );
     const { results, calls } = await batch(fx, [], 'fix:generation', plan);
     expect(only(results)).toMatchObject({ ok: true, refused: null });
@@ -1022,17 +1024,20 @@ describe('the base', () => {
 });
 
 describe('no prompt, and no command without an end', () => {
+  const NO_ASKPASS = { GIT_CONFIG_COUNT: '1', GIT_CONFIG_KEY_0: 'core.askPass', GIT_CONFIG_VALUE_0: '' };
   it('every batch child gets GIT_TERMINAL_PROMPT=0 and GCM_INTERACTIVE=never, whatever the console inherited', async () => {
     expect(batchEnv({ PATH: 'x', GIT_TERMINAL_PROMPT: '1', GCM_INTERACTIVE: 'always' }, 'linux')).toEqual({
       PATH: 'x',
       GIT_TERMINAL_PROMPT: '0',
       GCM_INTERACTIVE: 'never',
+      ...NO_ASKPASS,
     });
     // Windows reads the names without case: an inherited spelling never survives beside the batch's own.
     expect(batchEnv({ Path: 'x', git_terminal_prompt: '1', Gcm_Interactive: 'always' }, 'win32')).toEqual({
       Path: 'x',
       GIT_TERMINAL_PROMPT: '0',
       GCM_INTERACTIVE: 'never',
+      ...NO_ASKPASS,
     });
     const fx = fixture('batch-run-prompt');
     const { top } = repo(fx, 'alpha');
@@ -1044,6 +1049,45 @@ describe('no prompt, and no command without an end', () => {
       expect(call.env['GCM_INTERACTIVE']).toBe('never');
     }
   });
+  it('no batch child inherits an askpass program, and core.askPass is set empty', () => {
+    expect(
+      batchEnv({ PATH: 'x', GIT_ASKPASS: '/editor/askpass.sh', SSH_ASKPASS: '/usr/bin/ssh-askpass' }, 'linux'),
+    ).toEqual({ PATH: 'x', GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never', ...NO_ASKPASS });
+    expect(batchEnv({ Path: 'x', Git_AskPass: 'a', ssh_askpass: 'b' }, 'win32')).toEqual({
+      Path: 'x',
+      GIT_TERMINAL_PROMPT: '0',
+      GCM_INTERACTIVE: 'never',
+      ...NO_ASKPASS,
+    });
+  });
+  it.skipIf(process.platform === 'win32')(
+    'git asks no askpass program for a credential, from the environment or from core.askPass',
+    () => {
+      const fx = fixture('batch-run-askpass');
+      const asked = join(fx.dir, 'asked');
+      const askpass = join(fx.dir, 'askpass.sh');
+      writeFileSync(askpass, `#!/bin/sh\necho "$1" >> '${asked}'\necho secret\n`);
+      chmodSync(askpass, 0o755);
+      writeFileSync(fx.env['GIT_CONFIG_GLOBAL']!, `[core]\n\taskPass = ${askpass}\n`);
+      const inherited = { ...fx.env, GIT_ASKPASS: askpass, SSH_ASKPASS: askpass };
+      const fill = (env: Env) =>
+        spawnSync(findProgram('git', fx.env)!, ['credential', 'fill'], {
+          cwd: fx.dir,
+          env: env as NodeJS.ProcessEnv,
+          input: 'protocol=http\nhost=127.0.0.1\n\n',
+          encoding: 'utf8',
+        });
+      // The console's own environment asks, as an editor's terminal would.
+      expect(fill(inherited).status).toBe(0);
+      expect(existsSync(asked)).toBe(true);
+      rmSync(asked);
+      // A batch child's does not: git fails at once.
+      const scoped = fill(batchEnv(inherited));
+      expect(scoped.status).not.toBe(0);
+      expect(scoped.stderr).toMatch(/terminal prompts disabled/);
+      expect(existsSync(asked)).toBe(false);
+    },
+  );
   it('a command that hangs is stopped at its timeout and settles as a failure, through a shim too', async () => {
     const fx = fixture('batch-run-hang');
     const hang = join(fx.dir, 'hang.mjs');
@@ -1238,6 +1282,48 @@ describe('an enclosing repository', () => {
     expect(plan.repos[0]!.refused).toContain(`inside the enclosing repository ${outer}`);
     expect(plan.repos[1]!.refused).toBeNull();
   });
+  it('enclosingTop names the work tree around a folder, null outside any, and refuses when git cannot say', () => {
+    const fx = fixture('batch-run-enclosing-probe');
+    const { top: outer } = repo(fx, 'outer');
+    const inner = join(outer, 'vendor');
+    mkdirSync(inner, { recursive: true });
+    expect(enclosingTop(inner, fx.env)).toBe(outer);
+    const bare = join(fx.dir, 'nothing-here');
+    mkdirSync(bare);
+    expect(enclosingTop(bare, fx.env)).toBeNull();
+    // The console's own routing variables never steer the probe to another repository.
+    expect(enclosingTop(bare, { ...fx.env, GIT_DIR: join(outer, '.git'), GIT_WORK_TREE: outer })).toBeNull();
+    // No git to ask is no answer: the default place is not taken as free.
+    const refused = enclosingTop(bare, { ...fx.env, PATH: fx.shims });
+    expect(refused).toMatchObject({ refused: expect.stringContaining(`git cannot say whether ${bare}`) });
+  });
+});
+
+describe('a worktree that really leads into another repository of the batch', () => {
+  it.skipIf(process.platform === 'win32')(
+    'a worktreeRoot linked into another repository is refused at run time, before anything is created',
+    async () => {
+      const fx = fixture('batch-run-other-repo');
+      const { top: a } = repo(fx, 'a');
+      const { top: b } = repo(fx, 'b');
+      const link = join(fx.dir, 'trees');
+      symlinkSync(b, link, 'dir');
+      const rows = [rowOf(a, [relock(a)]), rowOf(b, [relock(b)])];
+      const plan = planBatch(
+        'fix:generation',
+        rows,
+        new Set([0, 1]),
+        { iaHome: join(fx.dir, 'home'), worktreeRoot: link },
+        { top: (root) => gitTop(root, fx.env), enclosing: (path) => enclosingTop(path, fx.env) },
+      );
+      // By spelling, neither worktree is inside a repository.
+      expect(plan.repos.map((repo) => repo.refused)).toEqual([null, null]);
+      const { results, calls } = await batch(fx, rows, 'fix:generation', plan);
+      expect(results[0]!.refused).toContain(`leads inside ${b}, another repository of this batch`);
+      expect(results[1]!.refused).toContain('leads inside the repository');
+      expect(calls.some((call) => call.args.includes('worktree'))).toBe(false);
+    },
+  );
 });
 
 describe('a failed git worktree add', () => {
@@ -1359,16 +1445,28 @@ describe.skipIf(process.platform === 'win32')('a command’s whole process tree'
     });
     expect(result.stdout.trim()).toBe('refused');
   });
-  it('the console’s own SIGINT reaches the command and what it started', async () => {
+  it('the batch’s stop reaches the command and what it started, through its signal, not a process listener', async () => {
     const fx = fixture('batch-run-tree-sigint');
     const file = join(fx.dir, 'pid');
     const before = process.listeners('SIGINT');
-    const settled = defaultRunner(fx.env)('/bin/sh', tree(file), { cwd: fx.dir, env: fx.env });
+    const stop = new AbortController();
+    const settled = defaultRunner(fx.env)('/bin/sh', tree(file), { cwd: fx.dir, env: fx.env, signal: stop.signal });
     const pid = await pidIn(file);
-    (await gained('SIGINT', before))();
+    expect(process.listeners('SIGINT')).toEqual(before);
+    stop.abort();
     await gone(pid);
     await settled;
-    expect(process.listeners('SIGINT')).toEqual(before);
+  });
+  it('a command started after the stop runs: the clean-up of a failed add is not interrupted', async () => {
+    const fx = fixture('batch-run-tree-stopped');
+    const stop = new AbortController();
+    stop.abort();
+    const result = await defaultRunner(fx.env)('/bin/sh', ['-c', '/bin/sleep 0.2; echo done'], {
+      cwd: fx.dir,
+      env: fx.env,
+      signal: stop.signal,
+    });
+    expect(result).toMatchObject({ status: 0, stdout: 'done\n' });
   });
   it('the console ending takes the running command’s tree with it', async () => {
     const fx = fixture('batch-run-tree-exit');
@@ -1472,4 +1570,43 @@ describe('a PATH entry inside a selected repository', () => {
       for (const call of calls) expect(call.env['PATH']!.split(delimiter)).not.toContain(join(top, 'bin'));
     },
   );
+  it.skipIf(process.platform === 'win32')(
+    'an entry inside another repository of the batch is left out of every repository’s children too',
+    async () => {
+      const fx = fixture('batch-run-path-other');
+      const { top: alpha } = repo(fx, 'alpha');
+      const { top: beta } = repo(fx, 'beta');
+      mkdirSync(join(beta, 'bin'));
+      const own = { ...fx, env: { ...fx.env, PATH: [join(beta, 'bin'), fx.env['PATH']].join(delimiter) } };
+      const { results, calls } = await batch(
+        own,
+        [rowOf(alpha, [relock(alpha)]), rowOf(beta, [relock(beta)])],
+        'fix:generation',
+      );
+      expect(results.map((result) => result.ok)).toEqual([true, true]);
+      const alphas = calls.filter((call) => inside(alpha, call.cwd) || call.args.includes(alpha));
+      expect(alphas.length).toBeGreaterThan(0);
+      for (const call of calls) expect(call.env['PATH']!.split(delimiter)).not.toContain(join(beta, 'bin'));
+    },
+  );
+  it.skipIf(process.platform === 'win32')('a PATH with nothing left falls back to /usr/bin:/bin', async () => {
+    const fx = fixture('batch-run-path-empty');
+    const { top } = repo(fx, 'alpha');
+    mkdirSync(join(top, 'bin'));
+    const seen: Env[] = [];
+    const run: Runner = async (_file, _args, options) => {
+      seen.push(options.env);
+      return { status: 0, stdout: '', stderr: '' };
+    };
+    await spawnGuarded(
+      run,
+      '/bin/sh',
+      ['-c', 'true'],
+      { cwd: fx.dir, env: { ...fx.env, PATH: join(top, 'bin') } },
+      {
+        checkouts: [top],
+      },
+    );
+    expect(seen[0]!['PATH']).toBe('/usr/bin:/bin');
+  });
 });

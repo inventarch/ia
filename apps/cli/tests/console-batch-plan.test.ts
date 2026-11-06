@@ -70,7 +70,10 @@ const upgrade = (_root: string): Offer =>
   );
 const relock = (root: string): Offer =>
   offer('fix:generation', [ia(['restore', '--apply', '--root', root])], { title: 'Re-lock' });
-const tops = (map: Readonly<Record<string, string>>) => ({ top: (root: string) => map[root] ?? null });
+const tops = (map: Readonly<Record<string, string>>) => ({
+  top: (root: string) => map[root] ?? null,
+  enclosing: () => null,
+});
 
 describe('choices and selection', () => {
   const alpha = native('srv', 'repos', 'alpha'),
@@ -451,6 +454,64 @@ describe('one worktree for each planned repository', () => {
     );
     expect(plan.repos[0]!.refused).toBeNull();
     expect(plan.repos[1]!.refused).toContain('already planned for');
+  });
+  it('the refusal says the first branch has to go before a later batch can run this workspace', () => {
+    const plan = planBatch(
+      'fix:generation',
+      [row(first, [relock(first)]), row(second, [relock(second)])],
+      new Set([0, 1]),
+      { iaHome: HOME },
+      tops({ [first]: repoTop, [second]: repoTop }),
+    );
+    expect(plan.repos[1]!.refused).toContain('chore/ia-fix-generation is merged and deleted');
+  });
+});
+
+describe('a worktree inside another repository of the batch', () => {
+  const a = native('w', 'a');
+  const b = native('w', 'b');
+  const both = [row(a, [relock(a)]), row(b, [relock(b)])];
+  it('a configured worktreeRoot inside another selected repository refuses the row that would write there', () => {
+    const plan = planBatch(
+      'fix:generation',
+      both,
+      new Set([0, 1]),
+      { iaHome: HOME, worktreeRoot: join(b, 'wt') },
+      tops({ [a]: a, [b]: b }),
+    );
+    expect(plan.repos[0]!.refused).toContain(`inside ${b}, another repository of this batch`);
+    expect(plan.repos[0]!.worktree).toBe('');
+    // b's own worktree is inside b, which is refused as before.
+    expect(plan.repos[1]!.refused).toContain(`inside the repository ${b}`);
+  });
+  it('a repository that is not selected is no bar', () => {
+    const plan = planBatch(
+      'fix:generation',
+      both,
+      new Set([0]),
+      { iaHome: HOME, worktreeRoot: join(b, 'wt') },
+      tops({ [a]: a, [b]: b }),
+    );
+    expect(plan.repos[0]!.refused).toBeNull();
+  });
+});
+
+describe('when git cannot say what is around a repository', () => {
+  const lone = native('srv', 'lone');
+  const refusing = { ...tops({ [lone]: lone }), enclosing: () => ({ refused: 'git cannot say: dubious ownership' }) };
+  it('the default place is refused with git’s reason, not taken as free', () => {
+    const plan = planBatch('fix:generation', [row(lone, [relock(lone)])], new Set([0]), { iaHome: HOME }, refusing);
+    expect(plan.repos[0]!.refused).toBe('git cannot say: dubious ownership');
+  });
+  it('a configured worktreeRoot does not ask', () => {
+    const plan = planBatch(
+      'fix:generation',
+      [row(lone, [relock(lone)])],
+      new Set([0]),
+      { iaHome: HOME, worktreeRoot: native('work', 'trees') },
+      refusing,
+    );
+    expect(plan.repos[0]!.refused).toBeNull();
   });
 });
 
