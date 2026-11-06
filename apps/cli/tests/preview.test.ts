@@ -491,6 +491,104 @@ describe('what counts against a candidate', () => {
   });
 });
 
+describe('shared authored-root ownership', () => {
+  const fields = [
+    'meaning.says=Shared task',
+    'work.title=Shared task',
+    'work.status=open',
+    'work.milestone=@milestone m1',
+  ];
+  function shared(other: string, ownPlacement = 'authored'): string {
+    return workspace((at) => {
+      rewrite(at, '.ia/src/workspace.ia', (text) =>
+        text.replace(
+          'sources [".ia/src @authored"]',
+          `sources [".ia/src/shared @${ownPlacement}", ".ia/src @authored"]`,
+        ),
+      );
+      writeFileSync(
+        resolve(at, '.ia/src/other.ia'),
+        `#! ia 1.0\n\n@workspace ${other}\n  meaning\n    says "Another declarer."\n    answers "Who also declares the shared root?"\n  composition\n    systems [@system work-system, @system workspace-system]\n    sources [".ia/src/shared @authored", ".ia/src/shared/foreign @authored"]\n`,
+      );
+      mkdirSync(resolve(at, '.ia/src/shared'), { recursive: true });
+      writeFileSync(
+        resolve(at, '.ia/src/shared/existing.ia'),
+        '#! ia 1.0\n\n@plan shared-plan\n  meaning\n    says "Shared plan."\n  work\n    title "Shared plan"\n    status open\n',
+      );
+      const db = open(at, { cache: false });
+      try {
+        expect(db.report.findings.filter((finding) => finding.severity === 'error')).toEqual([]);
+        expect(db.resolveSeat('').seat).toBe(demo);
+        expect(db.roots().filter((entry) => entry.root === '.ia/src/shared')).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ workspace: demo, placement: ownPlacement }),
+            expect.objectContaining({
+              workspace: `workspace-system/definition/workspace/${other}`,
+              placement: 'authored',
+            }),
+          ]),
+        );
+      } finally {
+        db.close();
+      }
+    });
+  }
+  it.each(['alpha', 'zeta'])(
+    'accepts a co-declarer regardless of %s identity ordering for explicit, default and existing targets',
+    async (other) => {
+      const root = shared(other);
+      for (const argv of [
+        ['task', 'shared-task', ...fields, '--at', '.ia/src/shared/new.ia'],
+        ['task', 'shared-task', ...fields],
+        ['--set', '@plan shared-plan', 'work.title=Updated shared plan'],
+      ]) {
+        const result = await preview(root, argv);
+        expect(result.exitCode, result.stdout).toBe(0);
+        expect(body(result)).toMatchObject({ clean: true });
+        expect(body(result)['path']).toMatch(/^\.ia\/src\/shared\//);
+      }
+    },
+  );
+  it('refuses a more-specific foreign root even when the workspace owns both containing ancestors', async () => {
+    const root = shared('alpha');
+    const result = await preview(root, ['task', 'foreign-task', ...fields, '--at', '.ia/src/shared/foreign/new.ia']);
+    expect(body(result)).toMatchObject({ ok: false, code: 'IA-CLI-EDIT-UNOWNED' });
+  });
+  it('does not borrow another declarer authored placement when its own identical root is adopted', async () => {
+    const root = shared('alpha', 'adopted');
+    const result = await preview(root, ['task', 'adopted-task', ...fields, '--at', '.ia/src/shared/new.ia']);
+    expect(body(result)).toMatchObject({ ok: false, code: 'IA-CLI-EDIT-UNOWNED' });
+  });
+  it('retains the repository-only mandate restriction on a shared target for preview and author', async () => {
+    const root = shared('alpha');
+    rewrite(root, '.ia/src/workspace.ia', (text) =>
+      text.replace('    scope [@workspace demo]', '    scope [@workspace demo]\n    excluded-words [task]'),
+    );
+    const argv = ['task', 'restricted-task', ...fields, '--at', '.ia/src/shared/restricted.ia'];
+    const result = await preview(root, argv);
+    expect(body(result)).toMatchObject({ code: 'IA-RUNTIME-MANDATE-WORD' });
+    expect(body(result)['message']).toContain(mandate('demo-mandate'));
+    const before = trees(root);
+    const authored = await run(['author', ...argv, '--digest', EMPTY, '--root', root, '--json'], { env: HOMES });
+    expect(body(authored)).toMatchObject({ code: 'IA-RUNTIME-MANDATE-WORD' });
+    expect(trees(root)).toEqual(before);
+  });
+  it('authors an authorized shared target using the preview digest and admits the result', async () => {
+    const root = shared('alpha');
+    const argv = ['task', 'shared-task', ...fields, '--at', '.ia/src/shared/new.ia'];
+    const candidate = await preview(root, argv);
+    expect(candidate.exitCode, candidate.stdout).toBe(0);
+    const authored = await run(
+      ['author', ...argv, '--digest', body(candidate)['digest'] as string, '--root', root, '--json'],
+      { env: HOMES },
+    );
+    expect(authored.exitCode, authored.stdout).toBe(0);
+    expect(readFileSync(resolve(root, '.ia/src/shared/new.ia'), 'utf8')).toContain('@task shared-task');
+    const validated = await run(['validate', '--root', root, '--json']);
+    expect(validated.exitCode, validated.stdout).toBe(0);
+  });
+});
+
 describe('refusals', () => {
   it('refuses an unconsented relationship row, naming the system whose registration refuses it', async () => {
     const root = workspace();
