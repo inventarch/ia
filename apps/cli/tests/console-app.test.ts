@@ -4,7 +4,8 @@
  * the disk), that a decline spawns nothing, and that the terminal is restored on quit, on a throw and on a signal.
  */
 import { spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { hostname } from 'node:os';
 import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -23,6 +24,7 @@ import { windowsShellArgs } from '../src/program.js';
 import type { ConsoleCheck, ConsoleState } from '../src/console/state.js';
 import type { TerminalIO } from '../src/console/terminal.js';
 import { readTracked, trackWorkspaces } from '../src/tracked.js';
+import { TRACKED_LOCK_FILE } from '../src/tracked-lock.js';
 import { cleanup, scratch } from './scratch-fixture.js';
 
 afterAll(cleanup);
@@ -1170,6 +1172,46 @@ describe('the all-workspaces view', () => {
     run.stdin.write('q');
     expect(await run.exit).toBe(0);
   });
+  it("a tracking that waits on a live owner's lock drops other keys, and q ends the wait, leaving that lock as it was", async () => {
+    const run = await launchAll(1);
+    mkdirSync(join(run.base, 'fresh', '.ia/src'), { recursive: true });
+    await until(run.shows('Healthy 1'), 'the row to load');
+    // Another owner on this host, still running (this process), holds the store lock for as long as the test needs.
+    const lock = join(run.home, TRACKED_LOCK_FILE);
+    writeFileSync(
+      lock,
+      JSON.stringify({
+        token: 'planted',
+        start: null,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        host: hostname(),
+        pid: process.pid,
+      }),
+    );
+    const before = readFileSync(lock),
+      tracked = readTracked(run.home);
+    run.stdin.write('f');
+    await until(run.shows('Folder: '), 'the folder line');
+    run.stdin.write('\r');
+    await until(run.shows('FOUND IN'), 'the found list');
+    const mark = run.terminal.out.length;
+    // Enter starts the tracking, which waits on the lock; the `f` after it would open the folder line again.
+    run.stdin.write('\r');
+    run.stdin.write('f');
+    await new Promise((settled) => setTimeout(settled, 150));
+    expect(run.terminal.out.slice(mark)).not.toContain('Folder: ');
+    expect(run.hooks.exits).toEqual([]);
+    const quit = Date.now();
+    run.stdin.write('q');
+    expect(await run.exit).toBe(0);
+    expect(Date.now() - quit).toBeLessThan(2_000);
+    expect(readFileSync(lock)).toEqual(before);
+    // The wait was stopped, not left running: once the lock goes, nothing takes it and the list is unchanged.
+    rmSync(lock);
+    await new Promise((settled) => setTimeout(settled, 200));
+    expect(existsSync(lock)).toBe(false);
+    expect(readTracked(run.home)).toEqual(tracked);
+  });
   it('b focuses the batch list only in keys mode', async () => {
     const run = await launchAll(1);
     await until(run.shows('Healthy 1'), 'the row to load');
@@ -1218,6 +1260,37 @@ describe('refreshing a workspace opened from the table', () => {
         : Promise.resolve(markedReport(`fresh ${root.slice(-3)}`));
     return { pending, state, spawnDoctor };
   }
+  it("a refresh of an opened root that went missing runs no copy, not even the surrounding workspace's", async () => {
+    const spawned: string[] = [];
+    const spawnDoctor: SpawnDoctor = (_entry, root) => {
+      spawned.push(root);
+      return Promise.resolve(markedReport(`fresh ${root.slice(-3)}`));
+    };
+    const run = await launchAll(1, { copies: true, spawnDoctor });
+    await until(run.shows('Attention 1'), 'the row');
+    run.stdin.write('\r');
+    await until(run.shows('esc back'), 'the repo view');
+    // The folder around the root becomes a workspace with its own copy, which discovery would reach by walking up.
+    mkdirSync(join(run.base, '.ia/src'), { recursive: true });
+    writeFileSync(join(run.base, 'package.json'), JSON.stringify({ devDependencies: { '@inventarch/cli': '3.5.0' } }));
+    const around = join(run.base, 'node_modules/@inventarch/cli');
+    mkdirSync(join(around, 'dist'), { recursive: true });
+    writeFileSync(
+      join(around, 'package.json'),
+      JSON.stringify({ name: '@inventarch/cli', version: '3.5.0', bin: { ia: './dist/bin.js' } }),
+    );
+    writeFileSync(join(around, 'dist/bin.js'), '');
+    rmSync(join(run.roots[0]!, '.ia'), { recursive: true });
+    spawned.length = 0;
+    const mark = run.terminal.out.length;
+    run.stdin.write('r');
+    await until(() => run.terminal.out.slice(mark).includes('ws0 is missing.'), 'the table');
+    await settle();
+    expect(spawned).toEqual([]);
+    expect(run.terminal.out.slice(mark)).toContain('Missing 1');
+    run.stdin.write('q');
+    expect(await run.exit).toBe(0);
+  });
   it('a refresh that finishes after Escape or q is discarded, and the console keeps running', async () => {
     const doctor = held();
     const run = await launchAll(2, { copies: true, spawnDoctor: doctor.spawnDoctor });

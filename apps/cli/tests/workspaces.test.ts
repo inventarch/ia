@@ -12,11 +12,13 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
+import { hostname } from 'node:os';
 import { resolve, sep } from 'node:path';
 import { afterAll, expect, it } from 'vitest';
 import { stringWidth } from '../src/console/width.js';
 import { TRACKED_FILE } from '../src/tracked.js';
-import { stacked, table } from '../src/workspaces.js';
+import { TRACKED_LOCK_FILE } from '../src/tracked-lock.js';
+import { listSummary, stacked, table } from '../src/workspaces.js';
 import { cleanup, run, scratch } from './workspace-fixture.js';
 
 afterAll(cleanup);
@@ -504,3 +506,47 @@ it.skipIf(process.platform === 'win32' || process.getuid?.() === 0)(
     expect((await run(['workspaces', 'add', root], { env })).exitCode).toBe(0);
   },
 );
+
+it('remove and find --apply stop at the signal while a live owner holds the lock, leaving that lock and the list', async () => {
+  const { home: at, env } = home(),
+    folder = scratch('workspaces-signal'),
+    kept = workspaceAt(resolve(folder, 'kept'), 'kept');
+  workspaceAt(resolve(folder, 'fresh'), 'fresh');
+  expect((await run(['workspaces', 'add', kept], { env })).exitCode).toBe(0);
+  const listed = readFileSync(resolve(at, TRACKED_FILE));
+  // Another owner on this host, still running (this process), holds the store lock throughout.
+  const lock = resolve(at, TRACKED_LOCK_FILE);
+  writeFileSync(
+    lock,
+    JSON.stringify({
+      token: 'planted',
+      start: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      host: hostname(),
+      pid: process.pid,
+    }),
+  );
+  const before = readFileSync(lock);
+  for (const argv of [
+    ['workspaces', 'remove', 'kept'],
+    ['workspaces', 'find', folder, '--apply', '--yes'],
+  ]) {
+    const controller = new AbortController();
+    const pending = run(argv, { env, signal: controller.signal });
+    await new Promise((settled) => setTimeout(settled, 100));
+    const signalled = performance.now();
+    controller.abort();
+    expect((await pending).exitCode, argv.join(' ')).toBe(130);
+    expect(performance.now() - signalled).toBeLessThan(3_000);
+    expect(readFileSync(lock).equals(before)).toBe(true);
+    expect(readFileSync(resolve(at, TRACKED_FILE)).equals(listed)).toBe(true);
+  }
+});
+
+it('the list summary counts each state, and names unreadable only when a row is', () => {
+  const of = (...states: ('present' | 'missing' | 'unreadable')[]) => listSummary(states.map((state) => ({ state })));
+  expect(of('present', 'present')).toBe('2 tracked: 2 present, 0 missing.');
+  expect(of('present', 'missing', 'missing')).toBe('3 tracked: 1 present, 2 missing.');
+  expect(of('unreadable', 'present', 'missing', 'unreadable')).toBe('4 tracked: 1 present, 1 missing, 2 unreadable.');
+  expect(of('unreadable')).toBe('1 tracked: 0 present, 0 missing, 1 unreadable.');
+});

@@ -14,8 +14,8 @@ import type { Extension } from '../consumer.js';
 import type { DoctorRequest, DoctorView } from '../doctor.js';
 import type { Env } from '../program.js';
 import type { TrackedWorkspace } from '../tracked.js';
-import { sameFile } from '@inventarch/db/internal/paths';
-import { trackedState } from '../tracked.js';
+import type { TrackedState } from '../tracked.js';
+import { sameRoot, trackedState } from '../tracked.js';
 import type { SpawnDoctor } from './load.js';
 import { loadState } from './load.js';
 import type { Offer } from './offers.js';
@@ -106,15 +106,21 @@ export const loadingRow = (tracked: TrackedWorkspace): RepoRow => ({
 
 /**
  * Whether a load read the tracked workspace itself: discovery walks up from a root it cannot see, so a root that went
- * missing or unreadable after the check would otherwise load as the workspace around it, or as none.
+ * missing or unreadable after the check would otherwise load as the workspace around it, or as none. Compared as the
+ * tracked list compares roots (`sameRoot`), so a volume that reports no inode numbers never makes two roots one.
  */
 export const ownRoot = (root: string, state: ConsoleState): boolean =>
-  state.root !== null && sameFile(state.root, root);
-/** The row for a tracked root that did not load as itself: `missing` or `unreadable`, never another's state or offers. */
-export const setAside = (tracked: TrackedWorkspace): RepoRow => {
-  const set = trackedState(tracked);
-  return { ...loadingRow(tracked), state: set === 'missing' ? 'missing' : 'unreadable' };
-};
+  state.root !== null && sameRoot(state.root, root);
+/** Why a root that is there did not load as itself: the IA home's own `.ia`, say, or one that came back since. */
+export const NOT_ITSELF = 'the folder did not load as itself';
+/**
+ * The row for a tracked root that did not load as itself, never another's state or offers: `missing` or `unreadable`
+ * as its root now reads (`set`, read again when not given), or `failed` with `NOT_ITSELF` when the root reads present.
+ */
+export const setAside = (tracked: TrackedWorkspace, set: TrackedState = trackedState(tracked)): RepoRow =>
+  set === 'present'
+    ? { ...loadingRow(tracked), state: 'failed', failure: NOT_ITSELF }
+    : { ...loadingRow(tracked), state: set };
 
 /** One class per row, from its reported, workspace-owned check statuses only. */
 export function classify(row: RepoRow): RepoClass {

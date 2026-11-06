@@ -11,7 +11,17 @@ import type { Check, CheckStatus, DoctorView } from '../src/doctor.js';
 import type { TrackedWorkspace } from '../src/tracked.js';
 import type { DoctorRun } from '../src/console/state.js';
 import type { RepoRow } from '../src/console/workspaces-state.js';
-import { classify, loadAll, loadingRow, summarize } from '../src/console/workspaces-state.js';
+import {
+  classify,
+  loadAll,
+  loadingRow,
+  NOT_ITSELF,
+  ownRoot,
+  setAside,
+  summarize,
+} from '../src/console/workspaces-state.js';
+import type { ConsoleState } from '../src/console/state.js';
+import { trackedState } from '../src/tracked.js';
 import { cleanup, scratch } from './scratch-fixture.js';
 
 afterAll(cleanup);
@@ -449,5 +459,38 @@ describe('summarize', () => {
     expect(total).toBe(healthy + failing + warning + missing + unreadable + failed + unchecked + loading);
     expect(summarize([], { latest: null }, '3.5.1')).toMatchObject({ latest: null, behind: false, tracked: 0 });
     expect(summarize([], { latest: '3.5.1' }, '3.5.1').behind).toBe(false);
+  });
+});
+
+describe('setAside and ownRoot', () => {
+  const at = (root: string): TrackedWorkspace => ({ id: 'demo', root, added: '2026-01-01T00:00:00.000Z' });
+  it('a root that reads present but did not load as itself is failed, never unreadable', () => {
+    const root = join(scratch('set-aside'), 'demo');
+    mkdirSync(join(root, '.ia/src'), { recursive: true });
+    expect(setAside(at(root))).toMatchObject({ state: 'failed', failure: NOT_ITSELF, console: null, offers: [] });
+  });
+  it('a gone root, and one under a file (ENOTDIR), are missing', () => {
+    const base = scratch('set-aside');
+    const file = join(base, 'a-file');
+    writeFileSync(file, '');
+    for (const root of [join(base, 'gone'), join(file, 'demo')]) {
+      expect(trackedState({ root }), root).toBe('missing');
+      expect(setAside(at(root))).toMatchObject({ state: 'missing', failure: null, console: null, offers: [] });
+    }
+  });
+  it('takes the state it is given rather than reading the root again', () => {
+    const root = join(scratch('set-aside'), 'gone');
+    expect(setAside(at(root), 'unreadable').state).toBe('unreadable');
+    expect(setAside(at(root), 'missing').state).toBe('missing');
+  });
+  it('ownRoot is the tracked root itself, whichever way it is spelled, never the workspace around it', () => {
+    const base = scratch('own-root');
+    const root = join(base, 'demo');
+    mkdirSync(join(root, '.ia/src'), { recursive: true });
+    const loaded = (at: string | null) => ({ root: at }) as unknown as ConsoleState;
+    expect(ownRoot(root, loaded(root))).toBe(true);
+    expect(ownRoot(root, loaded(join(root, '.')))).toBe(true);
+    expect(ownRoot(root, loaded(base))).toBe(false);
+    expect(ownRoot(root, loaded(null))).toBe(false);
   });
 });

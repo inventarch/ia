@@ -190,18 +190,16 @@ function list(context: Context, home: string): Result {
         caps,
       ),
     ]);
-  const present = rows.filter((row) => row.state === 'present').length,
-    unreadable = rows.filter((row) => row.state === 'unreadable').length;
   return human([
     [sectionLabel('Tracked workspaces', caps), ...table(terminalSafe(rows), caps)],
-    line(
-      words(
-        `${rows.length} tracked: ${present} present, ${rows.length - present - unreadable} missing${unreadable === 0 ? '' : `, ${unreadable} unreadable`}.`,
-      ),
-      present === rows.length ? 'success' : 'warning',
-      caps,
-    ),
+    line(words(listSummary(rows)), rows.every((row) => row.state === 'present') ? 'success' : 'warning', caps),
   ]);
+}
+/** `list`'s closing count: every row is one of present, missing or unreadable, and the last is named only when seen. */
+export function listSummary(rows: readonly { readonly state: TrackedState }[]): string {
+  const count = (state: TrackedState): number => rows.filter((row) => row.state === state).length;
+  const unreadable = count('unreadable');
+  return `${rows.length} tracked: ${count('present')} present, ${count('missing')} missing${unreadable === 0 ? '' : `, ${unreadable} unreadable`}.`;
 }
 
 async function add(context: Context, home: string, directory: string | undefined): Promise<Result> {

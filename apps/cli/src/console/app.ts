@@ -37,8 +37,8 @@ import type { LocalCli } from '../local-cli.js';
 import type { Env } from '../program.js';
 import type { Capabilities } from '../render.js';
 import { resolveCapabilities } from '../render.js';
-import type { TrackedWorkspace } from '../tracked.js';
-import { findWorkspaces, readTracked, trackedRow, trackWorkspaces } from '../tracked.js';
+import type { TrackedState, TrackedWorkspace } from '../tracked.js';
+import { findWorkspaces, readTracked, trackedRow, trackedState, trackWorkspaces } from '../tracked.js';
 import { batchChoices, planBatch, selectNeeding } from './batch-plan.js';
 import type { Runner } from './batch-run.js';
 import { defaultRunner, gitTop } from './batch-run.js';
@@ -66,6 +66,7 @@ import {
   loadAll,
   loadingRow,
   ownRoot,
+  NOT_ITSELF,
   setAside,
   summarize,
   WORKSPACE_DOCTOR_TIMEOUT_MS,
@@ -425,6 +426,27 @@ export async function runConsole(input: {
         // A workspace opened from the table is read in the shared slots, bounded and cancellable; a newer refresh
         // cancels this one, and a result is kept only while that same opening is still on screen.
         dropRefresh();
+        const rowOf = (): RepoRow | undefined => {
+          const row = target.row === null ? undefined : all.rows[target.row];
+          return row !== undefined && row.tracked.root === target.root ? row : undefined;
+        };
+        /** Back to the table, the opened row set aside as its root reads, rather than offer another place's actions. */
+        const putAside = (set?: TrackedState): void => {
+          const row = rowOf();
+          const aside = row === undefined ? null : setAside(row.tracked, set);
+          if (aside !== null) all.rows[target.row!] = aside;
+          toAll();
+          all.message =
+            aside === null
+              ? 'The opened workspace can no longer be read.'
+              : aside.state === 'failed'
+                ? `${aside.tracked.id}: ${NOT_ITSELF}.`
+                : `${aside.tracked.id} is ${aside.state}.`;
+        };
+        // Checked first, as `loadAll` checks every row: a root gone or unreadable is never loaded, since discovery
+        // would walk up from it and run the copy of the workspace around it only for the result to be thrown away.
+        const before = trackedState(target);
+        if (before !== 'present') return putAside(before);
         const controller = new AbortController();
         refresh = controller;
         const mine = refreshes;
@@ -444,20 +466,12 @@ export async function runConsole(input: {
         if (refresh === controller) refresh = null;
         if (loaded === null || finished || mine !== refreshes || ui.drilled !== target || controller.signal.aborted)
           return;
-        const row = target.row === null ? undefined : all.rows[target.row];
-        const same = row !== undefined && target.row !== null && row.tracked.root === target.root;
-        // A root that went missing or unreadable since it opened loads as the workspace around it, or as none, with
-        // that place's offers; the view goes back to the table rather than offer them.
-        if (!ownRoot(target.root, loaded)) {
-          const aside = same && row !== undefined ? setAside(row.tracked) : null;
-          if (aside !== null) all.rows[target.row!] = aside;
-          toAll();
-          all.message =
-            aside === null ? 'The opened workspace can no longer be read.' : `${aside.tracked.id} is ${aside.state}.`;
-          return;
-        }
+        // The backstop for a race: a root that went missing or unreadable during the load loads as the workspace
+        // around it, or as none, with that place's offers; the view goes back to the table rather than offer them.
+        if (!ownRoot(target.root, loaded)) return putAside();
         state = loaded;
-        if (same && row !== undefined) all.rows[target.row!] = rowFrom(row.tracked, loaded);
+        const row = rowOf();
+        if (row !== undefined) all.rows[target.row!] = rowFrom(row.tracked, loaded);
       }
       offers = offersFor(state, consoles);
       ui.selected = Math.min(ui.selected, Math.max(0, offers.length - 1));

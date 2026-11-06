@@ -9,7 +9,8 @@
  * `IA-CLI-TRACKED-INVALID` and never overwritten. A root is stored as its real path and compared by device and inode
  * (`sameRoot`), so a junction, a trailing separator or another case on Windows is the same row; where the volume
  * reports no inode, by exact real path. A row whose root is gone stays in the list as `missing` until it is removed by
- * name. A root that cannot be examined (EACCES, EPERM) is `unreadable`, never `missing`: it may well still be there.
+ * name. A root that cannot be examined (EACCES or EPERM, for example) is `unreadable`, never `missing`: it may well
+ * still be there.
  */
 import { lstatSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { basename, isAbsolute, join, resolve } from 'node:path';
@@ -95,9 +96,9 @@ const realOrResolved = (path: string, real: (path: string) => string): string =>
 /**
  * One root, whichever way it is spelled. While both paths exist the answer is their device and inode and nothing else,
  * so two directories whose names differ only by case (on a volume that keeps them apart) are two roots. Where either
- * side reports no identity or cannot be read (EACCES, EPERM), their real paths are compared exactly, never folded, so two
- * directories are never one row. Only when one of them is gone is the folded spelling compared, as the volume would fold
- * it.
+ * side reports no identity or cannot be read (EACCES or EPERM, for example), their real paths are compared exactly,
+ * never folded, so two directories are never one row. Only when one of them is gone is the folded spelling compared, as
+ * the volume would fold it.
  */
 export function sameRoot(
   a: string,
@@ -164,7 +165,7 @@ function save(home: string, loaded: Loaded, rows: readonly object[]): void {
 export function readTracked(home: string): readonly TrackedWorkspace[] {
   return load(home).rows.map((entry) => entry.row);
 }
-export function trackedState(row: TrackedWorkspace): TrackedState {
+export function trackedState(row: Pick<TrackedWorkspace, 'root'>): TrackedState {
   try {
     return statSync(join(row.root, '.ia/src'), { throwIfNoEntry: false })?.isDirectory() === true
       ? 'present'
