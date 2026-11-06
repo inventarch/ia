@@ -193,11 +193,22 @@ it('keeps unknown fields', () => {
 
 it('refuses a malformed file and leaves it as it was', () => {
   const root = workspaceAt(resolve(scratch('tracked'), 'repo'), 'repo');
-  for (const text of [
-    '{ not json',
-    JSON.stringify({ format: 'ia-tracked-workspaces-2', workspaces: [] }),
-    JSON.stringify({ format: TRACKED_FORMAT, workspaces: [{ id: 'x', root: 'relative', added: NOW.toISOString() }] }),
-  ]) {
+  const added = NOW.toISOString();
+  const withRows = (...rows: unknown[]) => JSON.stringify({ format: TRACKED_FORMAT, workspaces: rows });
+  const cases: readonly (readonly [string, string])[] = [
+    ['{ not json', ''],
+    ['[]', 'it is not a JSON object'],
+    [JSON.stringify({ format: 'ia-tracked-workspaces-2', workspaces: [] }), 'not ' + TRACKED_FORMAT],
+    [JSON.stringify({ format: TRACKED_FORMAT, workspaces: {} }), 'workspaces is not a list'],
+    [withRows(1), 'workspaces[0] is not an object'],
+    [withRows({ id: 'bad id', root, added }), 'workspaces[0] has no valid id'],
+    [withRows({ id: 'x', root: 'relative', added }), 'x names no absolute root'],
+    [withRows({ id: 'x', root }), 'x has no added time'],
+    [withRows({ id: 'x', root, added: 5 }), 'x has no added time'],
+    [withRows({ id: 'x', root, added, label: 5 }), 'x has a label that is not text'],
+    [withRows({ id: 'x', root, added }, { id: 'x', root, added }), 'x is listed twice'],
+  ];
+  for (const [text, why] of cases) {
     const at = home();
     mkdirSync(at, { recursive: true });
     writeFileSync(file(at), text);
@@ -205,6 +216,7 @@ it('refuses a malformed file and leaves it as it was', () => {
       const refusal = refusalOf(action);
       expect(refusal.code).toBe('IA-CLI-TRACKED-INVALID');
       expect(refusal.where?.path).toBe(file(at));
+      expect(refusal.message).toContain(why);
     }
     expect(readFileSync(file(at), 'utf8')).toBe(text);
   }
