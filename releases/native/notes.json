@@ -7,8 +7,33 @@
   "changes": [
     {
       "id": "inventarch/agent-composition-system",
-      "bump": "major",
+      "bump": "minor",
       "summary": "Remove the deprecated aliases that forwarded the generic workspace runtime: the root re-exports of captureWorkspace, adoptWorkspace, verifyCapture, Corpus, candidateValidation, managedPublication and Capture, and the subpaths of the 18 modules that moved to @inventarch/workspace-runtime in 1.2.0."
+    },
+    {
+      "id": "inventarch/authoring-system",
+      "bump": "patch",
+      "summary": "Pin the new inventarch/agent-composition-system version; no content of its own changed."
+    },
+    {
+      "id": "inventarch/hook-authoring-system",
+      "bump": "patch",
+      "summary": "Pin the new inventarch/agent-composition-system version; no content of its own changed."
+    },
+    {
+      "id": "inventarch/language",
+      "bump": "patch",
+      "summary": "Pin the new inventarch/agent-composition-system version; no content of its own changed."
+    },
+    {
+      "id": "inventarch/learning-system",
+      "bump": "patch",
+      "summary": "Pin the new inventarch/agent-composition-system version; no content of its own changed."
+    },
+    {
+      "id": "inventarch/template-system",
+      "bump": "patch",
+      "summary": "Pin the new inventarch/agent-composition-system version; no content of its own changed."
     }
   ]
 }
