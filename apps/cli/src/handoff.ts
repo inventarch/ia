@@ -135,8 +135,7 @@ function copyState(packageRoot: string, env: Readonly<Record<string, string | un
  * another copy or an older index. Only an answer git gave (an exit of 0) is remembered: a question it could not answer
  * (a non-zero exit, a timeout, a kill, or no git on the path) reads as `committed` reads it this time, from the work
  * tree, and is asked again next time. Nothing is remembered while a GIT_ variable chooses the repository. The memo only
- * saves asking; which copy runs is still decided from the disk each
- * time (`runnableCopy`).
+ * saves asking; which copy runs is still decided from the disk each time (`runnableCopy`).
  */
 export function rememberCommitted(
   ask: (packageRoot: string) => boolean | null = askGit,
