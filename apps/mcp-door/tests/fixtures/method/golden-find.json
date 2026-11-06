@@ -21,8 +21,8 @@
     "version": "0.9.0",
     "archive": "3e9c2330416197b602c3cd5f6dda12a3cfb313959684079ac2bfe8b5a1f7dc8c",
     "sources": "e06a6bddabe5a91bb02277c17745cc00a3be49a11e3b04f9bff85c08b94ac07f",
-    "implementation": "093ddc93f9e239f215a77758d42711f550685beb28a3da2c2fee488a27238671",
-    "retained": "5a696a50fe09449dedb630725ece4fa642954f0f4a9f4ae945e881940007f286",
+    "implementation": "856d8df41d31f9403178c5d38de16f27a553fd8c515518f5a3a7008e47d59d83",
+    "retained": "5bf084cdf68c20fda784c43c9b61d69a2ae17ee1b0d572ec2883412002123adc",
     "records": [
       "agent-composition-system/definition/capability/kb-retrieve",
       "governance-system/definition/procedure/kb-retrieval",
@@ -49,7 +49,7 @@
     "mapped": true,
     "workspace": {
       "root": "<ROOT>/consumer",
-      "revision": "0ba03680a3138194731be3ec00ab07e743550bf6c13048cfaaa2fd407a032a03"
+      "revision": "bf289ccdff318c418c19543ac03d06fda9efc1dc332606e381c4000949bc1fec"
     }
   },
   "instructions": [
@@ -201,5 +201,5 @@
     ]
   },
   "kitUpdateAvailable": null,
-  "digest": "82cb2ba1fb4cde8c356e659ca3ab39a3ceab67d4ef1980f00aeb0bb1a1f558d6"
+  "digest": "cbdf3656968788fe14339d35bf9a962a0a2bd7e653dc67f812d536f42c09824c"
 }
