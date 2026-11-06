@@ -1603,15 +1603,17 @@ describe('a PATH entry inside a selected repository', () => {
       seen.push(options.env);
       return { status: 0, stdout: '', stderr: '' };
     };
-    await spawnGuarded(
+    // The guard admits a program only at its canonical real path, and /bin/sh is a link on most Linux systems.
+    const result = await spawnGuarded(
       run,
-      '/bin/sh',
+      realpathSync.native('/bin/sh'),
       ['-c', 'true'],
       { cwd: fx.dir, env: { ...fx.env, PATH: join(top, 'bin') } },
       {
         checkouts: [top],
       },
     );
+    expect(result.refused).toBeUndefined();
     expect(seen[0]!['PATH']).toBe('/usr/bin:/bin');
   });
 });
