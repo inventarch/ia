@@ -142,18 +142,24 @@ const admitsPrerelease = (comparator: semver.Comparator): boolean =>
   comparator.semver.prerelease.length > 0 &&
   !(comparator.operator === '<' && comparator.semver.prerelease.join('.') === '0');
 /**
- * A range accepting exactly what both `a` and `b` accept, or null when none can be written. When one lies inside the other,
- * the narrower is returned as written, so nested ranges keep their spelling. Otherwise it is their conjunction: sorted comparators, so
- * either order writes the same bytes. A prerelease refuses a conjunction, because a prerelease comparator admits its
- * tuple's prereleases past the other side's comparators, which accept none of them; so does a result past `range`'s
- * length. Null therefore means "not provably satisfiable together", and is never an accepted set that is too wide.
+ * A range accepting exactly what both `a` and `b` accept, or null when none can be written. When one lies inside the other
+ * and admits no prerelease, the narrower is returned as written, so nested ranges keep their spelling. Otherwise it is
+ * their conjunction: sorted comparators, so either order writes the same bytes. A prerelease refuses a conjunction,
+ * because a prerelease comparator admits its tuple's prereleases past the other side's comparators, which accept none
+ * of them; so does a result past `range`'s length. Null therefore means "not provably satisfiable together", and is never an accepted set that is too wide.
  */
 export function commonRange(a: string, b: string): string | null {
   const first = range(a),
     second = range(b);
   if (first === second) return first;
-  const inFirst = semver.subset(second, first),
-    inSecond = semver.subset(first, second);
+  const sets = (r: string) => new semver.Range(r).set,
+    left = sets(first),
+    right = sets(second),
+    prerelease = (clauses: typeof left): boolean => clauses.some((set) => set.some(admitsPrerelease));
+  // `semver.subset` is not trusted with a range that lets a prerelease in: it can call `2.1.3-alpha <3.5.3` a subset
+  // of a range that rejects `2.1.3-alpha`. So the narrower range is returned only when it admits no prerelease.
+  const inFirst = semver.subset(second, first) && !prerelease(right),
+    inSecond = semver.subset(first, second) && !prerelease(left);
   if (inFirst && inSecond)
     return first.length !== second.length
       ? first.length < second.length
@@ -164,10 +170,7 @@ export function commonRange(a: string, b: string): string | null {
         : second;
   if (inFirst) return second;
   if (inSecond) return first;
-  const sets = (r: string) => new semver.Range(r).set,
-    left = sets(first),
-    right = sets(second);
-  if ([...left, ...right].some((set) => set.some(admitsPrerelease))) return null;
+  if (prerelease(left) || prerelease(right)) return null;
   const clause = (set: readonly semver.Comparator[]): string => set.map((comparator) => comparator.value).join(' ');
   const clauses = new Set<string>();
   for (const l of left)
