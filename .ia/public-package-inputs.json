@@ -2,9 +2,9 @@
   "format": "ia.public-package-inputs.v2",
   "source": {
     "repository": "https://github.com/inventarch/ia",
-    "commit": "4ff51a68a11fa03997d05ebed2d15d76ba76fff4",
-    "tree": "ad5baf8707d26e92f3e73d6a9c0d59c7daf9f7a8",
-    "dirty": false
+    "commit": "04fc10ffc2a9c538c473fc64f7357922d1077f3f",
+    "tree": "7ad166ff0c414eec7719be9d97b3051921dbc2ad",
+    "dirty": true
   },
   "membership": {
     "path": "tools/distribution/public-content-policy.json",
@@ -412,7 +412,7 @@
     },
     {
       "path": ".ia/src/systems/agent-composition-system/system.ia",
-      "sha256": "599b7a778755c611e945da91dbe88c92357e2466cef37e1978d473c666bcafba"
+      "sha256": "2aae72c78768633f7edba8c2d01fdebc14448db6f4528120b568a0dd02c1719a"
     },
     {
       "path": ".ia/src/systems/agent-composition-system/tests/compatibility.test.ts",
@@ -844,7 +844,7 @@
     },
     {
       "path": ".ia/src/systems/authoring-system/system.ia",
-      "sha256": "a214234b1827a77ce46186d9f490f6e8b01783dd18b00c0d4ce5aab5640b07ac"
+      "sha256": "ce7138ca21d624bb583a79960c30a1f78763766f1ceaabac127006337a68c3c5"
     },
     {
       "path": ".ia/src/systems/authoring-system/tests/drafts.test.ts",
@@ -976,7 +976,7 @@
     },
     {
       "path": ".ia/src/systems/hook-authoring-system/system.ia",
-      "sha256": "fccddd8156aef9a60a84485398e6550d4797a8f18f2d4243ca49abc002aee61f"
+      "sha256": "096ad09b3e5d9c4a3aca806caae2ae622fe576386542c96cf6e21e817c6e908e"
     },
     {
       "path": ".ia/src/systems/learning-system/LANGUAGE.md",
@@ -1012,7 +1012,7 @@
     },
     {
       "path": ".ia/src/systems/learning-system/system.ia",
-      "sha256": "f9b8e6ea986b2d63800c1418d2ba9e7f5a0e918afd8df6683fa7fd4efb2cd96e"
+      "sha256": "4314b4a899246d03fa132d488e6101fb778d3593c6f026cb3c60dd1b835efd48"
     },
     {
       "path": ".ia/src/systems/session-system/LANGUAGE.md",
@@ -1168,7 +1168,7 @@
     },
     {
       "path": ".ia/src/systems/template-system/system.ia",
-      "sha256": "6b69d413163992b628c114cfb6d4b98820b22df8275fbc1c685049cb8071cd51"
+      "sha256": "5792cbd0ec3011716e7d426b8921a45b2a41370285c2397208b553f002a50583"
     },
     {
       "path": ".ia/src/systems/template-system/tests/scalar.test.ts",
@@ -1288,7 +1288,7 @@
     },
     {
       "path": "CLAUDE.md",
-      "sha256": "707f4f7f6aab1b4243c34534a22602aa6eafe824629d83f043c131fe2e57dd4a"
+      "sha256": "aea15e5b47964a1863725e40e771f2f66e5f19178f0848d039376959c8d80b52"
     },
     {
       "path": "CODE_OF_CONDUCT.md",
@@ -1348,7 +1348,7 @@
     },
     {
       "path": "apps/cli/assets/vocabulary.json",
-      "sha256": "9f4f5e1cf0777592b0f8541b49ff4a530cb34c8220d653942cf4623db3f71988"
+      "sha256": "3d6f37b510d9a122f6510abc3fcac3750457f6787eb13eb28e2828f0b2a8acb8"
     },
     {
       "path": "apps/cli/package.json",
@@ -1828,7 +1828,7 @@
     },
     {
       "path": "apps/cli/tests/fixtures/composition-workspace/.ia/release.json",
-      "sha256": "6f0f252443a4eec3bed7756caaa0cde9b85b84ad87b289e108c9ee33565654ef"
+      "sha256": "97ee1726f34992d2dd6e757df93fd85deb34b80759cde423bfc61a0b5ee44c6f"
     },
     {
       "path": "apps/cli/tests/fixtures/composition-workspace/.ia/src/composition.ia",
@@ -2692,7 +2692,7 @@
     },
     {
       "path": "apps/mcp-door/assets/vocabulary.json",
-      "sha256": "9f4f5e1cf0777592b0f8541b49ff4a530cb34c8220d653942cf4623db3f71988"
+      "sha256": "3d6f37b510d9a122f6510abc3fcac3750457f6787eb13eb28e2828f0b2a8acb8"
     },
     {
       "path": "apps/mcp-door/package.json",
@@ -3148,11 +3148,11 @@
     },
     {
       "path": "docs/reference/language/vocabulary.json",
-      "sha256": "9f4f5e1cf0777592b0f8541b49ff4a530cb34c8220d653942cf4623db3f71988"
+      "sha256": "3d6f37b510d9a122f6510abc3fcac3750457f6787eb13eb28e2828f0b2a8acb8"
     },
     {
       "path": "docs/reference/language/vocabulary.md",
-      "sha256": "aef89781dc9636f132fb2b701dce95cd30bea4609b1e91342999ca358a369a9e"
+      "sha256": "21c112f48b62b5837a87733e1bfa1bf806931d328b57ee3465fffd7ce87d7603"
     },
     {
       "path": "docs/reference/packages/README.md",
@@ -3692,7 +3692,7 @@
     },
     {
       "path": "examples/public-language/contracts/agent-composition-system.ia",
-      "sha256": "599b7a778755c611e945da91dbe88c92357e2466cef37e1978d473c666bcafba"
+      "sha256": "2aae72c78768633f7edba8c2d01fdebc14448db6f4528120b568a0dd02c1719a"
     },
     {
       "path": "examples/public-language/contracts/agent-system.ia",
@@ -3700,7 +3700,7 @@
     },
     {
       "path": "examples/public-language/contracts/authoring-system.ia",
-      "sha256": "a214234b1827a77ce46186d9f490f6e8b01783dd18b00c0d4ce5aab5640b07ac"
+      "sha256": "ce7138ca21d624bb583a79960c30a1f78763766f1ceaabac127006337a68c3c5"
     },
     {
       "path": "examples/public-language/contracts/compliance-system.ia",
@@ -3712,11 +3712,11 @@
     },
     {
       "path": "examples/public-language/contracts/hook-authoring-system.ia",
-      "sha256": "fccddd8156aef9a60a84485398e6550d4797a8f18f2d4243ca49abc002aee61f"
+      "sha256": "096ad09b3e5d9c4a3aca806caae2ae622fe576386542c96cf6e21e817c6e908e"
     },
     {
       "path": "examples/public-language/contracts/learning-system.ia",
-      "sha256": "f9b8e6ea986b2d63800c1418d2ba9e7f5a0e918afd8df6683fa7fd4efb2cd96e"
+      "sha256": "4314b4a899246d03fa132d488e6101fb778d3593c6f026cb3c60dd1b835efd48"
     },
     {
       "path": "examples/public-language/contracts/session-system.ia",
@@ -3724,7 +3724,7 @@
     },
     {
       "path": "examples/public-language/contracts/template-system.ia",
-      "sha256": "6b69d413163992b628c114cfb6d4b98820b22df8275fbc1c685049cb8071cd51"
+      "sha256": "5792cbd0ec3011716e7d426b8921a45b2a41370285c2397208b553f002a50583"
     },
     {
       "path": "examples/public-language/contracts/work-system.ia",
@@ -3772,7 +3772,7 @@
     },
     {
       "path": "examples/public-language/versions.json",
-      "sha256": "636569a92cf2d25de637d4e626022acb07ff622a170e0ce06df9e9437313d3ba"
+      "sha256": "5f9a0ff4769615270b60beb56174172cdb9480a87a03fedb06a028171f8cd156"
     },
     {
       "path": "nx.json",
@@ -7568,11 +7568,11 @@
     },
     {
       "path": "releases/native/current.json",
-      "sha256": "97fd3f8763247750f50ab3ee01e5797d145472e72abbeaecb97301b368e33a2b"
+      "sha256": "d27eefc2014a726131f3a3abf042c8d14f26d56d648dc493a5427c8df2e941f1"
     },
     {
       "path": "releases/native/notes.json",
-      "sha256": "cd8c30bc31781d610b164645e9f9ff91f37df7c2e79bb694f064eb4814222691"
+      "sha256": "c352744c698fd2553d4b7622dcb667151de3fcc02491e9832494e36e541095aa"
     },
     {
       "path": "releases/pending/a-bound-method-refuses-a-kit-the-lock-does-not-i.json",
@@ -7600,7 +7600,7 @@
     },
     {
       "path": "releases/pending/import-the-workspace-runtime-from-its-own-packag.json",
-      "sha256": "b4269ff5b2fd9a497b17eb23d8b7f9f0aa1db59384e48be1bd1da08fdcaf9a36"
+      "sha256": "122825337e9b6a80521112564ec5dad1cb8f6d43641610fff4847a616d095f66"
     },
     {
       "path": "releases/pending/judge-containment-by-real-path-where-a-volume-re.json",
@@ -7972,7 +7972,7 @@
     },
     {
       "path": "tools/distribution/system-package-policy.json",
-      "sha256": "c10e9700c83c2cea41e1dd6a7e763856afe15bf124a3795373a56b4e6d8e4402"
+      "sha256": "424a90f8ea7ba951bdc719d9d4bef7fbe67979d0fa0c5937f595437eeb711218"
     },
     {
       "path": "tools/docs/MARKDOWN.md",
@@ -8739,5 +8739,5 @@
       "sha256": "b7a2070d0de01d78a2f8dbd4e8c646740a4b9f68810cfda96aafe69ffc7a47f4"
     }
   ],
-  "inputDigest": "0d5f6156e7a76e1b42666a3c1c893c3f54ef1b6f53e035132d43f2da87050e1d"
+  "inputDigest": "30edc5e21771e0537fe2d4647faf7fceada70645a6ca25dad8c0623d1214d5c9"
 }
