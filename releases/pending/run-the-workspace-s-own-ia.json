@@ -2,7 +2,7 @@
   "format": "ia.npm-change-note.v1",
   "bump": "minor",
   "title": "Run the workspace's own ia",
-  "summary": "A command typed into a global ia is handed to the @inventarch/cli the workspace lists and has installed (IA_NO_HANDOFF=1 turns this off; the session hook, bare ia, --user and extension commands never hand off), and ia doctor's new cli-version row says which copy runs and whether it satisfies the workspace's dependency.",
+  "summary": "A command typed into a global ia is handed to the @inventarch/cli the workspace lists and has installed (IA_NO_HANDOFF=1 turns this off; the session hook, bare ia, --user, ia workspaces and extension commands never hand off), and ia doctor's new cli-version row says which copy runs and whether it satisfies the workspace's dependency.",
   "packages": [
     "@inventarch/cli",
     "@inventarch/compliance"
