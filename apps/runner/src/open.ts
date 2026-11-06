@@ -199,6 +199,7 @@ export function openRunner(options: RunnerOptions) {
       }
       return {
         id: `runner-${capture.revision}`,
+        clearances: [],
         principal,
         workspace: manifest.workspace,
         profiles: [profile.id],
@@ -221,8 +222,8 @@ export function openRunner(options: RunnerOptions) {
       const grant = copy(await options.authorize(who, current, state));
       for (const key of Object.keys(ceiling.limits) as (keyof Limits)[])
         grant.limits[key] = Math.min(grant.limits[key], ceiling.limits[key]);
-      for (const key of ['operations', 'effects', 'profiles', 'sources', 'models'] as const)
-        (grant[key] as string[]) = grant[key].filter((value) => (ceiling[key] as string[]).includes(value));
+      for (const key of ['operations', 'effects', 'profiles', 'sources', 'models', 'clearances'] as const)
+        (grant[key] as string[]) = (grant[key] ?? []).filter((value) => (ceiling[key] as string[]).includes(value));
       grant.expiresAt = Math.min(grant.expiresAt, ceiling.expiresAt);
       return grant;
     };
@@ -400,11 +401,12 @@ export function openRunner(options: RunnerOptions) {
     });
     let active: string | undefined;
     const persist = async (state: Session) => {
+      const disclosed = await engine.view(state.id, principal);
       writeRunnerEvidence(root, {
         authoredRevision: reader.authoredRevision,
         events: (await store.journal(state.id)).events,
       });
-      return state;
+      return disclosed;
     };
     const step = async () => {
       requireRunner(active, 'IA-RUNNER-NOT-OPEN', 'Open or resume a run first');
@@ -440,6 +442,8 @@ export function openRunner(options: RunnerOptions) {
             !['IA-ENGINE-LIMIT-EXCEEDED', 'IA-ENGINE-AUTHORITY-DENIED'].includes(error.code))
         )
           throw error;
+        // A disclosure refusal is not a resumable execution-policy wait.
+        await engine.view(active, principal);
         // Preserve exact expected refusals. Unexpected Engine/host/storage errors still propagate.
         const owner = await store.acquire(active);
         try {
@@ -525,7 +529,7 @@ export function openRunner(options: RunnerOptions) {
           state = await step();
           if (state.sequence === before || state.runs[state.rootId]!.status === 'waiting') break;
         }
-        return state;
+        return engine.view(active, principal);
       },
       async submit(attempt: string, response: ModelResponse, commandId: string = randomUUID()) {
         requireRunner(active, 'IA-RUNNER-NOT-OPEN', 'Open or resume a run first');

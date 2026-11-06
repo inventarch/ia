@@ -30,6 +30,7 @@ const TYPES = new Set([
   'run.wait',
   'outcome.accept',
   'question.reply',
+  'release.accept',
   'proposal.review',
   'decision.record',
   'child.create',
@@ -84,6 +85,46 @@ function identifier(value: unknown): string {
   if (!ID.test(result) || ['__proto__', 'prototype', 'constructor'].includes(result))
     fail('invalid journal identifier');
   return result;
+}
+/** session-system's label rule: 1\u20131024 UTF-8 bytes, single-line, no C0/C1 controls, no unpaired surrogates. */
+function label(value: unknown): string[] {
+  if (
+    !Array.isArray(value) ||
+    value.some(
+      (id) =>
+        typeof id !== 'string' ||
+        !id ||
+        Buffer.byteLength(id, 'utf8') > 1024 ||
+        /[\p{Cc}\u2028\u2029]/u.test(id) ||
+        Buffer.from(id, 'utf8').toString('utf8') !== id,
+    )
+  )
+    fail('invalid content label');
+  return value as string[];
+}
+/** Content metadata only: never infer labels by inspecting model or operation payloads. */
+function contentLabel(mutation: Row): string[] {
+  if (
+    ['attempt.observe', 'attempt.reconcile', 'question.reply', 'reaction.settle'].includes(String(mutation['type'])) &&
+    Object.hasOwn(mutation, 'label')
+  )
+    return label(mutation['label']);
+  if (mutation['type'] === 'release.accept') return label(row(mutation['release'])['label']);
+  if (mutation['type'] === 'reaction.queue') {
+    const reaction = row(mutation['reaction']);
+    if (Object.hasOwn(reaction, 'label')) return label(reaction['label']);
+  }
+  return [];
+}
+function eventVersion(mutation: Row): number {
+  if (
+    mutation['type'] === 'release.accept' ||
+    (['attempt.observe', 'attempt.reconcile', 'question.reply', 'reaction.settle'].includes(String(mutation['type'])) &&
+      Object.hasOwn(mutation, 'label')) ||
+    (mutation['type'] === 'reaction.queue' && Object.hasOwn(row(mutation['reaction']), 'label'))
+  )
+    return 3;
+  return mutation['type'] === 'session.renew' ? 2 : 1;
 }
 /** Copy bounded plain data without evaluating accessors, toJSON or custom instances. */
 function data(value: unknown): unknown {
@@ -146,7 +187,8 @@ function receipt(value: unknown): Receipt {
     exact(event, ['version', 'id', 'sequence', 'sessionId', 'actor', 'at', 'cause', 'mutation', 'previous', 'hash']);
     const type = text(mutation['type'], 64),
       id = identifier(event['id']);
-    if (!TYPES.has(type) || event['version'] !== (type === 'session.renew' ? 2 : 1)) fail('unknown event type/version');
+    if (!TYPES.has(type) || event['version'] !== eventVersion(mutation)) fail('unknown event type/version');
+    contentLabel(mutation);
     // SessionStore uses the command ID for every event in one atomic command (at most 32).
     if (id !== commandId) {
       if (ids.has(id)) fail('noncontiguous command id reuse');
@@ -307,6 +349,22 @@ function project(value: Receipt, path: string, graph: Graph): string | undefined
   const requiresPhase = graph.registry.schemas
     .get(registration.schema)
     ?.fields.some((field) => field.section === 'execution' && field.key === 'phase' && field.must);
+  const labels = [...new Set(value.events.flatMap((event) => contentLabel(event.mutation)))].sort();
+  if (
+    labels.length &&
+    ![
+      ['run', 'execution'],
+      ['observation', 'evidence'],
+    ].every(([word, section]) =>
+      graph.registry.schemas
+        .get(graph.registry.registrations.get(word!)!.schema)
+        ?.fields.some((field) => field.section === section && field.key === 'label' && field.type === 'list of text'),
+    )
+  )
+    return undefined;
+  const labelField = labels.length
+    ? [`    label [${labels.map((id) => `"${id.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"`).join(', ')}]`]
+    : [];
   const blocks = [
     [
       `@run ${run}`,
@@ -318,6 +376,7 @@ function project(value: Receipt, path: string, graph: Graph): string | undefined
       // Legacy selected schemas require this historical sentinel; current schemas can omit an unknown live phase.
       ...(requiresPhase ? ['    phase recorded'] : []),
       `    owner @agent ${agent.name}`,
+      ...labelField,
     ].join('\n'),
   ];
   const attempts = new Map<string, Row>();
@@ -380,6 +439,7 @@ function project(value: Receipt, path: string, graph: Graph): string | undefined
         `    bundle ${quote(path)}`,
         `    digest ${quote(event.hash)}`,
         '    availability available',
+        ...labelField,
         `    subject @run ${run}`,
         `    snapshot-revision ${quote(value.authoredRevision)}`,
         '    evaluator "ia runner journal projection v1"',

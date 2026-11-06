@@ -81,6 +81,7 @@ function pathMandate(
 }
 function hostPolicy(overrides: () => Partial<Grant>): EngineHost['authorize'] {
   return async (principal, manifest, state) => ({
+    clearances: [],
     id: 'local-policy',
     principal,
     workspace: manifest.workspace,
@@ -407,7 +408,7 @@ it('journals source revocation after context preparation and preserves refusal a
   expect(seen).toHaveLength(0);
 });
 
-it('propagates unexpected host authorization errors without converting them into policy refusals', async () => {
+it('redacts throwing current grants and does not disclose the committed session or convert it into a policy wait', async () => {
   const options = fixture(),
     policy = hostPolicy(() => ({}));
   const runner = openRunner({
@@ -418,8 +419,11 @@ it('propagates unexpected host authorization errors without converting them into
     },
   });
   cleanups.push(() => runner.close());
-  await runner.start('Preserve unexpected errors', 'unexpected-host-error');
-  await expect(runner.run()).rejects.toThrow('Unexpected local authorization failure');
+  const error = await runner
+    .start('Preserve unexpected errors', 'unexpected-host-error')
+    .catch((value: unknown) => value);
+  expect(error).toMatchObject({ code: 'IA-ENGINE-AUTHORITY-DENIED' });
+  expect(String(error)).not.toContain('Unexpected local authorization failure');
   expect((await runner.store.read('unexpected-host-error')).runs['root']?.wait).toBeNull();
 });
 

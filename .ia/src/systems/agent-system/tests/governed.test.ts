@@ -62,6 +62,7 @@ const startRequest = {
 function fixture(store: SessionStore = memoryStore()) {
   let writes = 0;
   const grant: Grant = {
+    clearances: [],
     id: 'grant',
     principal: 'alice',
     workspace: 'w',
@@ -779,6 +780,7 @@ it.each(['caller', 'deadline'] as const)(
 );
 
 function independent(f: ReturnType<typeof fixture>) {
+  f.host.authorize = async (principal) => ({ ...f.grant, principal });
   f.manifest.profiles['author']!.contract!.review = {
     rule: 'independent-exact-candidate-v1',
     reviewer: 'bob',
@@ -855,6 +857,38 @@ it('records an independent review without transferring session ownership and app
     },
   });
   expect(state.principal).toBe('alice');
+});
+it('rechecks disclosure after an owner review commits', async () => {
+  const f = fixture();
+  const { engine, proposal } = await offered(f);
+  let committed = false;
+  const authorize = f.host.authorize;
+  f.host.authorize = async (...args) => {
+    if (committed) throw new Error('withdrawn after the review');
+    return authorize(...args);
+  };
+  const command = f.store.command.bind(f.store);
+  f.store.command = async (...args) => {
+    const result = await command(...args);
+    if (args[0].mutation.type === 'proposal.review') committed = true;
+    return result;
+  };
+  await expect(
+    engine.review('session', 'alice', proposal.id, proposal.revision, proposal.digest, true, 'Reviewed', 'approve'),
+  ).rejects.toMatchObject({ code: 'IA-ENGINE-AUTHORITY-DENIED' });
+  const events = (await f.store.journal('session')).events;
+  expect(events.some((event) => event.mutation.type === 'proposal.review')).toBe(true);
+});
+it('does not treat independent reviewer authority as authority to disclose the session', async () => {
+  const f = fixture();
+  independent(f);
+  const { engine, proposal } = await offered(f);
+  f.host.authorize = async () => f.grant;
+  const before = await f.store.journal('session');
+  await expect(
+    engine.review('session', 'bob', proposal.id, proposal.revision, proposal.digest, true, 'review', 'review-denied'),
+  ).rejects.toMatchObject({ code: 'IA-ENGINE-AUTHORITY-DENIED' });
+  expect(await f.store.journal('session')).toEqual(before);
 });
 it.each([
   'principal',

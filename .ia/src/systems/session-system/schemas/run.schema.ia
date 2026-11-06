@@ -13,3 +13,4 @@
     must have execution.status as id
     may have execution.phase as id "The declared phase, when known; omit it when unknown. Historical id values remain valid. A declaration does not prove engine state."
     must have execution.owner as ref
+    may have execution.label as list of text "Opaque host-defined content labels retained from the session; readers must enforce their own current clearance."

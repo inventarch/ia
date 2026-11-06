@@ -36,7 +36,12 @@ function append(
   overrides: Record<string, unknown> = {},
 ): void {
   const body = {
-    version: 1,
+    version:
+      Object.hasOwn(mutation, 'label') ||
+      mutation['type'] === 'release.accept' ||
+      (mutation['type'] === 'reaction.queue' && Object.hasOwn(mutation['reaction'] as Record<string, unknown>, 'label'))
+        ? 3
+        : 1,
     id: commandId ?? `event-${events.length + 1}`,
     sequence: events.length + 1,
     sessionId,
@@ -119,6 +124,130 @@ it.each(['recorded', 'orient'])('keeps historical declared run phase %s admitted
     expect(db.report.findings.filter((finding) => finding.severity === 'error')).toEqual([]);
     expect(db.records().some((record) => record.name === 'historical-run')).toBe(true);
   });
+});
+
+it('preserves the whole session label on every evidence record without changing opaque ids', () => {
+  const root = workspace();
+  for (const [system, word] of [
+    ['session-system', 'run'],
+    ['learning-system', 'observation'],
+  ]) {
+    const path = `.ia/src/systems/${system}/schemas/${word}.schema.ia`;
+    put(root, path, readFileSync(resolve(import.meta.dirname, '../../..', path), 'utf8'));
+  }
+  const input = journal(root);
+  append(input.events, WAIT);
+  append(input.events, {
+    type: 'attempt.prepare',
+    attempt: { id: 'private-read', kind: 'operation', runId: 'child', target: 'fixture-read' },
+  });
+  append(input.events, {
+    type: 'attempt.observe',
+    attemptId: 'private-read',
+    effect: 'none',
+    error: null,
+    label: ['strategy/private', 'opaque/"quoted"\\id'],
+  });
+  append(input.events, {
+    type: 'question.reply',
+    questionId: 'question',
+    answer: 'host reply',
+    label: ['strategy/private', 'finance/private'],
+  });
+  append(input.events, {
+    type: 'attempt.reconcile',
+    attemptId: 'private-read',
+    output: 'reconciled',
+    label: ['archive/private'],
+  });
+  append(input.events, {
+    type: 'reaction.settle',
+    reactionId: 'reaction',
+    result: 'host reaction',
+    label: ['reaction/private'],
+  });
+  append(input.events, {
+    type: 'release.accept',
+    release: {
+      id: 'release',
+      runId: 'root',
+      policy: 'workspace-public',
+      policyRevision: 'revision-1',
+      output: 'cleared answer',
+      label: ['public'],
+      sources: [{ id: 'private-read', digest: digest('source'), label: ['strategy/private'] }],
+    },
+  });
+  writeRunnerEvidence(root, input);
+  const records = runtime(root);
+  expect(records.map((record) => record.discriminator).sort()).toEqual(['observation', 'run']);
+  for (const record of records) {
+    const section = record.discriminator === 'run' ? 'execution' : 'evidence';
+    expect(
+      record.sections
+        .find((candidate) => candidate.name === section)
+        ?.fields.find((field) => 'key' in field && field.key === 'label'),
+    ).toMatchObject({
+      value: {
+        kind: 'list',
+        items: [
+          'archive/private',
+          'finance/private',
+          'opaque/"quoted"\\id',
+          'public',
+          'reaction/private',
+          'strategy/private',
+        ].map((text) => ({
+          kind: 'string',
+          text,
+        })),
+      },
+    });
+  }
+});
+
+it('withholds labelled evidence when a selected legacy schema cannot retain its label', () => {
+  const root = workspace(),
+    input = journal(root);
+  append(input.events, { type: 'question.reply', questionId: 'question', answer: 'private', label: ['private'] });
+  append(input.events, WAIT);
+  writeRunnerEvidence(root, input);
+  expect(runtime(root)).toEqual([]);
+});
+
+it('withholds a legacy projection when only a queued reaction adds a private label', () => {
+  const root = workspace(),
+    input = journal(root);
+  append(input.events, {
+    type: 'reaction.queue',
+    reaction: { id: 'reaction', runId: 'root', input: 'private', label: ['private'] },
+  });
+  append(input.events, WAIT);
+  writeRunnerEvidence(root, input);
+  expect(runtime(root)).toEqual([]);
+});
+
+// 600 two-byte characters: within 1024 UTF-16 units but over the 1024-byte label bound.
+const wide = String.fromCharCode(0xe9).repeat(600);
+it.each([null, 'private', [''], [1], ['private\npublic'], [wide]])('rejects malformed evidence labels: %j', (label) => {
+  const root = workspace(),
+    input = journal(root);
+  append(input.events, { type: 'question.reply', questionId: 'question', answer: 'private', label });
+  expect(() => writeRunnerEvidence(root, input)).toThrow('label');
+});
+
+it.each([
+  { type: 'attempt.observe', label: ['private'] },
+  { type: 'attempt.reconcile', label: ['private'] },
+  { type: 'question.reply', label: ['private'] },
+  { type: 'reaction.settle', label: ['private'] },
+  { type: 'reaction.queue', reaction: { label: ['private'] } },
+  { type: 'release.accept', release: { label: [] } },
+])('refuses label semantics downgraded to a legacy event version: $type', (mutation) => {
+  const root = workspace(),
+    input = journal(root);
+  append(input.events, mutation, undefined, { version: 1 });
+  expect(() => writeRunnerEvidence(root, input)).toThrow('unknown event type/version');
 });
 
 it('admits contiguous atomic command consequences with the same command id', () => {

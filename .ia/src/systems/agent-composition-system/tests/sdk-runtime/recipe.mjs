@@ -126,6 +126,7 @@ function exampleHost(root, capture, manifest, store, pins, scenario) {
     failedRead = false;
   const counters = { model: 0, reads: 0, evaluators: 0 };
   const grant = {
+    clearances: [],
     id: `example-${scenario}`,
     principal,
     workspace: manifest.workspace,

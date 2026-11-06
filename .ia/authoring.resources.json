@@ -31,8 +31,8 @@
     },
     {
       "path": ".ia/src/systems/agent-composition-system/SPEC.md",
-      "bytes": 2620,
-      "sha256": "4105c6e9d538a47be3cfb4a4752d091c9a412500843ab1b967721aacdd7de35b",
+      "bytes": 3052,
+      "sha256": "3edfe1992deb794ff48e146f8c5097756fbb200c5a87f0cbe22d33107f6f8f24",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -290,8 +290,8 @@
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/observation.md",
-      "bytes": 2899,
-      "sha256": "bc3d27a6bc6336b6fde4bbd3fa73d8de7872f7ac6cdd7c328fd5b3cad24b9c28",
+      "bytes": 3057,
+      "sha256": "b35500bf2d2c3b464825b7f401c1935fe53e13554da3887d95369c7c8a66d501",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -353,8 +353,8 @@
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/run.md",
-      "bytes": 1320,
-      "sha256": "3f4637d3b6f1e94ef5f2ffaf818b959bb4496ffd233c289f232ebad59ebb9e26",
+      "bytes": 1479,
+      "sha256": "28ad93640aac7acbc6909c8812561b78e33074be9974c6426f45d58fcfe854ed",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -493,8 +493,8 @@
     },
     {
       "path": ".ia/src/systems/learning-system/SPEC.md",
-      "bytes": 252,
-      "sha256": "c1322307ce22cd3b11a81a4738caaf17c16a777fbff1ded70cbe653e1df30b8c",
+      "bytes": 684,
+      "sha256": "df6784dad83f4019165d2816982fa68466ef0a198b2c8e7db5f9579ffad472ed",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -514,8 +514,8 @@
     },
     {
       "path": ".ia/src/systems/session-system/SPEC.md",
-      "bytes": 895,
-      "sha256": "ef6542a9564a3ef0e9e796928eea76caecd740b55b1c361357521ffdccf5ede4",
+      "bytes": 3393,
+      "sha256": "2ea752349bbc86df8b8657116da3e62591d83fdb024b5f87590a556ad6537e75",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },

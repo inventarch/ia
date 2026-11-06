@@ -82,6 +82,7 @@ export function adapterFixture() {
       provenance: {},
     },
     grant: {
+      clearances: [],
       id: 'grant',
       principal: 'alice',
       workspace: 'workspace',

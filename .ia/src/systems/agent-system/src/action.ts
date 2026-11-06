@@ -27,6 +27,7 @@ export function parseAction(value: unknown): ModelAction {
     'Action must be a bounded JSON object',
   );
   const fields: Record<string, string[]> = {
+    release: ['type', 'candidate'],
     continue: ['type', 'message'],
     invoke: ['type', 'operation', 'input', 'review'],
     delegate: ['type', 'profile', 'task'],
@@ -54,6 +55,8 @@ export function parseAction(value: unknown): ModelAction {
     'Unknown action field',
   );
   const type = value['type'];
+  if (type === 'release')
+    check(Object.hasOwn(value, 'candidate'), 'IA-ENGINE-ACTION-INVALID', 'Missing release candidate');
   if (type === 'continue') check(text(value['message']), 'IA-ENGINE-ACTION-INVALID', 'Missing continuation message');
   if (type === 'invoke')
     check(

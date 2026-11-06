@@ -11,3 +11,5 @@ The [public spec and explicit body seam](references/public-spec.md) separates na
 The [joined native spec read and explicit body example](references/spec-read-boundary.md) exercises separate native execution and resource disclosure boundaries through existing APIs.
 
 The [complete task capture contract](references/task-capture.md) defines version-2 scope, trusted full-view verification, required teaching and explicit overflow refusal at the existing bound.
+
+Installed mandate contracts may declare `release: { policy: string }`. Composition rejects malformed or conflicting policies, pins the selected policy in field provenance and carries it through the compiled profile into the engine execution contract. This declares a host-checked release boundary, not clearance or execution authority. Host fixtures supply explicit `Grant.clearances`; legacy unlabelled fixture content uses `[]`.
