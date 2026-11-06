@@ -10,13 +10,12 @@
  * `.ia/release.json` language versions against the versions this ia's parser reads.
  */
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
-import { hostname } from 'node:os';
 import { createRequire } from 'node:module';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { sameFile } from '@inventarch/db';
 import type { Decision } from '@inventarch/distribution/decisions';
 import { decisionFor, DECISIONS, readDecisions } from '@inventarch/distribution/decisions';
-import { parseOwner, pidRunning } from '@inventarch/distribution/home-lock';
+import { ownerGone, parseOwner } from '@inventarch/distribution/home-lock';
 import { HOME_MARKER, resolveIaHome } from '@inventarch/distribution/ia-home';
 import { inspectMaterializedPlugin, MARKETPLACE_DIR } from '@inventarch/distribution/plugin-home';
 import type { UpdateCheck } from '@inventarch/distribution/updates';
@@ -50,6 +49,7 @@ import {
 } from './package-manager.js';
 import type { Fix, Remedy } from './fix.js';
 import { externalFix, iaFix } from './fix.js';
+import { TRACKED_LOCK_FILE } from './tracked-lock.js';
 
 export interface UserFacts {
   readonly channel: Channel;
@@ -104,16 +104,20 @@ export function refreshCommand(
     ...(options.force && input.root !== undefined ? ['--force'] : []),
   ];
 }
-/** The IA home's store locks (host plugin distribution §3), relative to the home. */
-const HOME_LOCKS = [UPDATE_CHECK_LOCK, 'tracked-workspaces.json.lock'];
+/**
+ * The IA home's store locks (host plugin distribution §3), relative to the home. A function, not a constant: the module
+ * that defines `TRACKED_LOCK_FILE` reaches this one through `consumer.js`, so it may not be initialised at load.
+ */
+const homeLocks = (): readonly string[] => [UPDATE_CHECK_LOCK, TRACKED_LOCK_FILE];
 /**
  * One `home-lock:<file>` row per store lock in the IA home whose owner is gone: the token parses, the owner is on this
- * host and its pid is no longer running. A lock a running process, another host or an unreadable token holds gets no
- * row, since only the first can be said to be left behind. `ia` never removes another owner's lock, so the row names
+ * host and its pid is no longer running or now names another process (`ownerGone`, the rule a waiting change uses). A
+ * lock a running owner, another host or an unreadable token holds gets no row, since only a gone owner can be said to
+ * have left it behind. `ia` never removes another owner's lock, so the row names
  * the file to delete by hand.
  */
 export function homeLockRows(home: string): Check[] {
-  return HOME_LOCKS.flatMap((name): Check[] => {
+  return homeLocks().flatMap((name): Check[] => {
     const path = join(home, name);
     let owner;
     try {
@@ -121,14 +125,15 @@ export function homeLockRows(home: string): Check[] {
     } catch {
       return [];
     }
-    if (owner === null || owner.host !== hostname() || pidRunning(owner.pid)) return [];
+    const gone = owner === null ? null : ownerGone(owner);
+    if (owner === null || gone === null) return [];
     return [
       row(
         `home-lock:${name}`,
         'Environment',
         'IA home lock',
         'warn',
-        `${path} was left by ia process ${owner.pid} on this host, which is no longer running (created ${Number.isNaN(Date.parse(owner.createdAt)) ? owner.createdAt : utcMinute(owner.createdAt)}); until it is deleted every change to that store waits for it and refuses`,
+        `${path} was left by ia process ${owner.pid} on this host, ${gone === 'reused' ? 'whose pid now names another process' : 'which is no longer running'} (created ${Number.isNaN(Date.parse(owner.createdAt)) ? owner.createdAt : utcMinute(owner.createdAt)}); until it is deleted every change to that store waits for it and refuses`,
         `Once no other ia process is running on this host, delete ${path} by hand`,
       ),
     ];

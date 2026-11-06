@@ -403,6 +403,18 @@ it('a home lock whose owner is gone is a row naming the file; a running, foreign
   // Not gone: a running process, another host, a token that does not parse.
   const cache = lock('state/update-check.json.lock', owner({ pid: process.pid }));
   expect(locks()).toEqual([]);
+  // A running pid whose start differs is another process; only Linux reports a start time to compare.
+  lock('state/update-check.json.lock', owner({ pid: process.pid, start: 'not-this-start' }));
+  expect(locks()).toEqual(
+    process.platform === 'linux'
+      ? [
+          expect.objectContaining({
+            id: 'home-lock:state/update-check.json.lock',
+            detail: expect.stringContaining('whose pid now names another process'),
+          }),
+        ]
+      : [],
+  );
   lock('state/update-check.json.lock', owner({ host: 'some-other-host' }));
   expect(locks()).toEqual([]);
   lock('state/update-check.json.lock', '{');

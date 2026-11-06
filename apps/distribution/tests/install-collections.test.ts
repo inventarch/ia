@@ -4,7 +4,7 @@
  * activation committed, and a reader never names a collection version that did not commit, except in the one accepted
  * residual case an older CLI can open.
  */
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
@@ -319,6 +319,23 @@ it('an unreadable collection record refuses a restore with verb-neutral wording 
   expect(message).not.toMatch(/ia install/);
   expect(stages).toEqual([]);
   expect(read(root, KIT_COLLECTIONS)).toBe('{ not json');
+});
+it('an unreadable collection record in a workspace with no lock refuses without claiming installed packages', async () => {
+  const dir = await registry(),
+    root = workspaceRoot();
+  mkdirSync(join(root, '.ia'), { recursive: true });
+  writeFileSync(join(root, KIT_COLLECTIONS), '{ nope');
+  let message = '';
+  try {
+    await install(root, dir, ['acme/kit@^1.0.0']);
+  } catch (error) {
+    message = (error as Error).message;
+  }
+  expect(message).toMatch(/the next apply would replace it/);
+  expect(message).not.toMatch(/installed packages stay/);
+  expect(message).toMatch(/no package lock yet/);
+  expect(read(root, KIT_COLLECTIONS)).toBe('{ nope');
+  expect(existsSync(join(root, INSTALL_PATHS.lock))).toBe(false);
 });
 it('a restore of an unchanged lock does not rewrite the record', async () => {
   const dir = await registry(),

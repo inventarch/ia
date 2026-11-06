@@ -270,13 +270,17 @@ function acquire(root: string, recovering = false): () => void {
  * A record this build cannot decode is not an absent one: the merge would replace it and lose its collection rows.
  * Checked at the start of an apply, before any store or generation file, and again where the merge is made.
  */
-function refuseUnreadableCollections(read: ReturnType<typeof readKitCollections>): void {
-  if (read.state === 'invalid')
-    fail(
-      'COLLECTIONS-UNREADABLE',
-      `${read.problem}; the next apply would replace it and lose the collection rows it holds (the installed packages stay). ` +
-        `Restore the file from version control or a backup, or move ${KIT_COLLECTIONS} aside if its collections may be forgotten, then run the command again`,
-    );
+function refuseUnreadableCollections(root: string, read: ReturnType<typeof readKitCollections>): void {
+  if (read.state !== 'invalid') return;
+  // With no lock there is nothing installed for the record to describe, so the refusal claims no installed package.
+  const kept = existsSync(join(root, INSTALL_PATHS.lock))
+    ? ' (the installed packages stay)'
+    : ' (the workspace has no package lock yet, so nothing installed is at stake)';
+  fail(
+    'COLLECTIONS-UNREADABLE',
+    `${read.problem}; the next apply would replace it and lose the collection rows it holds${kept}. ` +
+      `Restore the file from version control or a backup, or move ${KIT_COLLECTIONS} aside if its collections may be forgotten, then run the command again`,
+  );
 }
 /**
  * The collections journal this apply writes, or null when the record does not change. The merge starts from the record
@@ -291,7 +295,7 @@ function collectionsChange(
   pending: { readonly beforeActive: string | null; readonly beforeLock: string | null; readonly afterLock: string },
 ): CollectionsJournal | null {
   const read = readKitCollections(root);
-  refuseUnreadableCollections(read);
+  refuseUnreadableCollections(root, read);
   // The file's own bytes, readable or not, so a rollback puts back exactly what was there.
   const before = bytes(root, KIT_COLLECTIONS, DISTRIBUTION_LIMITS.metadata)?.toString('utf8') ?? null;
   const current =
@@ -326,7 +330,7 @@ export function applyInstallation(
     noPending(root);
     // A collections journal no pending.json stands beside was left by a recovery that did not read it; settle it first.
     settleOrphanJournal(root);
-    refuseUnreadableCollections(readKitCollections(root));
+    refuseUnreadableCollections(root, readKitCollections(root));
     if (
       json(state(root)) !== json(plan.binding) ||
       json(planInstallation(root, plan.lock, plan.operation)) !== json(plan)
