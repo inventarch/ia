@@ -339,6 +339,46 @@ it('re-installing a collection at a range that intersects a holder moves the pin
   expect(lockText(root)).toBe(text);
 });
 
+it('a range the user named in an earlier command is never narrowed by a collection that shares it', async () => {
+  const dir = overlapRegistry(['1.3.0', '1.5.0']),
+    root = await workspace();
+  await ia(root, dir, 'install', 'acme/b@1.0.0');
+  // The user names the member b already lists, at the same range: the lock is unchanged, the record keeps who asked.
+  const lock = lockText(root);
+  await ia(root, dir, 'install', 'acme/x@^1.2.0');
+  expect(lockText(root)).toBe(lock);
+  expect(JSON.parse(readFileSync(join(root, KIT_COLLECTIONS), 'utf8'))).toMatchObject({ named: ['acme/x'] });
+  const recorded = readFileSync(join(root, KIT_COLLECTIONS), 'utf8');
+
+  // A collection listing x at ^1.4.0 refuses, as for any direct request, and nothing is written.
+  const refused = await run(['install', 'acme/a@2.0.0', '--root', root, '--registry', dir, '--json']);
+  expect(refused.exitCode, refused.stdout).toBe(3);
+  expect(JSON.parse(refused.stdout)).toMatchObject({
+    code: 'IA-DIST-CONFLICT',
+    message: 'Kit conflicts with direct request acme/x',
+  });
+  expect(lockText(root)).toBe(lock);
+  expect(readFileSync(join(root, KIT_COLLECTIONS), 'utf8')).toBe(recorded);
+
+  // Re-installing the holder keeps the request the user named, and its mark.
+  await ia(root, dir, 'install', 'acme/b@1.0.0');
+  expect(lockText(root)).toBe(lock);
+  expect(readFileSync(join(root, KIT_COLLECTIONS), 'utf8')).toBe(recorded);
+});
+
+it("a request named before any collection listed it stays the user's once one does", async () => {
+  const dir = overlapRegistry(['1.3.0', '1.5.0']),
+    root = await workspace();
+  await ia(root, dir, 'install', 'acme/x@^1.2.0');
+  await ia(root, dir, 'install', 'acme/b@1.0.0');
+  expect(JSON.parse(readFileSync(join(root, KIT_COLLECTIONS), 'utf8'))).toMatchObject({ named: ['acme/x'] });
+  const refused = await run(['install', 'acme/a@2.0.0', '--root', root, '--registry', dir, '--json']);
+  expect(refused.exitCode, refused.stdout).toBe(3);
+  expect(JSON.parse(refused.stdout)).toMatchObject({
+    message: 'Kit conflicts with direct request acme/x',
+  });
+});
+
 it('a kit whose member is a kit previews and applies, recording the members it expanded to', async () => {
   const dir = buildFixtureRegistry([{ id: 'acme/x', version: '1.0.0' }]),
     root = await workspace();

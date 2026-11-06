@@ -48,6 +48,12 @@ export interface RegistryResolveRequest {
    * stays, unless the same command expands that collection too.
    */
   readonly collectionMembers?: ReadonlyMap<string, readonly string[]> | undefined;
+  /**
+   * Lock requests the user named in an earlier command (the collection record's `named`, and any request no recorded
+   * collection lists). They count as named here as well: re-expanding a collection keeps them, and a member range that
+   * differs conflicts with them rather than narrowing them.
+   */
+  readonly direct?: readonly string[] | undefined;
 }
 /**
  * `candidates` are exactly the selected releases, admitted. A selected cached lock pin retains its manifest-level
@@ -256,11 +262,12 @@ async function resolveWithPins(
   ]);
   // The ids the caller says the command itself names (`request.named` as given, and `preferredExcept`, which is always
   // named; never the index-lookup default above, which reads every request's index and says nothing about who asked for
-  // it), and the member ids each expansion in this command introduces: neither is a request an earlier expansion merely
-  // left behind.
+  // it), the requests an earlier command named (`request.direct`), and the member ids each expansion in this command
+  // introduces: none is a request an earlier expansion merely left behind.
   const explicit = new Set([
       ...(request.named ?? []),
       ...(request.preferredExcept === undefined ? [] : [request.preferredExcept]),
+      ...(request.direct ?? []),
     ]),
     introduced = new Set<string>();
   // §5.2: the closure follows only releases selection could pick for some known constraint: not withdrawn, admitted by the
@@ -370,15 +377,14 @@ async function resolveWithPins(
         // command expands that collection too (it is expanded already, or its id is still a request waiting to be): one
         // collection's install never drops another's constraint. A request the user named conflicts on any other range;
         // a member a collection left takes the range both accept, and conflicts only when no release satisfies both.
+        // A member an installed collection still waiting to be expanded recorded leaves as well: that expansion would
+        // drop it anyway, so its old range never constrains this kit's.
         const recorded = new Set(request.collectionMembers?.get(id) ?? []);
         const held = new Map<string, string[]>();
         for (const [other, members] of request.collectionMembers ?? [])
-          if (
-            other !== id &&
-            !expanded.some((collection) => collection.id === other) &&
-            !requests.some((item) => item.id === other)
-          )
-            for (const member of members) held.set(member, [...(held.get(member) ?? []), other].sort());
+          if (other === id || expanded.some((collection) => collection.id === other)) continue;
+          else if (requests.some((item) => item.id === other)) for (const member of members) recorded.add(member);
+          else for (const member of members) held.set(member, [...(held.get(member) ?? []), other].sort());
         for (let at = requests.length - 1; at >= 0; at -= 1) {
           const member = requests[at]!.id;
           if (recorded.has(member) && !explicit.has(member) && !introduced.has(member) && !held.has(member))
