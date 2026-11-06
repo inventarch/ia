@@ -13,7 +13,7 @@
  */
 import { lstatSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { basename, isAbsolute, join, resolve } from 'node:path';
-import { pathKey, unidentified, within } from '@inventarch/db/internal/paths';
+import { pathKey, sameIdentity, within } from '@inventarch/db/internal/paths';
 import { readHomeFile, writeHomeFile } from '@inventarch/distribution/ia-home';
 import { inertCommandRoot } from '@inventarch/runtime';
 import { UsageError } from './args.js';
@@ -80,14 +80,6 @@ const identity = (path: string): Identity | undefined => {
     return undefined;
   }
 };
-/** The exact real path; the resolved spelling when even that cannot be read. */
-const realOrResolved = (path: string, real: (path: string) => string): string => {
-  try {
-    return real(path);
-  } catch {
-    return resolve(path);
-  }
-};
 /**
  * One root, whichever way it is spelled. While both paths exist the answer is their device and inode and nothing else,
  * so two directories whose names differ only by case (on a volume that keeps them apart) are two roots. Where either
@@ -102,12 +94,7 @@ export function sameRoot(
 ): boolean {
   const left = stat(a),
     right = stat(b);
-  if (left !== undefined && right !== undefined) {
-    // An identity the volume did not supply (`unidentified`: an inode of 0, which covers a device and inode both 0, or
-    // all ones) never means "the same file".
-    if (unidentified(left.ino) || unidentified(right.ino)) return realOrResolved(a, real) === realOrResolved(b, real);
-    return left.dev === right.dev && left.ino === right.ino;
-  }
+  if (left !== undefined && right !== undefined) return sameIdentity(a, b, left, right, real);
   return pathKey(resolve(a)) === pathKey(resolve(b));
 }
 
