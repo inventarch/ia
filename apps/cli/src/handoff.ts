@@ -96,15 +96,19 @@ const identity = (path: string): string => {
 function gitIndexOf(dir: string): string | null {
   for (let at = dir; ; at = dirname(at)) {
     const dotGit = join(at, '.git');
+    // Read the file form first and let the read itself say what is there: a directory or nothing throws, so no
+    // separate check can go stale before the read.
+    let text: string | null = null;
     try {
-      const stat = statSync(dotGit);
-      if (stat.isDirectory() && existsSync(join(dotGit, 'HEAD'))) return join(dotGit, 'index');
-      if (stat.isFile()) {
-        const gitdir = /^gitdir:\s*(.+?)\s*$/m.exec(readFileSync(dotGit, 'utf8'))?.[1];
-        if (gitdir !== undefined) return join(resolve(at, gitdir), 'index');
-      }
+      text = readFileSync(dotGit, 'utf8');
     } catch {
-      // Not there, or not readable: git looks further up, and so does this.
+      // A directory, nothing there, or not readable.
+    }
+    if (text !== null) {
+      const gitdir = /^gitdir:\s*(.+?)\s*$/m.exec(text)?.[1];
+      if (gitdir !== undefined) return join(resolve(at, gitdir), 'index');
+    } else if (existsSync(join(dotGit, 'HEAD'))) {
+      return join(dotGit, 'index');
     }
     if (dirname(at) === at) return null;
   }

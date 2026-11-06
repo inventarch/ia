@@ -919,7 +919,7 @@
           ]
         },
         {
-          "case": "tests/console-app.test.ts > runConsole asks git whether the workspace copy is committed once for the console’s life, not at each load",
+          "case": "tests/console-app.test.ts > runConsole asks git whether the workspace copy is committed once for the console’s life, not at each load or doctor row",
           "reason": "The case counts git calls through a POSIX shell shim placed on PATH, which Windows does not run.",
           "platforms": [
             "windows"
