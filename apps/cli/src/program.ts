@@ -114,6 +114,38 @@ export function programEnv(env: Env, platform: NodeJS.Platform = process.platfor
   return result;
 }
 /**
+ * Git's repository-local variables (`git rev-parse --local-env-vars`): set in the console's own environment, by a git
+ * hook or a shell that started it, they would route a batch's git, even `git -C <worktree>`, to another repository,
+ * index or configuration. No batch child and no git probe inherits them, nor `GIT_CONFIG_KEY_<n>` and `GIT_CONFIG_VALUE_<n>`.
+ */
+export const GIT_LOCAL_ENV: readonly string[] = [
+  'GIT_ALTERNATE_OBJECT_DIRECTORIES',
+  'GIT_CONFIG',
+  'GIT_CONFIG_PARAMETERS',
+  'GIT_CONFIG_COUNT',
+  'GIT_OBJECT_DIRECTORY',
+  'GIT_DIR',
+  'GIT_WORK_TREE',
+  'GIT_IMPLICIT_WORK_TREE',
+  'GIT_GRAFT_FILE',
+  'GIT_INDEX_FILE',
+  'GIT_NO_REPLACE_OBJECTS',
+  'GIT_REPLACE_REF_BASE',
+  'GIT_PREFIX',
+  'GIT_SHALLOW_FILE',
+  'GIT_COMMON_DIR',
+];
+/** `env` without git's repository-local variables; Windows compares names without case, as its environment does. */
+export function withoutGitRouting(env: Env, platform: NodeJS.Platform = process.platform): Env {
+  const out: Record<string, string | undefined> = {};
+  for (const [name, value] of Object.entries(env)) {
+    const key = platform === 'win32' ? name.toUpperCase() : name;
+    if (GIT_LOCAL_ENV.includes(key) || /^GIT_CONFIG_(?:KEY|VALUE)_\d+$/.test(key)) continue;
+    out[name] = value;
+  }
+  return out;
+}
+/**
  * The working directory of a started program whose result does not depend on it: the user's home, which the repository
  * does not control. A version manager's shim (asdf, mise, nodenv) on a qualified entry still reads version files
  * upward from there, so the home's choice applies, not the repository's.
