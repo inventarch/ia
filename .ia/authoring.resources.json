@@ -24,15 +24,15 @@
     },
     {
       "path": ".ia/src/systems/agent-composition-system/README.md",
-      "bytes": 974,
-      "sha256": "64da36ba677616d0e59a087982ddb451c865a5cd39401afd993405115c4b1a99",
+      "bytes": 755,
+      "sha256": "86732a2ebd2be9552106f01dc69b17b963923c4889aa4c6a238b7b7a1094082a",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
     {
       "path": ".ia/src/systems/agent-composition-system/SPEC.md",
-      "bytes": 2620,
-      "sha256": "4105c6e9d538a47be3cfb4a4752d091c9a412500843ab1b967721aacdd7de35b",
+      "bytes": 2223,
+      "sha256": "64c7cd2d41daac5381311a5ccea75c48e48675681f4e8a83e6ec23a9958ae76f",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },

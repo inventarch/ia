@@ -17,6 +17,7 @@ import { packDistribution } from '@inventarch/distribution/pack';
 import { folderKits, readReleases } from '@inventarch/runtime/method';
 import { MethodTools, restoreKit } from '../src/method.js';
 import { Protocol } from '../src/protocol.js';
+import { relockLanguage } from './relock.js';
 
 /**
  * The door at a workspace whose lock installs kits from an npm package of kits (contract C7b, ia-kb `dec-133`). npm is
@@ -45,7 +46,7 @@ beforeAll(() => {
     mkdirSync(dirname(join(plugin, path)), { recursive: true });
     writeFileSync(join(plugin, path), text);
   }
-  // `ia pack` of the fixture kit, in a copy restored with the language base it locks.
+  // `ia pack` of the fixture kit, in a copy re-locked to and restored with this door's language base.
   const source = join(root, 'kits', 'ia-kb');
   for (const [path, text] of Object.entries(files))
     if (path.startsWith('config/kits/ia-kb/')) {
@@ -53,6 +54,7 @@ beforeAll(() => {
       mkdirSync(dirname(target), { recursive: true });
       writeFileSync(target, text);
     }
+  relockLanguage(source, BASE);
   restoreKit(source, folderKits(join(root, 'kits'))[0]!);
   const packed = packDistribution(source, readFileSync(join(source, '.ia', 'release.json'), 'utf8'));
   const released = readReleases(source).releases.find((row) => row.version === '0.9.0')!;

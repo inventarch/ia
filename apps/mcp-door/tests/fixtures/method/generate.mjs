@@ -8,7 +8,8 @@
  * then runs that plugin's own `resolve.mjs` for `knowledge.find` and `knowledge.check` in one task over a consumer whose
  * `.ia/bindings.json` is `bindings.json` and whose lock installs the ia-kb kit and the language base it depends on
  * (the kit's published archive and the bundled base archive, through this checkout's own `planInstallation` and
- * `applyInstallation`, so the lock and its active generation agree), and writes each packet as `golden-<activity>.json` and the task pin as
+ * `applyInstallation`, so the lock and its active generation agree; the bundled kit's working copy is re-locked to that
+ * base first, as the tests do), and writes each packet as `golden-<activity>.json` and the task pin as
  * `golden-pin.json`. The temporary root is written `<ROOT>` with forward slashes, the envelope is removed, and each
  * packet's digest is recomputed over that content with the plugin's own `packetDigest`. Record the marketplace commit
  * in `PROVENANCE.json` after a run.
@@ -83,6 +84,26 @@ async function install(consumer) {
   );
 }
 
+/** Re-locks a kit folder's language row to this checkout's door base; the kit's own range still admits it. */
+function relockLanguage(folder) {
+  const repository = resolve(out, '../../../../..');
+  const base = JSON.parse(readFileSync(join(repository, 'apps', 'mcp-door', 'assets', 'base.json'), 'utf8'));
+  const path = join(folder, '.ia', 'distributions.lock.json');
+  const lock = JSON.parse(readFileSync(path, 'utf8'));
+  lock.packages = lock.packages.map((row) =>
+    row.id === base.id
+      ? {
+          ...row,
+          version: base.version,
+          archive: base.archive,
+          manifest: base.manifest,
+          location: `sha256:${base.archive}`,
+        }
+      : row,
+  );
+  writeFileSync(path, `${JSON.stringify(lock)}\n`);
+}
+
 const files = {};
 const add = (root, prefix, dir = root) => {
   for (const name of readdirSync(dir).sort()) {
@@ -103,6 +124,8 @@ try {
     mkdirSync(dirname(join(root, 'plugin', path)), { recursive: true });
     writeFileSync(join(root, 'plugin', path), text);
   }
+  // The bundled kit, re-locked to the language base this checkout carries, as the tests do (`tests/relock.ts`).
+  relockLanguage(join(root, 'plugin', 'config', 'kits', 'ia-kb'));
   mkdirSync(join(root, 'consumer', '.ia', 'src'), { recursive: true });
   cpSync(join(out, 'bindings.json'), join(root, 'consumer', '.ia', 'bindings.json'));
   await install(join(root, 'consumer'));

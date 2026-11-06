@@ -9,7 +9,7 @@
   "dependencies": [
     {
       "id": "inventarch/language",
-      "range": "^3.2.0",
+      "range": "^3.2.1",
       "systems": [
         "agent-composition-system",
         "agent-system",

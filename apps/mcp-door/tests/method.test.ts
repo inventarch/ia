@@ -18,6 +18,7 @@ import { packDistribution } from '@inventarch/distribution/pack';
 import { folderKits, packetDigest, projectOf, readReleases, registerWorkspace } from '@inventarch/runtime/method';
 import { MethodTools, restoreKit } from '../src/method.js';
 import { Protocol } from '../src/protocol.js';
+import { relockLanguage } from './relock.js';
 
 /**
  * The method tools against `fixtures/method`: `plugin.json.gz` holds the public `ia` plugin's scripts and support files
@@ -51,7 +52,10 @@ beforeAll(() => {
   mkdirSync(join(bare, '.ia', 'src'), { recursive: true });
   copyFileSync(new URL('bindings.json', fixture), join(bare, '.ia', 'bindings.json'));
   kits = join(root, 'plugin', 'config', 'kits');
-  // `ia pack` of the fixture kit, in a copy restored with the language base it locks: the archive its releases.json names.
+  // The plugin's bundled kit, as its re-cut against this door's language base ships it.
+  relockLanguage(join(kits, 'ia-kb'), BASE);
+  // `ia pack` of the fixture kit, in a copy re-locked to and restored with this door's language base: the archive its
+  // releases.json names.
   const source = join(root, 'packed', 'ia-kb');
   for (const [path, text] of Object.entries(files))
     if (path.startsWith('config/kits/ia-kb/')) {
@@ -59,6 +63,7 @@ beforeAll(() => {
       mkdirSync(dirname(target), { recursive: true });
       writeFileSync(target, text);
     }
+  relockLanguage(source, BASE);
   restoreKit(source, folderKits(join(root, 'packed'))[0]!);
   const packed = packDistribution(source, readFileSync(join(source, '.ia', 'release.json'), 'utf8'));
   const released = readReleases(source).releases.find((row) => row.version === '0.9.0')!;
