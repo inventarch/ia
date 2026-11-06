@@ -510,18 +510,76 @@ describe('a repository root several workspaces share', () => {
     );
   });
 
-  it('reads every declarer closure when no workspace is named', () => {
+  it('reads only the mandates that name every declarer or cover the path when no workspace is named (#228)', () => {
     const db = database(shared());
     expect(identities(db)).toEqual([mandate('demo-mandate')]);
-    // The fresh init's mandate moved to the department's private root stays in that read, as doctor and hook generation
-    // make it; no closure of `.` holds it otherwise.
+    // A department's own mandate, scoped to it alone and held in its private root, never governs the shared root: not
+    // for a read that names no workspace, nor for one that names a declarer.
     const root = shared();
     put(
       root,
       '.ia/src/dept/workspace.ia',
       `${SECOND('dept', '". @authored", ".ia/src/dept @authored"')}${authorized('dept-private', ['moves [Observation]', 'scope [@workspace dept]'])}`,
     );
-    expect(identities(database(root))).toEqual([mandate('demo-mandate'), mandate('dept-private')]);
+    const both = database(root);
+    expect(identities(both)).toEqual([mandate('demo-mandate')]);
+    expect(identities(both, { workspace: demo })).toEqual([mandate('demo-mandate')]);
+    expect(identities(both, { workspace: dept })).toEqual([mandate('demo-mandate')]);
+  });
+
+  /** `aaa` and `zzz` share `.`; the repository workspace, when there is one, declares only its own sub-root. */
+  const NO_REPOSITORY = '#! ia 1.0\n',
+    APART = `#! ia 1.0\n\n@workspace demo\n  meaning\n    says "The repository."\n    answers "Which workspace is this?"\n  composition\n    systems [@system agent-system]\n    sources [".ia/src/demo @authored"]\n`;
+  /** The first declarer grants `grants[0]`, the other `grants[1]`, each mandate scoped to its own declarer alone. */
+  const lopsided = (repository: string, grants: readonly [string, string]): string => {
+    const root = freshInit(repository);
+    for (const [name, moves] of [
+      ['aaa', grants[0]],
+      ['zzz', grants[1]],
+    ] as const)
+      put(
+        root,
+        `.ia/src/${name}/workspace.ia`,
+        `${SECOND(name, `${SHARED}, ".ia/src/${name} @authored"`)}${authorized(`${name}-mandate`, [`moves [${moves}]`, `scope [@workspace ${name}]`])}`,
+      );
+    return root;
+  };
+  const WS = 'workspace-system/definition/workspace',
+    OBSERVE = 'Observation',
+    EVERYTHING = 'Observation, Verification, Synthesis, Delegation, Execution';
+
+  it.each([
+    ['the first declarer grants', [EVERYTHING, OBSERVE]],
+    ['the last declarer grants', [OBSERVE, EVERYTHING]],
+  ] as const)('is not opened by a grant scoped to one declarer when %s (#228)', (_name, grants) => {
+    for (const repository of [NO_REPOSITORY, APART]) {
+      const root = lopsided(repository, grants),
+        db = database(root),
+        within = token(db);
+      expect(errors(db)).toEqual([]);
+      expect(db.resolveSeat('', { within })).toMatchObject({ by: 'shared' });
+      // Neither mandate names both declarers, so none governs the shared root: not the observing one, and not the
+      // granting one, which would otherwise have opened every move for the whole root. Ungoverned allows (R21).
+      for (const options of [{}, { path: 'README.md' }, { path: 'README.md', workspace: `${WS}/aaa` }])
+        expect(identities(db, options), JSON.stringify(options)).toEqual([]);
+      for (const mode of ['author', 'effect', 'validate'] as const)
+        expect(checkRoot(root, mode), mode).toEqual({ workspace: null, governed: false });
+    }
+  });
+
+  it('agrees between the path route and the workspace route at a shared root (#228)', () => {
+    // `demo` and `dept` share `.`, and the only mandate is scoped to `demo` alone: nothing governs, by either route,
+    // and the guard's rule for an ungoverned location allows.
+    const root = freshInit(
+      records.replace('sources [".ia/src @authored"]', `sources [${SHARED}]`).replace(ALL_MOVES, 'moves [Observation]'),
+    );
+    put(root, '.ia/src/dept/workspace.ia', SECOND('dept', SHARED));
+    const db = database(root),
+      within = token(db);
+    expect(db.resolveSeat('', { within })).toMatchObject({ by: 'shared', declarers: [demo, dept] });
+    for (const options of [{ workspace: demo }, { path: 'README.md', workspace: demo }, { path: 'README.md' }, {}])
+      expect(identities(db, options), JSON.stringify(options)).toEqual([]);
+    expect(checkRoot(root, 'effect')).toEqual({ workspace: demo, governed: false });
   });
 
   it.each([
