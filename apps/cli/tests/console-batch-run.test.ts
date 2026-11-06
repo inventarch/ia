@@ -436,10 +436,14 @@ describe('install first', () => {
     expect(pmCalls(fx)).toEqual([
       {
         manager: 'pnpm',
-        argv: ['--dir', nested!.worktree, 'install', '--frozen-lockfile', '--ignore-scripts'],
+        argv: ['--dir', nested!.worktree, 'install', '--frozen-lockfile', '--ignore-scripts', '--ignore-pnpmfile'],
         cwd: join(nested!.worktree, 'packages', 'notes'),
       },
-      { manager: 'pnpm', argv: ['install', '--frozen-lockfile', '--ignore-scripts'], cwd: own!.worktree },
+      {
+        manager: 'pnpm',
+        argv: ['install', '--frozen-lockfile', '--ignore-scripts', '--ignore-pnpmfile'],
+        cwd: own!.worktree,
+      },
     ]);
     // The nested workspace's restore runs in its folder, on the copy installed at the worktree's top.
     const restores = iaSpawns(calls);
@@ -1129,6 +1133,7 @@ describe('the batch install', () => {
       'install',
       '--frozen-lockfile',
       '--ignore-scripts',
+      '--ignore-pnpmfile',
     ]);
     expect(batchInstallArgv('yarn', classic, classic, true)).toEqual([
       'yarn',
@@ -1166,7 +1171,12 @@ describe('the batch install', () => {
     ]);
     // No lockfile tracked: nothing to freeze to, and still no script.
     expect(batchInstallArgv('npm', classic, classic, false)).toEqual(['npm', 'install', '--ignore-scripts']);
-    expect(batchInstallArgv('pnpm', classic, classic, false)).toEqual(['pnpm', 'install', '--ignore-scripts']);
+    expect(batchInstallArgv('pnpm', classic, classic, false)).toEqual([
+      'pnpm',
+      'install',
+      '--ignore-scripts',
+      '--ignore-pnpmfile',
+    ]);
     expect(batchInstallArgv('yarn', berry, berry, false)).toEqual(['yarn', 'install', '--mode=skip-build']);
   });
   it('a manager declared with no lockfile tracked installs without scripts, unfrozen', async () => {
