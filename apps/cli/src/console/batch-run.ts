@@ -74,6 +74,8 @@ export { GIT_LOCAL_ENV } from '../program.js';
 export const NO_PROMPT: Readonly<Record<string, string>> = {
   GIT_TERMINAL_PROMPT: '0',
   GCM_INTERACTIVE: 'never',
+  // ssh never starts an askpass program, whatever the console inherited or the user's own ssh would otherwise choose.
+  SSH_ASKPASS_REQUIRE: 'never',
   // `core.askPass` set empty, as `-c core.askPass=` would, but for every git a child starts too (git 2.31 and later):
   // git asks an askpass program before it looks at GIT_TERMINAL_PROMPT, and an empty one is no program. The console's
   // own GIT_CONFIG_COUNT and its keys are never passed on (`withoutGitRouting`), so this is the only entry.

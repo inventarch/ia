@@ -1024,7 +1024,12 @@ describe('the base', () => {
 });
 
 describe('no prompt, and no command without an end', () => {
-  const NO_ASKPASS = { GIT_CONFIG_COUNT: '1', GIT_CONFIG_KEY_0: 'core.askPass', GIT_CONFIG_VALUE_0: '' };
+  const NO_ASKPASS = {
+    SSH_ASKPASS_REQUIRE: 'never',
+    GIT_CONFIG_COUNT: '1',
+    GIT_CONFIG_KEY_0: 'core.askPass',
+    GIT_CONFIG_VALUE_0: '',
+  };
   it('every batch child gets GIT_TERMINAL_PROMPT=0 and GCM_INTERACTIVE=never, whatever the console inherited', async () => {
     expect(batchEnv({ PATH: 'x', GIT_TERMINAL_PROMPT: '1', GCM_INTERACTIVE: 'always' }, 'linux')).toEqual({
       PATH: 'x',
