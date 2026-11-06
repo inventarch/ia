@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, mkdirSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
 import { resolve, sep } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { CORE_TOKENS } from '../src/commands.js';
@@ -261,6 +261,74 @@ describe('committed', () => {
     expect(committed(copy)).toBe(false);
     expect(git(w, 'add', '-f', 'node_modules/@inventarch/cli/package.json').status).toBe(0);
     expect(committed(copy)).toBe(true);
+  });
+
+  /** A tracked copy in a fresh repository. */
+  const tracked = (prefix: string): string => {
+    const w = workspace(prefix);
+    const copy = resolve(w, 'node_modules/@inventarch/cli');
+    expect(git(w, 'init', '-q').status).toBe(0);
+    expect(git(w, 'add', '-f', 'node_modules/@inventarch/cli/package.json').status).toBe(0);
+    return copy;
+  };
+  /** Runs `body` with PATH set to `dir`, then puts PATH back. */
+  const withPath = <T>(dir: string, body: () => T): T => {
+    const before = process.env['PATH'];
+    process.env['PATH'] = dir;
+    try {
+      return body();
+    } finally {
+      if (before === undefined) delete process.env['PATH'];
+      else process.env['PATH'] = before;
+    }
+  };
+  /** A directory whose `git` always exits non-zero (a copy of node on Windows, which rejects git's arguments). */
+  const failingGit = (): string => {
+    const dir = scratch('handoff-git-stub');
+    if (process.platform === 'win32') copyFileSync(process.execPath, resolve(dir, 'git.exe'));
+    else {
+      put(resolve(dir, 'git'), '#!/bin/sh\nexit 128\n');
+      chmodSync(resolve(dir, 'git'), 0o755);
+    }
+    return dir;
+  };
+
+  it('answers for the repository whatever GIT_* variables the caller set', () => {
+    const copy = tracked('handoff-git-env');
+    // An empty index in another file: git answers (exit 0, nothing listed) unless the variable is dropped.
+    const index = resolve(scratch('handoff-git-index'), 'empty-index');
+    const w = resolve(copy, '../../..');
+    const emptied = spawnSync('git', ['read-tree', '--empty'], {
+      cwd: w,
+      env: { ...process.env, GIT_INDEX_FILE: index },
+    });
+    expect(emptied.status).toBe(0);
+    const names = ['GIT_INDEX_FILE'] as const;
+    const values = { GIT_INDEX_FILE: index };
+    const before = names.map((name) => process.env[name]);
+    for (const name of names) process.env[name] = values[name];
+    try {
+      expect(committed(copy)).toBe(true);
+    } finally {
+      names.forEach((name, index) => {
+        if (before[index] === undefined) delete process.env[name];
+        else process.env[name] = before[index];
+      });
+    }
+  });
+  it('refuses a copy inside a work tree when git exits non-zero', () => {
+    const copy = tracked('handoff-git-fails');
+    expect(withPath(failingGit(), () => committed(copy))).toBe(true);
+  });
+  it('refuses a copy inside a work tree when git cannot be found', () => {
+    const copy = tracked('handoff-git-missing');
+    expect(withPath(scratch('handoff-git-empty'), () => committed(copy))).toBe(true);
+  });
+  it('does not refuse a copy outside any repository when git exits non-zero or cannot be found', () => {
+    const w = workspace('handoff-git-norepo');
+    const copy = resolve(w, 'node_modules/@inventarch/cli');
+    expect(withPath(failingGit(), () => committed(copy))).toBe(false);
+    expect(withPath(scratch('handoff-git-empty'), () => committed(copy))).toBe(false);
   });
 });
 
