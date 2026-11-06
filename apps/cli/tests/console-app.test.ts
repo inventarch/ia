@@ -700,7 +700,6 @@ describe('runConsole', () => {
     );
     writeFileSync(join(copy, 'dist/main.js'), '');
   };
-  const emptyReport = { status: 0, stdout: JSON.stringify({ version: 1, checks: [], counts: {} }) };
   it.skipIf(process.platform === 'win32')(
     'asks git whether the workspace copy is committed once for the console’s life, not at each load or doctor row',
     async () => {
@@ -713,13 +712,27 @@ describe('runConsole', () => {
       process.env['PATH'] = `${bin}${delimiter}${path ?? ''}`;
       try {
         let loads = 0;
+        // The copy's rows hold one fix, so a step runs on the copy (`repoOf`).
+        const report = {
+          status: 0,
+          stdout: JSON.stringify({
+            version: 1,
+            checks: [check('records', 'fail', { fix: iaFix(['validate'], 'none').fix, remedy: 'ia validate' })],
+            counts: {},
+          }),
+        };
         const run = launch({
-          prepare: withCopy,
+          // Tracked too, so the all-workspaces table (`loadAll`) reads the same copy.
+          prepare: (root) => {
+            withCopy(root);
+            mkdirSync(join(root, 'home'), { recursive: true });
+            trackWorkspaces(join(root, 'home'), [root]);
+          },
           // The real collector: its `cli-version` row asks about the same copy, so it must use the same memo.
           collect: collectDoctor,
           spawnDoctor: () => {
             loads += 1;
-            return Promise.resolve(emptyReport);
+            return Promise.resolve(report);
           },
         });
         await until(run.entered, 'the console');
@@ -727,6 +740,16 @@ describe('runConsole', () => {
           run.stdin.write('r');
           await until(() => loads === wanted, `load ${wanted}`);
         }
+        await until(() => run.terminal.out.includes('Fix record errors'), 'the offer');
+        run.stdin.write('\r');
+        await until(() => run.terminal.out.includes('Press any key to return to the console.'), 'the step to finish');
+        expect(run.spawned).toHaveLength(1);
+        run.stdin.write('x');
+        await until(() => loads >= 4, 'the reload after the step');
+        const before = loads;
+        run.stdin.write('\t');
+        await until(() => loads > before, 'the table row');
+        await until(() => run.terminal.out.includes('Attention 1'), 'the table row to land');
         run.stdin.write('q');
         expect(await run.exit).toBe(0);
         // Only the question about the copy; the lockfile question (`ls-files -- <lockfiles>`) is another one.
