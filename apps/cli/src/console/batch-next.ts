@@ -70,7 +70,7 @@ function programFor(name: string, env: Env, results: readonly RepoResult[]): { p
 /** Ctrl-C has stopped the choice; read afresh at every check, since it can change during any await. */
 const halted = (signal: AbortSignal | undefined): boolean => signal?.aborted === true;
 /** The last line of a repository whose commit Ctrl-C stopped before it ran; a later choice commits it. */
-const NOT_COMMITTED = 'not committed: stopped';
+export const NOT_COMMITTED = 'not committed: stopped';
 
 /**
  * `git add -A` and `git commit -m "chore: <title>"` in each worktree that passed. A repository whose commit fails (or
