@@ -25,6 +25,7 @@ import type { LocalCli } from '../local-cli.js';
 import { batchInstallArgv, detectPackageManager, lockTracked } from '../package-manager.js';
 import type { Git } from '../channel.js';
 import type { Env } from '../program.js';
+import { withoutGitRouting } from '../program.js';
 import { findProgram, programEnv, windowsShell, windowsShellArgs, windowsSystemProgram } from '../program.js';
 import type { RepoPlan } from './batch-plan.js';
 import { installsFirst, pathArguments } from './batch-plan.js';
@@ -45,28 +46,7 @@ export interface Runner {
   (file: string, args: readonly string[], options: { readonly cwd: string; readonly env: Env }): Promise<RunResult>;
 }
 
-/**
- * Git's repository-local variables (`git rev-parse --local-env-vars`): set in the console's own environment, by a git
- * hook or a shell that started it, they would route a batch's git, even `git -C <worktree>`, to another repository,
- * index or configuration. No batch child inherits them, nor `GIT_CONFIG_KEY_<n>` and `GIT_CONFIG_VALUE_<n>`.
- */
-export const GIT_LOCAL_ENV: readonly string[] = [
-  'GIT_ALTERNATE_OBJECT_DIRECTORIES',
-  'GIT_CONFIG',
-  'GIT_CONFIG_PARAMETERS',
-  'GIT_CONFIG_COUNT',
-  'GIT_OBJECT_DIRECTORY',
-  'GIT_DIR',
-  'GIT_WORK_TREE',
-  'GIT_IMPLICIT_WORK_TREE',
-  'GIT_GRAFT_FILE',
-  'GIT_INDEX_FILE',
-  'GIT_NO_REPLACE_OBJECTS',
-  'GIT_REPLACE_REF_BASE',
-  'GIT_PREFIX',
-  'GIT_SHALLOW_FILE',
-  'GIT_COMMON_DIR',
-];
+export { GIT_LOCAL_ENV } from '../program.js';
 /**
  * What every batch child gets set, whatever the console inherited: git never asks on the terminal for a credential
  * (stdin is ignored, but git opens the terminal itself) and Git Credential Manager never opens a dialog, either of which
@@ -79,9 +59,8 @@ export const NO_PROMPT: Readonly<Record<string, string>> = { GIT_TERMINAL_PROMPT
  */
 export function batchEnv(env: Env, platform: NodeJS.Platform = process.platform): Env {
   const out: Record<string, string | undefined> = {};
-  for (const [name, value] of Object.entries(env)) {
-    const key = platform === 'win32' ? name.toUpperCase() : name;
-    if (GIT_LOCAL_ENV.includes(key) || /^GIT_CONFIG_(?:KEY|VALUE)_\d+$/.test(key) || key in NO_PROMPT) continue;
+  for (const [name, value] of Object.entries(withoutGitRouting(env, platform))) {
+    if ((platform === 'win32' ? name.toUpperCase() : name) in NO_PROMPT) continue;
     out[name] = value;
   }
   return { ...out, ...NO_PROMPT };

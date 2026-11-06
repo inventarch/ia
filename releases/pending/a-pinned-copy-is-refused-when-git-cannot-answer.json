@@ -1,0 +1,13 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "A pinned copy is refused when git cannot answer inside a repository",
+  "summary": "Hand-off to a workspace's pinned @inventarch/cli, for a typed command and for the console, now treats the copy as the repository's when git exits non-zero, is stopped by its timeout or cannot be started and a .git directory or file exists at or above the copy, and so does not run it. Previously any git failure read as not committed. Git's repository-routing GIT_* variables from the caller's environment are no longer passed to that check. Outside a repository, or with no git and no .git above, nothing changes: the pinned copy still takes the command.",
+  "packages": [
+    "@inventarch/cli"
+  ],
+  "paths": [
+    "apps/cli/",
+    "docs/"
+  ]
+}
