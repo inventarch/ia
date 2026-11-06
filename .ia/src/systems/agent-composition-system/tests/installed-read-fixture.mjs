@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import * as installedSDK from '@inventarch/agent-composition-system';
+import { captureWorkspace } from '@inventarch/workspace-runtime';
 import { Engine } from '@inventarch/agent-system';
 import { copy, digest, memoryStore } from '@inventarch/session-system';
 import { sqliteStore } from '@inventarch/session-system/sqlite';
@@ -11,7 +12,7 @@ import { readFileSync, writeFileSync, renameSync } from 'node:fs';
 export const readPath = '.ia/src/systems/agent-system/records/installed-read-label.ia';
 export const evaluator = 'installed-read-example-policy-v1';
 export function readFixture(SDK, root) {
-  const baseline = SDK.captureWorkspace(root),
+  const baseline = captureWorkspace(root),
     { revision: _revision, ...body } = baseline;
   const placement = { placement: { kind: 'authored', band: 100, reach: '' }, provenance: 'workspace' };
   const sources = [

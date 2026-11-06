@@ -4,7 +4,8 @@ import { readFileSync } from 'node:fs';
 import { digest } from '@inventarch/session-system';
 import { EditorSnapshot } from '@inventarch/db/editor';
 import { compileHarness, installed, executionManifest } from '../src/index.js';
-import type { Capture, CompiledHarness } from '../src/index.js';
+import type { CompiledHarness } from '../src/index.js';
+import type { Capture } from '@inventarch/workspace-runtime';
 import { admitSourceCapture } from '@inventarch/workspace-runtime/sources';
 
 import { compilerCapture, compilerCatalog as catalogWithDigest } from './compiler-fixture.js';

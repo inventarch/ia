@@ -4,5 +4,11 @@
     "tag": "v3.5.0",
     "commit": "6935300d38f996ef5c5f79d204ba885074ac3096"
   },
-  "changes": []
+  "changes": [
+    {
+      "id": "inventarch/agent-composition-system",
+      "bump": "major",
+      "summary": "Remove the deprecated aliases that forwarded the generic workspace runtime: the root re-exports of captureWorkspace, adoptWorkspace, verifyCapture, Corpus, candidateValidation, managedPublication and Capture, and the subpaths of the 18 modules that moved to @inventarch/workspace-runtime in 1.2.0."
+    }
+  ]
 }
