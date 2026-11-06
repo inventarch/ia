@@ -7,7 +7,8 @@
  * checks join doctor's Environment section after the user rows. Every id must start with `<token>-` and name no core
  * row; a row that does not is dropped and named in one `unknown` row, `<token>-state`, which also stands for a file
  * that cannot be read. A fix must run the extension's own token through `ia`; any other is dropped. A fix takes its flow
- * and target from the console's declared step with the same argv; a fix no step declares is always `confirm`.
+ * and target from the console's declared step with the same argv; a fix no step declares is always `confirm` and writes
+ * `machine`.
  */
 import { readFileSync } from 'node:fs';
 import { isAbsolute, join, normalize, sep } from 'node:path';
@@ -52,7 +53,9 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 /**
  * The fix as given, when it runs `ia <token> …` with a known flow and target; null otherwise. The state file is data an
  * extension writes at run time, so its flow and target are a claim, not a grant: the flow and target come from the
- * console's own declared step with the same argv, and a fix no declared step names always asks first (`confirm`).
+ * console's own declared step with the same argv, and a fix no declared step names always asks first (`confirm`) and
+ * claims the widest target (`machine`): never batched across repos, run once by the running copy, and described as
+ * writing this machine.
  */
 function ownFix(value: unknown, token: string, declared: readonly ConsoleStep[]): Fix | null {
   if (!isRecord(value)) return null;
@@ -68,7 +71,7 @@ function ownFix(value: unknown, token: string, declared: readonly ConsoleStep[])
     return null;
   const step = declared.find((candidate) => JSON.stringify(candidate.argv) === JSON.stringify(argv));
   return step === undefined
-    ? { program, argv: [...(argv as string[])], flow: 'confirm', writesTo: writesTo as WritesTo }
+    ? { program, argv: [...(argv as string[])], flow: 'confirm', writesTo: 'machine' }
     : { program, argv: [...(argv as string[])], flow: step.flow, writesTo: step.writesTo };
 }
 type Row = Omit<Check, 'section' | 'fix'> & { readonly fix: unknown };
