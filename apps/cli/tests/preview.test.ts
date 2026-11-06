@@ -4,7 +4,7 @@
  * byte for byte as it was, and every refusal's next command runs in the state that caused it.
  */
 import { createHash } from 'node:crypto';
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { open, pathKey } from '@inventarch/db';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -369,6 +369,27 @@ describe('shared authored-root ownership', () => {
       }
     },
   );
+  it.each(['alpha', 'zeta'])('does not borrow a differently cased root from %s', async (other) => {
+    const root = shared(other);
+    rewrite(root, '.ia/src/other.ia', (text) => text.replaceAll('.ia/src/shared', '.ia/src/Shared'));
+    // Two renames establish the exact disk spelling on case-sensitive and case-insensitive volumes alike.
+    renameSync(resolve(root, '.ia/src/shared'), resolve(root, '.ia/src/moving-shared'));
+    renameSync(resolve(root, '.ia/src/moving-shared'), resolve(root, '.ia/src/Shared'));
+    const db = open(root, { cache: false });
+    try {
+      expect(db.report.findings.filter((finding) => finding.severity === 'error')).toEqual([]);
+      expect(db.resolveSeat('.ia/src/Shared/existing.ia').seat).toBe(`workspace-system/definition/workspace/${other}`);
+    } finally {
+      db.close();
+    }
+    for (const argv of [
+      ['task', 'foreign-case-task', ...fields, '--at', '.ia/src/Shared/new.ia'],
+      ['--set', '@plan shared-plan', 'work.title=Must stay foreign'],
+    ]) {
+      const result = await preview(root, argv);
+      expect(body(result)).toMatchObject({ ok: false, code: 'IA-CLI-EDIT-UNOWNED' });
+    }
+  });
   it('refuses a more-specific foreign root even when the workspace owns both containing ancestors', async () => {
     const root = shared('alpha');
     const result = await preview(root, ['task', 'foreign-task', ...fields, '--at', '.ia/src/shared/foreign/new.ia']);
