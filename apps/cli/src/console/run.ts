@@ -64,8 +64,10 @@ export const runningEntry = (packageRoot: string): string => join(packageRoot, '
 export function cmdArgument(value: string): string | null {
   if (/[%"\x00-\x1f]/.test(value)) return null;
   if (/^[\w\-.:\\/@+~]+$/.test(value)) return value;
-  const trailing = /\\*$/.exec(value)![0].length;
-  return `"${value}${'\\'.repeat(trailing)}"`;
+  // Counted from the end, not by a `\\*$` regex, which retries a run of backslashes from every start: quadratic.
+  let end = value.length;
+  while (end > 0 && value[end - 1] === '\\') end -= 1;
+  return `"${value}${'\\'.repeat(value.length - end)}"`;
 }
 
 /**
