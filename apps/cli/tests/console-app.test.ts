@@ -15,8 +15,9 @@ import type { Fix } from '../src/fix.js';
 import { iaFix } from '../src/fix.js';
 import type { LocalCli } from '../src/local-cli.js';
 import type { ProcessHooks } from '../src/console/app.js';
-import { consoleSignals, resolveRepo, runConsole } from '../src/console/app.js';
 import type { Runner } from '../src/console/batch-run.js';
+import { defaultRunner } from '../src/console/batch-run.js';
+import { consoleSignals, resolveRepo, runConsole } from '../src/console/app.js';
 import type { SpawnDoctor } from '../src/console/load.js';
 import type { Offer, Step } from '../src/console/offers.js';
 import { offersFor } from '../src/console/offers.js';
@@ -26,6 +27,7 @@ import { windowsShellArgs } from '../src/program.js';
 import type { ConsoleCheck, ConsoleState } from '../src/console/state.js';
 import type { TerminalIO } from '../src/console/terminal.js';
 import { readTracked, trackWorkspaces } from '../src/tracked.js';
+import { fixture, repo } from './batch-fixture.js';
 import { TRACKED_LOCK_FILE } from '../src/tracked-lock.js';
 import { cleanup, scratch } from './scratch-fixture.js';
 
@@ -569,8 +571,8 @@ const view = (checks: readonly Check[]): DoctorView => ({
   counts: { ok: 0, warn: 0, fail: 0, unknown: 0, info: 0 },
 });
 const settle = () => new Promise((resolve) => setTimeout(resolve, 5));
-async function until(condition: () => boolean, what: string): Promise<void> {
-  for (let tries = 0; tries < 400; tries += 1) {
+async function until(condition: () => boolean, what: string, attempts = 400): Promise<void> {
+  for (let tries = 0; tries < attempts; tries += 1) {
     if (condition()) return;
     await settle();
   }
@@ -1608,5 +1610,169 @@ describe('refreshing a workspace opened from the table', () => {
     await new Promise((resolve) => setTimeout(resolve, 40));
     expect(calls.length).toBe(after);
     expect(most).toBeLessThanOrEqual(4);
+  });
+});
+
+/** A doctor report whose one failing check carries a repo-writing fix, so its row offers a batchable fix. */
+const batchableReport = {
+  status: 0,
+  stdout: JSON.stringify({
+    version: 1,
+    checks: [
+      { id: 'cli-version', title: 'cli', status: 'ok', detail: 'copy', remedy: null, fix: null },
+      {
+        id: 'records',
+        title: 'records',
+        status: 'warn',
+        detail: 'stale',
+        remedy: null,
+        fix: { program: 'ia', argv: ['restore', '--apply'], flow: 'preview-apply', writesTo: 'repo' },
+      },
+    ],
+    counts: {},
+  }),
+};
+/**
+ * The console outside any workspace, with one tracked workspace in a real git repository (a bare origin, git on its PATH)
+ * whose doctor offers a batchable fix, and a runner that holds its first call until `release()` and then runs every call
+ * for real. `settleHook` runs, synchronously, the moment the runner's `finally` has cleared the console's wait on the
+ * first call: no wait is open then, so only the batch's own controller can stop it.
+ */
+function launchBatch(extra: { settleHook?: () => void } = {}) {
+  const fx = fixture('console-app-batch');
+  const top = repo(fx, 'ws').top;
+  const home = join(fx.dir, 'home');
+  const cwd = join(fx.dir, 'outside');
+  mkdirSync(home, { recursive: true });
+  mkdirSync(cwd, { recursive: true });
+  writeFileSync(join(top, 'package.json'), JSON.stringify({ devDependencies: { '@inventarch/cli': '3.5.0' } }));
+  const installed = join(top, 'node_modules/@inventarch/cli');
+  mkdirSync(join(installed, 'dist'), { recursive: true });
+  writeFileSync(
+    join(installed, 'package.json'),
+    JSON.stringify({ name: '@inventarch/cli', version: '3.5.0', bin: { ia: './dist/bin.js' } }),
+  );
+  writeFileSync(join(installed, 'dist/bin.js'), '');
+  trackWorkspaces(home, [top]);
+  const env = { ...fx.env, IA_HOME: home, NO_COLOR: '1' };
+  const real = defaultRunner(env);
+  const calls: { file: string; args: readonly string[] }[] = [];
+  let release: () => void = () => {};
+  const gate = new Promise<void>((open) => {
+    release = open;
+  });
+  const runner: Runner = (file, args, options) => {
+    calls.push({ file, args: [...args] });
+    const result = calls.length === 1 ? gate.then(() => real(file, args, options)) : real(file, args, options);
+    const hook = extra.settleHook;
+    if (calls.length !== 1 || hook === undefined) return result;
+    const finallyOf = result.finally.bind(result);
+    // The console clears its wait in `.finally`; the hook runs right after that callback.
+    return Object.assign(result, {
+      finally: (callback?: (() => void) | null) =>
+        finallyOf(() => {
+          callback?.();
+          hook();
+        }),
+    });
+  };
+  const terminal = new FakeTerminal();
+  const stdin = new PassThrough();
+  const hooks = fakeHooks(terminal);
+  const exit = runConsole({
+    io: terminal,
+    input: stdin,
+    env,
+    cwd,
+    packageRoot: RUNNING,
+    version: '3.5.1',
+    collect: () => view([check('node', 'ok'), check('records', 'ok'), check('root', 'ok')]),
+    spawn: async () => 0,
+    runner,
+    setTimer: (() => 1 as unknown as ReturnType<typeof setTimeout>) as unknown as typeof setTimeout,
+    clearTimer: (() => {}) as typeof clearTimeout,
+    hooks,
+    spawnDoctor: () => Promise.resolve(batchableReport),
+  });
+  const shows = (text: string) => () => terminal.out.includes(text);
+  const worktreeAdds = () => calls.filter((call) => call.args.includes('worktree') && call.args.includes('add'));
+  return { terminal, stdin, hooks, exit, calls, release: () => release(), shows, worktreeAdds };
+}
+/** Selects the one row, picks the batch offer, confirms its preview and answers the confirmation until the runner is in. */
+async function startBatch(run: ReturnType<typeof launchBatch>): Promise<void> {
+  await until(run.shows('Attention 1'), 'the row to load', LONG);
+  run.stdin.write(' ');
+  await until(run.shows('[x]'), 'the row selected');
+  run.stdin.write('b');
+  await settle();
+  run.stdin.write('\r');
+  await until(run.shows(' WOULD'), 'the batch preview');
+  run.stdin.write('\r');
+  await until(run.shows('Run this batch? [y/N]'), 'the confirmation');
+  run.stdin.write('y\r');
+  await until(() => run.calls.length >= 1, 'the runner to be in the first command', LONG);
+}
+
+/** Real git repositories are made and queried here, which a loaded Windows machine does slowly. */
+const BATCH_TIMEOUT = 120_000;
+const LONG = 8000;
+describe('the batch the console runs', () => {
+  it(
+    'Ctrl-C reaches the running batch: nothing further starts, and the console comes back',
+    async () => {
+      const run = launchBatch();
+      await startBatch(run);
+      // The terminal's signal, while a batch command runs: it stops the batch, not the console.
+      run.hooks.listeners.get('SIGINT')!();
+      run.release();
+      await until(run.shows('Press any key to return to the console.'), 'the batch to end', LONG);
+      expect(run.terminal.out).toContain('stopped: the batch was stopped');
+      expect(run.worktreeAdds()).toEqual([]);
+      expect(run.hooks.exits).toEqual([]);
+      const mark = run.terminal.out.length;
+      run.stdin.write(' ');
+      await until(() => run.terminal.out.slice(mark).includes('space select'), 'the console to repaint', LONG);
+      run.stdin.write('q');
+      expect(await run.exit).toBe(0);
+    },
+    BATCH_TIMEOUT,
+  );
+  it(
+    'quit aborts a batch that is running between two commands',
+    async () => {
+      const holder: { run?: ReturnType<typeof launchBatch> } = {};
+      holder.run = launchBatch({ settleHook: () => holder.run!.hooks.listeners.get('SIGTERM')!() });
+      const run = holder.run;
+      await startBatch(run);
+      run.release();
+      expect(await run.exit).toBe(143);
+      await until(run.shows('stopped: the batch was stopped'), 'the batch to see its signal', LONG);
+      expect(run.worktreeAdds()).toEqual([]);
+    },
+    BATCH_TIMEOUT,
+  );
+});
+
+describe('quit with a workspace refresh pending', () => {
+  it('Ctrl-C in an opened workspace aborts its refresh in flight', async () => {
+    const signals: (AbortSignal | undefined)[] = [];
+    const spawnDoctor: SpawnDoctor = (_entry, _root, signal) => {
+      signals.push(signal);
+      // The table's read answers; the refresh holds its slot until it is aborted.
+      if (signals.length === 1) return Promise.resolve(markedReport('first'));
+      return new Promise((answer) => {
+        signal?.addEventListener('abort', () => answer({ status: null, stdout: '' }));
+      });
+    };
+    const run = launchAll(1, { copies: true, spawnDoctor });
+    await until(run.shows('first'), 'the row to load');
+    run.stdin.write('\r');
+    await until(run.shows('esc back'), 'the opened workspace');
+    run.stdin.write('r');
+    await until(() => signals.length === 2, 'the refresh to start');
+    expect(signals[1]?.aborted).toBe(false);
+    run.stdin.write('\x03');
+    expect(await run.exit).toBe(0);
+    expect(signals[1]?.aborted).toBe(true);
   });
 });
