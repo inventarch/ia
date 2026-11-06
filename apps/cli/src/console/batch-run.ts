@@ -18,6 +18,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, lstatSync, realpathSync, statSync } from 'node:fs';
 import { basename, delimiter, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { unidentified } from '@inventarch/db/internal/paths';
 import { confirmedArgv, displayFix } from '../fix.js';
 import { NO_HANDOFF } from '../handoff.js';
 import type { LocalCli } from '../local-cli.js';
@@ -566,7 +567,6 @@ export interface Pinned {
   readonly dev: bigint;
   readonly ino: bigint;
 }
-const ALL_ONES = 2n ** 64n - 1n;
 /** The worktree's identity now, or null when it cannot be read. */
 export function pinWorktree(path: string): Pinned | null {
   try {
@@ -583,7 +583,6 @@ export function pinWorktree(path: string): Pinned | null {
  */
 export function checkPinned(path: string, pinned: Pinned | undefined | null): string | null {
   const now = pinWorktree(path);
-  const unidentified = (id: bigint): boolean => id === 0n || id === ALL_ONES;
   const same =
     pinned !== undefined &&
     pinned !== null &&
