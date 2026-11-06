@@ -8,7 +8,7 @@ import { consents } from '../consumer.js';
 import { displayFix } from '../fix.js';
 import type { LocalCli } from '../local-cli.js';
 import type { Env } from '../program.js';
-import { commitPassed, ghReady, nextChoices, pushAndOpenPrs, removeWorktrees } from './batch-next.js';
+import { NOT_COMMITTED, commitPassed, ghReady, nextChoices, pushAndOpenPrs, removeWorktrees } from './batch-next.js';
 import type { RepoResult, Runner } from './batch-run.js';
 import { runBatch } from './batch-run.js';
 import { BATCH_BASE, installLine } from './batch-plan.js';
@@ -127,11 +127,12 @@ export async function batchScreen(
         const signal = nextSignal();
         results = await commitPassed(results, preview.choice.title, io.run, io.env, signal);
         for (const text of table(results)) io.print(text);
-        done.add('commit');
+        // A Ctrl-C that stopped a commit leaves it, and the pull requests that follow it, to choose again.
+        if (!results.some((result) => result.last === NOT_COMMITTED)) done.add('commit');
         if (choice.id === 'pr') {
           for (const opened of await pushAndOpenPrs(results, io.run, io.env, signal))
             io.print(`${shown(opened.root)}: ${shown(opened.url ?? `not opened: ${opened.error ?? ''}`)}`);
-          done.add('pr');
+          if (!signal.aborted) done.add('pr');
         }
         break;
       }
