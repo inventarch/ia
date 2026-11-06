@@ -15,6 +15,7 @@ import { CORE_TOKENS } from '../src/commands.js';
 import { iaHomeOf } from '../src/discovery.js';
 import {
   committed,
+  EXITED,
   HANDOFF_FROM,
   handOff,
   handoffTarget,
@@ -438,6 +439,43 @@ describe('rememberCommitted', () => {
     expect(git(w, 'add', '-f', 'node_modules/@inventarch/cli/package.json').status).toBe(0);
     expect(runnableCopy(w, { env: {}, running: '/elsewhere', committed: ask })).toBeNull();
     expect(asked).toBe(2);
+  });
+  it('keeps the exit of a copy with no repository above it: asked once, however often it is asked', () => {
+    // A workspace outside every repository: git exits 128 for it every time, and nothing there can be tracked.
+    const w = workspace('remember-no-repo');
+    const copy = resolve(w, 'node_modules/@inventarch/cli');
+    let asked = 0;
+    const ask = rememberCommitted(() => ((asked += 1), EXITED), {});
+    expect([ask(copy), ask(copy), ask(copy)]).toEqual([false, false, false]);
+    expect(asked).toBe(1);
+  });
+  it('asks again after an exit inside a repository, since the repository is what failed', () => {
+    const w = workspace('remember-exit-in-repo');
+    expect(spawnSync('git', ['init', '-q'], { cwd: w }).status).toBe(0);
+    const copy = resolve(w, 'node_modules/@inventarch/cli');
+    let asked = 0;
+    const ask = rememberCommitted(() => ((asked += 1), EXITED), {});
+    expect([ask(copy), ask(copy)]).toEqual([true, true]);
+    expect(asked).toBe(2);
+  });
+  it('asks again after an exit when a .git that git rejects sits above the copy: the work tree refuses it', () => {
+    const w = workspace('remember-exit-stub');
+    put(resolve(w, '.git'), 'not a repository');
+    const copy = resolve(w, 'node_modules/@inventarch/cli');
+    let asked = 0;
+    const ask = rememberCommitted(() => ((asked += 1), EXITED), {});
+    expect([ask(copy), ask(copy)]).toEqual([true, true]);
+    expect(asked).toBe(2);
+  });
+  it('asks again once a repository appears above a copy remembered as having none', () => {
+    const w = workspace('remember-repo-appears');
+    const copy = resolve(w, 'node_modules/@inventarch/cli');
+    const ask = rememberCommitted(undefined, {});
+    expect(ask(copy)).toBe(false);
+    expect(ask(copy)).toBe(false);
+    expect(spawnSync('git', ['init', '-q'], { cwd: w }).status).toBe(0);
+    expect(spawnSync('git', ['add', '-f', 'node_modules/@inventarch/cli/package.json'], { cwd: w }).status).toBe(0);
+    expect(ask(copy)).toBe(true);
   });
   // The git shims are POSIX shell scripts, which Windows does not run.
   it.skipIf(process.platform === 'win32')(

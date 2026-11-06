@@ -44,13 +44,18 @@ function insideWorkTree(dir: string): boolean {
   }
 }
 
+/** git ran and exited non-zero: no answer about the copy (a bad config, an unsafe directory, a locked index, or no repository). */
+export const EXITED = 'exited';
+/** `true` or `false` when git answered, `EXITED` when it ran and failed, `null` when it timed out, was killed or was not found. */
+export type GitAnswer = boolean | typeof EXITED | null;
+
 /**
- * What git says about the installed copy at `packageRoot`: whether it tracks any file of it, or `null` when git could
- * not answer (it exited non-zero, was stopped by its timeout, was killed, could not start or is not on the path). Only
- * an exit of 0 is an answer. git is found as program.ts finds it and runs without the caller's `GIT_*` routing
- * variables.
+ * What git says about the installed copy at `packageRoot`: whether it tracks any file of it, or no answer: `EXITED`
+ * when it ran and exited non-zero, `null` when it was stopped by its timeout, was killed, could not start or is not on
+ * the path. Only an exit of 0 is an answer. git is found as program.ts finds it and runs without the caller's `GIT_*`
+ * routing variables.
  */
-function askGit(packageRoot: string): boolean | null {
+function askGit(packageRoot: string): GitAnswer {
   const git = findProgram('git', process.env);
   if (git === null) return null;
   const result = spawnSync(git, ['--no-optional-locks', '-C', packageRoot, 'ls-files', '--', '.'], {
@@ -60,7 +65,8 @@ function askGit(packageRoot: string): boolean | null {
     timeout: 2000,
     windowsHide: true,
   });
-  if (result.error !== undefined || result.status !== 0) return null;
+  if (result.error !== undefined || result.status === null) return null;
+  if (result.status !== 0) return EXITED;
   return result.stdout.trim() !== '';
 }
 
@@ -73,7 +79,8 @@ function askGit(packageRoot: string): boolean | null {
  * every repository (git answers non-zero and no `.git` is above), is nothing tracked.
  */
 export function committed(packageRoot: string): boolean {
-  return askGit(packageRoot) ?? insideWorkTree(packageRoot);
+  const answer = askGit(packageRoot);
+  return typeof answer === 'boolean' ? answer : insideWorkTree(packageRoot);
 }
 
 /** The variables that move git's repository or index away from the one found up from the copy's directory. */
@@ -134,11 +141,13 @@ function copyState(packageRoot: string, env: Readonly<Record<string, string | un
  * its path or the repository's index changes, git is asked again, so a committed copy never runs on an answer about
  * another copy or an older index. Only an answer git gave (an exit of 0) is remembered: a question it could not answer
  * (a non-zero exit, a timeout, a kill, or no git on the path) reads as `committed` reads it this time, from the work
- * tree, and is asked again next time. Nothing is remembered while a GIT_ variable chooses the repository. The memo only
+ * tree, and is asked again next time. One exception: a non-zero exit for a copy with no `.git` at or above it is
+ * remembered as not committed, since git exits that way outside every repository, nothing there can be tracked, and a
+ * repository appearing changes the state. Nothing is remembered while a GIT_ variable chooses the repository. The memo only
  * saves asking; which copy runs is still decided from the disk each time (`runnableCopy`).
  */
 export function rememberCommitted(
-  ask: (packageRoot: string) => boolean | null = askGit,
+  ask: (packageRoot: string) => GitAnswer = askGit,
   env: Readonly<Record<string, string | undefined>> = process.env,
 ): (packageRoot: string) => boolean {
   const known = new Map<string, { readonly state: string; readonly answer: boolean }>();
@@ -147,10 +156,15 @@ export function rememberCommitted(
     const state = copyState(packageRoot, env);
     const remembered = known.get(packageRoot);
     if (state !== null && remembered?.state === state) return remembered.answer;
-    const answer = ask(packageRoot);
-    if (answer === null || state === null) {
+    let answer = ask(packageRoot);
+    // Outside every repository git exits non-zero each time: that is "not committed" for as long as no repository
+    // appears (it would change the state's index part). Any other exit may be mended by what the state does not show.
+    if (answer === EXITED && state !== null && state.split('\0')[2] === '-' && !insideWorkTree(packageRoot)) {
+      answer = false;
+    }
+    if (typeof answer !== 'boolean' || state === null) {
       known.delete(packageRoot);
-      return answer ?? insideWorkTree(packageRoot);
+      return typeof answer === 'boolean' ? answer : insideWorkTree(packageRoot);
     }
     known.set(packageRoot, { state, answer });
     return answer;
