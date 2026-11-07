@@ -4,9 +4,10 @@ import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createLegacyFoundation } from '../src/legacy.js';
-import { LIMITS } from '../src/format.js';
+import { digest, hash, LIMITS } from '../src/format.js';
 import { committedReader } from '../src/git.js';
-import { packageFromCommit } from '../src/package.js';
+import { packageFromCommit, verifyPackage } from '../src/package.js';
+import type { KnowledgePackage } from '../src/package.js';
 import { packageFromCommit as legacyPackageFromCommit } from '../src/legacy.js';
 const foundation = createLegacyFoundation(
   JSON.parse(readFileSync(new URL('./fixtures/legacy-foundation.json', import.meta.url), 'utf8')),
@@ -167,6 +168,65 @@ it('refuses a missing commit or non-commit object as invalid input in a readable
   const revision = commit();
   for (const object of ['0123456789012345678901234567890123456789', git('rev-parse', revision + ':README.md')])
     expect(() => committedReader(root, object)).toThrow(expect.objectContaining({ code: 'IA-KB-INVALID' }));
+});
+it('refuses a committed selection above the package record limit', () => {
+  const { root, commit } = repository();
+  writeFileSync(
+    join(root, 'selection.json'),
+    JSON.stringify({
+      format: 'ia.kb.selection.v1',
+      sourceId: 'example',
+      records: Array.from({ length: LIMITS.records + 1 }, (_, i) => ID + i),
+      resources: [],
+    }),
+  );
+  expect(() =>
+    packageFromCommit({ repository: root, commit: commit(), selection: 'selection.json', foundation }),
+  ).toThrow('Knowledge selection record limit exceeded');
+});
+it('keeps selections, resource associations and files within the package format limits', () => {
+  const { root, commit } = repository(),
+    pkg = packageFromCommit({ repository: root, commit: commit(), selection: 'selection.json', foundation });
+  const resealed = (change: Partial<KnowledgePackage>) => {
+    const { digest: _digest, ...body } = { ...pkg, ...change };
+    return { ...body, digest: digest(body) };
+  };
+  const associations = (count: number) => ({
+    associations: Array.from({ length: count }, () => pkg.associations[0]!),
+  });
+  expect(verifyPackage(resealed(associations(LIMITS.records))).associations).toHaveLength(LIMITS.records);
+  expect(() => verifyPackage(resealed(associations(LIMITS.records + 1)))).toThrow('Invalid resource associations');
+  const records = Array.from({ length: LIMITS.records + 1 }, (_, i) => ID + i);
+  expect(() => verifyPackage(resealed({ selection: { ...pkg.selection, records } }))).toThrow(
+    'Knowledge selection record limit exceeded',
+  );
+  const native = pkg.files.find((f) => f.path.startsWith('.ia/src/'))!,
+    count = LIMITS.selectedBytes / LIMITS.fileBytes;
+  const files = (extra: number) => ({
+    files: [
+      native,
+      ...Array.from({ length: count }, (_, i) => {
+        const bytes = i < count - 1 ? LIMITS.fileBytes : LIMITS.fileBytes - native.bytes + extra,
+          text = 'x'.repeat(bytes);
+        return { path: 'body-' + i + '.md', text, sha256: hash(text), bytes };
+      }),
+    ],
+  });
+  expect(verifyPackage(resealed(files(0))).files).toHaveLength(count + 1);
+  expect(() => verifyPackage(resealed(files(1)))).toThrow('Portable byte limit exceeded');
+  const many = (count: number) => ({
+    files: [
+      native,
+      ...Array.from({ length: count - 1 }, (_, i) => ({
+        path: 'body-' + String(i).padStart(3, '0') + '.md',
+        text: 'x',
+        sha256: hash('x'),
+        bytes: 1,
+      })),
+    ],
+  });
+  expect(verifyPackage(resealed(many(LIMITS.files))).files).toHaveLength(LIMITS.files);
+  expect(() => verifyPackage(resealed(many(LIMITS.files + 1)))).toThrow('Invalid file selection');
 });
 it('refuses malformed committed selection JSON as invalid input', () => {
   const { root, commit } = repository();

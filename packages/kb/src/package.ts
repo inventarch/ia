@@ -36,10 +36,14 @@ export interface KnowledgePackage {
   readonly associations: readonly ResourceAssociation[];
   readonly digest: string;
 }
-export function verifySelection(input: unknown): KnowledgeSelection {
+const recordSets = new WeakMap<KnowledgeSelection, ReadonlySet<string>>();
+export function verifySelection(input: unknown, capture = false): KnowledgeSelection {
+  const limit = capture
+    ? { records: LIMITS.captureRecords, files: LIMITS.captureFiles, bytes: LIMITS.captureSelectionBytes }
+    : { records: LIMITS.records, files: LIMITS.files, bytes: LIMITS.selectionBytes };
   let parsed: unknown;
   try {
-    parsed = data(input, 64 * 1024);
+    parsed = data(input, limit.bytes);
   } catch (error) {
     if (error instanceof SyntaxError) return fail('Knowledge selection is not valid JSON');
     throw error;
@@ -50,22 +54,26 @@ export function verifySelection(input: unknown): KnowledgeSelection {
   if (
     !Array.isArray(s.records) ||
     !s.records.length ||
-    s.records.length > 1000 ||
     s.records.some((id) => typeof id !== 'string' || !/^[a-z][a-z0-9-]*(\/[a-z][a-z0-9-]*){3}$/.test(id))
   )
     fail('Full native record identities required');
+  if (s.records.length > limit.records) fail('Knowledge selection record limit exceeded');
   if (
     !Array.isArray(s.resources) ||
-    s.resources.length > LIMITS.files ||
     s.resources.some((path) => typeof path !== 'string' || path.startsWith('.ia/') || selectedPath(path) !== path)
   )
     fail('Explicit body resource paths required');
-  if (
-    new Set(s.records).size !== s.records.length ||
-    new Set(s.resources.map((p) => p.toLowerCase())).size !== s.resources.length
-  )
+  if (s.resources.length > limit.files) fail('Knowledge selection resource limit exceeded');
+  const records = new Set(s.records);
+  if (records.size !== s.records.length || new Set(s.resources.map((p) => p.toLowerCase())).size !== s.resources.length)
     fail('Duplicate selection');
-  return frozen(s);
+  const selection = frozen(s);
+  recordSets.set(selection, records);
+  return selection;
+}
+/** Whether a selection lists a record: from the set built when it was verified, else by scanning its records. */
+export function selectsRecord(selection: KnowledgeSelection, identity: string): boolean {
+  return recordSets.get(selection)?.has(identity) ?? selection.records.includes(identity);
 }
 const profile = (f: Foundation) => ({ ...f.native, capture: f.capture.revision, grammar: f.grammar, engine: f.engine });
 export function verifyPackage(input: unknown): KnowledgePackage {
@@ -90,7 +98,7 @@ export function verifyPackage(input: unknown): KnowledgePackage {
   verifySelection(p.selection);
   if (p.selection.sourceId !== p.provenance.sourceId) fail('Source selection mismatch');
   verifyFiles(p.files, false, true);
-  if (!Array.isArray(p.associations) || p.associations.length > 1000) fail('Invalid resource associations');
+  if (!Array.isArray(p.associations) || p.associations.length > LIMITS.records) fail('Invalid resource associations');
   const { digest: pin, ...body } = p;
   if (digest(body) !== pin) fail('Knowledge package digest mismatch');
   return frozen(p);
@@ -173,7 +181,7 @@ export function packageFromCommit(request: PackageRequest): KnowledgePackage {
       return node;
     });
     selected = new Set(nodes.map((n) => n.source.path));
-    if (reader.records().some((n) => selected.has(n.source.path) && !selection.records.includes(n.identity)))
+    if (reader.records().some((n) => selected.has(n.source.path) && !selectsRecord(selection, n.identity)))
       fail('Mixed native file includes unselected records');
   } finally {
     reader.close();
