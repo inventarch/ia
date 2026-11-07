@@ -1,0 +1,1751 @@
+{
+  "format": "ia.npm-changeset.v1",
+  "version": "3.6.0",
+  "state": "consumed",
+  "baseline": {
+    "commit": "3832a8061e9a826f8b86f7f52e7f15961ea4da91",
+    "version": "3.5.1"
+  },
+  "bump": "minor",
+  "summary": "Coordinated 3.6.0 release of the 24 public npm packages: A bound method refuses a kit the lock does not install; A missing binding refuses only the method it names, as a test; A pinned copy is refused when git cannot answer inside a repository; Bare ia opens a console; Doctor fixes you can run; Find a CLI copy a workspace hoisted; Host registration no longer needs a package descriptor; ia workspaces prints paths with control characters escaped; Install resolves a shared collection member against both ranges; Judge containment by real path where a volume reports no inode; Keep every workspace current from one console; Let the local knowledge tools read up to 5,000 records; Run the workspace's own ia; Scope tokens can now expire within a process, and a long-lived handle stays bounded; Seat a root several workspaces declare as shared; Take the current ia plugin release on ia host claude --user; The committed bootstrap no longer routes every task through a lane; Track the workspaces you keep current.",
+  "packages": {
+    "@inventarch/agent-composition-system": {
+      "previous": "3.5.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/agent-system": {
+      "previous": "3.5.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/authoring-system": {
+      "previous": "3.5.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/cli": {
+      "previous": "3.5.1",
+      "kind": "changed",
+      "summary": "A pinned copy is refused when git cannot answer inside a repository. Bare ia opens a console. Doctor fixes you can run. Find a CLI copy a workspace hoisted. Host registration no longer needs a package descriptor. ia workspaces prints paths with control characters escaped. Install resolves a shared collection member against both ranges. Keep every workspace current from one console. Run the workspace's own ia. Seat a root several workspaces declare as shared. Take the current ia plugin release on ia host claude --user. The committed bootstrap no longer routes every task through a lane. Track the workspaces you keep current."
+    },
+    "@inventarch/compliance": {
+      "previous": "3.5.1",
+      "kind": "changed",
+      "summary": "Run the workspace's own ia."
+    },
+    "@inventarch/compliance-system": {
+      "previous": "3.5.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/db": {
+      "previous": "3.5.1",
+      "kind": "changed",
+      "summary": "Install resolves a shared collection member against both ranges. Judge containment by real path where a volume reports no inode. Scope tokens can now expire within a process, and a long-lived handle stays bounded. Seat a root several workspaces declare as shared."
+    },
+    "@inventarch/distribution": {
+      "previous": "3.5.1",
+      "kind": "changed",
+      "summary": "Doctor fixes you can run. Install resolves a shared collection member against both ranges. Keep every workspace current from one console. Scope tokens can now expire within a process, and a long-lived handle stays bounded. The committed bootstrap no longer routes every task through a lane."
+    },
+    "@inventarch/governance-system": {
+      "previous": "3.5.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/graph": {
+      "previous": "3.5.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/hook-authoring-system": {
+      "previous": "3.5.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/kb": {
+      "previous": "3.5.1",
+      "kind": "changed",
+      "summary": "Let the local knowledge tools read up to 5,000 records."
+    },
+    "@inventarch/language": {
+      "previous": "3.5.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/learning-system": {
+      "previous": "3.5.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/mcp-door": {
+      "previous": "3.5.1",
+      "kind": "changed",
+      "summary": "A bound method refuses a kit the lock does not install. Let the local knowledge tools read up to 5,000 records. Scope tokens can now expire within a process, and a long-lived handle stays bounded."
+    },
+    "@inventarch/runner": {
+      "previous": "3.5.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/runtime": {
+      "previous": "3.5.1",
+      "kind": "changed",
+      "summary": "A bound method refuses a kit the lock does not install. A missing binding refuses only the method it names, as a test. Scope tokens can now expire within a process, and a long-lived handle stays bounded. Seat a root several workspaces declare as shared."
+    },
+    "@inventarch/service-contracts": {
+      "previous": "3.5.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/session-system": {
+      "previous": "3.5.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/steward-hook": {
+      "previous": "3.5.1",
+      "kind": "changed",
+      "summary": "Seat a root several workspaces declare as shared."
+    },
+    "@inventarch/template-system": {
+      "previous": "3.5.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/work-system": {
+      "previous": "3.5.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/workspace-runtime": {
+      "previous": "3.5.1",
+      "kind": "changed",
+      "summary": "Seat a root several workspaces declare as shared."
+    },
+    "@inventarch/workspace-system": {
+      "previous": "3.5.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    }
+  },
+  "changes": [
+    {
+      "id": "a-bound-method-refuses-a-kit-the-lock-does-not-i",
+      "title": "A bound method refuses a kit the lock does not install",
+      "summary": "A method bound by a repository now runs only a kit the repository's own lock installs. A bound kit that no lock row names (a packages row, or a kit row of a package carrier in entries) refuses with IA-CORE-KIT-NOT-INSTALLED before anything is retained, restored, written or run, and no bundled, IA-home or retained copy stands in for it; a task pin older than the installed version keeps running. The refusal also carries the kit's canonical id as `error.kit`, and a binding written with a kit's folder name is guarded as the kit it names, including a kit only the lock's package entries install. Upgrading: a repository that bound a kit with kit.mjs bind alone, or whose kit sits only in the IA home or a plugin's bundled kits, now refuses until its lock installs it; run ia install <kit> (or kit.mjs add <kit> --apply), commit the lock, then resolve again. A task pinned to a kit that has since dropped out of the lock refuses the same way. The runtime exports kitInstallation, requireKitInstalled and kitInstallMatches for the lock's row and its identity; kitInstallMatches returns false for a lock it cannot read or parse.",
+      "packages": [
+        "@inventarch/mcp-door",
+        "@inventarch/runtime"
+      ],
+      "paths": [
+        "apps/mcp-door/",
+        "packages/runtime/",
+        "tools/"
+      ]
+    },
+    {
+      "id": "a-missing-binding-refuses-only-the-method-it-nam",
+      "title": "A missing binding refuses only the method it names, as a test",
+      "summary": "Adds a test that the method resolver refuses an unbound activity alone; no behaviour changes.",
+      "packages": [
+        "@inventarch/runtime"
+      ],
+      "paths": [
+        "packages/runtime/"
+      ]
+    },
+    {
+      "id": "a-pinned-copy-is-refused-when-git-cannot-answer",
+      "title": "A pinned copy is refused when git cannot answer inside a repository",
+      "summary": "Hand-off to a workspace's pinned @inventarch/cli, for a typed command and for the console, now treats the copy as the repository's when git exits non-zero, is stopped by its timeout or cannot be started and a .git directory or file exists at or above the copy, and so does not run it. Previously any git failure read as not committed. Git's repository-routing GIT_* variables from the caller's environment are no longer passed to that check. Outside a repository, or with no git and no .git above, nothing changes: the pinned copy still takes the command.",
+      "packages": [
+        "@inventarch/cli"
+      ],
+      "paths": [
+        "apps/cli/",
+        "docs/"
+      ]
+    },
+    {
+      "id": "bare-ia-opens-a-console",
+      "title": "Bare ia opens a console",
+      "summary": "On an interactive terminal, bare ia now opens a full-screen console for the workspace: its health by area from ia doctor's rows (the running copy's user-state rows, every other row from the workspace's own installed ia), and the offers that fix or set it up, each showing the commands it runs and what they change. Enter runs an offer in the normal screen, previewing first where the command can and asking before it applies; the upgrade recipe pins a newer @inventarch/cli and runs the next steps on the copy it installed. In a pipe, under redirection or with CI set, bare ia prints the running copy's help, the text IA_NO_HANDOFF=1 ia --help prints, since bare ia is never handed off. The console adds no dependency; text is measured by grapheme cluster with Unicode 16.0.0 widths, and the package now ships THIRD_PARTY_NOTICES.txt with the Unicode license for the derived width table.",
+      "packages": [
+        "@inventarch/cli"
+      ],
+      "paths": [
+        "README.md",
+        "apps/cli/",
+        "docs/",
+        "tools/"
+      ]
+    },
+    {
+      "id": "doctor-fixes-you-can-run",
+      "title": "Doctor fixes you can run",
+      "summary": "Every ia doctor check now carries a structured fix beside its remedy: the command as an argument vector, its flow (preview then apply, a preview flag, confirm, or immediate) derived from the command's own grammar, and what it writes; a package-manager fix names its directory explicitly, and --json gains only the fix field. Doctor adds a kits row and one kit-update row per installed kit behind, read from an update cache kept per registry, with the fix that moves each by its source (an npm package, a registry collection or a release), and a marketplace row that says when the marketplace was last checked. ia-distribution refresh-updates takes --root and --force, refreshes asynchronously and merges under the IA home's store lock. A registry collection's identity is kept beside the lock in .ia/kit-collections.json, the lock itself unchanged, and installing a collection again replaces its members. An apply refuses a .ia/kit-collections.json it cannot decode with IA-DIST-COLLECTIONS-UNREADABLE, before any write, instead of replacing it. Doctor adds a home-lock row, with no fix, for an IA home store lock whose owner on this host is gone. Extensions can contribute console areas, offers and checks as data; an extension fix takes its flow and target from the console's declared step, and one no step declares asks first and targets the machine.",
+      "packages": [
+        "@inventarch/cli",
+        "@inventarch/distribution"
+      ],
+      "paths": [
+        "README.md",
+        "apps/cli/",
+        "apps/distribution/",
+        "docs/",
+        "tools/"
+      ]
+    },
+    {
+      "id": "find-a-cli-copy-a-workspace-hoisted",
+      "title": "Find a CLI copy a workspace hoisted",
+      "summary": "The ia command now hands off to an @inventarch/cli that an npm, Yarn or Bun workspace hoisted above the package that pins it. ia doctor reads the package manager, lockfile and install remedy from the directory that owns the install, and names that directory in the remedy.",
+      "packages": [
+        "@inventarch/cli"
+      ],
+      "paths": [
+        "apps/cli/",
+        "docs/"
+      ]
+    },
+    {
+      "id": "host-registration-no-longer-needs-a-package-desc",
+      "title": "Host registration no longer needs a package descriptor",
+      "summary": "ia host and ia project, committed bootstrap included, work on any workspace that has sources and admits, whether or not it ships a package. The committed path now refuses a workspace that does not admit, naming ia validate (with --root when one was given), while --remove still runs on sources that do not admit, and a generated CLAUDE.md or AGENTS.md is still refused.",
+      "packages": [
+        "@inventarch/cli"
+      ],
+      "paths": [
+        "apps/cli/",
+        "docs/",
+        "tools/"
+      ]
+    },
+    {
+      "id": "ia-workspaces-prints-paths-with-control-characte",
+      "title": "ia workspaces prints paths with control characters escaped",
+      "summary": "ia workspaces list, add, remove and find now print workspace ids, roots and the scanned folder with each terminal control character shown as visible escape text, before any shortening, as the other listing commands do. The --json output is unchanged.",
+      "packages": [
+        "@inventarch/cli"
+      ],
+      "paths": [
+        "apps/cli/",
+        "docs/"
+      ]
+    },
+    {
+      "id": "install-resolves-a-shared-collection-member-agai",
+      "title": "Install resolves a shared collection member against both ranges",
+      "summary": "Re-installing a collection whose member another installed collection lists at a different range no longer refuses when one release satisfies both, such as ^1.2.0 and ^1.4.0. The request becomes the range both accept, the lock pins a release every holder accepts, and each holder's collection row follows a pin that moves. Ranges no release can satisfy together still refuse with IA-DIST-CONFLICT, naming the holders. A range the user named directly, in this or an earlier command, is never narrowed: the collection record keeps it under a new optional `named` key, and a collection listing another range refuses. `@inventarch/db/distribution` exports `commonRange`, the range two ranges both accept.",
+      "packages": [
+        "@inventarch/cli",
+        "@inventarch/db",
+        "@inventarch/distribution"
+      ],
+      "paths": [
+        "README.md",
+        "apps/cli/",
+        "apps/distribution/",
+        "docs/",
+        "packages/db/",
+        "tools/"
+      ]
+    },
+    {
+      "id": "judge-containment-by-real-path-where-a-volume-re",
+      "title": "Judge containment by real path where a volume reports no inode",
+      "summary": "Where a volume reports an inode of 0 or all ones, as some network and ReFS volumes on Windows do, a path is inside a directory only when that directory's exact real path is one of its real ancestors, instead of every directory on the volume counting as the same one; volumes that report inodes are judged by device and inode as before.",
+      "packages": [
+        "@inventarch/db"
+      ],
+      "paths": [
+        "README.md",
+        "docs/",
+        "packages/db/",
+        "tools/"
+      ]
+    },
+    {
+      "id": "keep-every-workspace-current-from-one-console",
+      "title": "Keep every workspace current from one console",
+      "summary": "Bare ia outside a workspace now opens an all-workspaces view over the tracked list, and tab switches to it from a workspace's own view. Each row is read through that workspace's own ia, at most four at once, and is classed by the statuses its checks report. Select workspaces and batch one offer across them: each repository gets a new git worktree on a chore/ branch with no upstream, its package manager's install first, then the offer's steps rebuilt for the worktree, every path argument checked to stay inside it before each step runs, while the user's own checkout is touched only by git metadata operations. Afterwards each next step is a separate choice: commit as chore: <offer title>, push and open pull requests through gh when it is signed in, open a failed repository, or remove the worktrees and keep the branches. Nothing is pushed unless chosen. f finds workspaces in a folder to track, and config.json's worktreeRoot moves where the worktrees go. A batch never waits on an answer: its children run with no terminal (outside Windows), so a hook or a passphrase-protected signing key that asks through /dev/tty fails for its repository instead of prompting; git gets no terminal prompt and no askpass program; and ssh runs in batch mode (BatchMode=yes) unless you name your own ssh through GIT_SSH_COMMAND, GIT_SSH or core.sshCommand, so a remote that needs a passphrase, a password or a new host key fails for its repository. A command still running after 10 minutes is stopped. The preview refuses a repository whose default worktree place lies inside another work tree (a nested repository or a submodule) or where git cannot say, with worktreeRoot as the way out, a second workspace of one repository in the same batch, and a worktree inside another repository of the batch.",
+      "packages": [
+        "@inventarch/cli",
+        "@inventarch/distribution"
+      ],
+      "paths": [
+        "README.md",
+        "apps/cli/",
+        "apps/distribution/",
+        "docs/",
+        "nx.json",
+        "tools/"
+      ]
+    },
+    {
+      "id": "let-the-local-knowledge-tools-read-up-to-5-000-r",
+      "title": "Let the local knowledge tools read up to 5,000 records",
+      "summary": "One local capture, which backs the ia kb commands and the MCP door's ia_kb_* tools, keeps its limits of 100 files totalling 8 MiB. A .ia/knowledge.json selection may list up to 5,000 records and 100 resources in 512 KiB (was 1,000 records and 64 KiB; resources stay at 100). A capture without a selection had no record limit; it now refuses past 5,000 records, the limit selections and door scopes share. A record whose body falls past the file or byte limit is reported unavailable and is not served, so a large workspace may need a narrower selection; capturing a whole selection instead refuses when a resource it lists was not read. @inventarch/kb exports these limits as LIMITS.captureRecords, captureFiles, captureBytes and captureSelectionBytes. The door refuses with IA-KB-SCOPE-LIMIT only past 5,000 selectable authored records or 20 MiB of their membership rows (was 1,000 records and 8 MiB); 20 MiB accommodates 5,000 rows at the measured size of about 3.4 kB per row. Packages and legacy envelopes keep their limits: ia kb pack refuses a selection of more than 1,000 records or 64 KiB that the local tools can accept, and now says so in its message. Capture splits and hashes each source file once instead of once per record, and records bound to one document share its text. A local snapshot digest now pins bodies by their hashes, so a citation saved from an earlier version stops resolving until the record is read again. The 1 MiB per-file and 48 KiB response limits are unchanged.",
+      "packages": [
+        "@inventarch/kb",
+        "@inventarch/mcp-door"
+      ],
+      "paths": [
+        "apps/mcp-door/",
+        "packages/kb/"
+      ]
+    },
+    {
+      "id": "run-the-workspace-s-own-ia",
+      "title": "Run the workspace's own ia",
+      "summary": "A command typed into a global ia is handed to the @inventarch/cli the workspace lists and has installed (IA_NO_HANDOFF=1 turns this off; the session hook, bare ia, --user and extension commands never hand off), and ia doctor's new cli-version row says which copy runs and whether it satisfies the workspace's dependency.",
+      "packages": [
+        "@inventarch/cli",
+        "@inventarch/compliance"
+      ],
+      "paths": [
+        "apps/cli/",
+        "docs/",
+        "packages/compliance/",
+        "tools/"
+      ]
+    },
+    {
+      "id": "scope-tokens-can-now-expire-within-a-process-and",
+      "title": "Scope tokens can now expire within a process, and a long-lived handle stays bounded",
+      "summary": "Changes a published promise: a scope token used to last as long as its `@inventarch/db` handle, which the MCP door documented as the server process, and it can now expire within that process. A reader holds the 4,096 ordinary scopes most recently issued or read, so a token left unread past that refuses with `IA-DB-STALE` and reads nothing; from an `ia_kb` tool it refuses with `IA-KB-SCOPE-UNAVAILABLE`. Clients recover by asking for a new scope, with `ia_scope` or the `scope` operation, narrowed as the old one was. Calls that omit `within` are unaffected, tokens stay UUIDs, and a forged token or another handle's is still `IA-DB-SCOPE-UNAVAILABLE`. In return a long-lived handle, such as the one an MCP door keeps for its whole process, no longer grows with every scope and root: it holds at most 16 views, and every location below a declared reach reads one, so naming another `root` builds and holds nothing. New: `isIssuedScope(token)`, and `ScopeRequest.pinned` for a scope a host keeps for the life of its handle. Pinned scopes sit outside the bound, take no ordinary place and are not limited, so only a host holding the handle can create them and a Door client cannot.",
+      "packages": [
+        "@inventarch/db",
+        "@inventarch/distribution",
+        "@inventarch/mcp-door",
+        "@inventarch/runtime"
+      ],
+      "paths": [
+        "apps/distribution/",
+        "apps/mcp-door/",
+        "packages/db/",
+        "packages/runtime/"
+      ]
+    },
+    {
+      "id": "seat-a-root-several-workspaces-declare-as-shared",
+      "title": "Seat a root several workspaces declare as shared",
+      "summary": "A path under a root several workspaces declare in composition.sources now resolves as shared (resolveSeat returns by: 'shared' with every declarer in declarers, and no seat) instead of seating at whichever declarer's identity sorts first. Mandate resolution reads every declarer's closure there, on every route (a path, a named workspace, or neither), and a mandate governs only when its authority.scope names every declarer or its authority.covers selects the path, so one declarer's grant, scoped to that declarer alone, never opens a shared root; ia position names the declarers; and ia preview and ia author accept an edit there when the repository's workspace is any declarer, so they no longer refuse it as IA-CLI-EDIT-UNOWNED. A shared repository root stays governed: ReadHandle.repositoryWorkspace and runtime's rootWorkspace keep the repository's workspace there, so ia validate, ia capture and the edit guard still refuse what its mandates refuse, a default position composes each declarer and lists only the mandates that qualify, as does the generated agent-profile fallback, which now follows the same rule. The edit guard applies a mandate scoped to every declarer whoever acts.",
+      "packages": [
+        "@inventarch/cli",
+        "@inventarch/db",
+        "@inventarch/runtime",
+        "@inventarch/steward-hook",
+        "@inventarch/workspace-runtime"
+      ],
+      "paths": [
+        "apps/cli/",
+        "packages/db/",
+        "packages/runtime/",
+        "packages/workspace-runtime/",
+        "apps/steward-hook/"
+      ]
+    },
+    {
+      "id": "take-the-current-ia-plugin-release-on-ia-host-cl",
+      "title": "Take the current ia plugin release on ia host claude --user",
+      "summary": "Rerunning ia host claude --user --apply now brings an installed ia plugin to the public catalogue's current release: after the marketplace add and install it runs claude plugin marketplace update inventarch and claude plugin update ia@inventarch --scope user --json. Both do nothing when the plugin is already current. A rerun from the public catalogue now needs the network. An update Claude holds back, for example because another plugin pins ia to an older version, is refused with Claude's reason instead of reported as done, and the install is recorded as soon as it succeeds. Restart Claude Code, or run /reload-plugins, to load an update.",
+      "packages": [
+        "@inventarch/cli"
+      ],
+      "paths": [
+        "apps/cli/",
+        "docs/"
+      ]
+    },
+    {
+      "id": "the-committed-bootstrap-no-longer-routes-every-t",
+      "title": "The committed bootstrap no longer routes every task through a lane",
+      "summary": "The block ia host --commit writes says reading, building, testing, editing and submitting a change need no binding, plugin, door or private access, routes through the lanes only when a task needs a method, and says an operation that needs a bound method or private authority refuses alone. It ends with a one-line ia-bootstrap marker, and names CONTRIBUTING.md when the repository has a plain file of that name; a directory, link or oversized file there never fails the command. A block written by the earlier text is updated in place, keeping its closing line break (CRLF, LF or none).",
+      "packages": [
+        "@inventarch/cli",
+        "@inventarch/distribution"
+      ],
+      "paths": [
+        "apps/cli/",
+        "apps/distribution/",
+        "docs/"
+      ]
+    },
+    {
+      "id": "track-the-workspaces-you-keep-current",
+      "title": "Track the workspaces you keep current",
+      "summary": "ia workspaces list, add, find and remove keep your own list of the workspaces you keep current, in tracked-workspaces.json in the IA home: find walks a folder to a bounded depth and tracks what it found only with --apply, a tracked root that is gone shows as missing until removed, and ia init --apply offers to track the workspace it creates. The list is separate from the MCP server's workspace-locations.json, which tracking never reads or writes.",
+      "packages": [
+        "@inventarch/cli"
+      ],
+      "paths": [
+        "README.md",
+        "apps/cli/",
+        "docs/",
+        "tools/"
+      ]
+    },
+    {
+      "id": "cohort-alignment",
+      "title": "Coordinated version alignment",
+      "summary": "Package version metadata follows the coordinated 3.6.0 release; each native artifact version follows its own archive content.",
+      "packages": [
+        "@inventarch/agent-composition-system",
+        "@inventarch/agent-system",
+        "@inventarch/authoring-system",
+        "@inventarch/compliance-system",
+        "@inventarch/governance-system",
+        "@inventarch/graph",
+        "@inventarch/hook-authoring-system",
+        "@inventarch/language",
+        "@inventarch/learning-system",
+        "@inventarch/runner",
+        "@inventarch/service-contracts",
+        "@inventarch/session-system",
+        "@inventarch/template-system",
+        "@inventarch/work-system",
+        "@inventarch/workspace-system"
+      ],
+      "paths": [
+        ".ia/src/systems/agent-composition-system/package.json",
+        ".ia/src/systems/agent-system/package.json",
+        ".ia/src/systems/authoring-system/package.json",
+        ".ia/src/systems/compliance-system/package.json",
+        ".ia/src/systems/governance-system/package.json",
+        ".ia/src/systems/hook-authoring-system/package.json",
+        ".ia/src/systems/learning-system/package.json",
+        ".ia/src/systems/session-system/package.json",
+        ".ia/src/systems/template-system/package.json",
+        ".ia/src/systems/work-system/package.json",
+        ".ia/src/systems/workspace-system/package.json",
+        "apps/runner/package.json",
+        "packages/graph/package.json",
+        "packages/language/package.json",
+        "packages/service-contracts/package.json"
+      ]
+    },
+    {
+      "id": "repository-maintenance",
+      "title": "Repository maintenance",
+      "summary": "Tooling, workflow, documentation and release bookkeeping outside the published package contents.",
+      "packages": [],
+      "internal": true,
+      "paths": [
+        ".github/",
+        ".gitignore",
+        "apps/vscode/THIRD_PARTY_NOTICES.txt",
+        "apps/vscode/package.json",
+        "releases/"
+      ]
+    }
+  ],
+  "coverage": [
+    {
+      "path": ".github/agents/ia-contributor.agent.md",
+      "sha256": "7df05e5dc503bbe65b655265c169c5f779a3b7ade2457cba46d29f5445d03175",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": ".github/workflows/copilot-setup-steps.yml",
+      "sha256": "43f614470a1290f9174b9e85b61580d73ad8e7b8771940a742c697419de39c1c",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "4e16ffea0291d056891c10c81875c2a1b642a6142e783e20799de68ff9c9fade",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/package.json",
+      "sha256": "782bbbcad83c5cb59831229183942ce9941a4128e0847903cb1e79c624eb5fb9",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/package.json",
+      "sha256": "b777607d367334b0c8a3a24c5d5a17bf1219b9ad2c5569b69eca06c667a5777a",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/package.json",
+      "sha256": "43b31fee313bb6ba5b15b690808335844cd146f23908d5e968b8ce053e930e55",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/compliance-system/package.json",
+      "sha256": "20c55db069c710f217f1b45a7e6aa1f844b79ad62e6d36a5caee0570828ca7f5",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/package.json",
+      "sha256": "30329382990d441372a47e61fb74bf70cd6361a7751f9b01e116c196f681bc15",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/hook-authoring-system/package.json",
+      "sha256": "e16cda653d57de28b69e66c7315fbd082892a360809fd9afad0067e188c8d33f",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/learning-system/package.json",
+      "sha256": "a20b6188fffb128d3e325ad83d4e65f02d8e19da7e7f2d702c57512341e5d045",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/session-system/package.json",
+      "sha256": "34735f532e0814e78c45177492569a78f9a1b9e8c457b88e25dd23c918f7221c",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/template-system/package.json",
+      "sha256": "bd6dfdfa10c636f273fc46bcf94550c7b85a1c2782f608b196e5d9b892eed402",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/work-system/package.json",
+      "sha256": "c6a2545996d22686f70ef483d7577496ba7690e91afd483084ee5856ac09bda5",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/workspace-system/package.json",
+      "sha256": "4750b4ba5f9ed0b3c2ddadcf52bc596030f9d4fe02f49d3203e65cab52c9266e",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "README.md",
+      "sha256": "a9695d0851a9dbdc68b6e0b543000e4bf5904b0790803887da25059f89e4b6b3",
+      "change": "bare-ia-opens-a-console"
+    },
+    {
+      "path": "apps/cli/NOTICE",
+      "sha256": "319695775b35cf2ed43013baa6958ea15b7486840ec0f3a969ec0c5bb1920315",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/README.md",
+      "sha256": "00a878e6dbdead5115c1f8d2981966029cc783f1a34443e13691b6039a0b47a0",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/SPEC.md",
+      "sha256": "d179d161434e7059801c6617b69d93e91b1f4ed84b8a30b00dd3475a14307a84",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/THIRD_PARTY_NOTICES.txt",
+      "sha256": "9860391d0313cb7546d0e56544dc0217e2617ecfb215fec336a81070ac9a28aa",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/package.json",
+      "sha256": "14ee406b254c4be5a63ccbf8bdd8a01d7a053f02d501ef261dca3a0d19de67c7",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/args.ts",
+      "sha256": "d3eb65fe71c146f5312afe790ab2a543617077d0e35ac5459b20743010b84df9",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/bin.ts",
+      "sha256": "e0ec3483726d918df35730e4c68973b2583d2789f241670efb5f99baae3e5484",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/claude-cli.ts",
+      "sha256": "c8fcbdc96b251d7cff98a3c2e1c8b2dff8e17f52166cf44488225ffeae71128e",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/commands.ts",
+      "sha256": "e3de236397ba65f1fbb1cca7f65fbcad84ae8d21cd0d2ba8db25a37ee623d34f",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/committed-host.ts",
+      "sha256": "ee12b608bb462195362774a122b85c041354b28815b70d86e675ab4ec3b7dcf7",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/console/app.ts",
+      "sha256": "764dc010ed0952c43f816b5753e639dbc5b27ef1742b3e1db30dc0be25a4846b",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/console/batch-next.ts",
+      "sha256": "77ea4afad55e368eab662a6fb548238052f8dcbcfac32791de55ded5706ad909",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/console/batch-plan.ts",
+      "sha256": "e20ac70de1c0e621a145dde7e2c253ebfead493428ac1899a200da6c38f855e3",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/console/batch-run.ts",
+      "sha256": "231a3a7143291c22755b95a869cbcec98605f44a361e8f7abfa9151ab525c09c",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/console/batch-screen.ts",
+      "sha256": "21f54f86670e70178f576fd9ff79b92c456fb8e34b0353e9d64435f9838015ec",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/console/grid.ts",
+      "sha256": "842603a0e16e64757f7ea0acc2257185b85d52a1b412a9828385493f474d06fd",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/console/keys.ts",
+      "sha256": "0dfa9abed03970dac006f74d82265eec1db3f9c5627ed97bd3ef184e36b4e780",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/console/layout-all.ts",
+      "sha256": "f388d81930a33ec78fbb05d1a68e8e652bc92391949100302fd983b6c18bdd3f",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/console/layout-repo.ts",
+      "sha256": "62de91d4f2d6e5c9c09e595cca00b3cecf00d98eb7c95a10ffdba54a0ef37be9",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/console/load.ts",
+      "sha256": "077bdd70f62c80ce2f399961b634ffd1e00f686bf7196e43df591286e10145ca",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/console/offers.ts",
+      "sha256": "2b07d384e917f5cec2a78e564d62a5eda9318a1635f56fa1e97aed7cdd116b64",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/console/run.ts",
+      "sha256": "d082f986015766d05d7663ee8744dc070f749ed1abb33c588fd25f64f2b8e76f",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/console/state.ts",
+      "sha256": "89dd58707abefc38e50581528a42fde5e9d29bc3d4df174e0478884443af0ca7",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/console/terminal.ts",
+      "sha256": "29c73fa24c6538e0273d4472cebc6769623cd5f417b15d5a8a1c9426485378db",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/console/width-table.ts",
+      "sha256": "0693dad527682238e19b63dc6adb02e86305e587112713dad1b6be35075434e9",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/console/width.ts",
+      "sha256": "6ff38a17f049e0b3da4a3e5c3e843316e68339bfdee8ea263eca45d17f5106c6",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/console/workspaces-state.ts",
+      "sha256": "d9abe9b3364d9bb49d2ed0f98646f6506bf5ed885c44be9e7070bc19ef528806",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/consumer.ts",
+      "sha256": "9a35b4bf8639f8a7397a440fe24e30bc46d5f3a0964e2b71e6f4b0d3b3b19466",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/discovery.ts",
+      "sha256": "717e916925bb849f47157b65bb1ce4f61b5d5d01b435c905dc0fae017897d5a0",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/distribute.ts",
+      "sha256": "2e61a4003d423b12b09b32041cbe2fc6d234f2b1128f39dd80979ad6d57779f5",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/doctor-authority.ts",
+      "sha256": "65dd0cd9fdea1f2ed57dfbaaae8b2ee2aec48099617e37f5394306dd74134c08",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/doctor-extensions.ts",
+      "sha256": "e2b0533384eb06b61860770911641dce176ffcf68e93d5c98fbfe422ac134ff7",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/doctor-mounts.ts",
+      "sha256": "42395c30c23d7e5bd7401537e4a59394479c0aa57a81aacddfe14515e0866413",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/doctor-user.ts",
+      "sha256": "3c18c01348cdcba131b6eec81ff786cf2818c51928a56be05a969fb7925ec5cb",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/doctor.ts",
+      "sha256": "8bcc8a8378692f48ac9f4d1ac0e0ae78e143b629138f3f4a032970f99cb8cc3c",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/fix.ts",
+      "sha256": "86efc2386471ebf6c4b156fc3894d3b25bcbef1a00fe3c21071279d3348a1638",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/handoff.ts",
+      "sha256": "4b91db7e20611bef4891924b0183b99ab0dffb8cabfa56730c696cd39c7abc67",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/host-projection.ts",
+      "sha256": "b40f1db158160c18191a8ab128fc8b5b25a60b68c642d4b7c4cdefb8521d69f3",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/host.ts",
+      "sha256": "1959c289c5853c2fabfec9fdedd8578785682bb428324d89bef9a50fab4ee5ae",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/init.ts",
+      "sha256": "16b02303ab65c998520ec111167ef5783f11baa87f2b79468bc4e2b9b82e1c11",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/local-cli.ts",
+      "sha256": "d55170514004c036284df57069eba23a274194f047e53fee0a7ef0d95f539cc0",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/main.ts",
+      "sha256": "6f5462702cba9fce247fbb3620a6f1369c9d587bec81520e4ac2f68e77f80a82",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/marketplace-record.ts",
+      "sha256": "eac62a3aee6a6b0425db3bec279bcb9b49b1d9a82e2100446788299182007086",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/package-manager.ts",
+      "sha256": "f3f6bc0c4c5f2ef4537255d15e9e1b6b7f6ac8587afb9ad43f20172fddc3ab18",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/position.ts",
+      "sha256": "d3304e150001426b7cc135552d503fd696089dbf1082fdaf124e2714ac3a0287",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/preview.ts",
+      "sha256": "843389f7bbd95c21f1c39e9a38c46cc185e534fcdb80e9e06e7eea0073b9ea51",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/profile.ts",
+      "sha256": "4af67c008a792d79032cd98903bb147f553a31944a3e7bd5c99f31db8eb65771",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/program.ts",
+      "sha256": "b1d60a1d9a2eb03d307d201b4c88f717cc8e7cefbcacb90863b84c29c0634864",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/project.ts",
+      "sha256": "0c114a225568b8e62791b142f5e158e5fc5b903ec65f99f0a645bbc0b53120f3",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/render.ts",
+      "sha256": "6b7984a6cfd6433f6955de61a651e82a5172f3c04fc2e75803364134085d761f",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/self.ts",
+      "sha256": "96c6d06edeb6c7240bea7733fc7768b7b6a84c0b83ba095be7ed37d7c5742ec7",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/tracked-lock.ts",
+      "sha256": "5bea8624d875f457485d3c9db9ab967a2c1fc7dd031525faa1a137020837dd5b",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/tracked.ts",
+      "sha256": "721a81dfe07b16e4ed7b20ca8332d89bc1841d0c29b77360c1e7f0a886e24750",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/user-host.ts",
+      "sha256": "cb95e5bbdcce0920490c734ef0c0b0611ba22f8f11fca72624529f30f1c65cd3",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/workspace-state.ts",
+      "sha256": "c6066f58ac4e21c037824b1250e1b146df67ca5238709a2e44544970aeed41b1",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/src/workspaces.ts",
+      "sha256": "5719ca156a494f9f731957bad50c93a4c9adcb8c11167a17941a1d7b6296135e",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/args.test.ts",
+      "sha256": "a6e9928d19bbbc2bd168502e5f2442aa4c72e09efaed9b92435d10733b8778c9",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/batch-fixture.ts",
+      "sha256": "5c2dcd539c8fee747002bf262bb6b32b6948026012d754a837bd3978bbc55bac",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/cli-version.test.ts",
+      "sha256": "08da60fafbe4b92ca0adc0940b0ab94cab99e9bb2a47ba5d30cf94c5ea4b5557",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/console-app.test.ts",
+      "sha256": "ccadf17e9176b0f51de29df12a05e96a44779511f45240e1fb516047737dce0a",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/console-batch-next.test.ts",
+      "sha256": "144e5998d0c4f2a57de8e1fca86ca71e0bb75026c2cfda1578ffe66f9a182966",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/console-batch-plan.test.ts",
+      "sha256": "4081ba8093e36800a8b2c3a622ec8f69f0c730a8614f4aa0264f4ad61147f9f7",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/console-batch-run.test.ts",
+      "sha256": "58bdd1681a2ae0029f22bf36eddb758cdfe253a5935af70c7ff880ed02b99ccb",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/console-entry-installed.test.ts",
+      "sha256": "934327305ac2b2dcabecf345ed84f4c2fe42719466bef30b3a0f85fac52e48f8",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/console-entry.test.ts",
+      "sha256": "5e8186d7ec71c2c80cb95d28289e4941cb91b6c469fc43ddbde2ba275698f341",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/console-keys.test.ts",
+      "sha256": "209f910fcbf21434d6258116a46a1cd5e321af207b351fe1386a5cc1be4ae213",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/console-layout-all.test.ts",
+      "sha256": "8b3593bbd982a957116efb699365b34c1a7a7c595b5605bc888c6f178729be97",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/console-layout.test.ts",
+      "sha256": "07c916db23e2b38238a749c5c61270963226230425b4f349ff1fa97c8ddede88",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/console-offers.test.ts",
+      "sha256": "bfbbcf89c5957d0854672dd73a6ed756dfec831b18a966c348cdc7b2b36cb71b",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/console-state.test.ts",
+      "sha256": "ca70eeb1b5bf8189e1b59cdaa84d82d9b82b873f98636d89840b3c940e5a8bfc",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/console-terminal.test.ts",
+      "sha256": "418c905a90bbc7fbecdb8d0f284055e1e3a6492e92f7eb464355c77b8ca7c75e",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/console-width.test.ts",
+      "sha256": "f5f400dbe4dd1771b45dd164fc2a360fed28100339d034ae67b48cbc08368983",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/console-workspaces.test.ts",
+      "sha256": "bb6ca7814c8b97bb30194cffe97f0f9b46b1e1159b488d053bce7f0e5ca80c41",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/consumer.test.ts",
+      "sha256": "23961434d2b43001b432eb0e0680dea2a440481c908fabbcf996a6fc91539720",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/distribute-collections.test.ts",
+      "sha256": "3151a43694f25edce91ee4e34b5869fa023103e06d5f0e152e0756ad9facf097",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/distribution-verbs.test.ts",
+      "sha256": "c0d91f6fb158305216fe97908f3aae472e89e82cc00b59f2ecb24b53060a7b5f",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/doctor-extensions.test.ts",
+      "sha256": "2b008fe3e50e1c34a0defffae0ccf0dd29a15f1116fa2a8260b3f7c00c3f8be1",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/doctor-fix-fixture.ts",
+      "sha256": "fdb59212556f3f5feaf253999e25d83db95ac9b77caec56ad3a941e5c3785f5d",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/doctor-fix.test.ts",
+      "sha256": "0972cc51a3b8ed287e6234e989a721827512eeea271256b2dca2992880d026ae",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/doctor-handoff.test.ts",
+      "sha256": "11cdc107db37067368adf05b29d27d8901c23dc02671756d309442da9a5e4fa1",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/doctor-kits.test.ts",
+      "sha256": "97f273112c9e34b09230088ba29342c6fbcded30eddd46cb521431ee38a5a7d7",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/fake-claude.mjs",
+      "sha256": "a151ca828ea2ed025ecebbec021554d0ea2edf3a5a393af1a17588e5a34c7d98",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/fake-gh.mjs",
+      "sha256": "45fc84fcf2feede392f42c8a922956154bcd122432cbab2db6a532d5a319b183",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/fake-git.mjs",
+      "sha256": "aba3fcef6c3f86a1b938aa7ee614ce83e548303f13bf4ae4527737489b74338d",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/fake-pm.mjs",
+      "sha256": "6ecc2c1e46c3342e6a6bff77c5d8bbbd77e99d972bec7e771389e99883f43ed7",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/fix.test.ts",
+      "sha256": "2d965b374a0ba5f32dde57f61fadc4101e35ca7937d9ae0b344127b609e2dec4",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/console/all-100-ascii.txt",
+      "sha256": "408f55ea2c0d123ffebc79c5c57a3dd8cd233b0a103b18334f731791a0638c13",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/console/all-100.txt",
+      "sha256": "4a36154f1488a976789c0ca557fd93f5a82629d90942cfdc3b68b774d5d6f26c",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/console/all-140-ascii.txt",
+      "sha256": "2c5c52b3f7b8ec56cf6589872af02218691006d7008d13f0b7558916b4517cd1",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/console/all-140.txt",
+      "sha256": "4f03699e606daa3aca9b19cdd8f59cf086eb1f62e8bf3b905bacfc9e4a9993d2",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/console/all-80-ascii.txt",
+      "sha256": "ce455ea0dbaa58e6981e78742e0cc48666b8241288d9990ca3d4095ee5c9d4a3",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/console/all-80.txt",
+      "sha256": "64ba0395483e75719161379d246464bcd5d73330985e0ff44e31031c30e160a6",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/console/all-empty.txt",
+      "sha256": "239412881757c2621c49a52356ed02854cc04a112bdb350dadc555094d6574eb",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/console/all-preview.txt",
+      "sha256": "6d893f5a41282eccc8994d92d3ba5c1879def55640c0b5422b4c12802a9fb528",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/console/all-wide.txt",
+      "sha256": "70cafdee6b5692f0904da382c6fae95b2fb22038cb87676e15997fd5c2f84669",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/console/repo-100-ascii.txt",
+      "sha256": "534c5cc316851bdc2143f8009a07030485d24d3081635e05a172756cb25e088a",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/console/repo-100.txt",
+      "sha256": "c423c0b7a87b360e51c1892f1d29d666061acaff1f6aa821386afbf18174587b",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/console/repo-140.txt",
+      "sha256": "ab80f756c36c5149cafe457369d4127c3e54489cb8a7cf9f2d2a5906883b7cfd",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/console/repo-80.txt",
+      "sha256": "7fc6033494850bb19985f96d6925b7260e87c4e6957b4a180fb0e309505de33b",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/console/repo-account.txt",
+      "sha256": "cc7098406b62169825e13ac4ff1213490e76af2d103d1cc63746c2518b5941ea",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/console/repo-diagnostics.txt",
+      "sha256": "8396145632e11eb3ba632bbc5ed01cbcc1da490bc88f0096ac58a07e958c7364",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/console/repo-scrolled.txt",
+      "sha256": "7ceb6b614d361f624c5d36b91024c7472b4641b5ea3fbc04d6a880047f5d149a",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/console/repo-too-small.txt",
+      "sha256": "de8081246e7912a595da54ef92e101e8b39822fdb38128e239efe010b33352b2",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/console/repo-wide.txt",
+      "sha256": "b674abf61118dd5adbd43a0847221aacb930f2ad19e5d70d025169ae5132384d",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/unicode/DerivedGeneralCategory.txt",
+      "sha256": "ce48d6528a8f0a2e16ba5df7d966cc339667016a24c8c41ebcda8e3c143c73de",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/unicode/EastAsianWidth.txt",
+      "sha256": "4d0e6ba89f975a748069a5a7ccbd32eae389a0a1d14e5dd502d8b96ca7b0f116",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/unicode/emoji-data.txt",
+      "sha256": "22c33b913d6c4b9ca2da314b6dbd80abc8632a173368ec273132941a7f76b19b",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/forward-git.mjs",
+      "sha256": "af6f6306312816afb79f172176dd531adef106afd2e30601ec77a5bec2c4a5bd",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/handoff-installed.test.ts",
+      "sha256": "75402088c5ddbdc031bf6ea34e6b89da9bd968bf6a3996aab6b0aaccd23383e8",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/handoff.test.ts",
+      "sha256": "2e27afc2beea2187ba5b4419c1052b8dfdc6cc789f864ccca204dbe81a4675e6",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/host-commit.test.ts",
+      "sha256": "a282bfedbeb991d89bd0b25ec09d8ed1c27a1343e90bd775bcdeba5f7fa56256",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/host-doctor.test.ts",
+      "sha256": "352fd219f8fccc23f947f3f492f64e39e62e2b298fe3c5176943f438b586c16f",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/host-generated.test.ts",
+      "sha256": "ffb6159394849399480bbfc73f5e825bfeda363cc97e82e9cb00a823dccd5730",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/host-registration.test.ts",
+      "sha256": "a2e0a064b3f24270a2693c18a5124d4348d4992b96ffc2e8532521318233b08c",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/init.test.ts",
+      "sha256": "a2a805ebfbf79d49e61b5aa50a058f5bc7ab38d75f239439c3dc6cda402a318e",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/local-cli-fs-root.test.ts",
+      "sha256": "278887837837d8237efe526ca9d820ca22914174ddb35cf3da1e6c949d739fb6",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/local-cli.test.ts",
+      "sha256": "eda718ea81003d95f9532344b5f1d04d5758c7d1fcef136eaa78dcc69184c186",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/package-manager.test.ts",
+      "sha256": "237766f28b9532719f320b00768ffea4237d71b9b31242608fe3407f286783a4",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/preview.test.ts",
+      "sha256": "9ba9a1c8a63421422bd51f31322f779bef4f9865153300ac44be7f7dcb96d796",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/project.test.ts",
+      "sha256": "bd24ce062ddc34a1cd7e31e1681831d7c4efa7fbfe37ec54f95990f5c73fc4fc",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/protocols.test.ts",
+      "sha256": "0e1eaa7441cca2bc2adc467ea899d46735db5d92cf1ad6ba03a18604e8b8721d",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/refusal-next.test.ts",
+      "sha256": "dab8212854a9a905ab69d684cfe80e170ccb3fc63a5ce4d7f5a66437b36bf838",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/registry.test.ts",
+      "sha256": "2c7190cd1de83c7102d9c120b50a759bc5a2e5e9bbcbd0d6c96b571aded477b4",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/tracked-concurrency.test.ts",
+      "sha256": "1373b56f7b28c5f7b230509cc91ef2946c9c8d756d4a6c9c48b35bc7bd13ba22",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/tracked-identity.test.ts",
+      "sha256": "9b04917fc27b08e89f92f7679b1109d307ae968a0074c0cbe780b91f8025046b",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/tracked.test.ts",
+      "sha256": "fd28668fe5016523b0706c21a9651370e9ac99c332c46448ef3b00b56361f545",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/user-host.test.ts",
+      "sha256": "45cbc71943c31e37cf52299c0ca21f7bed4ce214d5abbf2dafadbb0c100e87f8",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/workspace-fixture.ts",
+      "sha256": "be7c6af99620f0a2bb6a36ebd1bc83a9f8eb9d0910cb0643295ef5a7587cdab5",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/workspace-state.test.ts",
+      "sha256": "8099591083ea08b90f57c0bb0c5c05c7217cea29f2e45ca79315b368271db28b",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/workspace-verbs.test.ts",
+      "sha256": "b1f21bbd222d8baf5565a6cf733b9b44b27a1c43a0dc4b752b0dcae4cf5de935",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/cli/tests/workspaces.test.ts",
+      "sha256": "6d2047b536b0aecee7e07f0c1dd5019539670e7a54ccf5b451a3e06569399a7a",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "apps/distribution/SPEC.md",
+      "sha256": "557cdaa1f62b9b8db26b6c994562f9418c3949bf607bdf4c5cc5703f6a2f6420",
+      "change": "doctor-fixes-you-can-run"
+    },
+    {
+      "path": "apps/distribution/package.json",
+      "sha256": "3051f15361375ebb77ccbe224ac211d2247e7df4f347e0520bc685f9f8fc230f",
+      "change": "doctor-fixes-you-can-run"
+    },
+    {
+      "path": "apps/distribution/references/registry-collections.md",
+      "sha256": "647f12b67dc2356e712279cf0d9ae52a72b6b48ca619fab1225a0917900009a3",
+      "change": "doctor-fixes-you-can-run"
+    },
+    {
+      "path": "apps/distribution/src/bootstrap.ts",
+      "sha256": "59773b54ff92b89437d6f79e91a6ee56aa9b185d4c3de94aeaec5594856967af",
+      "change": "doctor-fixes-you-can-run"
+    },
+    {
+      "path": "apps/distribution/src/home-lock.ts",
+      "sha256": "12e638216bb6cbb3ecce1627022421de247a1313e9a95776185ee4d5b41a73be",
+      "change": "doctor-fixes-you-can-run"
+    },
+    {
+      "path": "apps/distribution/src/install.ts",
+      "sha256": "f7d79b8da98d02738eb3e0f34212a8b14d427cd755431cd92b841f1f4142dd7a",
+      "change": "doctor-fixes-you-can-run"
+    },
+    {
+      "path": "apps/distribution/src/kit-collections.ts",
+      "sha256": "9db4878a353188b8a835b2cd029c18aa175910106b57a8f0b0fdd0c3e5e14f4e",
+      "change": "doctor-fixes-you-can-run"
+    },
+    {
+      "path": "apps/distribution/src/kit-inventory.ts",
+      "sha256": "a3339be9a4dcbb91e32a2409dcf852ea76bf74ef1ffd9548831bb8634bd83d7e",
+      "change": "doctor-fixes-you-can-run"
+    },
+    {
+      "path": "apps/distribution/src/native-command.ts",
+      "sha256": "789a7d9bd967566d52f5036173a24fe3c19da800dd53e95967463c41a0e93548",
+      "change": "doctor-fixes-you-can-run"
+    },
+    {
+      "path": "apps/distribution/src/registry-resolve.ts",
+      "sha256": "9c4def33cbc81e332509b132fc6680ba5c62bf5ad9838c6925f32fa6d878b437",
+      "change": "doctor-fixes-you-can-run"
+    },
+    {
+      "path": "apps/distribution/src/registry.ts",
+      "sha256": "55a52a5abf2003c7e372094d8e328e2a75d879d65801054f896392bbee74b704",
+      "change": "doctor-fixes-you-can-run"
+    },
+    {
+      "path": "apps/distribution/src/updates.ts",
+      "sha256": "e3b398621c614992219a1539998326b7756d096609107e3d2233c49c0c4132ec",
+      "change": "doctor-fixes-you-can-run"
+    },
+    {
+      "path": "apps/distribution/tests/bootstrap.test.ts",
+      "sha256": "5186703491027f5e144c5f40bf1e669b129afe8ac631af1af3ad982d1c7b1f8f",
+      "change": "doctor-fixes-you-can-run"
+    },
+    {
+      "path": "apps/distribution/tests/home-lock.test.ts",
+      "sha256": "f5f69cda9cb9373fa31e992a37f684cc0411dbfa100104625049d138e0ce2f68",
+      "change": "doctor-fixes-you-can-run"
+    },
+    {
+      "path": "apps/distribution/tests/install-collections.test.ts",
+      "sha256": "bcfa85ca753bd006ba5bd2d4b9e097a8fff05f185928a3576ee5ebc69803d7ba",
+      "change": "doctor-fixes-you-can-run"
+    },
+    {
+      "path": "apps/distribution/tests/kit-collections.test.ts",
+      "sha256": "a267bec06a12e2d0d056f4b6067aa65fb61332aadb60c30805ff665bf102d57e",
+      "change": "doctor-fixes-you-can-run"
+    },
+    {
+      "path": "apps/distribution/tests/kit-inventory.test.ts",
+      "sha256": "7c66a119a8358de88640e4ffb33f752be364dbedc44e5a3aeed0c4973051ef17",
+      "change": "doctor-fixes-you-can-run"
+    },
+    {
+      "path": "apps/distribution/tests/registry-resolve.test.ts",
+      "sha256": "9dc8d8be79a7556856ca0149e734c69ef90d4dfc72f64c663b7141144c23cb83",
+      "change": "doctor-fixes-you-can-run"
+    },
+    {
+      "path": "apps/distribution/tests/services.test.ts",
+      "sha256": "4f0608cd9da7ba9c891d298db3bc904ba603bb38977d9f090a3be970169f16a4",
+      "change": "doctor-fixes-you-can-run"
+    },
+    {
+      "path": "apps/distribution/tests/updates.test.ts",
+      "sha256": "ce08c997b2312d9a5a43a12af6a2155fc42b9e8bc10d7431f06a3e80e5129850",
+      "change": "doctor-fixes-you-can-run"
+    },
+    {
+      "path": "apps/mcp-door/README.md",
+      "sha256": "244348200cced66598a54a6431078e0ca8e567153c5084fde633c793cdaf3aa8",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "apps/mcp-door/SPEC.md",
+      "sha256": "9c7425bb42c44512099837260410648ac1a53e659c5879de8a1af8d384344772",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "apps/mcp-door/package.json",
+      "sha256": "54c833402fd33e4fddeb37cfdb3100621b08223b35735deb0380824cf2c8361a",
+      "cohortOnly": true,
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "apps/mcp-door/src/kb.ts",
+      "sha256": "22c8c4ee3e10c1890bb796b04fa0fac8a03b23e1dece29324ae8a63f578b222d",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "apps/mcp-door/src/protocol.ts",
+      "sha256": "9e541450f24d1b071e48960b3cf7c4dee8bf3dc228e5dcbe0d0d1f725aea6cb0",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "apps/mcp-door/src/tools.ts",
+      "sha256": "3c18a27f2bd29c66f03908807eb1cb0baad8f79a5e05145764346f4f79b30d70",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "apps/mcp-door/tests/fixtures/method/generate.mjs",
+      "sha256": "8e21a99e42bd5e0c791bb1d5eef5e6b225d16de09ccade7b351939d1ed80ba4b",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "apps/mcp-door/tests/fixtures/method/golden-check.json",
+      "sha256": "abf1e2a4809d83cca88b962caa39ef6ed3d0fcb985a2c954879c4004a5d58509",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "apps/mcp-door/tests/fixtures/method/golden-find.json",
+      "sha256": "713cdf92787e799d6d0c85773a7a35697cf3a0692fd0ede4ae93fc1b1054077c",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "apps/mcp-door/tests/fixtures/method/golden-pin.json",
+      "sha256": "b94385c525cde515b27e1b613729e0dd4029da4c77d77bfb6929b84038ec374c",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "apps/mcp-door/tests/kb.test.ts",
+      "sha256": "01a62ee6e2ea7d9d577b2a099c1e3b6fd2b28c907eb191e4e15c43638002ba0e",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "apps/mcp-door/tests/method.test.ts",
+      "sha256": "c22664b5e0d36e0047a3c2e1bd02bb2d055ca3fc60626a02027d00b883a18b12",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "apps/mcp-door/tests/protocol.test.ts",
+      "sha256": "06b735015ea65da92c0717a2b40c6af54ded05e832432b83b3dd9109e7d53356",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "apps/runner/package.json",
+      "sha256": "f4123018bb5801fbe8a54714718dd15cfd55bb845aafd80244b674680da47d85",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "apps/steward-hook/package.json",
+      "sha256": "6e76871834894e85487c3c4e17deaaef60667c90494ee8bfda2a2127bf8f47b1",
+      "cohortOnly": true,
+      "change": "seat-a-root-several-workspaces-declare-as-shared"
+    },
+    {
+      "path": "apps/steward-hook/tests/mandate-guard.test.ts",
+      "sha256": "7270c801ace098982da62db9459be4b659d9f9782e39f02d2d63086cae896baa",
+      "change": "seat-a-root-several-workspaces-declare-as-shared"
+    },
+    {
+      "path": "apps/vscode/THIRD_PARTY_NOTICES.txt",
+      "sha256": "085ddee7f7c62848b9fdb79546eb4eb71f20ed5ab32280164d5fd31578f20b16",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "apps/vscode/package.json",
+      "sha256": "de0dab45398530e480c96fe035732722968eec2b43742999cd46eb217f1e066e",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "docs/catalog.json",
+      "sha256": "41b68ce06db8e20b4c050861eb3a4a70188ee244174c08ed6c2c1ff7a3adeef0",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "docs/specs/consumer-cli-contract/README.md",
+      "sha256": "c25c7430737a92baa1066109c152e6919612d485a2375489927cddade57f1ae6",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "docs/specs/host-plugin-distribution/README.md",
+      "sha256": "f46b231c5088a623779b7d1dd9918834f908305e42b85fca381831e427b6644e",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "docs/specs/host-registration/README.md",
+      "sha256": "e6f8b0bc4902524bb53bf56305dc78ace3cc91ca8c2f068dcbd26dd11aefa3aa",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "docs/specs/registry/README.md",
+      "sha256": "b9b925739d7c2914f4afb2de11fbae3d55828e20debb2af13088b41cc184a43e",
+      "change": "a-pinned-copy-is-refused-when-git-cannot-answer"
+    },
+    {
+      "path": "nx.json",
+      "sha256": "d354b344cfe677a6c53a2b8e5d2382afffa7cd29d089c391e399339c7c692756",
+      "change": "keep-every-workspace-current-from-one-console"
+    },
+    {
+      "path": "packages/compliance/package.json",
+      "sha256": "74b4b3b05b27246ddb184b5741b21fe24e14986f66a876f1cd33709ce1c1d4eb",
+      "cohortOnly": true,
+      "change": "run-the-workspace-s-own-ia"
+    },
+    {
+      "path": "packages/compliance/src/host-plugin.ts",
+      "sha256": "ddb375ade9a1e861fa022a446d8c34cc1c06cc5abe4bd490f92d601f04e35c68",
+      "change": "run-the-workspace-s-own-ia"
+    },
+    {
+      "path": "packages/compliance/tests/host-plugin.test.ts",
+      "sha256": "21291a8fe84fca85fbb82bc459c033b094e45c9e9070bb5a94908efb28fea602",
+      "change": "run-the-workspace-s-own-ia"
+    },
+    {
+      "path": "packages/db/README.md",
+      "sha256": "8d4339e4dfbd9bf759131f21620843370effc6414811387c27ad1326729726f6",
+      "change": "install-resolves-a-shared-collection-member-agai"
+    },
+    {
+      "path": "packages/db/SPEC.md",
+      "sha256": "ad71e76654ecf2df13df08eb9018dfc5f810465466c784ecf8cbffbb4d16ba80",
+      "change": "install-resolves-a-shared-collection-member-agai"
+    },
+    {
+      "path": "packages/db/package.json",
+      "sha256": "9eeedeed63adecf6552eb18b1656617b2c506c7fbcbd0ca30a5e74d4d3faece4",
+      "cohortOnly": true,
+      "change": "install-resolves-a-shared-collection-member-agai"
+    },
+    {
+      "path": "packages/db/src/distribution/codec.ts",
+      "sha256": "8acc4e2c14307f7a192b122977df68cdfe96118b5b6e7206359e6f6a0b862f74",
+      "change": "install-resolves-a-shared-collection-member-agai"
+    },
+    {
+      "path": "packages/db/src/distribution/index.ts",
+      "sha256": "b5cdfe0e3e0e23c5223d19c5a4c28dfd02e8ed68a82c3971184217b233da4372",
+      "change": "install-resolves-a-shared-collection-member-agai"
+    },
+    {
+      "path": "packages/db/src/editor/index.ts",
+      "sha256": "4914fa9527d401f0a0fc6db3d9bbc80f4a4bec36f99117073dbb1c670ce44bb4",
+      "change": "install-resolves-a-shared-collection-member-agai"
+    },
+    {
+      "path": "packages/db/src/handle.ts",
+      "sha256": "d21c7b0ad31aacbe2788e861ae2635c72203767db9be6252c85a14bb2f581b36",
+      "change": "install-resolves-a-shared-collection-member-agai"
+    },
+    {
+      "path": "packages/db/src/paths.ts",
+      "sha256": "1c6051804d004b7c15b898e9fb07c2ceccefb1d8631fb4e71e9922ba17de50c8",
+      "change": "install-resolves-a-shared-collection-member-agai"
+    },
+    {
+      "path": "packages/db/src/seat.ts",
+      "sha256": "4144fd4ff5d144246f97ba02a41fbd8d666ff370ce7ccfb84abea26b04779917",
+      "change": "install-resolves-a-shared-collection-member-agai"
+    },
+    {
+      "path": "packages/db/src/view.ts",
+      "sha256": "7fb51790fc4de138b719a9cf45dda54a13f52765be31d2c7813d737f42fca777",
+      "change": "install-resolves-a-shared-collection-member-agai"
+    },
+    {
+      "path": "packages/db/tests/distribution-contracts.test.ts",
+      "sha256": "e253fbd58e10a23ea0bc3808155d749e58746267390f3bfc0a4b55b182f46945",
+      "change": "install-resolves-a-shared-collection-member-agai"
+    },
+    {
+      "path": "packages/db/tests/paths.test.ts",
+      "sha256": "98ca5439382f22fb864ef71bce28eef402a8037ff3a638faeeae1dbad0bd8f26",
+      "change": "install-resolves-a-shared-collection-member-agai"
+    },
+    {
+      "path": "packages/db/tests/release-child.ts",
+      "sha256": "60262d00d60958544a59b0672cc9b588e878d6c3cc2ba3aec8732a8f432166fa",
+      "change": "install-resolves-a-shared-collection-member-agai"
+    },
+    {
+      "path": "packages/db/tests/scope.test.ts",
+      "sha256": "78564959f69b7e7f4cd658fb6088013b928b4c5353e280f54f9ba4c319b7c51a",
+      "change": "install-resolves-a-shared-collection-member-agai"
+    },
+    {
+      "path": "packages/db/tests/seat.test.ts",
+      "sha256": "cacbe42d0a37487e120f7fa8cb6657f35b281ab0064fd5f689b1b15b4e0a714e",
+      "change": "install-resolves-a-shared-collection-member-agai"
+    },
+    {
+      "path": "packages/db/tests/view.test.ts",
+      "sha256": "d02aaa6c527014793f65194de930dec1874c66c13f300720fb0717934b06f744",
+      "change": "install-resolves-a-shared-collection-member-agai"
+    },
+    {
+      "path": "packages/graph/package.json",
+      "sha256": "97e316617d010c82da8f246ac4ebdc0ede6a1cc20f275e1875847e879a6843f4",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/kb/README.md",
+      "sha256": "0e16f858d9217eaf34649a555c7ef21bd9bcef83ca6629c5fc6f166f77949b7f",
+      "change": "let-the-local-knowledge-tools-read-up-to-5-000-r"
+    },
+    {
+      "path": "packages/kb/SPEC.md",
+      "sha256": "56714f5333310e78afcb540168920ab34c98b826e233a521246313c6853c3111",
+      "change": "let-the-local-knowledge-tools-read-up-to-5-000-r"
+    },
+    {
+      "path": "packages/kb/package.json",
+      "sha256": "afadef25c723cb13cf7182b951c47e52e8bf7d528b77fe736f4950f630fcaf61",
+      "cohortOnly": true,
+      "change": "let-the-local-knowledge-tools-read-up-to-5-000-r"
+    },
+    {
+      "path": "packages/kb/src/format.ts",
+      "sha256": "ad4fc871ad26fa14854d7f9fcc10a4fdac9fc989ec4f6fb9cc611476833c5248",
+      "change": "let-the-local-knowledge-tools-read-up-to-5-000-r"
+    },
+    {
+      "path": "packages/kb/src/local.ts",
+      "sha256": "6ad5eb6ab646782004d9c4b4274df6d55aad92834bef0c3a29d3e58a66315523",
+      "change": "let-the-local-knowledge-tools-read-up-to-5-000-r"
+    },
+    {
+      "path": "packages/kb/src/package.ts",
+      "sha256": "f6a83e0f365901f10fcdec44de455560cb6f7c9888ea8d4668d525bd0037b371",
+      "change": "let-the-local-knowledge-tools-read-up-to-5-000-r"
+    },
+    {
+      "path": "packages/kb/src/selection.ts",
+      "sha256": "d7ff91b4866d78822b3749455405dac316c07b1a663401433926f012215e137a",
+      "change": "let-the-local-knowledge-tools-read-up-to-5-000-r"
+    },
+    {
+      "path": "packages/kb/tests/legacy.test.ts",
+      "sha256": "33dcde761ad270a092a44c4bea683ea4d998e167e62977f19e368c0dd55dcb43",
+      "change": "let-the-local-knowledge-tools-read-up-to-5-000-r"
+    },
+    {
+      "path": "packages/kb/tests/limits.test.ts",
+      "sha256": "f77880fe06891d515fa5fd3f4047e0db7e5b04bfb57cc4f2c2ecf80fd535daa5",
+      "change": "let-the-local-knowledge-tools-read-up-to-5-000-r"
+    },
+    {
+      "path": "packages/kb/tests/package.test.ts",
+      "sha256": "6ef57284209d3d252cef74869fdd4c8105e9b210a2c2f08f061539700e51f401",
+      "change": "let-the-local-knowledge-tools-read-up-to-5-000-r"
+    },
+    {
+      "path": "packages/language/package.json",
+      "sha256": "36d197ef57a65b3dc657e7ebcad325da7a54d528f3b71c05453a765ceb9b7328",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/runtime/SPEC.md",
+      "sha256": "922f92193425ab3bdc5f1542fea5e8123251a2a7aa701fd6e5fbfdb277a8e5c6",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "packages/runtime/package.json",
+      "sha256": "8730e39a09583c55f9309dd81aa1f1f6cceb59f64727cfd40ce593588d78c96e",
+      "cohortOnly": true,
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "packages/runtime/src/door.ts",
+      "sha256": "638e52f52d101753ca13e8b1d510c2989271c6f127c0932a3041fd4f40451472",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "packages/runtime/src/index.ts",
+      "sha256": "15ccb24d58b9dd6e1cd93605582face52dee188bac27acd22664514e2f03e7e2",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "packages/runtime/src/machine-protocol.ts",
+      "sha256": "7927235add89f3a4195b62576848f1d7343fe08a5140c08520a63e4d404f6f40",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "packages/runtime/src/mandate-guard.ts",
+      "sha256": "af0a222414ab8a07d7f9864feb361014efaa1b8c1922a7bd3c534327dfee74cf",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "packages/runtime/src/mandate-modes.ts",
+      "sha256": "bc62efdcb3e6ee85930fb9ee7bff2f4d0824160365d60eae41195871d21e5314",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "packages/runtime/src/method/errors.ts",
+      "sha256": "91a974e26ada60152bf9ae0caccaeb8e5fb5b72bb4bc1f6c067bae3eabcd889e",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "packages/runtime/src/method/index.ts",
+      "sha256": "7b000df692a9df55a1c6d0c7d295aacffad584c924f7acb51f38a54671816fd8",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "packages/runtime/src/method/kits.ts",
+      "sha256": "aed0ecb84f7e1548db7deccf3c6f391844bfa2d1953cca1cf3c101dda1921c89",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "packages/runtime/src/method/resolve.ts",
+      "sha256": "bd9d8ce980a391c252c6172a9ef565f165fd85a31d805b332cae940e5325f792",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "packages/runtime/src/method/root.ts",
+      "sha256": "88b37331f86d91a1538f006ec1e30430d84f068aeb49ee7c0ab3276f8628f68e",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "packages/runtime/src/position.ts",
+      "sha256": "830f62dde9f3f9f6bd74213b12adbac1fb30038e6c4442aa026e99c86650ba6b",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "packages/runtime/src/scope-key.ts",
+      "sha256": "f65e52f3b169263e251abf06f4a1c68157c41f71d72ab3f35880da9a89f9abe7",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "packages/runtime/tests/install-guard.test.ts",
+      "sha256": "5e4b3cfce7e7cddb94c9c5e5a534dccc7e547645cf7ecfee1ae46aed1f6e0bff",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "packages/runtime/tests/kits-package.test.ts",
+      "sha256": "ef05417eb70efb19745f23fa0494e3797178bc98eac26c3638cfc0c936e8510b",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "packages/runtime/tests/mandate-resolution.test.ts",
+      "sha256": "1b225d43a9ba7617e6a2d0e85fa963bf02985a6b45416d82cb54f2c272194376",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "packages/runtime/tests/method.test.ts",
+      "sha256": "d7d2638821a50e10c6d3a8ce633b38da99ddec0be208fbb57c67474f3247b9e0",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "packages/runtime/tests/select-door.test.ts",
+      "sha256": "989a26fd7a6f3fe5df933e13360c93550ff604cc23b2b3d855b5c0d9faa49658",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "packages/service-contracts/package.json",
+      "sha256": "dfa6c4ba7da98d948ae3eb2fd00335c53cf3e13a4c4514e115bc174684d0a3f6",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/workspace-runtime/package.json",
+      "sha256": "f5090957d88f80a411a1a45488ba53219f2124b6d86df2b1e837d9361ee3a43b",
+      "cohortOnly": true,
+      "change": "seat-a-root-several-workspaces-declare-as-shared"
+    },
+    {
+      "path": "releases/current.json",
+      "sha256": "e559bb8ae93f701d85267eee6ee6cab31f018854cac7ceda5a3f4cbaf896bb0b",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "releases/native/current.json",
+      "sha256": "4e781e16d0c25238c48fd40c8016aa098f4ad416195bfbca291e25d6df2b51a3",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "releases/native/notes.json",
+      "sha256": "c3ddbbdbc249747fb7c6c46a44e9abfea63735bc9cb550646aee79c4a038f079",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "tools/distribution/qualify-kb.mjs",
+      "sha256": "bab6dded329e1b1f2291b269aa946e5659bf78a00c13318adfcc427f55240e96",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "tools/distribution/qualify-packages.mjs",
+      "sha256": "7be51985d9197a2ad6a9ade238d8bb6625cfe5961d75b1283d461343aada594f",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "tools/distribution/system-package-policy.json",
+      "sha256": "ce83f319301a14d24e3f7e76638c58c488ac0fb74d0d3eeecd2560dbac850496",
+      "cohortOnly": true,
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "tools/projections/generate.ts",
+      "sha256": "fa831d09894b5ecebdfda5deb53b37fb9c453f96802c295bf7ba41c0f6989f6b",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "tools/testing/tasks.json",
+      "sha256": "9058ada828fdb9e6c8fb816f57964518ac0d2254473bcf89091004af004a4e4b",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "tools/unicode/16.0.0/license.txt",
+      "sha256": "e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "tools/unicode/16.0.0/ucd/EastAsianWidth.txt",
+      "sha256": "43adc76c0686a42cb370764eb8cfe2b2a45b10b855e5572a2db4a0eecce15d5b",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "tools/unicode/16.0.0/ucd/emoji/emoji-data.txt",
+      "sha256": "f1365a5173eee18e1f98b240cdc492e84a25f1ce7e0c9d1094eb29c41a22696a",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "tools/unicode/16.0.0/ucd/extracted/DerivedGeneralCategory.txt",
+      "sha256": "7676ab755a41ef82108460238569e60ad65c191ddafe61b36c6765ec1353f293",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "tools/unicode/SPEC.md",
+      "sha256": "940f6f8c11cd3bcb17b5e5c37fba2a1256b526931f2848a833b21be48c9fd49f",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    },
+    {
+      "path": "tools/unicode/generate-width-table.mjs",
+      "sha256": "5e68b6eb7947134162567367b63314205e0dbc19af4e1ee81ffca214a80a6e3c",
+      "change": "a-bound-method-refuses-a-kit-the-lock-does-not-i"
+    }
+  ]
+}
