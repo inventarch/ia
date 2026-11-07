@@ -16,7 +16,7 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { basename, dirname, resolve } from 'node:path';
 import { PACKET_MARKER } from '@inventarch/runtime';
 import { afterAll, expect, it, vi } from 'vitest';
 import { dispatch } from '../src/consumer.js';
@@ -323,6 +323,41 @@ it('ia project claude plans on a workspace with no descriptor', async () => {
       conflict: null,
     },
   });
+});
+
+it('an empty .ia/src counts as a workspace for the guard: ia project plans, with no ia init and no not-a-workspace refusal', async () => {
+  const { env } = await initialized();
+  const empty = scratch('project-empty-source');
+  mkdirSync(resolve(empty, '.ia/src'), { recursive: true });
+  const planned = await project(empty, env, 'claude');
+  expect(planned.exitCode, planned.stdout).toBe(0);
+  expect(planned.stdout).not.toContain('ia init');
+  expect(planned.stdout).not.toContain('not a workspace');
+  expect(JSON.parse(planned.stdout)).toMatchObject({
+    command: 'project',
+    host: 'claude',
+    apply: false,
+    plan: { conflict: null },
+  });
+});
+
+it('a descriptor without .ia/src names restoring the sources with the root as typed, relative or absolute', async () => {
+  const { root, env } = await initialized();
+  rmSync(resolve(root, '.ia/src'), { recursive: true, force: true });
+  // Typed relative, the remedy keeps the spelling; the refusal still locates the resolved root.
+  const relative = await run(['project', 'claude', '--root', basename(root), '--json'], { env, cwd: dirname(root) });
+  expect(relative.exitCode, relative.stdout).toBe(3);
+  expect(JSON.parse(relative.stdout)).toMatchObject({
+    code: 'IA-CLI-CONFLICT',
+    message: expect.stringContaining('.ia/src is absent'),
+    where: { path: realpathSync(root) },
+    next: `Restore the authored sources under .ia/src from source control, then run "ia validate --root ${quote(basename(root))}".`,
+  });
+  const absolute = await project(root, env, 'claude');
+  expect(absolute.exitCode, absolute.stdout).toBe(3);
+  expect(JSON.parse(absolute.stdout).next).toBe(
+    `Restore the authored sources under .ia/src from source control, then run "ia validate --root ${quote(root)}".`,
+  );
 });
 
 it('refuses an unknown host, an uninitialized root and an unmarked claude file, each naming one next command', async () => {

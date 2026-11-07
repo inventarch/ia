@@ -141,6 +141,7 @@ import { findProgram, programEnv, programHome } from './program.js';
 import type { Session } from './session.js';
 import { codeOf, openSession } from './session.js';
 import { commandPath, PATH_OMITTED, readTracked, trackedRow, trackWorkspace } from './tracked.js';
+import { DESCRIPTOR_PATH } from './workspace-state.js';
 import type { AdviceContext, Capabilities, Field, SymbolName } from './render.js';
 import {
   atom,
@@ -290,12 +291,8 @@ export interface Applied {
   readonly host?: HostApplied;
 }
 
-/**
- * Relative to the `@inventarch/cli` package root, as `assets/vocabulary.json` is (vocabulary.ts CATALOGUE_PATH). The
- * base package's id is read from this pin and appears nowhere in this source: the pin is the only authority for those
- * bytes.
- */
-export const DESCRIPTOR_PATH = '.ia/release.json';
+/** Re-exported so `@inventarch/cli/internal/init` keeps the 3.5.0 export; the constant now lives in workspace-state.ts. */
+export { DESCRIPTOR_PATH } from './workspace-state.js';
 export const STARTER_VERSION = '0.1.0';
 /** The installer's lock, `acquire()` at apps/distribution/src/install.ts:70; `INSTALL_PATHS` does not name it. */
 export const INSTALL_LOCK = '.ia/distributions/install-lock.json';

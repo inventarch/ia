@@ -11,12 +11,12 @@ import type { Session } from './session.js';
 import { openSession } from './session.js';
 
 /** The descriptor a workspace that ships a package carries. */
-export const DESCRIPTOR_FILE = '.ia/release.json';
+export const DESCRIPTOR_PATH = '.ia/release.json';
 
 /** True when the folder holds workspace sources. */
 export const hasWorkspaceSource = (root: string): boolean => existsSync(resolve(root, '.ia/src'));
 /** True when the folder carries a release descriptor, that is, it ships a package. */
-export const shipsPackage = (root: string): boolean => existsSync(resolve(root, DESCRIPTOR_FILE));
+export const shipsPackage = (root: string): boolean => existsSync(resolve(root, DESCRIPTOR_PATH));
 
 /**
  * The target must admit, with zero error findings, before anything is rendered or registered. The refusal is the CLI's
