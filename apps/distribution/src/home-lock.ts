@@ -58,7 +58,19 @@ export function pidRunning(pid: number): boolean {
   }
 }
 
-function parseOwner(text: string): LockOwner | null {
+/**
+ * Why a lock's owner can no longer hold it, judged on this host only: its pid is not running, or the pid now names
+ * another process (its start time differs, where the platform reports one). Null when the owner may still hold it: it
+ * runs, or it is on another host, where nothing here can tell.
+ */
+export function ownerGone(owner: LockOwner): 'not-running' | 'reused' | null {
+  if (owner.host !== hostname()) return null;
+  if (!pidRunning(owner.pid)) return 'not-running';
+  const now = owner.start === null ? null : processStart(owner.pid);
+  return now !== null && now !== owner.start ? 'reused' : null;
+}
+
+export function parseOwner(text: string): LockOwner | null {
   try {
     const value = JSON.parse(text) as Record<string, unknown>;
     const { token, pid, start, host, createdAt } = value;
@@ -301,11 +313,9 @@ function locked(lock: string, holder: Holder): HomeLockedError {
     const { owner } = holder;
     host = owner.host;
     held = `held since ${owner.createdAt} by pid ${owner.pid} on ${owner.host}`;
-    if (owner.host === hostname()) {
-      const now = owner.start === null ? null : processStart(owner.pid);
-      if (!pidRunning(owner.pid)) held += `; pid ${owner.pid} is not running on this host`;
-      else if (now !== null && now !== owner.start) held += `; pid ${owner.pid} is now another process`;
-    }
+    const gone = ownerGone(owner);
+    if (gone === 'not-running') held += `; pid ${owner.pid} is not running on this host`;
+    else if (gone === 'reused') held += `; pid ${owner.pid} is now another process`;
   }
   return new HomeLockedError(lock, held, host);
 }

@@ -8,7 +8,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { hostname, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
-import { HomeLockedError, withHomeLock } from '../src/home-lock.js';
+import { HomeLockedError, ownerGone, processStart, withHomeLock } from '../src/home-lock.js';
 
 const made: string[] = [];
 afterEach(() => {
@@ -222,4 +222,42 @@ it('a signal already raised takes no free lock and runs nothing', async () => {
   expect(ran).toBe(false);
   expect(existsSync(join(at, NAME))).toBe(false);
   expect(leftovers(at)).toEqual([]);
+});
+
+it('never removes a lock another owner swapped in during the action', async () => {
+  const at = home(),
+    lock = join(at, NAME);
+  const other = JSON.stringify({
+    token: 'swapped-in',
+    pid: process.pid,
+    start: null,
+    host: hostname(),
+    createdAt: '2026-01-01T00:00:00.000Z',
+  });
+  const result = await withHomeLock(at, NAME, () => {
+    // The lock this call published is replaced by another owner's, as after a takeover this module never makes itself.
+    rmSync(lock);
+    writeFileSync(lock, other);
+    return 'done';
+  });
+  expect(result).toBe('done');
+  expect(readFileSync(lock, 'utf8')).toBe(other);
+  expect(leftovers(at)).toEqual([]);
+});
+
+it('ownerGone: a dead pid on this host is not running, a reused pid is another process, a running or foreign owner is none', () => {
+  const owner = (extra: Record<string, unknown>) => ({
+    token: 't',
+    pid: process.pid,
+    start: null,
+    host: hostname(),
+    createdAt: '2026-01-01T00:00:00.000Z',
+    ...extra,
+  });
+  expect(ownerGone(owner({ pid: deadPid() }))).toBe('not-running');
+  expect(ownerGone(owner({}))).toBeNull();
+  expect(ownerGone(owner({ start: processStart(process.pid) }))).toBeNull();
+  expect(ownerGone(owner({ pid: deadPid(), host: 'some-other-host' }))).toBeNull();
+  // Only Linux reports a start time, so only there can a running pid be told apart from the process that took the lock.
+  expect(ownerGone(owner({ start: 'not-this-start' }))).toBe(process.platform === 'linux' ? 'reused' : null);
 });

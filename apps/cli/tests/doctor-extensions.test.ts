@@ -130,6 +130,35 @@ it('a fix outside the token is nulled', () => {
       )[0],
     ).toMatchObject({ id: 'acme-account', remedy: 'ia acme login', fix: null });
 });
+it('a fix no declared step names asks first and targets the machine, whatever the state file claims', () => {
+  const fix = { program: 'ia', argv: ['acme', 'wipe'], flow: 'immediate', writesTo: 'none' };
+  expect(
+    extensionChecks(
+      [acme(CONSOLE)],
+      home({ format: 'ia-extension-checks-1', checks: [row('acme-account', { fix })] }),
+    )[0]?.fix,
+  ).toEqual({ program: 'ia', argv: ['acme', 'wipe'], flow: 'confirm', writesTo: 'machine' });
+});
+it("a fix a declared step names takes that step's flow and target, not the state file's", () => {
+  const fix = { program: 'ia', argv: ['acme', 'login'], flow: 'immediate', writesTo: 'none' };
+  expect(
+    extensionChecks(
+      [acme(CONSOLE)],
+      home({ format: 'ia-extension-checks-1', checks: [row('acme-account', { fix })] }),
+    )[0]?.fix,
+  ).toEqual({ program: 'ia', argv: ['acme', 'login'], flow: 'confirm', writesTo: 'user' });
+});
+it("a declared step's flow and target win over the state file's for that argv", () => {
+  const sync = { argv: ['acme', 'sync'], flow: 'immediate' as const, writesTo: 'repo' as const };
+  const declared = { ...CONSOLE, offers: [{ ...CONSOLE.offers[0]!, steps: [...CONSOLE.offers[0]!.steps, sync] }] };
+  const fix = { program: 'ia', argv: ['acme', 'sync'], flow: 'confirm', writesTo: 'machine' };
+  expect(
+    extensionChecks(
+      [acme(declared)],
+      home({ format: 'ia-extension-checks-1', checks: [row('acme-account', { fix })] }),
+    )[0]?.fix,
+  ).toEqual({ program: 'ia', argv: ['acme', 'sync'], flow: 'immediate', writesTo: 'repo' });
+});
 it('doctor appends extension rows after the user rows, in Environment', () => {
   const at = home({ format: 'ia-extension-checks-1', checks: [row('acme-account')] });
   const view = collectDoctor({
