@@ -182,6 +182,14 @@ describe('golden frames', () => {
     expect(refused.at(-1)).toBe(' Kit id: -x▌  A kit id cannot start with a dash.');
     expect(frame().at(-1)).toBe(' ↑↓ move · enter run · tab workspaces · r refresh · ? help · q quit');
   });
+  it('the help pane says what q does where it is opened', () => {
+    const own = frame({ view: 'help', rows: 30, columns: 200 }).join('\n');
+    expect(own).toContain('q        quit');
+    const drilled = frame({ view: 'help', rows: 30, columns: 200, drilled: true }).join('\n');
+    expect(drilled).toContain('q        from the offers, back to all workspaces; elsewhere quit');
+    expect(drilled).toContain('ctrl-c   quit');
+    expect(drilled).not.toContain('q        quit');
+  });
   it('a message shows on the lower divider', () => {
     const lines = frame({ message: 'ia validate exited 1' });
     expect(lines.at(-2)?.startsWith('── ia validate exited 1 ─')).toBe(true);

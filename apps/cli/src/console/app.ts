@@ -22,7 +22,8 @@
  * `unhandledRejection` (exit 1), and on `SIGINT`, `SIGTERM`, `SIGHUP` and, on Windows, `SIGBREAK` (exit 128 plus the
  * signal's number: 130, 143, 129, 149). A process `exit` restores it synchronously. These handlers exist only while the
  * console runs. A signal while a step's child runs is the child's to handle; Ctrl-C at the console's own confirmation
- * declines it, and during a batch stops it after the step that is running.
+ * declines it, and during a batch stops it: batch-run.ts passes the signal on to the command in flight, in a process
+ * group of its own, and nothing further starts.
  */
 import { statSync } from 'node:fs';
 import { dirname, resolve as resolvePath } from 'node:path';
@@ -41,7 +42,7 @@ import type { TrackedState, TrackedWorkspace } from '../tracked.js';
 import { findWorkspaces, readTracked, trackedRow, trackedState, trackWorkspaces } from '../tracked.js';
 import { batchChoices, planBatch, selectNeeding } from './batch-plan.js';
 import type { Runner } from './batch-run.js';
-import { defaultRunner, gitTop } from './batch-run.js';
+import { defaultRunner, enclosingTop, gitTop } from './batch-run.js';
 import { batchScreen } from './batch-screen.js';
 import { sanitize } from './grid.js';
 import type { Input } from './keys.js';
@@ -266,6 +267,7 @@ export async function runConsole(input: {
   return new Promise<number>((resolve) => {
     let finished = false,
       running = false,
+      opening = false,
       child = false;
     // A confirmation, one-key wait or batch the console itself owns; Ctrl-C cancels it.
     let waiting: { readonly cancel: () => void } | null = null;
@@ -655,13 +657,15 @@ export async function runConsole(input: {
           print: (text) => print(sanitize(text)),
           line: readLine,
           run: (file, args, options) => {
-            // Ctrl-C while a batch command runs stops the batch: the terminal's signal reaches that command too (it shares
-            // the console's process group, or its console on Windows), which acts on it and usually ends, and nothing
-            // further starts.
+            // Ctrl-C while a batch command runs stops the batch: that command gets the signal too (the runner sends it
+            // to the command's own process group when this run's signal aborts, and on Windows it shares the console),
+            // acts on it and usually ends, and nothing further starts.
             waiting = { cancel: () => controller.abort() };
-            return (input.runner ?? defaultRunner(env))(file, args, options).finally(() => {
-              waiting = null;
-            });
+            return (input.runner ?? defaultRunner(env))(file, args, { ...options, signal: controller.signal }).finally(
+              () => {
+                waiting = null;
+              },
+            );
           },
           resolveRepo: repoOf,
           env,
@@ -682,12 +686,23 @@ export async function runConsole(input: {
       backToConsole();
       all.preview = null;
       if (outcome.next === 'open') {
-        ui.mode = 'repo';
         dropRefresh();
         ui.drilled = { root: outcome.root, row: null };
         ui.view = 'offers';
         ui.selected = 0;
-        await reload();
+        // Its view holds the console's own state and offers until this returns: the table stays up, and no key but quit
+        // acts, so nothing can draw or run those under this workspace's name.
+        opening = true;
+        all.message = `Reading ${outcome.root}…`;
+        render();
+        try {
+          await reload();
+        } finally {
+          opening = false;
+          all.message = null;
+        }
+        if (finished) return;
+        ui.mode = 'repo';
       } else if (outcome.next === 'deferred') {
         const steps = outcome.steps;
         await run(
@@ -861,7 +876,7 @@ export async function runConsole(input: {
               all.rows,
               all.selected,
               { iaHome: dir, ...(root === undefined ? {} : { worktreeRoot: root }) },
-              { top: (path) => gitTop(path, env) },
+              { top: (path) => gitTop(path, env), enclosing: (path) => enclosingTop(path, env) },
             );
             all.preview = { choice, ...plan };
           }
@@ -871,6 +886,10 @@ export async function runConsole(input: {
     };
     const navigate = (entry: Input): void => {
       if (entry.kind !== 'key' || running || finished) return;
+      if (opening) {
+        if (entry.key === 'quit' || entry.key === 'interrupt') finish(0);
+        return;
+      }
       if (ui.mode === 'all') return navigateAll(entry);
       const key = entry.key;
       const top = ui.view === 'offers';
