@@ -189,6 +189,8 @@ export interface PlanView {
   readonly rooted: boolean;
   /** The registry collections this plan expanded, which the apply records beside the lock (kit-collections.ts). */
   readonly collections: readonly ExpandedCollection[];
+  /** The lock requests the apply records as the user's, so a later collection install never narrows them. */
+  readonly direct: readonly string[];
   /** Whether the apply would write the collection record, `.ia/kit-collections.json`, which "Would write" then names. */
   readonly writesCollections: boolean;
 }
@@ -363,7 +365,7 @@ async function acquiring<T>(run: () => Promise<T>, where: string | null, route: 
         message,
         3,
         at,
-        `Install them together with "${reruns.together(error.holders)}"; that succeeds only when their releases list ${error.member} with the same range.`,
+        `Install them together with "${reruns.together(error.holders)}"; that succeeds only when one release of ${error.member} satisfies every range their releases list.`,
       );
     // A service refusal the service located keeps its code and class 3, and gains its location (§4) and the
     // rerun after the file it names is repaired.
@@ -739,6 +741,8 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
   let withdrawn: readonly string[] = [];
   let registries: readonly RegistrySource[] = [];
   let collections: readonly ExpandedCollection[] = [];
+  // The lock requests the apply records as named by the user (kit-collections.ts `named`).
+  let direct: readonly string[] = [];
   const withdrawnRefusalPrefix = 'Explicit --allow-withdrawn is required for';
   if (operation === 'restore') {
     // One lock is read, and the withdrawal check and the plan both use that same object (registry spec §6.3).
@@ -830,6 +834,21 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
         : request.requestsFile === undefined
           ? mergeRequests(previous, request.ids)
           : decodeDistributionRequests(supplied(request.requestsFile, 'requests'));
+    // The ids the command names: update's id; install's positionals; for a --requests file, the ids whose request is
+    // new or whose range changed, since an unchanged request changes nothing.
+    const named =
+      updated !== undefined
+        ? [updated]
+        : request.requestsFile === undefined
+          ? request.ids.map((supplied) => REQUEST.exec(supplied)![1]!)
+          : requests
+              .filter(
+                (dependency) =>
+                  !previous?.requests.some((prior) => prior.id === dependency.id && prior.range === dependency.range),
+              )
+              .map((dependency) => dependency.id);
+    // A range the user typed is theirs: an update names one only with --to.
+    direct = updated !== undefined && request.to === undefined ? [] : named;
     let choices: readonly ReleaseCandidate<BundleMetadata>[];
     if (request.catalog !== undefined) {
       const entries = supplied(request.catalog, 'catalog');
@@ -848,33 +867,29 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
       );
     } else {
       // Registry spec §5: metadata selection, then only the selected archives are fetched and verified. Only the ids the
-      // command names are looked up (§5.1): update's id; install's positionals; for a --requests file, the ids whose
-      // request is new or whose range changed, since an unchanged request changes nothing. Any other locked package whose
-      // exact archive is cached answers for itself, so no registry is asked about it.
-      const named =
-        updated !== undefined
-          ? [updated]
-          : request.requestsFile === undefined
-            ? request.ids.map((supplied) => REQUEST.exec(supplied)![1]!)
-            : requests
-                .filter(
-                  (dependency) =>
-                    !previous?.requests.some((prior) => prior.id === dependency.id && prior.range === dependency.range),
-                )
-                .map((dependency) => dependency.id);
+      // command names are looked up (§5.1). Any other locked package whose exact archive is cached answers for itself, so
+      // no registry is asked about it.
       const choose = chooserOf(request);
       // Each installed collection's recorded members (both sides' for one whose identity is unknown), so re-installing
       // a collection replaces them rather than conflicting with them.
-      const recorded = operation === 'install' ? intactCollections(root) : { collections: [], unknown: [] };
+      const recorded = operation === 'install' ? intactCollections(root) : { collections: [], unknown: [], named: [] };
       const collectionMembers = new Map<string, readonly string[]>([
         ...recorded.collections.map((row) => [row.id, row.members.map((member) => member.id)] as const),
         ...recorded.unknown.map((row) => [row.id, row.members] as const),
       ]);
+      // The requests an earlier command named: those the record keeps as named, and any no recorded collection lists,
+      // which no collection's expansion can have left (a lost record leaves its requests compared as strings, as before).
+      const listed = new Set([...collectionMembers.values()].flat());
+      const earlier = [
+        ...recorded.named,
+        ...(previous?.requests ?? []).map((dependency) => dependency.id).filter((id) => !listed.has(id)),
+      ];
       const resolution = await acquiring(
         () =>
           resolveFromRegistries({
             allowKits: operation === 'install',
             collectionMembers,
+            direct: earlier,
             root,
             requests,
             engine: DISTRIBUTION_ENGINE_VERSION,
@@ -889,9 +904,25 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
         reruns,
       );
       requests = resolution.expandedRequests ?? requests;
-      collections = resolution.expandedCollections ?? [];
+      // A holder whose shared member this install narrowed still accepts where it lands, so its row is recorded again at
+      // the new pin, with its own version and registry; left alone, the record merge would drop it as re-pinned, and the
+      // next install would no longer see its constraint.
+      const holders = new Set(resolution.sharedHolders ?? []);
+      collections = [
+        ...(resolution.expandedCollections ?? []),
+        ...recorded.collections
+          .filter((row) => holders.has(row.id))
+          .map(({ id, version, registry, members }) => ({
+            id,
+            version,
+            registry,
+            members: members.map((member) => member.id),
+          })),
+      ];
       choices = resolution.candidates;
       registries = registrySources(resolution.sources.values());
+      // A collection the command named is not a request; every other id it named, and every earlier one, is.
+      direct = [...new Set([...direct, ...earlier])].filter((id) => !collections.some((row) => row.id === id));
     }
     // An update drops its own package from the preference, so a repinned range is not held to the old choice and an
     // unchanged range takes the newest release in it (registry spec §6.2).
@@ -936,7 +967,8 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
     retired: [],
     rooted: request.rooted ?? false,
     collections,
-    writesCollections: collectionsWouldChange(plan, collections),
+    direct,
+    writesCollections: collectionsWouldChange(plan, collections, direct),
   };
 }
 
@@ -950,7 +982,7 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
 export function applyPlan(view: PlanView): PlanView {
   const installed: PlanView = {
     ...view,
-    applied: applyInstallation(view.plan, { collections: view.collections }) as Applied,
+    applied: applyInstallation(view.plan, { collections: view.collections, named: view.direct }) as Applied,
   };
   const results = view.refresh.map((host) => [host, refreshed(installed, host)] as const),
     refused = results.flatMap(([, result]) => (result instanceof Refusal ? [result] : []));

@@ -53,7 +53,12 @@ export function installedUnits(rootInput: string, hooks: CollectionReadHooks = {
   try {
     intact = intactAgainst(current, lock, sha256(content));
   } catch (error) {
-    intact = { collections: [], unknown: [], problems: [error instanceof Error ? error.message : String(error)] };
+    intact = {
+      collections: [],
+      unknown: [],
+      named: [],
+      problems: [error instanceof Error ? error.message : String(error)],
+    };
   }
   const units: InstalledUnit[] = [];
   // 1. Each package entry is one unit; its kits are its members.

@@ -83,6 +83,11 @@ export interface InstallOptions {
    * still removes the rows whose members it moved.
    */
   readonly collections?: readonly ExpandedCollection[];
+  /**
+   * The lock requests this operation counts as named by the user (kit-collections.ts `KitCollections.named`); the record
+   * keeps each one a recorded collection also lists.
+   */
+  readonly named?: readonly string[];
 }
 /** The workspace archive cache: `<digest>.ia.tgz` files only, each written once by `cacheArchive`. */
 export const ARCHIVE_CACHE = '.ia/distributions/cache';
@@ -293,6 +298,7 @@ function collectionsChange(
   plan: InstallationPlan,
   expanded: readonly ExpandedCollection[],
   pending: { readonly beforeActive: string | null; readonly beforeLock: string | null; readonly afterLock: string },
+  named: readonly string[] = [],
 ): CollectionsJournal | null {
   const read = readKitCollections(root);
   refuseUnreadableCollections(root, read);
@@ -302,7 +308,7 @@ function collectionsChange(
     read.state === 'present' && pending.beforeLock !== null && read.record.lock === sha256(pending.beforeLock)
       ? read.record
       : null;
-  const merged = mergeKitCollections(current, expanded, plan.lock, pending.afterLock);
+  const merged = mergeKitCollections(current, expanded, plan.lock, pending.afterLock, named);
   const after = emptyRecord(merged) ? null : serializeKitCollections(merged);
   if (after === before) return null;
   return { formatVersion: 1, beforeActive: pending.beforeActive, afterActive: json(plan.pointer), before, after };
@@ -311,11 +317,16 @@ function collectionsChange(
  * Whether applying `plan` now would write `.ia/kit-collections.json`: the same merge the apply makes, against the lock
  * on disk, so a preview can name the record among the files it would write.
  */
-export function collectionsWouldChange(plan: InstallationPlan, expanded: readonly ExpandedCollection[]): boolean {
+export function collectionsWouldChange(
+  plan: InstallationPlan,
+  expanded: readonly ExpandedCollection[],
+  named: readonly string[] = [],
+): boolean {
   const root = workspace(plan.root),
     beforeLock = bytes(root, INSTALL_PATHS.lock, DISTRIBUTION_LIMITS.metadata)?.toString('utf8') ?? null;
   return (
-    collectionsChange(root, plan, expanded, { beforeActive: null, beforeLock, afterLock: json(plan.lock) }) !== null
+    collectionsChange(root, plan, expanded, { beforeActive: null, beforeLock, afterLock: json(plan.lock) }, named) !==
+    null
   );
 }
 export function applyInstallation(
@@ -377,7 +388,7 @@ export function applyInstallation(
     };
     // Built before pending.json is written, so a collection whose member the lock lacks refuses with nothing to recover
     // (the immutable store and generation files already written change nothing that counts).
-    const collections = collectionsChange(root, plan, options.collections ?? [], pending);
+    const collections = collectionsChange(root, plan, options.collections ?? [], pending, options.named);
     replace(root, INSTALL_PATHS.pending, Buffer.from(json(pending)));
     checkpoint('pending');
     if (json(state(root)) !== json(plan.binding)) fail('STALE-PLAN', 'Workspace changed after pending write');

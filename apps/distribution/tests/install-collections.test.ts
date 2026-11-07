@@ -256,6 +256,7 @@ it('a later older-CLI restore after a committed upgrade makes identity unknown, 
   expect(intactCollections(root)).toEqual({
     collections: [],
     unknown: [{ id: 'acme/same', members: ['acme/x'] }],
+    named: [],
     problems: [],
   });
   // The reinstall doctor names (`install acme/same`) takes the registry's latest and clears the unknown entry.

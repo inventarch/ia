@@ -51,6 +51,12 @@ export interface KitCollections {
   readonly lock: string;
   readonly collections: readonly CollectionRow[];
   readonly unknown: readonly UnknownCollection[];
+  /**
+   * The lock requests the user named directly that a recorded collection also lists. The lock cannot say who asked for
+   * a request, so this is where it is kept: a later install compares such a request as a string and never narrows it
+   * to a range a collection shares. Absent or empty, the key is not written.
+   */
+  readonly named?: readonly string[];
 }
 /** One collection an operation expanded: `registry-resolve`'s `expandedCollections`. Members are ids, not pins. */
 export interface ExpandedCollection {
@@ -111,9 +117,12 @@ export function decodeKitCollections(input: string): KitCollections {
   if (value['format'] !== KIT_COLLECTIONS_FORMAT)
     return fail('UNSUPPORTED-FORMAT', `${KIT_COLLECTIONS} has format ${String(value['format'])}`);
   const collections = value['collections'],
-    unknown = value['unknown'] ?? [];
+    unknown = value['unknown'] ?? [],
+    named = value['named'] ?? [];
   if (!HEX.test(String(value['lock'])) || !Array.isArray(collections) || !Array.isArray(unknown))
     return fail('INPUT-INVALID', `${KIT_COLLECTIONS} needs a lock digest, collections and unknown`);
+  if (!Array.isArray(named) || !named.every(distributionId))
+    return fail('INPUT-INVALID', `${KIT_COLLECTIONS} names a direct request that is not a distribution id`);
   return {
     format: KIT_COLLECTIONS_FORMAT,
     lock: value['lock'] as string,
@@ -138,6 +147,7 @@ export function decodeKitCollections(input: string): KitCollections {
         return fail('INPUT-INVALID', 'An unknown collection needs its id and member ids');
       return { id: row['id'] as string, members: row['members'] as string[] };
     }),
+    ...(named.length > 0 ? { named: [...new Set(named as string[])].sort() } : {}),
   };
 }
 /** The committed bytes: keys in one order, rows and members sorted by id, two-space indent, one trailing newline. */
@@ -156,6 +166,7 @@ export function serializeKitCollections(record: KitCollections): string {
       })),
     })),
     unknown: [...record.unknown].sort(byId).map((row) => ({ id: row.id, members: [...row.members].sort() })),
+    ...(record.named !== undefined && record.named.length > 0 ? { named: [...new Set(record.named)].sort() } : {}),
   };
   return `${JSON.stringify(ordered, null, 2)}\n`;
 }
@@ -260,11 +271,14 @@ export function undecidedRecord(journal: CollectionsJournal, currentLock: string
       });
   }
   const locks = sides.map((side) => side.lock);
+  // Either side's direct requests stay direct: one compared as a string refuses where it might have narrowed.
+  const named = [...new Set(sides.flatMap((side) => side.named ?? []))].sort();
   return {
     format: KIT_COLLECTIONS_FORMAT,
     lock: currentLock !== null && locks.includes(currentLock) ? currentLock : locks[locks.length - 1]!,
     collections,
     unknown,
+    ...(named.length > 0 ? { named } : {}),
   };
 }
 
@@ -332,6 +346,8 @@ export interface IntactCollections {
   readonly collections: readonly CollectionRow[];
   /** Collections whose identity is unknown, with the member ids still in the lock. */
   readonly unknown: readonly UnknownCollection[];
+  /** The record's direct requests (`KitCollections.named`) that are still lock requests. */
+  readonly named: readonly string[];
   readonly problems: readonly string[];
 }
 const pinned = (lock: DistributionLock, member: CollectionMember): boolean =>
@@ -348,10 +364,10 @@ export function intactAgainst(
   lockSha: string | null,
 ): IntactCollections {
   const problems = [...current.problems];
-  if (current.record === null || lock === null) return { collections: [], unknown: [], problems };
+  if (current.record === null || lock === null) return { collections: [], unknown: [], named: [], problems };
   if (lockSha === null || current.record.lock !== lockSha) {
     problems.push(`${KIT_COLLECTIONS} describes another lock; collection sources are unknown`);
-    return { collections: [], unknown: [], problems };
+    return { collections: [], unknown: [], named: [], problems };
   }
   const ids = new Set(lock.packages.map((locked) => locked.id));
   return {
@@ -359,6 +375,7 @@ export function intactAgainst(
     unknown: current.record.unknown
       .map((row) => ({ id: row.id, members: row.members.filter((member) => ids.has(member)) }))
       .filter((row) => row.members.length > 0),
+    named: (current.record.named ?? []).filter((id) => lock.requests.some((request) => request.id === id)),
     problems,
   };
 }
@@ -394,25 +411,38 @@ export function expandedRows(expanded: readonly ExpandedCollection[], lock: Dist
  *    removed, re-pinned or re-archived is removed whole, so its other members can never make it intact again;
  * 4. the expanded rows are added, built from `afterLock`.
  * An unknown entry is kept until its collection is installed again or none of its members is left in the lock.
+ * `named` adds the requests this operation counts as named by the user; with the record's own, each is kept while it is
+ * still an `afterLock` request that a row or unknown entry of the result lists.
  */
 export function mergeKitCollections(
   current: KitCollections | null,
   expanded: readonly ExpandedCollection[],
   afterLock: DistributionLock,
   afterLockBytes: string,
+  named: readonly string[] = [],
 ): KitCollections {
   const rewritten = new Set(expanded.map((collection) => collection.id)),
     ids = new Set(afterLock.packages.map((locked) => locked.id));
   const kept = (current?.collections ?? []).filter(
     (row) => !rewritten.has(row.id) && row.members.every((member) => pinned(afterLock, member)),
   );
+  const collections = [...kept, ...expandedRows(expanded, afterLock)].sort(byId),
+    unknown = (current?.unknown ?? [])
+      .filter((row) => !rewritten.has(row.id) && row.members.some((member) => ids.has(member)))
+      .sort(byId);
+  const listed = new Set([
+    ...collections.flatMap((row) => row.members.map((member) => member.id)),
+    ...unknown.flatMap((row) => row.members),
+  ]);
+  const direct = [...new Set([...(current?.named ?? []), ...named])]
+    .filter((id) => listed.has(id) && afterLock.requests.some((request) => request.id === id))
+    .sort();
   return {
     format: KIT_COLLECTIONS_FORMAT,
     lock: sha256(afterLockBytes),
-    collections: [...kept, ...expandedRows(expanded, afterLock)].sort(byId),
-    unknown: (current?.unknown ?? [])
-      .filter((row) => !rewritten.has(row.id) && row.members.some((member) => ids.has(member)))
-      .sort(byId),
+    collections,
+    unknown,
+    ...(direct.length > 0 ? { named: direct } : {}),
   };
 }
 /** Whether a record carries nothing worth committing: an empty record is never written, and a record left empty is removed. */
@@ -467,7 +497,7 @@ export function intactCollections(rootInput: string, hooks: CollectionReadHooks 
     lock = content === null ? null : decodeDistributionLock(decodeDistributionJson(utf8(content)));
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
-    return { collections: [], unknown: [], problems: [`${INSTALL_PATHS.lock}: ${reason}`] };
+    return { collections: [], unknown: [], named: [], problems: [`${INSTALL_PATHS.lock}: ${reason}`] };
   }
   return intactAgainst(current, lock, content === null ? null : sha256(content));
 }
