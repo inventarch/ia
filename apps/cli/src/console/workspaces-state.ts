@@ -14,7 +14,8 @@ import type { Extension } from '../consumer.js';
 import type { DoctorRequest, DoctorView } from '../doctor.js';
 import type { Env } from '../program.js';
 import type { TrackedWorkspace } from '../tracked.js';
-import { trackedState } from '../tracked.js';
+import type { TrackedState } from '../tracked.js';
+import { sameRoot, trackedState } from '../tracked.js';
 import type { SpawnDoctor } from './load.js';
 import { loadState } from './load.js';
 import type { Offer } from './offers.js';
@@ -23,13 +24,21 @@ import type { ConsoleState } from './state.js';
 
 export interface RepoRow {
   readonly tracked: TrackedWorkspace;
-  readonly state: 'loading' | 'missing' | 'ready' | 'failed';
+  readonly state: 'loading' | 'missing' | 'unreadable' | 'ready' | 'failed';
   readonly console: ConsoleState | null;
   readonly offers: readonly Offer[];
   /** Why the workspace's copy could not report (or the row could not load), or null. */
   readonly failure: string | null;
 }
-export type RepoClass = 'loading' | 'missing' | 'failed' | 'failing' | 'warning' | 'unchecked' | 'healthy';
+export type RepoClass =
+  | 'loading'
+  | 'missing'
+  | 'unreadable'
+  | 'failed'
+  | 'failing'
+  | 'warning'
+  | 'unchecked'
+  | 'healthy';
 
 /** The parallel doctor runs at once. */
 export const DOCTOR_LIMIT = 4;
@@ -95,9 +104,32 @@ export const loadingRow = (tracked: TrackedWorkspace): RepoRow => ({
   failure: null,
 });
 
+/**
+ * Whether a load read the tracked workspace itself: discovery walks up from a root it cannot see, so a root that went
+ * missing or unreadable after the check would otherwise load as the workspace around it, or as none. Compared as the
+ * tracked list compares roots (`sameRoot`), so a volume that reports no inode numbers never makes two roots one.
+ */
+export const ownRoot = (
+  root: string,
+  state: ConsoleState,
+  stat?: Parameters<typeof sameRoot>[2],
+  real?: Parameters<typeof sameRoot>[3],
+): boolean => state.root !== null && sameRoot(state.root, root, stat, real);
+/** Why a root that is there did not load as itself: the IA home's own `.ia`, say, or one that came back since. */
+export const NOT_ITSELF = 'the folder did not load as itself';
+/**
+ * The row for a tracked root that did not load as itself, never another's state or offers: `missing` or `unreadable`
+ * as its root now reads (`set`, read again when not given), or `failed` with `NOT_ITSELF` when the root reads present.
+ */
+export const setAside = (tracked: TrackedWorkspace, set: TrackedState = trackedState(tracked)): RepoRow =>
+  set === 'present'
+    ? { ...loadingRow(tracked), state: 'failed', failure: NOT_ITSELF }
+    : { ...loadingRow(tracked), state: set };
+
 /** One class per row, from its reported, workspace-owned check statuses only. */
 export function classify(row: RepoRow): RepoClass {
-  if (row.state === 'loading' || row.state === 'missing' || row.state === 'failed') return row.state;
+  if (row.state === 'loading' || row.state === 'missing' || row.state === 'unreadable' || row.state === 'failed')
+    return row.state;
   const statuses = (row.console?.checks ?? [])
     .filter((check) => check.reported && check.from !== 'running')
     .map((check) => check.status);
@@ -109,7 +141,10 @@ export function classify(row: RepoRow): RepoClass {
 
 /**
  * Loads every tracked row through its own copy, reporting each through `onRow` as it arrives. A row whose root is gone
- * or holds no `.ia/src` is `missing` at once and never loaded. Resolves when every started load has settled; after the
+ * or holds no `.ia/src` is `missing` at once and never loaded; one whose root cannot be examined is `unreadable`, and
+ * is never loaded either: discovery would walk up from it to the workspace around it, or to none, and offer that
+ * place's actions. A load that discovers any root but the row's own (the root changed after the check) is set aside
+ * the same way. Resolves when every started load has settled; after the
  * signal aborts, the loads still going are aborted with it, no new one starts and nothing more is reported.
  */
 export async function loadAll(input: {
@@ -131,7 +166,8 @@ export async function loadAll(input: {
   const consoles = extensions.flatMap((extension) => (extension.console === undefined ? [] : [extension.console]));
   const queue: number[] = [];
   input.tracked.forEach((row, index) => {
-    if (trackedState(row) === 'missing') input.onRow(index, { ...loadingRow(row), state: 'missing' });
+    const set = trackedState(row);
+    if (set !== 'present') input.onRow(index, { ...loadingRow(row), state: set });
     else queue.push(index);
   });
   const one = async (index: number): Promise<void> => {
@@ -149,13 +185,15 @@ export async function loadAll(input: {
         timeoutMs: WORKSPACE_DOCTOR_TIMEOUT_MS,
         ...(input.spawnDoctor === undefined ? {} : { spawnDoctor: input.spawnDoctor }),
       });
-      row = {
-        tracked,
-        state: state.repoFailure === null ? 'ready' : 'failed',
-        console: state,
-        offers: offersFor(state, consoles),
-        failure: state.repoFailure,
-      };
+      row = ownRoot(tracked.root, state)
+        ? {
+            tracked,
+            state: state.repoFailure === null ? 'ready' : 'failed',
+            console: state,
+            offers: offersFor(state, consoles),
+            failure: state.repoFailure,
+          }
+        : setAside(tracked);
     } catch (error) {
       row = {
         ...loadingRow(tracked),
@@ -180,6 +218,8 @@ export interface Summary {
   readonly failing: number;
   readonly warning: number;
   readonly missing: number;
+  /** Rows whose root cannot be examined. */
+  readonly unreadable: number;
   readonly failed: number;
   readonly unchecked: number;
   readonly loading: number;
@@ -209,6 +249,7 @@ export function summarize(
     failing,
     warning,
     missing: count('missing'),
+    unreadable: count('unreadable'),
     failed: count('failed'),
     unchecked: count('unchecked'),
     loading: count('loading'),

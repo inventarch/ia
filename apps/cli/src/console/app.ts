@@ -37,8 +37,8 @@ import type { LocalCli } from '../local-cli.js';
 import type { Env } from '../program.js';
 import type { Capabilities } from '../render.js';
 import { resolveCapabilities } from '../render.js';
-import type { TrackedWorkspace } from '../tracked.js';
-import { findWorkspaces, readTracked, trackedRow, trackWorkspaces } from '../tracked.js';
+import type { TrackedState, TrackedWorkspace } from '../tracked.js';
+import { findWorkspaces, readTracked, trackedRow, trackedState, trackWorkspaces } from '../tracked.js';
 import { batchChoices, planBatch, selectNeeding } from './batch-plan.js';
 import type { Runner } from './batch-run.js';
 import { defaultRunner, gitTop } from './batch-run.js';
@@ -61,7 +61,16 @@ import type { TerminalIO } from './terminal.js';
 import { Screen } from './terminal.js';
 import { graphemes } from './width.js';
 import type { RepoRow } from './workspaces-state.js';
-import { doctorPool, loadAll, loadingRow, summarize, WORKSPACE_DOCTOR_TIMEOUT_MS } from './workspaces-state.js';
+import {
+  doctorPool,
+  loadAll,
+  loadingRow,
+  ownRoot,
+  NOT_ITSELF,
+  setAside,
+  summarize,
+  WORKSPACE_DOCTOR_TIMEOUT_MS,
+} from './workspaces-state.js';
 
 export const ESCAPE_TIMEOUT_MS = 50;
 
@@ -417,6 +426,27 @@ export async function runConsole(input: {
         // A workspace opened from the table is read in the shared slots, bounded and cancellable; a newer refresh
         // cancels this one, and a result is kept only while that same opening is still on screen.
         dropRefresh();
+        const rowOf = (): RepoRow | undefined => {
+          const row = target.row === null ? undefined : all.rows[target.row];
+          return row !== undefined && row.tracked.root === target.root ? row : undefined;
+        };
+        /** Back to the table, the opened row set aside as its root reads, rather than offer another place's actions. */
+        const putAside = (set?: TrackedState): void => {
+          const row = rowOf();
+          const aside = row === undefined ? null : setAside(row.tracked, set);
+          if (aside !== null) all.rows[target.row!] = aside;
+          toAll();
+          all.message =
+            aside === null
+              ? 'The opened workspace can no longer be read.'
+              : aside.state === 'failed'
+                ? `${aside.tracked.id}: ${NOT_ITSELF}.`
+                : `${aside.tracked.id} is ${aside.state}.`;
+        };
+        // Checked first, as `loadAll` checks every row: a root gone or unreadable is never loaded, since discovery
+        // would walk up from it and run the copy of the workspace around it only for the result to be thrown away.
+        const before = trackedState(target);
+        if (before !== 'present') return putAside(before);
         const controller = new AbortController();
         refresh = controller;
         const mine = refreshes;
@@ -436,10 +466,12 @@ export async function runConsole(input: {
         if (refresh === controller) refresh = null;
         if (loaded === null || finished || mine !== refreshes || ui.drilled !== target || controller.signal.aborted)
           return;
+        // The backstop for a race: a root that went missing or unreadable during the load loads as the workspace
+        // around it, or as none, with that place's offers; the view goes back to the table rather than offer them.
+        if (!ownRoot(target.root, loaded)) return putAside();
         state = loaded;
-        const row = target.row === null ? undefined : all.rows[target.row];
-        if (row !== undefined && target.row !== null && row.tracked.root === target.root)
-          all.rows[target.row] = rowFrom(row.tracked, loaded);
+        const row = rowOf();
+        if (row !== undefined) all.rows[target.row!] = rowFrom(row.tracked, loaded);
       }
       offers = offersFor(state, consoles);
       ui.selected = Math.min(ui.selected, Math.max(0, offers.length - 1));
@@ -699,19 +731,36 @@ export async function runConsole(input: {
         }
         render();
       });
+    /** Set while a tracking waits on the store lock: keys other than quit do nothing until it settles. */
+    let tracking = false;
     const trackFound = (found: FoundList): void => {
       const dir = homeDir();
       const roots = found.roots.filter((_, index) => found.selected.has(index));
       all.found = null;
-      if (dir === null) all.message = 'The IA home cannot be found.';
-      else
+      if (dir === null) {
+        all.message = 'The IA home cannot be found.';
+        loadRows();
+        return;
+      }
+      // The lock wait is async and yields to the event loop, so a quit during it aborts the wait through `loads`.
+      const controller = new AbortController();
+      loads.add(controller);
+      tracking = true;
+      guard(async () => {
         try {
-          const added = trackWorkspaces(dir, roots);
+          const added = await trackWorkspaces(dir, roots, new Date(), { signal: controller.signal });
+          if (finished) return;
           all.message = `Tracked ${added.length} ${added.length === 1 ? 'workspace' : 'workspaces'}.`;
         } catch (error) {
+          if (finished) return;
           all.message = error instanceof Error ? error.message : String(error);
+        } finally {
+          loads.delete(controller);
+          tracking = false;
         }
-      loadRows();
+        loadRows();
+        render();
+      });
     };
 
     const toAll = (): void => {
@@ -727,6 +776,7 @@ export async function runConsole(input: {
       const count = itemCount(all.rows.length, choices().length);
       const name = key.key;
       if (name === 'quit' || name === 'interrupt') return finish(0);
+      if (tracking) return;
       if (name === 'escape') {
         if (found !== null) all.found = null;
         else if (all.preview !== null) all.preview = null;
@@ -772,7 +822,10 @@ export async function runConsole(input: {
         if (item.kind === 'repo') {
           const row = all.rows[item.index]!;
           if (row.console === null)
-            all.message = row.state === 'missing' ? `${row.tracked.id} is missing.` : 'Still reading this workspace.';
+            all.message =
+              row.state === 'missing' || row.state === 'unreadable'
+                ? `${row.tracked.id} is ${row.state}.`
+                : 'Still reading this workspace.';
           else {
             ui.mode = 'repo';
             dropRefresh();

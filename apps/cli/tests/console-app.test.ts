@@ -4,7 +4,8 @@
  * the disk), that a decline spawns nothing, and that the terminal is restored on quit, on a throw and on a signal.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { hostname } from 'node:os';
 import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -23,6 +24,7 @@ import { windowsShellArgs } from '../src/program.js';
 import type { ConsoleCheck, ConsoleState } from '../src/console/state.js';
 import type { TerminalIO } from '../src/console/terminal.js';
 import { readTracked, trackWorkspaces } from '../src/tracked.js';
+import { TRACKED_LOCK_FILE } from '../src/tracked-lock.js';
 import { cleanup, scratch } from './scratch-fixture.js';
 
 afterAll(cleanup);
@@ -970,10 +972,14 @@ describe('runConsole', () => {
   });
 });
 
+const unprivileged = process.platform === 'win32' || process.getuid?.() === 0;
 /** The end of a long value, which the folder line always shows. */
 const tail = (text: string): string => text.slice(-12);
 /** The console started outside any workspace, with `tracked` workspaces in its IA home's tracked list. */
-function launchAll(tracked = 0, extra: { copies?: boolean; spawnDoctor?: SpawnDoctor; inside?: boolean } = {}) {
+async function launchAll(
+  tracked = 0,
+  extra: { copies?: boolean; spawnDoctor?: SpawnDoctor; inside?: boolean; before?: (roots: string[]) => void } = {},
+) {
   const base = scratch('console-all');
   const cwd = join(base, 'outside'),
     home = join(base, 'home');
@@ -993,7 +999,8 @@ function launchAll(tracked = 0, extra: { copies?: boolean; spawnDoctor?: SpawnDo
     );
     writeFileSync(join(installed, 'dist/bin.js'), '');
   }
-  if (roots.length > 0) trackWorkspaces(home, roots);
+  if (roots.length > 0) await trackWorkspaces(home, roots);
+  extra.before?.(roots);
   // `inside`: the console starts in the first tracked workspace, whose own view is then the home one.
   const start = extra.inside === true && roots[0] !== undefined ? roots[0] : cwd;
   const terminal = new FakeTerminal();
@@ -1023,7 +1030,7 @@ function launchAll(tracked = 0, extra: { copies?: boolean; spawnDoctor?: SpawnDo
 
 describe('the all-workspaces view', () => {
   it('outside a workspace lands on all workspaces', async () => {
-    const run = launchAll();
+    const run = await launchAll();
     await until(run.shows('Tracked 0'), 'the all-workspaces view');
     expect(run.terminal.out).toContain('› Find workspaces in a folder…');
     expect(run.terminal.out).toContain('No workspaces are tracked yet.');
@@ -1031,7 +1038,7 @@ describe('the all-workspaces view', () => {
     expect(await run.exit).toBe(0);
   });
   it('enter on a row opens its repo view and esc returns', async () => {
-    const run = launchAll(1);
+    const run = await launchAll(1);
     await until(run.shows('Healthy 1'), 'the row to load');
     run.stdin.write('\r');
     await until(run.shows('esc back'), 'the repo view');
@@ -1045,8 +1052,52 @@ describe('the all-workspaces view', () => {
     run.stdin.write('q');
     expect(await run.exit).toBe(0);
   });
+  // A real chmod: discovery walks up from a root it cannot read, so such a row must never open as another place.
+  it.skipIf(unprivileged)('an unreadable row reads unreadable and does not open', async () => {
+    const denied: string[] = [];
+    try {
+      const run = await launchAll(1, {
+        before: (roots) => {
+          chmodSync(roots[0]!, 0o000);
+          denied.push(roots[0]!);
+        },
+      });
+      await until(run.shows('Unreadable 1'), 'the row to be set aside');
+      expect(run.terminal.out).toContain('Healthy 0');
+      run.stdin.write('\r');
+      await until(run.shows('ws0 is unreadable.'), 'the refusal to open it');
+      expect(run.terminal.out).not.toContain('esc back');
+      run.stdin.write('q');
+      expect(await run.exit).toBe(0);
+    } finally {
+      for (const path of denied) chmodSync(path, 0o755);
+    }
+  });
+  it.skipIf(unprivileged)(
+    'an opened workspace whose root turns unreadable goes back to the table on refresh',
+    async () => {
+      const denied: string[] = [];
+      try {
+        const run = await launchAll(1);
+        await until(run.shows('Healthy 1'), 'the row to load');
+        run.stdin.write('\r');
+        await until(run.shows('esc back'), 'the repo view');
+        chmodSync(run.roots[0]!, 0o000);
+        denied.push(run.roots[0]!);
+        const mark = run.terminal.out.length;
+        run.stdin.write('r');
+        await until(() => run.terminal.out.slice(mark).includes('ws0 is unreadable.'), 'the table');
+        expect(run.terminal.out.slice(mark)).toContain('space select');
+        expect(run.terminal.out.slice(mark)).toContain('Unreadable 1');
+        run.stdin.write('q');
+        expect(await run.exit).toBe(0);
+      } finally {
+        for (const path of denied) chmodSync(path, 0o755);
+      }
+    },
+  );
   it('f opens the folder line in text mode: b, q and j are typed, not commands', async () => {
-    const run = launchAll(1);
+    const run = await launchAll(1);
     await until(run.shows('Healthy 1'), 'the row to load');
     run.stdin.write('f');
     await until(run.shows(`${tail(run.base)}▌`), 'the folder line');
@@ -1061,7 +1112,7 @@ describe('the all-workspaces view', () => {
     expect(await run.exit).toBe(0);
   });
   it('an arrow key split across chunks inside the folder line is not Escape', async () => {
-    const run = launchAll();
+    const run = await launchAll();
     await until(run.shows('Tracked 0'), 'the view');
     run.stdin.write('f');
     await until(run.shows('Folder: '), 'the folder line');
@@ -1077,7 +1128,7 @@ describe('the all-workspaces view', () => {
     expect(await run.exit).toBe(0);
   });
   it('a lone Esc cancels the folder line after the timer', async () => {
-    const run = launchAll();
+    const run = await launchAll();
     await until(run.shows('Tracked 0'), 'the view');
     run.stdin.write('f');
     await until(run.shows('Folder: '), 'the folder line');
@@ -1094,7 +1145,7 @@ describe('the all-workspaces view', () => {
     expect(await run.exit).toBe(0);
   });
   it('paste and backspace edit the line; enter submits', async () => {
-    const run = launchAll(1);
+    const run = await launchAll(1);
     mkdirSync(join(run.base, 'fresh', '.ia/src'), { recursive: true });
     await until(run.shows('Healthy 1'), 'the row to load');
     run.stdin.write('f');
@@ -1121,8 +1172,48 @@ describe('the all-workspaces view', () => {
     run.stdin.write('q');
     expect(await run.exit).toBe(0);
   });
+  it("a tracking that waits on a live owner's lock drops other keys, and q ends the wait, leaving that lock as it was", async () => {
+    const run = await launchAll(1);
+    mkdirSync(join(run.base, 'fresh', '.ia/src'), { recursive: true });
+    await until(run.shows('Healthy 1'), 'the row to load');
+    // Another owner on this host, still running (this process), holds the store lock for as long as the test needs.
+    const lock = join(run.home, TRACKED_LOCK_FILE);
+    writeFileSync(
+      lock,
+      JSON.stringify({
+        token: 'planted',
+        start: null,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        host: hostname(),
+        pid: process.pid,
+      }),
+    );
+    const before = readFileSync(lock),
+      tracked = readTracked(run.home);
+    run.stdin.write('f');
+    await until(run.shows('Folder: '), 'the folder line');
+    run.stdin.write('\r');
+    await until(run.shows('FOUND IN'), 'the found list');
+    const mark = run.terminal.out.length;
+    // Enter starts the tracking, which waits on the lock; the `f` after it would open the folder line again.
+    run.stdin.write('\r');
+    run.stdin.write('f');
+    await new Promise((settled) => setTimeout(settled, 150));
+    expect(run.terminal.out.slice(mark)).not.toContain('Folder: ');
+    expect(run.hooks.exits).toEqual([]);
+    const quit = Date.now();
+    run.stdin.write('q');
+    expect(await run.exit).toBe(0);
+    expect(Date.now() - quit).toBeLessThan(2_000);
+    expect(readFileSync(lock)).toEqual(before);
+    // The wait was stopped, not left running: once the lock goes, nothing takes it and the list is unchanged.
+    rmSync(lock);
+    await new Promise((settled) => setTimeout(settled, 200));
+    expect(existsSync(lock)).toBe(false);
+    expect(readTracked(run.home)).toEqual(tracked);
+  });
   it('b focuses the batch list only in keys mode', async () => {
-    const run = launchAll(1);
+    const run = await launchAll(1);
     await until(run.shows('Healthy 1'), 'the row to load');
     expect(run.terminal.out).toContain('› [ ]');
     run.stdin.write('b');
@@ -1151,7 +1242,7 @@ const markedReport = (marker: string) => ({
     counts: {},
   }),
 });
-const escapeKey = async (run: ReturnType<typeof launchAll>): Promise<void> => {
+const escapeKey = async (run: Awaited<ReturnType<typeof launchAll>>): Promise<void> => {
   const timers = run.timers.length;
   run.stdin.write('\x1b');
   await until(() => run.timers.length > timers, 'the escape timer');
@@ -1169,9 +1260,40 @@ describe('refreshing a workspace opened from the table', () => {
         : Promise.resolve(markedReport(`fresh ${root.slice(-3)}`));
     return { pending, state, spawnDoctor };
   }
+  it("a refresh of an opened root that went missing runs no copy, not even the surrounding workspace's", async () => {
+    const spawned: string[] = [];
+    const spawnDoctor: SpawnDoctor = (_entry, root) => {
+      spawned.push(root);
+      return Promise.resolve(markedReport(`fresh ${root.slice(-3)}`));
+    };
+    const run = await launchAll(1, { copies: true, spawnDoctor });
+    await until(run.shows('Attention 1'), 'the row');
+    run.stdin.write('\r');
+    await until(run.shows('esc back'), 'the repo view');
+    // The folder around the root becomes a workspace with its own copy, which discovery would reach by walking up.
+    mkdirSync(join(run.base, '.ia/src'), { recursive: true });
+    writeFileSync(join(run.base, 'package.json'), JSON.stringify({ devDependencies: { '@inventarch/cli': '3.5.0' } }));
+    const around = join(run.base, 'node_modules/@inventarch/cli');
+    mkdirSync(join(around, 'dist'), { recursive: true });
+    writeFileSync(
+      join(around, 'package.json'),
+      JSON.stringify({ name: '@inventarch/cli', version: '3.5.0', bin: { ia: './dist/bin.js' } }),
+    );
+    writeFileSync(join(around, 'dist/bin.js'), '');
+    rmSync(join(run.roots[0]!, '.ia'), { recursive: true });
+    spawned.length = 0;
+    const mark = run.terminal.out.length;
+    run.stdin.write('r');
+    await until(() => run.terminal.out.slice(mark).includes('ws0 is missing.'), 'the table');
+    await settle();
+    expect(spawned).toEqual([]);
+    expect(run.terminal.out.slice(mark)).toContain('Missing 1');
+    run.stdin.write('q');
+    expect(await run.exit).toBe(0);
+  });
   it('a refresh that finishes after Escape or q is discarded, and the console keeps running', async () => {
     const doctor = held();
-    const run = launchAll(2, { copies: true, spawnDoctor: doctor.spawnDoctor });
+    const run = await launchAll(2, { copies: true, spawnDoctor: doctor.spawnDoctor });
     await until(run.shows('Attention 2'), 'both rows');
     for (const leave of ['escape', 'q'] as const) {
       run.stdin.write('\r');
@@ -1195,7 +1317,7 @@ describe('refreshing a workspace opened from the table', () => {
   });
   it('a refresh of one repo that finishes after another is opened never shows in it', async () => {
     const doctor = held();
-    const run = launchAll(2, { copies: true, spawnDoctor: doctor.spawnDoctor });
+    const run = await launchAll(2, { copies: true, spawnDoctor: doctor.spawnDoctor });
     await until(run.shows('Attention 2'), 'both rows');
     run.stdin.write('\r');
     await until(run.shows('esc back'), 'the first repo');
@@ -1224,7 +1346,7 @@ describe('refreshing a workspace opened from the table', () => {
   });
   it('a home refresh that finishes after a workspace is opened from the table never shows in it', async () => {
     const doctor = held();
-    const run = launchAll(2, { copies: true, spawnDoctor: doctor.spawnDoctor, inside: true });
+    const run = await launchAll(2, { copies: true, spawnDoctor: doctor.spawnDoctor, inside: true });
     await until(run.shows('fresh ws0'), 'the home view');
     run.stdin.write('\t');
     await until(run.shows('Attention 2'), 'both rows');
@@ -1279,7 +1401,7 @@ describe('refreshing a workspace opened from the table', () => {
         });
       });
     };
-    const run = launchAll(5, { copies: true, spawnDoctor });
+    const run = await launchAll(5, { copies: true, spawnDoctor });
     await until(() => calls.length === 5 && run.terminal.out.includes('first'), 'four held runs and the first row');
     run.stdin.write('\r');
     await until(run.shows('esc back'), 'the first repo');
