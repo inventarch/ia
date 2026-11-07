@@ -95,7 +95,6 @@ const versionOne = ({ digest: _digest, ...record }: Node): Omit<Node, 'digest'> 
 export class Door {
   #handle: Handle;
   #initial: Scope;
-  #tokens = new Set<string>();
   #allowReport: boolean;
   #protocol: number;
   #read: (path: string) => Uint8Array;
@@ -106,8 +105,8 @@ export class Door {
     if (!Number.isSafeInteger(protocol) || protocol < 1 || protocol > MACHINE_PROTOCOL.version)
       throw new TypeError(`A door serves a MACHINE_PROTOCOL version from 1 to ${MACHINE_PROTOCOL.version}`);
     this.#handle = open(root, options);
-    this.#initial = this.#handle.resolveScope(options.boundary);
-    this.#tokens.add(this.#initial.token);
+    // Pinned: a call that names a token does not read this one, and every later call without `within` needs it (db D08c).
+    this.#initial = this.#handle.resolveScope({ ...options.boundary, pinned: true });
     this.#allowReport = options.allowReport ?? false;
     this.#protocol = protocol;
     const canonical = this.#handle.root;
@@ -140,9 +139,12 @@ export class Door {
       `Unknown operation '${operation}'; admitted: scope, context, select, get, records, resolve, search, traverse${this.#allowReport ? ', report' : ''}${this.#protocol >= 2 ? ', read, next, position' : ''}`,
     );
   }
+  /** The handle is this door's alone, so what it issued is what this door issued, with no list of tokens to grow. */
   #within(params: Params): string {
-    const token = params['within'] === undefined ? this.#initial.token : string(params['within'], 'within');
-    if (!this.#tokens.has(token)) throw new DbError('IA-DB-SCOPE-UNAVAILABLE', 'Token was not issued by this door');
+    if (params['within'] === undefined) return this.#initial.token;
+    const token = string(params['within'], 'within');
+    if (!this.#handle.isIssuedScope(token))
+      throw new DbError('IA-DB-SCOPE-UNAVAILABLE', 'Token was not issued by this door');
     return token;
   }
   #bindings(params: Params): ReadOptions {
@@ -184,7 +186,6 @@ export class Door {
             ...this.#bindings(params),
             ...(params['identities'] === undefined ? {} : { identities: strings(params['identities'], 'identities') }),
           });
-          this.#tokens.add(scope.token);
           result = scope;
           break;
         }
@@ -200,7 +201,6 @@ export class Door {
             ...(params['ranking'] === 'topical' ? { ranking: 'topical' as const } : {}),
           });
           if (!got.ok) return got;
-          this.#tokens.add(got.packet.scope.token);
           result = got.packet;
           break;
         }
@@ -212,7 +212,6 @@ export class Door {
               : { requiredAxes: strings(params['requiredAxes'], 'requiredAxes') as ConditionAxis[] }),
           });
           if (!got.ok) return got;
-          this.#tokens.add(got.selection.scope.token);
           result = got.selection;
           break;
         }
@@ -341,7 +340,6 @@ export class Door {
   }
   close(): void {
     this.#closed = true;
-    this.#tokens.clear();
     this.#handle.close();
   }
 }

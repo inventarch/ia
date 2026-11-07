@@ -1,0 +1,18 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "Scope tokens can now expire within a process, and a long-lived handle stays bounded",
+  "summary": "Changes a published promise: a scope token used to last as long as its `@inventarch/db` handle, which the MCP door documented as the server process, and it can now expire within that process. A reader holds the 4,096 ordinary scopes most recently issued or read, so a token left unread past that refuses with `IA-DB-STALE` and reads nothing; from an `ia_kb` tool it refuses with `IA-KB-SCOPE-UNAVAILABLE`. Clients recover by asking for a new scope, with `ia_scope` or the `scope` operation, narrowed as the old one was. Calls that omit `within` are unaffected, tokens stay UUIDs, and a forged token or another handle's is still `IA-DB-SCOPE-UNAVAILABLE`. In return a long-lived handle, such as the one an MCP door keeps for its whole process, no longer grows with every scope and root: it holds at most 16 views, and every location below a declared reach reads one, so naming another `root` builds and holds nothing. New: `isIssuedScope(token)`, and `ScopeRequest.pinned` for a scope a host keeps for the life of its handle. Pinned scopes sit outside the bound, take no ordinary place and are not limited, so only a host holding the handle can create them and a Door client cannot.",
+  "packages": [
+    "@inventarch/db",
+    "@inventarch/distribution",
+    "@inventarch/mcp-door",
+    "@inventarch/runtime"
+  ],
+  "paths": [
+    "apps/distribution/",
+    "apps/mcp-door/",
+    "packages/db/",
+    "packages/runtime/"
+  ]
+}

@@ -36,7 +36,7 @@ try {
 }
 ```
 
-`open` admits the workspace once. `resolveScope` issues an opaque token, and every read that passes it as `within` stays inside that scope. Band 100 marks a record the workspace authors. `cache: false` makes the open fully read-only. Without it, the handle keeps a disposable graph cache at `.ia/.iadb/graph.json`; a handle opened with `checks: 'structural'` or `evidence: true` never reads or writes that cache. The `.ia/.gitignore` that `ia init` writes does not list `.iadb/`, so add it to your ignore file.
+`open` admits the workspace once. `resolveScope` issues an opaque token, and every read that passes it as `within` stays inside that scope. A handle holds the 4,096 ordinary scopes most recently issued or read, so a token left unread past that refuses with `IA-DB-STALE`, as one does once its sources change: issue a new scope. A scope issued with `pinned: true` sits outside that bound and stays until the sources change or the handle closes. Only a host holding the handle can pin, and nothing limits how many it does, so pin only what you can count. Band 100 marks a record the workspace authors. `cache: false` makes the open fully read-only. Without it, the handle keeps a disposable graph cache at `.ia/.iadb/graph.json`; a handle opened with `checks: 'structural'` or `evidence: true` never reads or writes that cache. The `.ia/.gitignore` that `ia init` writes does not list `.iadb/`, so add it to your ignore file.
 
 ## 🧭 What it does
 

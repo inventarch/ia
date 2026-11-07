@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, createHmac, randomBytes, randomUUID } from 'node:crypto';
 import type { EdgeReference, Phase } from '@inventarch/language';
 import {
   canonicalRoot,
@@ -31,7 +31,7 @@ import { digestIn, readCapture, readinessOf, rotate, stalenessOf } from './reten
 import type { Readiness, RetainedSnapshot, Staleness } from './retention.js';
 import { seatOf } from './seat.js';
 import type { SeatResolution } from './seat.js';
-import { occurrenceKey, viewBuilder } from './view.js';
+import { declaredReaches, occurrenceKey, reachAt, viewBuilder } from './view.js';
 import type { ViewOptions } from './view.js';
 import type { RefusedRecord, UnadmittedRecord, View } from './view.js';
 import { previewInputs } from './preview.js';
@@ -60,6 +60,12 @@ export interface ReadOptions {
 }
 export interface ScopeRequest extends ReadOptions {
   readonly identities?: readonly string[];
+  /**
+   * D08c: held outside the bound, neither counted nor evicted, for the scope a host keeps for the life of its handle
+   * whether or not a read names it. Nothing limits how many a caller pins, so only a host that holds the reader may, and
+   * only what it can count; a scope a client asks for through the Door cannot be pinned.
+   */
+  readonly pinned?: boolean;
 }
 export interface Scope {
   readonly token: string;
@@ -87,7 +93,9 @@ interface State {
   readonly build: ReturnType<typeof viewBuilder>;
   readonly rootView: View;
   readonly cache: CacheStatus;
+  /** D08c: the views held, by declared reach and phase, a location reading its reach's; least recently used first. */
   readonly views: Map<string, View>;
+  readonly reaches: readonly string[];
   /** D08: the retained pair's previous side and the capture pair's current revision; absent in an editor reader. */
   readonly retention?: Retention;
 }
@@ -118,19 +126,71 @@ function once<T>(compute: () => T): () => T {
     return value.result;
   };
 }
-interface BoundScope {
-  readonly binding: Scope;
-  readonly generation: number;
+/** D07: a scope's occurrence boundary and the identities its view admits there. */
+interface ScopeSets {
   readonly boundary: ReadonlySet<string>;
   readonly allowed: ReadonlySet<string>;
-  readonly view: View;
+}
+/**
+ * D08c: a scope holds no view, which its binding finds again, and of a registry only the digest. It holds sets of its
+ * own only when it narrows its view; one that keeps the whole of it (`own` undefined) reads the view's (`basisOf`).
+ */
+interface BoundScope {
+  readonly binding: Scope;
+  readonly own: ScopeSets | undefined;
   readonly registry: string;
   readonly complete: boolean;
 }
 interface Selection {
   readonly view: View;
+  /** The root the read names: a view is its reach's, so it does not say. */
+  readonly root: string;
   readonly allowed?: ReadonlySet<string>;
 }
+/** What every scope that keeps the whole of one view reads, computed once per view and released with it (D08c). */
+interface ViewBasis extends ScopeSets {
+  /** The digest of the view's registry, which a child's must equal (D07). */
+  readonly registry: string;
+}
+const bases = new WeakMap<View, ViewBasis>();
+const setsIn = (view: View, boundary: ReadonlySet<string>): ScopeSets => ({
+  boundary,
+  allowed: new Set(
+    [...view.graph.nodes.values()].filter((node) => boundary.has(occurrenceKey(node))).map((node) => node.identity),
+  ),
+});
+function basisOf(view: View): ViewBasis {
+  let basis = bases.get(view);
+  if (basis === undefined) {
+    basis = {
+      registry: createHash('sha256').update(stableSerialize(view.graph.registry)).digest('hex'),
+      ...setsIn(view, new Set(view.boundary)),
+    };
+    bases.set(view, basis);
+  }
+  return basis;
+}
+/**
+ * D08c: the ordinary scopes a reader holds. A token leaves only once this many others were issued or read since it last
+ * was, about three heavy door sessions of one scope a call, and a scope that keeps its whole view holds a few hundred
+ * bytes.
+ */
+const HELD_SCOPES = 4096;
+/** D08c: the views a state holds, the root view among them: three reaches, each read whole and at all four phases. */
+const HELD_VIEWS = 16;
+/** Makes `key` the most recently used of `held`, then evicts the least recently used entry past `limit`, never `kept`. */
+function retain<T>(held: Map<string, T>, key: string, value: T, limit: number, kept?: T): void {
+  held.delete(key);
+  held.set(key, value);
+  if (held.size <= limit) return;
+  for (const [oldest, entry] of held)
+    if (entry !== kept) {
+      held.delete(oldest);
+      return;
+    }
+}
+/** D08c: a token is a UUID whose last twelve digits are the keyed tag of the rest. */
+const TAG_DIGITS = 12;
 function scopeRoot(value: string): string {
   try {
     return canonicalRoot(value);
@@ -154,6 +214,7 @@ export function stableState(read: () => InputSnapshot, cache: boolean, view: Vie
         rootView,
         cache: publishCache(inputs.root, rootView.graph, cache),
         views: new Map([['["",null]', rootView]]),
+        reaches: declaredReaches(inputs.sources),
       };
     } catch (error) {
       if (!(error instanceof DbError) || error.code !== 'IA-DB-SOURCE-CHANGED') throw error;
@@ -175,8 +236,11 @@ export class Reader {
   #view: ViewOptions;
   #state: State;
   #closed = false;
-  #generation = 0;
+  /** D08c: ordinary scopes, least recently used first, and only what a token can still read. */
   #scopes = new Map<string, BoundScope>();
+  /** D08c: pinned scopes, outside that bound: they take no place in it, and nothing evicts them. */
+  #pinned = new Map<string, BoundScope>();
+  #tokenKey = randomBytes(32);
   constructor(
     state: State,
     locations: Readonly<Record<string, import('@inventarch/language').Location>> = {},
@@ -205,7 +269,11 @@ export class Reader {
   }
   protected replaceState(next: State): void {
     this.#assertOpen();
-    if (next.inputs.fingerprint !== this.#state.inputs.fingerprint) this.#generation++;
+    // D08: a token never revives, so a new generation releases every scope, and each token then answers as evicted.
+    if (next.inputs.fingerprint !== this.#state.inputs.fingerprint) {
+      this.#scopes.clear();
+      this.#pinned.clear();
+    }
     this.#state = next;
   }
   #assertOpen(): void {
@@ -213,27 +281,37 @@ export class Reader {
   }
   protected view(options: ReadOptions): View {
     this.#assertOpen();
-    const root = scopeRoot(options.root ?? ''),
-      key = JSON.stringify([root, options.phase ?? null]);
-    let view = this.#state.views.get(key);
-    if (view === undefined) {
-      view = this.#state.build(root, options.phase ?? undefined);
-      this.#state.views.set(key, view);
-    }
+    const { build, reaches: declared, rootView, views } = this.#state,
+      reach = reachAt(declared, scopeRoot(options.root ?? '')),
+      key = JSON.stringify([reach, options.phase ?? null]),
+      view = views.get(key) ?? build(reach, options.phase ?? undefined);
+    retain(views, key, view, HELD_VIEWS, rootView);
     if (options.revision !== undefined && options.revision !== view.graph.revision)
       throw new DbError('IA-DB-STALE', `Requested revision ${options.revision} differs from ${view.graph.revision}`);
     return view;
   }
+  /** D08c: the keyed tag of a token's random digits. It tells an evicted token from a forged one and authorizes nothing. */
+  #tokenTag(digits: string): string {
+    return createHmac('sha256', this.#tokenKey).update(digits).digest('hex').slice(0, TAG_DIGITS);
+  }
   #scope(token: string): BoundScope {
     this.#assertOpen();
+    const pinned = this.#pinned.get(token);
+    if (pinned !== undefined) return pinned;
     const scope = this.#scopes.get(token);
-    if (scope === undefined) throw new DbError('IA-DB-SCOPE-UNAVAILABLE', 'Unknown token for this handle');
-    if (scope.generation !== this.#generation)
-      throw new DbError('IA-DB-STALE', 'Scope belongs to a previous source generation');
+    if (scope === undefined) {
+      if (this.isIssuedScope(token))
+        throw new DbError(
+          'IA-DB-STALE',
+          'Scope belongs to a previous source generation or was evicted by newer scopes; issue a new scope',
+        );
+      throw new DbError('IA-DB-SCOPE-UNAVAILABLE', 'Unknown token for this handle');
+    }
+    retain(this.#scopes, token, scope, HELD_SCOPES);
     return scope;
   }
   #select(options: ReadOptions): Selection {
-    if (options.within === undefined) return { view: this.view(options) };
+    if (options.within === undefined) return { view: this.view(options), root: scopeRoot(options.root ?? '') };
     const scope = this.#scope(options.within),
       binding = scope.binding;
     if (
@@ -243,7 +321,8 @@ export class Reader {
     ) {
       throw new DbError('IA-DB-SCOPE-MISMATCH', 'Explicit read bindings differ from the supplied scope');
     }
-    return { view: scope.view, allowed: scope.allowed };
+    const view = this.view(binding);
+    return { view, root: binding.root, allowed: (scope.own ?? basisOf(view)).allowed };
   }
   /** D09: the selection for a read about one identity, which must be inside the supplied scope. */
   #admit(identity: string, options: ReadOptions): Selection {
@@ -269,45 +348,50 @@ export class Reader {
       ...(phase === undefined ? {} : { phase }),
       ...(options.revision === undefined || parent !== undefined ? {} : { revision: options.revision }),
     });
-    const registry = stableSerialize(view.graph.registry);
-    if (parent !== undefined && registry !== parent.registry)
+    const basis = basisOf(view);
+    if (parent !== undefined && basis.registry !== parent.registry)
       throw new DbError(
         'IA-DB-SCOPE-MISMATCH',
         'Child view changes the effective registry; an independent scope is required',
       );
     const identities = options.identities === undefined ? undefined : new Set(options.identities);
-    const boundary = new Set(
-      view.boundary.filter(
-        (key) =>
-          (parent === undefined || parent.boundary.has(key)) &&
-          (identities === undefined || identities.has((JSON.parse(key) as [string])[0])),
-      ),
+    const bound = parent === undefined ? undefined : (parent.own ?? basisOf(this.view(parent.binding))).boundary;
+    const kept = view.boundary.filter(
+      (key) =>
+        (bound === undefined || bound.has(key)) &&
+        (identities === undefined || identities.has((JSON.parse(key) as [string])[0])),
     );
-    const allowed = new Set(
-      [...view.graph.nodes.values()].filter((node) => boundary.has(occurrenceKey(node))).map((node) => node.identity),
-    );
-    const token = randomUUID(),
+    const digits = randomUUID().slice(0, -TAG_DIGITS),
+      token = digits + this.#tokenTag(digits),
       binding = Object.freeze({
         token,
         root,
         ...(phase === undefined ? {} : { phase }),
         revision: view.graph.revision,
       });
-    this.#scopes.set(token, {
+    const scope = {
       binding,
-      generation: this.#generation,
-      boundary,
-      allowed,
-      view,
-      registry,
+      own: kept.length === view.boundary.length ? undefined : setsIn(view, new Set(kept)),
+      registry: basis.registry,
       complete:
         root === '' && phase === undefined && identities === undefined && (parent === undefined || parent.complete),
-    });
+    };
+    if (options.pinned === true) this.#pinned.set(token, scope);
+    else retain(this.#scopes, token, scope, HELD_SCOPES);
     return binding;
   }
   /** Whole-workspace preview can expose refused sources as diagnostics. Admitted-record counts cannot prove disclosure. */
   isCompleteScope(token: string): boolean {
     return this.#scope(token).complete;
+  }
+  /**
+   * D08c: whether this reader issued `token`, whatever has become of its scope: true of a token it evicted or a refresh
+   * retired, which reads refuse as IA-DB-STALE, false of a forged token or another reader's, which they refuse as
+   * IA-DB-SCOPE-UNAVAILABLE. It costs no memory per token, and grants nothing: a read needs a scope still held.
+   */
+  isIssuedScope(token: string): boolean {
+    this.#assertOpen();
+    return typeof token === 'string' && token.slice(-TAG_DIGITS) === this.#tokenTag(token.slice(0, -TAG_DIGITS));
   }
   get revision(): string {
     this.#assertOpen();
@@ -347,11 +431,11 @@ export class Reader {
     return this.#state.cache;
   }
   snapshot(options: ReadOptions = {}): Snapshot {
-    const { view, allowed } = this.#select(options);
+    const { view, root, allowed } = this.#select(options);
     return Object.freeze({
       revision: view.graph.revision,
       authoredRevision: view.authoredRevision,
-      root: view.graph.location,
+      root,
       ...(view.graph.phase === undefined ? {} : { phase: view.graph.phase }),
       records: Object.freeze(
         [...view.graph.nodes.values()].filter((node) => allowed === undefined || allowed.has(node.identity)),
@@ -533,6 +617,7 @@ export class Reader {
   close(): void {
     this.#closed = true;
     this.#scopes.clear();
+    this.#pinned.clear();
   }
 }
 export class Handle extends Reader {
