@@ -6,10 +6,11 @@
 import { spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { hostname } from 'node:os';
-import { join } from 'node:path';
+import { delimiter, join } from 'node:path';
 import { PassThrough } from 'node:stream';
 import { afterAll, describe, expect, it } from 'vitest';
-import type { Check, CheckStatus, DoctorView } from '../src/doctor.js';
+import type { Check, CheckStatus, DoctorRequest, DoctorView } from '../src/doctor.js';
+import { collectDoctor } from '../src/doctor.js';
 import type { Fix } from '../src/fix.js';
 import { iaFix } from '../src/fix.js';
 import type { LocalCli } from '../src/local-cli.js';
@@ -598,7 +599,7 @@ const fakeHooks = (terminal: FakeTerminal): Hooks => {
 };
 function launch(
   extra: {
-    collect?: () => DoctorView;
+    collect?: (request: DoctorRequest) => DoctorView;
     spawn?: RunIO['spawn'];
     spawnDoctor?: SpawnDoctor;
     prepare?: (root: string) => void;
@@ -689,6 +690,103 @@ describe('runConsole', () => {
     expect(await run.exit).toBe(0);
     expect(signals[1]?.aborted).toBe(true);
     expect(run.restored()).toBe(true);
+  });
+  /** A workspace pinning the CLI with its own copy installed, so each load asks whether that copy is committed. */
+  const withCopy = (root: string): void => {
+    writeFileSync(join(root, 'package.json'), JSON.stringify({ devDependencies: { '@inventarch/cli': '3.6.0' } }));
+    const copy = join(root, 'node_modules/@inventarch/cli');
+    mkdirSync(join(copy, 'dist'), { recursive: true });
+    writeFileSync(
+      join(copy, 'package.json'),
+      JSON.stringify({ name: '@inventarch/cli', version: '3.6.0', bin: { ia: './dist/main.js' } }),
+    );
+    writeFileSync(join(copy, 'dist/main.js'), '');
+  };
+  it.skipIf(process.platform === 'win32')(
+    'asks git whether the workspace copy is committed once for the console’s life, not at each load or doctor row',
+    async () => {
+      // A git that logs each call's arguments and tracks nothing, first on the PATH of the process the console asks from.
+      const bin = scratch('console-git-shim');
+      const log = join(bin, 'calls.log');
+      writeFileSync(join(bin, 'git'), `#!/bin/sh\necho "$*" >> '${log}'\nexit 0\n`);
+      chmodSync(join(bin, 'git'), 0o755);
+      const path = process.env['PATH'];
+      process.env['PATH'] = `${bin}${delimiter}${path ?? ''}`;
+      try {
+        let loads = 0;
+        // The copy's rows hold one fix, so a step runs on the copy (`repoOf`).
+        const report = {
+          status: 0,
+          stdout: JSON.stringify({
+            version: 1,
+            checks: [check('records', 'fail', { fix: iaFix(['validate'], 'none').fix, remedy: 'ia validate' })],
+            counts: {},
+          }),
+        };
+        const run = launch({
+          // Tracked too, so the all-workspaces table (`loadAll`) reads the same copy.
+          prepare: (root) => {
+            withCopy(root);
+            mkdirSync(join(root, 'home'), { recursive: true });
+            trackWorkspaces(join(root, 'home'), [root]);
+          },
+          // The real collector: its `cli-version` row asks about the same copy, so it must use the same memo.
+          collect: collectDoctor,
+          spawnDoctor: () => {
+            loads += 1;
+            return Promise.resolve(report);
+          },
+        });
+        await until(run.entered, 'the console');
+        for (const wanted of [2, 3]) {
+          run.stdin.write('r');
+          await until(() => loads === wanted, `load ${wanted}`);
+        }
+        await until(() => run.terminal.out.includes('Fix record errors'), 'the offer');
+        run.stdin.write('\r');
+        await until(() => run.terminal.out.includes('Press any key to return to the console.'), 'the step to finish');
+        expect(run.spawned).toHaveLength(1);
+        run.stdin.write('x');
+        await until(() => loads >= 4, 'the reload after the step');
+        const before = loads;
+        run.stdin.write('\t');
+        await until(() => loads > before, 'the table row');
+        await until(() => run.terminal.out.includes('Attention 1'), 'the table row to land');
+        run.stdin.write('q');
+        expect(await run.exit).toBe(0);
+        // Only the question about the copy; the lockfile question (`ls-files -- <lockfiles>`) is another one.
+        const asked = readFileSync(log, 'utf8')
+          .trim()
+          .split('\n')
+          .filter((line) => line.endsWith('/node_modules/@inventarch/cli ls-files -- .'));
+        expect(asked).toHaveLength(1);
+      } finally {
+        if (path === undefined) delete process.env['PATH'];
+        else process.env['PATH'] = path;
+      }
+    },
+  );
+  it('a quit during the first load aborts it, never enters the screen, and exits 0', async () => {
+    const signals: (AbortSignal | undefined)[] = [];
+    const run = launch({
+      prepare: withCopy,
+      // The first load's doctor ends only when it is aborted.
+      spawnDoctor: (_entry, _root, signal) => {
+        signals.push(signal);
+        return new Promise((settle) => signal?.addEventListener('abort', () => settle({ status: null, stdout: '' })));
+      },
+    });
+    await until(() => signals.length === 1, 'the first load');
+    expect(run.entered()).toBe(false);
+    expect(signals[0]?.aborted).toBe(false);
+    // The process ending, as `q` ends it (the console has no keys to read before its first screen).
+    run.hooks.listeners.get('exit')!();
+    expect(await run.exit).toBe(0);
+    expect(signals[0]?.aborted).toBe(true);
+    await settle();
+    expect(run.entered()).toBe(false);
+    expect(run.terminal.raw).not.toContain(true);
+    expect(run.hooks.listeners.size).toBe(0);
   });
   it('a throw inside the loop restores the terminal and exits 1', async () => {
     let loads = 0;

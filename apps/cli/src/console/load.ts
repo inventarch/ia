@@ -75,12 +75,16 @@ export async function loadState(input: {
   readonly signal?: AbortSignal;
   /** The bound on the workspace copy's doctor run; 20 s by default. */
   readonly timeoutMs?: number;
+  /** Whether git tracks a copy (handoff.ts `committed`); the console passes one that remembers its answers. */
+  readonly committed?: (packageRoot: string) => boolean;
 }): Promise<ConsoleState> {
   const { env, packageRoot, version } = input;
   const extensions = input.extensions ?? [];
   const consoles = extensions.flatMap((extension) => (extension.console === undefined ? [] : [extension.console]));
   const owned = runningOwner(extensions);
-  const view = input.collect(doctorRequest({ cwd: input.cwd, packageRoot, env, version, extensions }));
+  const view = input.collect(
+    doctorRequest({ cwd: input.cwd, packageRoot, env, version, extensions, committed: input.committed }),
+  );
   const found = discoverRoot(input.cwd, iaHomeOf(env));
   const root = found === undefined ? null : real(found);
   const dependency = root === null ? null : readCliDependency(root);
@@ -88,7 +92,14 @@ export async function loadState(input: {
   // The copy hand-off would run (handoff.ts): found up to the workspaces root that hoists it, and none when the
   // repository commits it or the user set IA_NO_HANDOFF=1. Without one, the rows come from this process and every step
   // runs on the running copy, as when no copy is installed.
-  const copy = root === null ? null : runnableCopy(root, { env, running: packageRoot });
+  const copy =
+    root === null
+      ? null
+      : runnableCopy(root, {
+          env,
+          running: packageRoot,
+          ...(input.committed === undefined ? {} : { committed: input.committed }),
+        });
   // The running copy answers for itself; only another copy is run.
   const other = copy !== null && !sameFile(copy.packageRoot, packageRoot) ? copy : null;
   let report: DoctorReport | null = null;
@@ -106,7 +117,14 @@ export async function loadState(input: {
     repoCopy: other,
     owned,
     cliVersion: (from) =>
-      cliVersionRow({ root: root!, packageRoot: from.packageRoot, version: from.version, env, host: false }),
+      cliVersionRow({
+        root: root!,
+        packageRoot: from.packageRoot,
+        version: from.version,
+        env,
+        host: false,
+        ...(input.committed === undefined ? {} : { committed: input.committed }),
+      }),
   });
   // Outside a workspace the view is the running copy's areas and the root row, which offers `ia init`.
   const checks =

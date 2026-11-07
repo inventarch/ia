@@ -933,6 +933,20 @@
           ]
         },
         {
+          "case": "tests/handoff.test.ts > rememberCommitted keeps only an answer git gave with exit 0: a failed, timed-out or missing git is asked again",
+          "reason": "The case puts POSIX shell shims for git on PATH, which Windows does not run.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/console-app.test.ts > runConsole asks git whether the workspace copy is committed once for the console’s life, not at each load or doctor row",
+          "reason": "The case counts git calls through a POSIX shell shim placed on PATH, which Windows does not run.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
           "case": "tests/console-workspaces.test.ts > loadAll unreadable rows never load as another workspace",
           "reason": "POSIX permission bits are what deny the stat here, and Windows does not honour chmod on a directory; how the console shows an unreadable row is covered on every platform by the console-layout-all and summarize cases.",
           "platforms": [
