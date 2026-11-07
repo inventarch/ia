@@ -1752,9 +1752,11 @@ async function offerTracking(context: Context, root: string, result: Result): Pr
   }
   if (!yes) return result;
   try {
-    const { row } = trackWorkspace(home, { root: real });
+    const { row } = await trackWorkspace(home, { root: real }, new Date(), { signal: host.signal });
     return said(`Tracked ${row.id} in your workspace list.`);
   } catch (error) {
+    // A signal while the offer waits for the list's lock declines it, as one at the question does.
+    if (host.signal?.aborted) return answeredInterruption(result);
     const refusal = refusalOf(error);
     return said(`Not tracked: ${refusal.message}.${refusal.next === null ? '' : ` ${refusal.next}`}`);
   }

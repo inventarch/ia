@@ -41,9 +41,9 @@ const plantLock = (at: string, owner: Record<string, unknown>): string => {
   );
   return lock;
 };
-const lockedBy = (action: () => unknown): HomeLockedError => {
+const lockedBy = async (action: () => unknown): Promise<HomeLockedError> => {
   try {
-    action();
+    await action();
   } catch (error) {
     if (error instanceof HomeLockedError) return error;
     throw error;
@@ -53,19 +53,31 @@ const lockedBy = (action: () => unknown): HomeLockedError => {
 const leftovers = (at: string): readonly string[] =>
   readdirSync(join(at, 'state')).filter((name) => name.startsWith('store.json.lock') && name !== 'store.json.lock');
 
-it('creates the home and the lock directory, runs the action and releases the lock', () => {
+it('creates the home and the lock directory, runs the action and releases the lock', async () => {
   const at = home();
-  expect(withHomeLock(at, NAME, () => existsSync(join(at, NAME)))).toBe(true);
+  expect(await withHomeLock(at, NAME, () => existsSync(join(at, NAME)))).toBe(true);
   expect(existsSync(join(at, NAME))).toBe(false);
   expect(leftovers(at)).toEqual([]);
 });
-it('never removes the lock of an owner on this host whose process is gone: it throws and says so', () => {
+it('runs the action and the release in the step that publishes the lock, never after a yield', async () => {
+  const at = home();
+  let ran = false;
+  const done = withHomeLock(at, NAME, () => {
+    ran = existsSync(join(at, NAME));
+    return 'ran';
+  });
+  // A free lock is linked before the call first yields, so the action has run and the lock is gone already.
+  expect(ran).toBe(true);
+  expect(existsSync(join(at, NAME))).toBe(false);
+  expect(await done).toBe('ran');
+});
+it('never removes the lock of an owner on this host whose process is gone: it throws and says so', async () => {
   const at = home(),
     pid = deadPid(),
     lock = plantLock(at, { pid }),
     before = readFileSync(lock);
   let ran = false;
-  const error = lockedBy(() =>
+  const error = await lockedBy(() =>
     withHomeLock(
       at,
       NAME,
@@ -84,44 +96,48 @@ it('never removes the lock of an owner on this host whose process is gone: it th
   expect(readFileSync(lock).equals(before)).toBe(true);
   expect(leftovers(at)).toEqual([]);
 });
-it('never removes a lock whose owner is running, however old it is, nor one another host owns or it cannot parse', () => {
+it('never removes a lock whose owner is running, however old it is, nor one another host owns or it cannot parse', async () => {
   const at = home(),
     lock = plantLock(at, { pid: process.pid, createdAt: '2000-01-01T00:00:00.000Z' });
-  expect(lockedBy(() => withHomeLock(at, NAME, () => 'ran', { waitMs: 100 })).held).not.toContain('is not running');
+  expect((await lockedBy(() => withHomeLock(at, NAME, () => 'ran', { waitMs: 100 }))).held).not.toContain(
+    'is not running',
+  );
   plantLock(at, { pid: deadPid(), host: `${hostname()}-elsewhere` });
-  const elsewhere = lockedBy(() => withHomeLock(at, NAME, () => 'ran', { waitMs: 100 }));
+  const elsewhere = await lockedBy(() => withHomeLock(at, NAME, () => 'ran', { waitMs: 100 }));
   expect(elsewhere.host).toBe(`${hostname()}-elsewhere`);
   expect(elsewhere.held).not.toContain('is not running');
   writeFileSync(lock, 'not json');
-  expect(lockedBy(() => withHomeLock(at, NAME, () => 'ran', { waitMs: 100 })).held).toBe('its owner could not be read');
+  expect((await lockedBy(() => withHomeLock(at, NAME, () => 'ran', { waitMs: 100 }))).held).toBe(
+    'its owner could not be read',
+  );
   expect(readFileSync(lock, 'utf8')).toBe('not json');
 });
-it('measures the wait on a monotonic clock, so a wall clock that stands still cannot extend it', () => {
+it('measures the wait on a monotonic clock, so a wall clock that stands still cannot extend it', async () => {
   const at = home();
   plantLock(at, { pid: process.pid });
   vi.spyOn(Date, 'now').mockReturnValue(0);
-  expect(lockedBy(() => withHomeLock(at, NAME, () => 'ran', { waitMs: 100 })).code).toBe('IA-DIST-HOME-LOCKED');
+  expect((await lockedBy(() => withHomeLock(at, NAME, () => 'ran', { waitMs: 100 }))).code).toBe('IA-DIST-HOME-LOCKED');
 }, 10_000);
-it('calls onBlocked for each attempt that found the lock held', () => {
+it('calls onBlocked for each attempt that found the lock held', async () => {
   const at = home();
   plantLock(at, { pid: process.pid });
   let blocked = 0;
-  lockedBy(() => withHomeLock(at, NAME, () => 'ran', { waitMs: 60, onBlocked: () => (blocked += 1) }));
+  await lockedBy(() => withHomeLock(at, NAME, () => 'ran', { waitMs: 60, onBlocked: () => (blocked += 1) }));
   expect(blocked).toBeGreaterThan(0);
 });
-it('releases the lock when the action throws', () => {
+it('releases the lock when the action throws', async () => {
   const at = home();
-  expect(() =>
+  await expect(
     withHomeLock(at, NAME, () => {
       throw new Error('boom');
     }),
-  ).toThrow('boom');
+  ).rejects.toThrow('boom');
   expect(existsSync(join(at, NAME))).toBe(false);
-  expect(withHomeLock(at, NAME, () => 'again', { waitMs: 100 })).toBe('again');
+  expect(await withHomeLock(at, NAME, () => 'again', { waitMs: 100 })).toBe('again');
 });
 
 const errno = (code: string): NodeJS.ErrnoException => Object.assign(new Error(code), { code });
-it('a release Windows refuses for a moment (EBUSY, EPERM) is retried until the lock is gone', () => {
+it('a release Windows refuses for a moment (EBUSY, EPERM) is retried until the lock is gone', async () => {
   const at = home(),
     tries: string[] = [];
   const removeLock = (path: string) => {
@@ -129,21 +145,21 @@ it('a release Windows refuses for a moment (EBUSY, EPERM) is retried until the l
     if (tries.length <= 2) throw errno(tries.length === 1 ? 'EBUSY' : 'EPERM');
     rmSync(path);
   };
-  expect(withHomeLock(at, NAME, () => 'done', { removeLock })).toBe('done');
+  expect(await withHomeLock(at, NAME, () => 'done', { removeLock })).toBe('done');
   expect(tries).toHaveLength(3);
   expect(existsSync(join(at, NAME))).toBe(false);
 });
-it('a release that keeps failing throws naming the lock it left, and an action error still wins', () => {
+it('a release that keeps failing throws naming the lock it left, and an action error still wins', async () => {
   const at = home(),
     removeLock = () => {
       throw errno('EBUSY');
     };
-  expect(() => withHomeLock(at, NAME, () => 'done', { removeLock })).toThrow(
+  await expect(withHomeLock(at, NAME, () => 'done', { removeLock })).rejects.toThrow(
     expect.objectContaining({ code: 'IA-DIST-HOME-LOCK-LEFT', message: expect.stringContaining(join(at, NAME)) }),
   );
   expect(existsSync(join(at, NAME))).toBe(true);
   rmSync(join(at, NAME));
-  expect(() =>
+  await expect(
     withHomeLock(
       at,
       NAME,
@@ -152,13 +168,58 @@ it('a release that keeps failing throws naming the lock it left, and an action e
       },
       { removeLock },
     ),
-  ).toThrow('action failed');
+  ).rejects.toThrow('action failed');
 });
-it('a lock already gone at release (ENOENT) is released', () => {
+it('a lock already gone at release (ENOENT) is released', async () => {
   const at = home();
   const removeLock = (path: string) => {
     rmSync(path);
     throw errno('ENOENT');
   };
-  expect(withHomeLock(at, NAME, () => 'done', { removeLock })).toBe('done');
+  expect(await withHomeLock(at, NAME, () => 'done', { removeLock })).toBe('done');
+});
+
+it('a signal during the wait stops it at once, leaving the other owner lock as it was and no staging file', async () => {
+  const at = home(),
+    lock = plantLock(at, { pid: process.pid }),
+    before = readFileSync(lock),
+    controller = new AbortController(),
+    reason = new Error('Interrupted.');
+  let ran = false;
+  setTimeout(() => controller.abort(reason), 50);
+  const started = performance.now();
+  await expect(
+    withHomeLock(
+      at,
+      NAME,
+      () => {
+        ran = true;
+      },
+      { waitMs: 3_000, signal: controller.signal },
+    ),
+  ).rejects.toBe(reason);
+  expect(performance.now() - started).toBeLessThan(1_500);
+  expect(ran).toBe(false);
+  expect(readFileSync(lock).equals(before)).toBe(true);
+  expect(leftovers(at)).toEqual([]);
+}, 10_000);
+it('a signal already raised takes no free lock and runs nothing', async () => {
+  const at = home(),
+    controller = new AbortController(),
+    reason = new Error('Interrupted.');
+  controller.abort(reason);
+  let ran = false;
+  await expect(
+    withHomeLock(
+      at,
+      NAME,
+      () => {
+        ran = true;
+      },
+      { signal: controller.signal },
+    ),
+  ).rejects.toBe(reason);
+  expect(ran).toBe(false);
+  expect(existsSync(join(at, NAME))).toBe(false);
+  expect(leftovers(at)).toEqual([]);
 });

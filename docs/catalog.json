@@ -9,7 +9,7 @@
       "genre": "spec",
       "title": "Consumer CLI contract",
       "status": "implemented",
-      "sourceDigest": "3bae4a17170f968687ae6e06c55c3c7944835704256c2c111bc6a8ce9a9172ae"
+      "sourceDigest": "c25c7430737a92baa1066109c152e6919612d485a2375489927cddade57f1ae6"
     },
     {
       "id": "spec-host-plugin-distribution",
@@ -18,7 +18,7 @@
       "genre": "spec",
       "title": "Host plugin distribution",
       "status": "implemented",
-      "sourceDigest": "a111eb80a7f6635efcbd88267c1cd5bdd06885f138d1c8f883b03289c4c992a2"
+      "sourceDigest": "5a2cd4764ccfc165715c865d83fa574ea1a316f128da9588872dde7018354fe1"
     },
     {
       "id": "spec-host-registration",

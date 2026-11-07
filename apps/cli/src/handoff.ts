@@ -6,7 +6,7 @@
  * the flag, and this copy answers, as it does for any typed command it cannot place.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { sameFile } from '@inventarch/db/internal/paths';
 import { discoverRoot } from './discovery.js';
@@ -44,18 +44,20 @@ function insideWorkTree(dir: string): boolean {
   }
 }
 
+/** git ran and exited non-zero: no answer about the copy (a bad config, an unsafe directory, a locked index, or no repository). */
+export const EXITED = 'exited';
+/** `true` or `false` when git answered, `EXITED` when it ran and failed, `null` when it timed out, was killed or was not found. */
+export type GitAnswer = boolean | typeof EXITED | null;
+
 /**
- * Whether the installed copy at `packageRoot` is the repository's: git tracks a file of it, or git could not say and a
- * `.git` exists at or above it. A copy committed to the repository is the repository's code, not an install the user
- * ran, so a typed command never runs it. Asked only when a hand-off is about to happen; git is found as program.ts
- * finds it and runs without the caller's `GIT_*` routing variables. When git exits non-zero, is stopped by its
- * timeout or cannot be started, the answer is the work tree's: inside one the copy is refused, so a git that cannot
- * answer never lets a repository's copy run. Only without git and without any `.git` above, or outside every
- * repository (git answers non-zero and no `.git` is above), is nothing tracked.
+ * What git says about the installed copy at `packageRoot`: whether it tracks any file of it, or no answer: `EXITED`
+ * when it ran and exited non-zero, `null` when it was stopped by its timeout, was killed, could not start or is not on
+ * the path. Only an exit of 0 is an answer. git is found as program.ts finds it and runs without the caller's `GIT_*`
+ * routing variables.
  */
-export function committed(packageRoot: string): boolean {
+function askGit(packageRoot: string): GitAnswer {
   const git = findProgram('git', process.env);
-  if (git === null) return insideWorkTree(packageRoot);
+  if (git === null) return null;
   const result = spawnSync(git, ['--no-optional-locks', '-C', packageRoot, 'ls-files', '--', '.'], {
     cwd: programHome(),
     env: programEnv(withoutGitRouting(process.env)),
@@ -63,8 +65,110 @@ export function committed(packageRoot: string): boolean {
     timeout: 2000,
     windowsHide: true,
   });
-  if (result.error !== undefined || result.status !== 0) return insideWorkTree(packageRoot);
+  if (result.error !== undefined || result.status === null) return null;
+  if (result.status !== 0) return EXITED;
   return result.stdout.trim() !== '';
+}
+
+/**
+ * Whether the installed copy at `packageRoot` is the repository's: git tracks a file of it, or git could not say and a
+ * `.git` exists at or above it. A copy committed to the repository is the repository's code, not an install the user
+ * ran, so a typed command never runs it. Asked only when a hand-off is about to happen. When git exits non-zero, is
+ * stopped by its timeout or cannot be started, the answer is the work tree's: inside one the copy is refused, so a git
+ * that cannot answer never lets a repository's copy run. Only without git and without any `.git` above, or outside
+ * every repository (git answers non-zero and no `.git` is above), is nothing tracked.
+ */
+export function committed(packageRoot: string): boolean {
+  const answer = askGit(packageRoot);
+  return typeof answer === 'boolean' ? answer : insideWorkTree(packageRoot);
+}
+
+/** The variables that move git's repository or index away from the one found up from the copy's directory. */
+const GIT_LOCATION = ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_COMMON_DIR', 'GIT_CEILING_DIRECTORIES'];
+
+/** A file's identity on disk: device, inode, size and times, or `-` when it is absent. Any change reads as another file. */
+const identity = (path: string): string => {
+  try {
+    const stat = statSync(path, { bigint: true });
+    return `${stat.dev}:${stat.ino}:${stat.size}:${stat.mtimeNs}:${stat.ctimeNs}`;
+  } catch {
+    return '-';
+  }
+};
+
+/**
+ * The index git reads for `dir`: the first `.git` up from it that git would take (a directory with `HEAD`, or a file
+ * naming its `gitdir:` as a linked worktree or submodule has), or null outside a repository.
+ */
+function gitIndexOf(dir: string): string | null {
+  for (let at = dir; ; at = dirname(at)) {
+    const dotGit = join(at, '.git');
+    // Read the file form first and let the read itself say what is there: a directory or nothing throws, so no
+    // separate check can go stale before the read.
+    let text: string | null = null;
+    try {
+      text = readFileSync(dotGit, 'utf8');
+    } catch {
+      // A directory, nothing there, or not readable.
+    }
+    if (text !== null) {
+      const gitdir = /^gitdir:\s*(.+?)\s*$/m.exec(text)?.[1];
+      if (gitdir !== undefined) return join(resolve(at, gitdir), 'index');
+    } else if (existsSync(join(dotGit, 'HEAD'))) {
+      return join(dotGit, 'index');
+    }
+    if (dirname(at) === at) return null;
+  }
+}
+
+/**
+ * What git's answer about the copy at `packageRoot` depends on, as the disk shows it: the copy's real path, its
+ * `package.json`, and the index of the repository git finds from it. `git ls-files` reads only that index, so the answer
+ * cannot change while all three stay the same: committing or adding the copy rewrites the index, and a copy moved into the
+ * path (or a link pointed elsewhere) changes the path or the manifest. Null while a GIT_ variable chooses the repository.
+ */
+function copyState(packageRoot: string, env: Readonly<Record<string, string | undefined>>): string | null {
+  if (GIT_LOCATION.some((name) => env[name] !== undefined)) return null;
+  const at = real(packageRoot);
+  const index = gitIndexOf(at);
+  return [at, identity(join(at, 'package.json')), index ?? '-', index === null ? '-' : identity(index)].join('\0');
+}
+
+/**
+ * `committed`, remembered per copy for as long as the returned function lives. The console makes one for its life, so
+ * the synchronous git call (2 s timeout) is made once per copy rather than at every load and every step. An answer is
+ * kept only with the disk state it was given for (`copyState`: a few `stat` calls per ask): once the copy is replaced at
+ * its path or the repository's index changes, git is asked again, so a committed copy never runs on an answer about
+ * another copy or an older index. Only an answer git gave (an exit of 0) is remembered: a question it could not answer
+ * (a non-zero exit, a timeout, a kill, or no git on the path) reads as `committed` reads it this time, from the work
+ * tree, and is asked again next time. One exception: a non-zero exit for a copy with no `.git` at or above it is
+ * remembered as not committed, since git exits that way outside every repository, nothing there can be tracked, and a
+ * repository appearing changes the state. Nothing is remembered while a GIT_ variable chooses the repository. The memo only
+ * saves asking; which copy runs is still decided from the disk each time (`runnableCopy`).
+ */
+export function rememberCommitted(
+  ask: (packageRoot: string) => GitAnswer = askGit,
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): (packageRoot: string) => boolean {
+  const known = new Map<string, { readonly state: string; readonly answer: boolean }>();
+  return (packageRoot) => {
+    // Read before asking, so a change while git answers is seen as a change next time rather than kept.
+    const state = copyState(packageRoot, env);
+    const remembered = known.get(packageRoot);
+    if (state !== null && remembered?.state === state) return remembered.answer;
+    let answer = ask(packageRoot);
+    // Outside every repository git exits non-zero each time: that is "not committed" for as long as no repository
+    // appears (it would change the state's index part). Any other exit may be mended by what the state does not show.
+    if (answer === EXITED && state !== null && state.split('\0')[2] === '-' && !insideWorkTree(packageRoot)) {
+      answer = false;
+    }
+    if (typeof answer !== 'boolean' || state === null) {
+      known.delete(packageRoot);
+      return typeof answer === 'boolean' ? answer : insideWorkTree(packageRoot);
+    }
+    known.set(packageRoot, { state, answer });
+    return answer;
+  };
 }
 
 const ROOT = '--root=';

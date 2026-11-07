@@ -5,6 +5,9 @@
  * presentation count 2, combining marks, format characters and controls 0, everything else 1. Ambiguous-width
  * characters count 1. Right-to-left and complex scripts are measured by the same rules and may misalign in a terminal
  * that shapes them differently.
+ *
+ * Cluster boundaries come from the running Node's ICU (`Intl.Segmenter`), while widths come from the vendored
+ * Unicode 16.0.0 tables, so an older ICU may split a few newer clusters differently from the tables' version.
  */
 import type { Range } from './width-table.js';
 import { CONTROL, EMOJI, EMOJI_MODIFIER, EMOJI_PRESENTATION, WIDE, ZERO } from './width-table.js';
