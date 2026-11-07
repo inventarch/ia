@@ -195,15 +195,105 @@ it('seats a path at its system folder, a declared root, or the repository worksp
     // A folder no admitted @system declares falls to the root that contains it.
     expect(seat('.ia/src/systems/unknown-system/x.ia')).toEqual([foundation, 'root']);
     expect(seat('.ia/src/systems')).toEqual([foundation, 'root']);
-    // The longest declared root wins, whatever placement it names; billing and ledger both declare `src/billing`, and
-    // the lower workspace identity seats it.
-    expect(seat('src/billing/invoice.ts')).toEqual([billing, 'root']);
-    expect(seat('src/billing')).toEqual([billing, 'root']);
+    // The longest declared root wins, whatever placement it names; billing and ledger both declare `src/billing`, so
+    // it seats as shared, at no one workspace, with both declarers in identity order (billing's two placements once).
+    expect(seat('src/billing/invoice.ts')).toEqual([undefined, 'shared']);
+    expect(db.resolveSeat('src/billing')).toEqual({
+      path: 'src/billing',
+      by: 'shared',
+      declarers: [billing, ledger],
+      claimants: [],
+    });
+    expect(Object.isFrozen(db.resolveSeat('src/billing').declarers)).toBe(true);
     expect(seat('src/ledger/entry.ts')).toEqual([ledger, 'root']);
     expect(seat('src/api/route.ts')).toEqual([foundation, 'root']);
     // Several workspaces in the tree declare roots, so the repository's own is not decided.
     expect(seat('lib/a.ts')).toEqual([undefined, 'undeclared']);
     expect(seat('.ia/work/x.json')).toEqual([undefined, 'undeclared']);
+  } finally {
+    db.close();
+  }
+});
+
+it('seats a root three workspaces declare as shared, and as a root once a scope leaves one declarer', () => {
+  const root = workspace();
+  put(
+    root,
+    '.ia/src/workspace.ia',
+    [
+      '#! ia 1.0',
+      '@workspace org',
+      '  meaning',
+      '    says "The organisation."',
+      '    answers "Which workspace owns this repository?"',
+      '  composition',
+      '    systems [@system governance-system]',
+      '    sources [". @authored", ".ia/src/scopes/org @authored"]',
+      '',
+    ].join('\n'),
+  );
+  const engineering = second(root, 'engineering', ['.ia/src/scopes/org @authored', '.ia/src/scopes/eng @authored']);
+  const product = second(root, 'product', ['.ia/src/scopes/org @authored', '.ia/src/scopes/product @authored']);
+  const org = 'workspace-system/definition/workspace/org';
+  const db = open(root, { cache: false });
+  try {
+    expect(errors(db)).toEqual([]);
+    const seat = seatIn(db);
+    // Each declarer, the repository's own included, in identity order: no declarer sorts its way into the seat.
+    for (const path of ['.ia/src/scopes/org', '.ia/src/scopes/org/rules/laws.ia'])
+      expect(db.resolveSeat(path)).toMatchObject({ by: 'shared', declarers: [engineering, org, product] });
+    expect(db.resolveSeat('.ia/src/scopes/org').seat).toBeUndefined();
+    expect(db.resolveSeat('.ia/src/scopes/org').unknown).toBeUndefined();
+    // A root one workspace declares keeps its single seat.
+    expect(seat('.ia/src/scopes/eng/x.ia')).toEqual([engineering, 'root']);
+    expect(seat('README.md')).toEqual([org, 'root']);
+    // A scope that prunes the declarers to two keeps the seat shared between them; to one, seats at it as a root.
+    const two = db.resolveScope({ identities: [org, product] }).token;
+    expect(db.resolveSeat('.ia/src/scopes/org/x.ia', { within: two })).toMatchObject({
+      by: 'shared',
+      declarers: [org, product],
+    });
+    const one = db.resolveScope({ identities: [product] }).token;
+    expect(db.resolveSeat('.ia/src/scopes/org/x.ia', { within: one })).toEqual({
+      path: '.ia/src/scopes/org/x.ia',
+      seat: product,
+      by: 'root',
+      claimants: [],
+    });
+  } finally {
+    db.close();
+  }
+});
+
+it('names the repository workspace however the location seat of its root resolves', () => {
+  const root = workspace();
+  put(
+    root,
+    '.ia/src/workspace.ia',
+    [
+      '#! ia 1.0',
+      '@workspace org',
+      '  meaning',
+      '    says "The organisation."',
+      '    answers "Which workspace owns this repository?"',
+      '  composition',
+      '    systems [@system governance-system]',
+      '    sources [". @authored"]',
+      '',
+    ].join('\n'),
+  );
+  const product = second(root, 'product', ['. @authored']);
+  const org = 'workspace-system/definition/workspace/org';
+  const db = open(root, { cache: false });
+  try {
+    expect(db.resolveSeat('')).toMatchObject({ by: 'shared', declarers: [org, product] });
+    expect(db.repositoryWorkspace()).toBe(org);
+    // A scope prunes it as it prunes a seat, and never substitutes another.
+    const without = db.resolveScope({ identities: [product] }).token;
+    expect(db.repositoryWorkspace({ within: without })).toBeUndefined();
+    expect(db.resolveSeat('', { within: without })).toMatchObject({ seat: product, by: 'root' });
+    db.close();
+    expect(() => db.repositoryWorkspace()).toThrow();
   } finally {
     db.close();
   }

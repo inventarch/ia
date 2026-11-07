@@ -551,6 +551,19 @@ export class Reader {
     return seatOf(view, path, allowed);
   }
   /**
+   * D02b: the repository's own @workspace, whatever the seat of its root: the capture decides it once, so a root it
+   * shares with other workspaces keeps it. Outside the scope it is absent (D09); a scope never substitutes another.
+   */
+  repositoryWorkspace(options: ReadOptions = {}): string | undefined {
+    const { view, allowed } = this.#select(options),
+      { repository } = view;
+    return repository !== undefined &&
+      view.graph.nodes.has(repository) &&
+      (allowed === undefined || allowed.has(repository))
+      ? repository
+      : undefined;
+  }
+  /**
    * D02a and D02b: the declarations the capture reads that declare nothing, so a host can say so where they are
    * authored: each `composition.sources` entry of an admitted @workspace that names no root, and each claimant
    * selection (graph G06c) the dialect reads as none, ordered by path, line and identity, records outside the scope

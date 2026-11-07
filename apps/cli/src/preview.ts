@@ -268,12 +268,23 @@ function rootsOf(snapshot: Snapshot, within: string, workspace: string | undefin
     .sort((a, b) => order(a) - order(b));
   return { workspace, authored, declared };
 }
-/** Why `path` is not an owned authored path of the workspace, or undefined when it is. */
+/**
+ * Why `path` is not an owned authored path of the workspace, or undefined when it is: the workspace must declare, at
+ * authored placement, the longest declared root that holds the path. Several workspaces may declare that root (a
+ * shared root, db D02b); the workspace owns it as any one of its declarers, whatever its identity sorts after.
+ */
 function unowned(roots: Roots, path: string): string | undefined {
   if (!pathKey(path).startsWith('.ia/src/') || !path.endsWith('.ia')) return `${path} is no .ia file inside .ia/src`;
   if (pathKey(path).startsWith('.ia/src/floor/')) return `${path} is floor source`;
-  const holder = roots.declared.find((root) => contains(root.root, path));
-  if (holder === undefined || holder.workspace !== roots.workspace || holder.placement !== 'authored')
+  const longest = roots.declared.find((root) => contains(root.root, path))?.root;
+  const owned = roots.declared.some(
+    (root) =>
+      longest !== undefined &&
+      pathKey(root.root) === pathKey(longest) &&
+      root.workspace === roots.workspace &&
+      root.placement === 'authored',
+  );
+  if (!owned)
     return roots.workspace === undefined
       ? `${path} lies under no authored root: this repository authors no @workspace`
       : `${path} lies under no authored root ${roots.workspace} declares in composition.sources`;

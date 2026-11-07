@@ -1,0 +1,20 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "Seat a root several workspaces declare as shared",
+  "summary": "A path under a root several workspaces declare in composition.sources now resolves as shared (resolveSeat returns by: 'shared' with every declarer in declarers, and no seat) instead of seating at whichever declarer's identity sorts first. Mandate resolution reads every declarer's closure there, on every route (a path, a named workspace, or neither), and a mandate governs only when its authority.scope names every declarer or its authority.covers selects the path, so one declarer's grant, scoped to that declarer alone, never opens a shared root; ia position names the declarers; and ia preview and ia author accept an edit there when the repository's workspace is any declarer, so they no longer refuse it as IA-CLI-EDIT-UNOWNED. A shared repository root stays governed: ReadHandle.repositoryWorkspace and runtime's rootWorkspace keep the repository's workspace there, so ia validate, ia capture and the edit guard still refuse what its mandates refuse, a default position composes each declarer and lists only the mandates that qualify, as does the generated agent-profile fallback, which now follows the same rule. The edit guard applies a mandate scoped to every declarer whoever acts.",
+  "packages": [
+    "@inventarch/cli",
+    "@inventarch/db",
+    "@inventarch/runtime",
+    "@inventarch/steward-hook",
+    "@inventarch/workspace-runtime"
+  ],
+  "paths": [
+    "apps/cli/",
+    "packages/db/",
+    "packages/runtime/",
+    "packages/workspace-runtime/",
+    "apps/steward-hook/"
+  ]
+}

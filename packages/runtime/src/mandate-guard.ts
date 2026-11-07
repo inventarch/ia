@@ -5,6 +5,7 @@ import type { RuntimeWhere } from './errors.js';
 import {
   defaultActor,
   governingMandates,
+  governingWorkspace,
   isAdmissionRefusal,
   profileRefusal,
   seatedWorkspace,
@@ -30,6 +31,8 @@ import { freeze } from './types.js';
  *   `composition.steward`, else its only participant) of the workspace position seats the path in.
  * - The mandates that govern a decided edit are `governingMandates` for the path and that workspace, so a mandate
  *   scoped to the workspace governs every path a hook selects in it, beside those whose `authority.covers` claims the path.
+ *   Under a root several workspaces share, which may seat the main session in none, the lookup takes a declarer, so a
+ *   mandate scoped to every declarer governs there whoever acts.
  *   With none, an established actor (and the main session) is allowed: a mandate only adds restrictions.
  * - The edit is allowed when `profileRefusal` allows the author mode (Synthesis) for that actor: a governing mandate
  *   that binds it (its participant, or one that names no participant, which binds every established actor) grants
@@ -81,6 +84,7 @@ export interface MandateGuardDecision {
 const LIMIT = 512;
 const governance = (seat: string): string => `ia position --seat ${seat} --shape governance`;
 const order = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+const withWorkspace = (workspace: string | undefined) => (workspace === undefined ? {} : { workspace });
 
 /** Whether the hook decides the edit: its tools name the tool and its paths select a spelling of the file. */
 export function mandateGuardSelects(request: MandateGuardRequest): boolean {
@@ -173,7 +177,7 @@ export function evaluateMandateGuard(
       for (const path of paths)
         for (const mandate of governingMandates(reader, within, {
           path,
-          ...(workspace === undefined ? {} : { workspace }),
+          ...withWorkspace(workspace ?? governingWorkspace(reader, within, path)),
           ...(request.fold === undefined ? {} : { fold: request.fold }),
           ...(actor === undefined ? {} : { actor }),
         }))

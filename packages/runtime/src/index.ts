@@ -123,6 +123,7 @@ export {
   refusedDependencies,
   refusedMandates,
   requireMandatesAdmitted,
+  rootWorkspace,
   seatedWorkspace,
 } from './mandate-modes.js';
 export type {

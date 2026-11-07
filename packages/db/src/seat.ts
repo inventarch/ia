@@ -8,18 +8,24 @@ import type { View } from './view.js';
 export interface SeatResolution {
   /** The canonical workspace-relative path, '' for the workspace root, or the supplied text when it lies outside. */
   readonly path: string;
-  /** The identity of the admitted @system or @workspace the path is declared at. */
+  /** The identity of the admitted @system or @workspace the path is declared at; absent for a `shared` root. */
   readonly seat?: string;
   /**
-   * What declares it: a `system` folder (the floor's for `.ia/src/floor`), a `root` the @workspace declares in
-   * `composition.sources`, or, for a path in no `.ia` tree, the `repository`'s own @workspace.
+   * What declares it: a `system` folder (the floor's for `.ia/src/floor`), a `root` one @workspace declares in
+   * `composition.sources`, a `shared` root several declare, or, for a path in no `.ia` tree, the `repository`'s own
+   * @workspace.
    */
-  readonly by?: 'system' | 'root' | 'repository';
+  readonly by?: 'system' | 'root' | 'shared' | 'repository';
+  /**
+   * Present exactly when `by` is `shared`: every @workspace in the read's scope that declares the root, each once, in
+   * identity order. The path is then seated at no one of them.
+   */
+  readonly declarers?: readonly string[];
   /** Graph G06c claimants of the path, band descending then identity ascending. */
   readonly claimants: readonly Claimant[];
   /**
-   * Present exactly when `seat` is absent: `outside` when the path is absolute or escapes the workspace, so nothing can
-   * claim it either; `undeclared` when no admitted seat in the read's scope declares it.
+   * Present exactly when neither `seat` nor `declarers` is: `outside` when the path is absolute or escapes the
+   * workspace, so nothing can claim it either; `undeclared` when no admitted seat in the read's scope declares it.
    */
   readonly unknown?: 'outside' | 'undeclared';
 }
@@ -43,10 +49,10 @@ export function repositoryWorkspace(graph: Graph, declared: readonly DeclaredRoo
 /**
  * D02b: resolve `supplied` in `view`, records outside `allowed` treated as absent. The seat is the first that applies:
  * the admitted @system of the system folder holding the path (`systemMember` of the path or of anything below it, so a
- * folder seats itself; the floor's @system for `.ia/src/floor`), found through the graph's indexes; else the @workspace
- * declaring the first D02a root that contains the path, at any placement, in the capture's order (longest first, then
- * by workspace identity); else, for a path with no `.ia` segment, the repository's own @workspace. Claimants come from
- * the graph's G06c index whatever the seat.
+ * folder seats itself; the floor's @system for `.ia/src/floor`), found through the graph's indexes; else the longest
+ * D02a root that contains the path, at any placement: the @workspace declaring it, or, when several in scope declare
+ * that same root, none of them, the root `shared` by all of its declarers; else, for a path with no `.ia` segment, the
+ * repository's own @workspace. Claimants come from the graph's G06c index whatever the seat.
  */
 export function seatOf(
   view: Pick<View, 'graph' | 'declared' | 'repository'>,
@@ -72,14 +78,25 @@ export function seatOf(
             return source.slice(0, source.lastIndexOf('/')) === FLOOR;
           })
         : undefined;
-  const root = view.declared.find((declared) => reaches(declared.root, path) && visible(declared.workspace))?.workspace;
+  // The capture's order is longest root first, then by workspace identity, so the declarers in scope of the longest
+  // root holding the path come in identity order.
+  const longest = view.declared.find((declared) => reaches(declared.root, path) && visible(declared.workspace))?.root;
+  const declarers = [
+    ...new Set(
+      view.declared
+        .filter((declared) => declared.root === longest && visible(declared.workspace))
+        .map((declared) => declared.workspace),
+    ),
+  ];
   const repository = path.split('/').includes('.ia') ? undefined : view.repository;
-  const seat: Pick<SeatResolution, 'seat' | 'by' | 'unknown'> = visible(system)
+  const seat: Pick<SeatResolution, 'seat' | 'by' | 'declarers' | 'unknown'> = visible(system)
     ? { seat: system, by: 'system' }
-    : root !== undefined
-      ? { seat: root, by: 'root' }
-      : visible(repository)
-        ? { seat: repository, by: 'repository' }
-        : { unknown: 'undeclared' };
+    : declarers.length > 1
+      ? { by: 'shared', declarers: Object.freeze(declarers) }
+      : declarers.length === 1
+        ? { seat: declarers[0]!, by: 'root' }
+        : visible(repository)
+          ? { seat: repository, by: 'repository' }
+          : { unknown: 'undeclared' };
   return Object.freeze({ path, ...seat, claimants: claimants(graph, path, allowed) });
 }
