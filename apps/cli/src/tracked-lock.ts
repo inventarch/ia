@@ -8,7 +8,7 @@
  * owner holds is never renamed or deleted, whether that owner is running or gone and however old the lock is. A holder
  * that is killed therefore leaves a lock that blocks every mutation until a person deletes it: the call waits, then
  * refuses as `IA-CLI-TRACKED-LOCKED` naming the lock path and its owner, and says so when that owner is on this host and
- * its pid is no longer running.
+ * its pid is no longer running. A signal during the wait stops it (`LockOptions.signal`), leaving that lock as it was.
  */
 import {
   HOME_LOCK_WAIT_MS,
@@ -32,10 +32,11 @@ export type LockOptions = HomeLockOptions;
  * Runs `action` holding the store lock under `home`. Creates the home as a write would. Refuses as
  * `IA-CLI-TRACKED-LOCKED` when another holder is still there after `waitMs`; it never removes another holder's lock.
  * Refuses as `IA-CLI-TRACKED-LOCK-LEFT` when the action's change was made but this call's own lock could not be removed.
+ * Rejects with `options.signal`'s reason when that fires during the wait, for the command boundary to report as §3's 130.
  */
-export function withTrackedLock<T>(home: string, action: () => T, options: LockOptions = {}): T {
+export async function withTrackedLock<T>(home: string, action: () => T, options: LockOptions = {}): Promise<T> {
   try {
-    return withHomeLock(home, TRACKED_LOCK_FILE, action, options);
+    return await withHomeLock(home, TRACKED_LOCK_FILE, action, options);
   } catch (error) {
     if (error instanceof HomeLockLeftError)
       throw new Refusal(

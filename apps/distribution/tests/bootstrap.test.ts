@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { parse } from 'smol-toml';
-import { BLOCK_BEGIN, BLOCK_END, applyBootstrap, planBootstrap } from '../src/bootstrap.js';
+import { BLOCK_BEGIN, BLOCK_END, applyBootstrap, instructionBlock, planBootstrap } from '../src/bootstrap.js';
 import { COPILOT_FOLDER } from '../src/hosts.js';
 
 let root: string;
@@ -167,6 +167,96 @@ it('a block written by the previous text is updated in place, and every other by
   expect(planBootstrap(root, 'claude', '3.5.0').files[0]!.action).toBe('unchanged');
 });
 
+const bareLf = /(?<!\r)\n/;
+
+it('a CRLF instruction file keeps CRLF through install, update and remove, with no bare LF in the block', () => {
+  const original = '# Project\r\n\r\nOur notes.\r\n';
+  put('CLAUDE.md', original);
+  applyBootstrap(planBootstrap(root, 'claude', '3.5.0'));
+  const installed = read('CLAUDE.md');
+  expect(installed.startsWith(original)).toBe(true);
+  expect(installed).toContain(BLOCK_END + '\r\n');
+  expect(installed).not.toMatch(bareLf);
+  // An older block with a different body is replaced in place, the file's own endings kept on both sides.
+  const old = [BLOCK_BEGIN, '## IA', 'old', BLOCK_END];
+  const head = '# Project\r\n\r\n',
+    tail = '\r\n## Later\r\n';
+  put('CLAUDE.md', head + old.join('\r\n') + '\r\n' + tail);
+  applyBootstrap(planBootstrap(root, 'claude', '3.5.0'));
+  const updated = read('CLAUDE.md');
+  expect(updated).not.toContain('\r\nold\r\n');
+  expect(updated.startsWith(head + BLOCK_BEGIN + '\r\n')).toBe(true);
+  expect(updated.endsWith(BLOCK_END + '\r\n' + tail)).toBe(true);
+  expect(updated).not.toMatch(bareLf);
+  // Removing what install appended restores the original bytes.
+  put('CLAUDE.md', installed);
+  applyBootstrap(planBootstrap(root, 'claude', '3.5.0', true));
+  expect(read('CLAUDE.md')).toBe(original);
+});
+
+it.each([
+  ['a leading CRLF blank line', '\r\n# Project\r\n'],
+  ['a trailing CRLF blank line', '# Project\r\n\r\n'],
+  ['CRLF first, then a bare LF ending', '# Project\r\nOur notes.\n'],
+  ['LF first, then a CRLF ending', '# Project\nOur notes.\r\n'],
+  ['a leading LF blank line', '\n# Project\n'],
+  ['a trailing LF blank line', '# Project\n\n'],
+  ['plain CRLF', '# Project\r\nOur notes.\r\n'],
+  ['plain LF', '# Project\nOur notes.\n'],
+])('install then remove restores the file byte for byte: %s', (_name, original) => {
+  put('CLAUDE.md', original);
+  applyBootstrap(planBootstrap(root, 'claude', '3.5.0'));
+  expect(read('CLAUDE.md')).not.toBe(original);
+  applyBootstrap(planBootstrap(root, 'claude', '3.5.0', true));
+  expect(read('CLAUDE.md')).toBe(original);
+});
+
+it.each([
+  ['CRLF', '\r\n'],
+  ['LF', '\n'],
+])("updating an LF block inside a %s file writes the closing line in the file's own ending", (_name, eol) => {
+  // An LF block, as main or v3.5.0 wrote it, inside a file whose own ending is `eol`.
+  put('CLAUDE.md', `# P${eol}${eol}${instructionBlock()}tail${eol}`);
+  applyBootstrap(planBootstrap(root, 'claude', '3.5.0'));
+  const updated = read('CLAUDE.md');
+  if (eol === '\r\n') expect(updated).not.toMatch(bareLf);
+  expect(updated.endsWith(`${BLOCK_END}${eol}tail${eol}`)).toBe(true);
+  expect(planBootstrap(root, 'claude', '3.5.0').files[0]!.action).toBe('unchanged');
+});
+
+it.each([
+  ['CRLF', '\r\n'],
+  ['LF', '\n'],
+])("installing on a %s file with no trailing newline appends in the file's own ending", (_name, eol) => {
+  put('CLAUDE.md', `# Project${eol}Our notes.`);
+  applyBootstrap(planBootstrap(root, 'claude', '3.5.0'));
+  const installed = read('CLAUDE.md');
+  if (eol === '\r\n') expect(installed).not.toMatch(bareLf);
+  expect(installed.startsWith(`# Project${eol}Our notes.${eol}${eol}${BLOCK_BEGIN}${eol}`)).toBe(true);
+});
+
+it.each([
+  ['CRLF', '\r\n'],
+  ['LF', '\n'],
+])('removing a block that starts a %s file also takes out the blank lines after it', (_name, eol) => {
+  put('CLAUDE.md', `${instructionBlock().replace(/\n/g, eol)}${eol}# Project${eol}`);
+  applyBootstrap(planBootstrap(root, 'claude', '3.5.0', true));
+  expect(read('CLAUDE.md')).toBe(`# Project${eol}`);
+});
+
+it('removing a hand-placed block trims only the one separator install adds before it', () => {
+  put('CLAUDE.md', '# A\n\n\n\n' + instructionBlock());
+  applyBootstrap(planBootstrap(root, 'claude', '3.5.0', true));
+  expect(read('CLAUDE.md')).toBe('# A\n\n\n');
+});
+
+it('a lowercase contributing.md is not CONTRIBUTING.md, on a case-insensitive volume too', () => {
+  put('contributing.md', '# Contributing\n');
+  const plan = planBootstrap(root, 'claude', '3.5.0');
+  expect(plan.files[0]!.after).toContain("the repository's own contributing guide");
+  expect(plan.files[0]!.after).not.toContain('follow `CONTRIBUTING.md`');
+});
+
 const GENERIC = "follow the repository's own contributing guide";
 const kinds: ReadonlyArray<readonly [string, () => void]> = [
   ['a directory', () => mkdirSync(join(root, 'CONTRIBUTING.md'))],
@@ -209,14 +299,16 @@ for (const [name, terminator] of [
   ['LF', '\n'],
   ['no terminator at the end of the file', ''],
 ] as const)
-  it(`replacing an old block keeps its closing ${name}`, () => {
+  it(`replacing an old block writes its closing line in the file's own ending, found as ${name}`, () => {
     const head = '# Project\n\n';
     const tail = terminator === '' ? '' : 'tail\n';
     put('CLAUDE.md', head + OLD_BLOCK + terminator + tail);
     const plan = planBootstrap(root, 'claude', '3.5.0');
     const after = plan.files[0]!.after!;
     expect(after.startsWith(head + BLOCK_BEGIN)).toBe(true);
-    expect(after.endsWith(`${BLOCK_END}${terminator}${tail}`)).toBe(true);
+    // The file is LF, so a CRLF terminator found after the old block comes out as LF; none at the end stays none.
+    const closing = terminator === '' ? '' : '\n';
+    expect(after.endsWith(`${BLOCK_END}${closing}${tail}`)).toBe(true);
     expect(after).not.toContain(`${BLOCK_END}\n\r\n`);
     expect(after).toMatch(MARKER);
     applyBootstrap(plan);

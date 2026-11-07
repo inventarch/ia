@@ -10,6 +10,7 @@ import { lstatSync, realpathSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { UsageError } from './args.js';
 import { findCommand, ownedOptions } from './commands.js';
+import { clusterWidth, graphemes, stringWidth } from './console/width.js';
 import type { Context, Result } from './consumer.js';
 import { confirm, discoverRoot, iaHomeOf, Refusal } from './consumer.js';
 import { homeSrcRemedy } from './home-remedy.js';
@@ -69,37 +70,69 @@ const human = (blocks: readonly (readonly string[])[]): Result => ({
 const ROOT_MIN = 20,
   ID_MIN = 8;
 const markOf = (ascii: boolean): string => (ascii ? '...' : '…');
+/** The clusters of `text` that fit in `width` columns, from its start; a cluster is kept whole or dropped. */
+function leading(text: string, width: number): string {
+  let used = 0,
+    out = '';
+  for (const cluster of graphemes(text)) {
+    used += clusterWidth(cluster);
+    if (used > width) break;
+    out += cluster;
+  }
+  return out;
+}
+/** The clusters of `text` that fit in `width` columns, from its end; a cluster is kept whole or dropped. */
+function trailing(text: string, width: number): string {
+  let used = 0,
+    out = '';
+  for (const cluster of [...graphemes(text)].reverse()) {
+    used += clusterWidth(cluster);
+    if (used > width) break;
+    out = cluster + out;
+  }
+  return out;
+}
+/** `text` followed by the spaces that fill `width` columns. */
+const fill = (text: string, width: number): string => text + ' '.repeat(Math.max(0, width - stringWidth(text)));
 /**
- * Shortened in the middle, so both the volume and the folder name stay readable. Never longer than `width`: below room
+ * Shortened in the middle, so both the volume and the folder name stay readable. Never wider than `width`: below room
  * for the mark and a character either side, the text is cut at the width instead.
  */
 function middle(text: string, width: number, ascii: boolean): string {
-  if (text.length <= width) return text;
+  if (stringWidth(text) <= width) return text;
   const mark = markOf(ascii);
-  if (width < mark.length + 2) return text.slice(0, Math.max(width, 0));
+  if (width < mark.length + 2) return leading(text, width);
   const keep = width - mark.length;
-  return text.slice(0, Math.ceil(keep / 2)) + mark + text.slice(text.length - Math.floor(keep / 2));
+  return leading(text, Math.ceil(keep / 2)) + mark + trailing(text, Math.floor(keep / 2));
 }
-/** Shortened at the end, for a word whose start is what identifies it; never longer than `width`. */
+/** Shortened at the end, for a word whose start is what identifies it; never wider than `width`. */
 function head(text: string, width: number, ascii: boolean): string {
-  if (text.length <= width) return text;
+  if (stringWidth(text) <= width) return text;
   const mark = markOf(ascii);
-  return width < mark.length + 1 ? text.slice(0, Math.max(width, 0)) : text.slice(0, width - mark.length) + mark;
+  return width < mark.length + 1 ? leading(text, width) : leading(text, width - mark.length) + mark;
 }
 /** `clash`: a found workspace `find --apply` would refuse, as its id is tracked already or another found one takes it. */
 type Row = { readonly id: string; readonly state: TrackedState | 'tracked' | 'new' | 'clash'; readonly root: string };
-const SYMBOLS = { present: 'success', missing: 'warning', tracked: 'success', new: 'added', clash: 'warning' } as const;
+const SYMBOLS = {
+  present: 'success',
+  missing: 'warning',
+  unreadable: 'warning',
+  tracked: 'success',
+  new: 'added',
+  clash: 'warning',
+} as const;
 /**
- * `id  state  root`, two spaces apart. The id and the root share the width the state leaves: the root keeps at least 20
- * columns (or its whole length when shorter) and the id, shortened in the middle, at most what remains, so a long id
- * never pushes a row past the terminal. Where even those minimums do not fit, the rows are stacked instead.
+ * `id  state  root`, two spaces apart, measured in display columns. The id and the root share the width the state leaves:
+ * the root keeps at least 20 columns (or its whole width when narrower) and the id, shortened in the middle, at most what
+ * remains, so a long id never pushes a row past the terminal. Where even those minimums do not fit, the rows are stacked
+ * instead.
  */
-function table(rows: readonly Row[], caps: Capabilities): readonly string[] {
+export function table(rows: readonly Row[], caps: Capabilities): readonly string[] {
   const symbolWidth = Math.max(...rows.map((row) => statusSymbol(SYMBOLS[row.state], caps.ascii).width));
   const stateWidth = symbolWidth + 1 + Math.max(...rows.map((row) => row.state.length));
   const idBudget = Math.max(caps.width - (2 + 2 + stateWidth + 2 + ROOT_MIN), ID_MIN),
-    idWidth = Math.min(Math.max(2, ...rows.map((row) => row.id.length)), idBudget);
-  const rootNeed = Math.min(ROOT_MIN, Math.max(...rows.map((row) => row.root.length)));
+    idWidth = Math.min(Math.max(2, ...rows.map((row) => stringWidth(row.id))), idBudget);
+  const rootNeed = Math.min(ROOT_MIN, Math.max(...rows.map((row) => stringWidth(row.root))));
   if (2 + idWidth + 2 + stateWidth + 2 + rootNeed > caps.width) return stacked(rows, caps);
   const rootWidth = Math.max(caps.width - (2 + idWidth + 2 + stateWidth + 2), ROOT_MIN);
   const header = style(`  ${'id'.padEnd(idWidth)}  ${'state'.padEnd(stateWidth)}  root`, 'dim', caps.color);
@@ -108,7 +141,7 @@ function table(rows: readonly Row[], caps: Capabilities): readonly string[] {
     ...rows.map((row) => {
       const symbol = statusSymbol(SYMBOLS[row.state], caps.ascii);
       const state = style(symbol.text, symbol.role, caps.color) + ` ${row.state}`.padEnd(stateWidth - symbol.width);
-      return `  ${middle(row.id, idWidth, caps.ascii).padEnd(idWidth)}  ${state}  ${middle(row.root, rootWidth, caps.ascii)}`;
+      return `  ${fill(middle(row.id, idWidth, caps.ascii), idWidth)}  ${state}  ${middle(row.root, rootWidth, caps.ascii)}`;
     }),
   ];
 }
@@ -157,18 +190,19 @@ function list(context: Context, home: string): Result {
         caps,
       ),
     ]);
-  const present = rows.filter((row) => row.state === 'present').length;
   return human([
     [sectionLabel('Tracked workspaces', caps), ...table(terminalSafe(rows), caps)],
-    line(
-      words(`${rows.length} tracked: ${present} present, ${rows.length - present} missing.`),
-      present === rows.length ? 'success' : 'warning',
-      caps,
-    ),
+    line(words(listSummary(rows)), rows.every((row) => row.state === 'present') ? 'success' : 'warning', caps),
   ]);
 }
+/** `list`'s closing count: every row is one of present, missing or unreadable, and the last is named only when seen. */
+export function listSummary(rows: readonly { readonly state: TrackedState }[]): string {
+  const count = (state: TrackedState): number => rows.filter((row) => row.state === state).length;
+  const unreadable = count('unreadable');
+  return `${rows.length} tracked: ${count('present')} present, ${count('missing')} missing${unreadable === 0 ? '' : `, ${unreadable} unreadable`}.`;
+}
 
-function add(context: Context, home: string, directory: string | undefined): Result {
+async function add(context: Context, home: string, directory: string | undefined): Promise<Result> {
   const { args, host, caps } = context;
   const root = directory === undefined ? discoverRoot(host.cwd, home) : resolve(host.cwd, directory);
   if (root === undefined)
@@ -179,7 +213,12 @@ function add(context: Context, home: string, directory: string | undefined): Res
       null,
       'Run "ia workspaces add <directory>" naming the workspace to track.',
     );
-  const { status, row: tracked } = trackWorkspace(home, { root, id: args.value('id'), label: args.value('label') });
+  const { status, row: tracked } = await trackWorkspace(
+    home,
+    { root, id: args.value('id'), label: args.value('label') },
+    new Date(),
+    { signal: host.signal },
+  );
   if (context.json) return json({ status, workspace: withState(tracked) });
   const row = terminalSafe(tracked);
   return human([
@@ -223,9 +262,11 @@ async function find(context: Context, home: string, folder: string): Promise<Res
       args.flag('yes') ||
       (await confirm(host.interaction, summary, 'Track these workspaces? [y/N] '));
     if (applied)
-      added = trackWorkspaces(
+      added = await trackWorkspaces(
         home,
         untracked.map((row) => row.root),
+        new Date(),
+        { signal: host.signal },
       );
   }
   if (context.json) return json({ folder: walked, found, applied, added: added.map((row) => row.id) });
@@ -307,8 +348,8 @@ async function find(context: Context, home: string, folder: string): Promise<Res
   ]);
 }
 
-function remove(context: Context, home: string, target: string): Result {
-  const removed = untrackWorkspace(home, target, context.host.cwd);
+async function remove(context: Context, home: string, target: string): Promise<Result> {
+  const removed = await untrackWorkspace(home, target, context.host.cwd, { signal: context.host.signal });
   if (context.json) return json({ removed: shown(removed) });
   const shownRemoved = terminalSafe(removed);
   return human([
@@ -348,9 +389,9 @@ export async function runWorkspaces(context: Context): Promise<Result> {
     );
   try {
     if (action === 'list') return list(context, home);
-    if (action === 'add') return add(context, home, target);
+    if (action === 'add') return await add(context, home, target);
     if (action === 'find') return await find(context, home, target!);
-    return remove(context, home, target!);
+    return await remove(context, home, target!);
   } catch (error) {
     // writeHomeFile refuses a home that holds src/ (host plugin distribution spec §3); name the move that repairs it.
     if (!(error instanceof Refusal) && (error as { code?: unknown }).code === 'IA-DIST-PATH-UNSAFE')

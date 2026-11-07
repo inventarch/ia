@@ -76,6 +76,8 @@ export interface HostOptions {
   readonly answers?: readonly string[];
   /** Everything the interaction wrote — the change summary, then the question — in the order it was written. */
   readonly prompts?: string[];
+  /** §5's interruption: the signal the entry point would abort on SIGINT or SIGTERM. */
+  readonly signal?: AbortSignal;
 }
 /**
  * Every host carries an IA_HOST_HOME (the alias for IA_HOME): the caller's, or a fresh scratch directory. `ia host`
@@ -109,6 +111,7 @@ export function makeHost(options: HostOptions = {}): Host {
     },
     version: '9.9.9',
     packageRoot: cli,
+    ...(options.signal === undefined ? {} : { signal: options.signal }),
   };
 }
 /**

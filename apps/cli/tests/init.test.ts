@@ -1280,6 +1280,53 @@ it('a signal at the question to track declines it: init keeps its receipt and it
   }
 });
 
+it('a signal while the offer waits for a held tracked-list lock declines it: init keeps its receipt and its exit code', async () => {
+  const root = target(),
+    home = resolve(scratch('init-track-home'), '.ia'),
+    lock = resolve(home, 'tracked-workspaces.json.lock'),
+    controller = new AbortController(),
+    owner = JSON.stringify({
+      token: 'held',
+      pid: process.pid,
+      start: null,
+      host: 'elsewhere',
+      createdAt: '2026-01-01',
+    });
+  const host = makeHost({ env: { IA_HOME: home }, interactive: true });
+  let asked = 0;
+  const started = performance.now();
+  const result = await dispatch(
+    ['init', root, '--apply'],
+    {
+      ...host,
+      signal: controller.signal,
+      interaction: {
+        ...host.interaction,
+        read: async () => {
+          asked += 1;
+          if (asked === 2) {
+            mkdirSync(home, { recursive: true });
+            writeFileSync(lock, owner);
+            setTimeout(() => controller.abort(new Error('Interrupted.')), 50);
+          }
+          return 'y';
+        },
+      },
+    },
+    () => {
+      throw new Error('Unexpected machine route');
+    },
+    [],
+  );
+  expect(asked).toBe(2);
+  expect(performance.now() - started).toBeLessThan(8_000);
+  expect(result.exitCode, result.stderr).toBe(0);
+  expect(result.stdout).toContain('Initialized local/demo; release descriptor .ia/release.json.');
+  expect(result.stderr).not.toContain('Not tracked');
+  expect(readFileSync(lock, 'utf8')).toBe(owner);
+  expect(existsSync(trackedFile(home))).toBe(false);
+}, 30_000);
+
 it('a question to track that cannot be read declines it: init keeps its receipt and its exit code', async () => {
   // No signal: the read itself fails (a closed stdin, a broken terminal). Tracking is never init's exit code (§2.16).
   const root = target(),

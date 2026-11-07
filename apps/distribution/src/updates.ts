@@ -378,6 +378,8 @@ export async function refreshUpdates(input: RefreshInput, sources: Sources = liv
     behind,
     checked: latest !== null || behind !== null,
   };
+  // No signal: unlike the tracked list's mutations, this wait is not cut short by Ctrl-C. It is bounded by
+  // `HOME_LOCK_WAIT_MS`, and the merge it waits for holds the lock for milliseconds.
   return withHomeLock(
     input.home,
     UPDATE_CHECK_LOCK,
