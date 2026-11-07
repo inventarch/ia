@@ -20,6 +20,7 @@ import {
   seatedWorkspace,
 } from '../src/index.js';
 import type { GoverningMandate, GoverningOptions, Mode } from '../src/index.js';
+import { checkRoot } from '../src/method/index.js';
 import { database, freshInit, packetFixture, put, workspace } from './workspace.js';
 
 // Mandate resolution (runtime R21): the authored @mandate records that govern an actor at a workspace or path, the
@@ -397,6 +398,9 @@ it('reads at a root several workspaces share every declarer closure, and a scope
     `#! ia 1.0\n\n@workspace dept\n  meaning\n    says "A department."\n    answers "Which sources make up the department?"\n  composition\n    systems [@system agent-system]\n    sources [".ia/src/dept @authored", ".ia/src/shared @authored"]\n${agent('zed')}${authorized(
       'dept-mandate',
       ['participant @agent zed', 'moves [Observation]', 'scope [@workspace dept]'],
+    )}${authorized('dept-covering', ['participant @agent zed', 'moves [Observation]', 'covers [".ia/src/shared/"]'])}${authorized(
+      'dept-joint',
+      ['participant @agent zed', 'moves [Observation]', 'scope [@workspace demo, @workspace dept]'],
     )}`,
   );
   put(
@@ -416,17 +420,21 @@ it('reads at a root several workspaces share every declarer closure, and a scope
     path = '.ia/src/shared/rules.ia';
   expect(errors(db)).toEqual([]);
   expect(db.resolveSeat(path, { within })).toMatchObject({ by: 'shared', declarers: [demo, dept] });
-  // For a path alone, the claimants govern, read in every declarer's closure.
-  expect(identities(db, { path })).toEqual([mandate('covering-mandate')]);
+  // For a path alone, the claimants govern, read in every declarer's closure: `dept-covering` lies under only the
+  // second declarer's private root, so reading one declarer's closure would miss it.
+  expect(identities(db, { path })).toEqual([mandate('covering-mandate'), mandate('dept-covering')]);
   // With a workspace, the scope governs only when it names every declarer: neither the repository's own mandate nor a
   // department's governs the records they share, whichever of them is asked.
   for (const workspace of [demo, dept])
     expect(identities(db, { path, workspace }), workspace).toEqual([
       mandate('covering-mandate'),
+      mandate('dept-covering'),
+      mandate('dept-joint'),
       mandate('shared-mandate'),
     ]);
   // Away from the shared root each workspace keeps its own.
   expect(identities(db, { workspace: dept })).toEqual([
+    mandate('dept-joint'),
     mandate('dept-mandate'),
     mandate('partial-mandate'),
     mandate('shared-mandate'),
@@ -445,6 +453,8 @@ it('reads at a root several workspaces share every declarer closure, and a scope
   expect(body.loaded[0]).toEqual({ path, declarers: [demo, dept] });
   expect(body.mandates.map((entry) => entry.identity)).toEqual([
     mandate('covering-mandate'),
+    mandate('dept-covering'),
+    mandate('dept-joint'),
     mandate('shared-mandate'),
   ]);
   expect(body.unknowns.filter((unknown) => unknown.kind === 'seat' || unknown.kind === 'sources')).toEqual([]);
@@ -454,6 +464,175 @@ it('reads at a root several workspaces share every declarer closure, and a scope
   }).token;
   expect(db.resolveSeat(path, { within: narrow })).toMatchObject({ seat: dept, by: 'root' });
   expect(seatedWorkspace(db, narrow, path)).toBe(dept);
+});
+
+describe('a repository root several workspaces share', () => {
+  const dept = 'workspace-system/definition/workspace/dept',
+    alpha = 'workspace-system/definition/workspace/alpha',
+    beta = 'workspace-system/definition/workspace/beta',
+    SECOND = (name: string, sources: string): string =>
+      `#! ia 1.0\n\n@workspace ${name}\n  meaning\n    says "A department."\n    answers "Which sources make up the department?"\n  composition\n    systems [@system agent-system]\n    sources [${sources}]\n`,
+    SHARED = '". @authored"';
+  /** `demo` and `dept` both list `.`, and the only mandate is the fresh init's, allowed only to observe, scoped to both. */
+  const shared = (): string => {
+    const root = freshInit(
+      records
+        .replace('sources [".ia/src @authored"]', `sources [${SHARED}]`)
+        .replace(ALL_MOVES, 'moves [Observation]')
+        .replace(SCOPE, '    scope [@workspace demo, @workspace dept]\n'),
+    );
+    put(root, '.ia/src/dept/workspace.ia', SECOND('dept', SHARED));
+    return root;
+  };
+  /** `alpha` and `beta` share `.`; the agent and the mandate, participant-less and observing, are scoped to both. */
+  const others = (repository: string | null): string => {
+    const root = freshInit(repository ?? '#! ia 1.0\n');
+    put(root, '.ia/src/alpha/workspace.ia', SECOND('alpha', SHARED));
+    put(
+      root,
+      '.ia/src/beta/workspace.ia',
+      `${SECOND('beta', SHARED)}${authorized('joint', ['moves [Observation]', 'scope [@workspace alpha, @workspace beta]'])}`,
+    );
+    return root;
+  };
+
+  it('keeps the repository workspace, so the root stays governed', () => {
+    const root = shared(),
+      db = database(root),
+      within = token(db);
+    expect(errors(db)).toEqual([]);
+    expect(db.resolveSeat('', { within })).toMatchObject({ by: 'shared', declarers: [demo, dept] });
+    expect(seatedWorkspace(db, within, 'README.md')).toBe(demo);
+    expect(identities(db, { workspace: demo })).toEqual([mandate('demo-mandate')]);
+    expect(checkRoot(root, 'read')).toEqual({ workspace: demo, governed: true });
+    expect(() => checkRoot(root, 'effect')).toThrow(
+      expect.objectContaining({ code: 'IA-RUNTIME-MANDATE-MOVE', message: expect.stringContaining('demo-mandate') }),
+    );
+  });
+
+  it('reads only the mandates that name every declarer or cover the path when no workspace is named (#228)', () => {
+    const db = database(shared());
+    expect(identities(db)).toEqual([mandate('demo-mandate')]);
+    // A department's own mandate, scoped to it alone and held in its private root, never governs the shared root: not
+    // for a read that names no workspace, nor for one that names a declarer.
+    const root = shared();
+    put(
+      root,
+      '.ia/src/dept/workspace.ia',
+      `${SECOND('dept', '". @authored", ".ia/src/dept @authored"')}${authorized('dept-private', ['moves [Observation]', 'scope [@workspace dept]'])}`,
+    );
+    const both = database(root);
+    expect(identities(both)).toEqual([mandate('demo-mandate')]);
+    expect(identities(both, { workspace: demo })).toEqual([mandate('demo-mandate')]);
+    expect(identities(both, { workspace: dept })).toEqual([mandate('demo-mandate')]);
+  });
+
+  /** `aaa` and `zzz` share `.`; the repository workspace, when there is one, declares only its own sub-root. */
+  const NO_REPOSITORY = '#! ia 1.0\n',
+    APART = `#! ia 1.0\n\n@workspace demo\n  meaning\n    says "The repository."\n    answers "Which workspace is this?"\n  composition\n    systems [@system agent-system]\n    sources [".ia/src/demo @authored"]\n`;
+  /** The first declarer grants `grants[0]`, the other `grants[1]`, each mandate scoped to its own declarer alone. */
+  const lopsided = (repository: string, grants: readonly [string, string]): string => {
+    const root = freshInit(repository);
+    for (const [name, moves] of [
+      ['aaa', grants[0]],
+      ['zzz', grants[1]],
+    ] as const)
+      put(
+        root,
+        `.ia/src/${name}/workspace.ia`,
+        `${SECOND(name, `${SHARED}, ".ia/src/${name} @authored"`)}${authorized(`${name}-mandate`, [`moves [${moves}]`, `scope [@workspace ${name}]`])}`,
+      );
+    return root;
+  };
+  const WS = 'workspace-system/definition/workspace',
+    OBSERVE = 'Observation',
+    EVERYTHING = 'Observation, Verification, Synthesis, Delegation, Execution';
+
+  it.each([
+    ['the first declarer grants', [EVERYTHING, OBSERVE]],
+    ['the last declarer grants', [OBSERVE, EVERYTHING]],
+  ] as const)('is not opened by a grant scoped to one declarer when %s (#228)', (_name, grants) => {
+    for (const repository of [NO_REPOSITORY, APART]) {
+      const root = lopsided(repository, grants),
+        db = database(root),
+        within = token(db);
+      expect(errors(db)).toEqual([]);
+      expect(db.resolveSeat('', { within })).toMatchObject({ by: 'shared' });
+      // Neither mandate names both declarers, so none governs the shared root: not the observing one, and not the
+      // granting one, which would otherwise have opened every move for the whole root. Ungoverned allows (R21).
+      for (const options of [{}, { path: 'README.md' }, { path: 'README.md', workspace: `${WS}/aaa` }])
+        expect(identities(db, options), JSON.stringify(options)).toEqual([]);
+      for (const mode of ['author', 'effect', 'validate'] as const)
+        expect(checkRoot(root, mode), mode).toEqual({ workspace: null, governed: false });
+    }
+  });
+
+  it('agrees between the path route and the workspace route at a shared root (#228)', () => {
+    // `demo` and `dept` share `.`, and the only mandate is scoped to `demo` alone: nothing governs, by either route,
+    // and the guard's rule for an ungoverned location allows.
+    const root = freshInit(
+      records.replace('sources [".ia/src @authored"]', `sources [${SHARED}]`).replace(ALL_MOVES, 'moves [Observation]'),
+    );
+    put(root, '.ia/src/dept/workspace.ia', SECOND('dept', SHARED));
+    const db = database(root),
+      within = token(db);
+    expect(db.resolveSeat('', { within })).toMatchObject({ by: 'shared', declarers: [demo, dept] });
+    for (const options of [{ workspace: demo }, { path: 'README.md', workspace: demo }, { path: 'README.md' }, {}])
+      expect(identities(db, options), JSON.stringify(options)).toEqual([]);
+    expect(checkRoot(root, 'effect')).toEqual({ workspace: demo, governed: false });
+  });
+
+  it.each([
+    ['decides no repository workspace', null],
+    [
+      'names a repository workspace that is no declarer',
+      `#! ia 1.0\n\n@workspace demo\n  meaning\n    says "The repository."\n    answers "Which workspace is this?"\n  composition\n    systems [@system agent-system]\n    sources [".ia/src/demo @authored"]\n`,
+    ],
+  ] as const)('refuses when the capture %s', (_name, entry) => {
+    const root = others(entry),
+      db = database(root),
+      within = token(db);
+    expect(errors(db)).toEqual([]);
+    expect(db.resolveSeat('', { within })).toMatchObject({ by: 'shared', declarers: [alpha, beta] });
+    expect(identities(db)).toEqual([mandate('joint')]);
+    expect(checkRoot(root, 'read')).toEqual({ workspace: null, governed: true });
+    expect(() => checkRoot(root, 'effect')).toThrow(expect.objectContaining({ code: 'IA-RUNTIME-MANDATE-MOVE' }));
+  });
+
+  it('composes a default position of each declarer, as the explicit path does', () => {
+    const db = database(shared()),
+      within = token(db);
+    for (const key of [{}, { seat: { path: '' } }]) {
+      const { body } = position(db, within, { ...key, budget: 8 }),
+        via = new Map(body.loaded.flatMap((entry) => ('identity' in entry ? [[entry.identity, entry.via]] : [])));
+      expect(body.counts.composition, JSON.stringify(key)).toBeGreaterThanOrEqual(2);
+      expect(body.loaded[0], JSON.stringify(key)).toEqual({ path: '', declarers: [demo, dept] });
+      for (const declarer of [demo, dept])
+        expect(via.get(declarer), declarer).toEqual({ by: 'declared-at', rule: 'shared' });
+    }
+    expect(position(db, within, {}).body.counts.composition).toBe(
+      position(db, within, { seat: { path: '' } }).body.counts.composition,
+    );
+  });
+
+  it('never makes a declarer at runtime placement a declarer a scope must name', () => {
+    const root = freshInit();
+    put(root, '.ia/src/dept/workspace.ia', SECOND('dept', '".ia/src/joint @authored"'));
+    put(root, '.ia/src/ghost.ia', SECOND('ghost', '".ia/src/joint @authored"'));
+    put(
+      root,
+      '.ia/src/joint/rules.ia',
+      `#! ia 1.0\n${authorized('joint', ['moves [Observation]', 'scope [@workspace dept]'])}`,
+    );
+    const db = database(root, { locations: { '.ia/src/ghost.ia': RUNTIME } }),
+      within = token(db),
+      path = '.ia/src/joint/new.ia';
+    expect(db.resolveSeat(path, { within })).toMatchObject({ by: 'shared' });
+    expect(identities(db, { path, workspace: dept })).toEqual([mandate('joint')]);
+    expect(position(db, within, { seat: { path }, shape: 'governance' }).body.mandates.map((m) => m.identity)).toEqual([
+      mandate('joint'),
+    ]);
+  });
 });
 
 it('folds a path and each covers selection with `fold`, as the edit guard does where the volume folds names', () => {

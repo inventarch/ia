@@ -30,6 +30,7 @@ import { relative, resolve } from 'node:path';
 import {
   defaultActor,
   governingMandates,
+  rootWorkspace,
   isAdmissionRefusal,
   MODE_MOVES,
   profileRefusal,
@@ -113,10 +114,9 @@ const rootedOf = (context: Pick<Context, 'args'>): string => {
   const supplied = context.args.value('root');
   return supplied === undefined ? '' : ` --root ${quote(supplied)}`;
 };
-/** The repository's own `@workspace`: the record position seats the repository root at, when it is one. */
+/** The repository's own `@workspace`: runtime's `rootWorkspace`, which keeps it where other workspaces share the root. */
 export function repositoryWorkspace(reader: ReadHandle, within: string): string | undefined {
-  const seat = reader.resolveSeat('', { within }).seat;
-  return seat !== undefined && reader.get(seat, { within })?.discriminator === 'workspace' ? seat : undefined;
+  return rootWorkspace(reader, { within });
 }
 /** The `@agent` an `--actor` value names: a canonical identity, `@agent <name>`, or a bare name. */
 function namedAgent(reader: ReadHandle, within: string, spelled: string): string | undefined {

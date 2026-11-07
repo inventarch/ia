@@ -262,6 +262,103 @@ describe('the four forms', () => {
   });
 });
 
+describe('a repository root the workspace shares with another', () => {
+  const second = 'workspace-system/definition/workspace/second';
+  /** `demo` and `second` both list `.`, and the workspace's mandates only observe, scoped to both. */
+  const shared = (): string =>
+    workspace((root) => {
+      rewrite(root, '.ia/src/workspace.ia', (text) =>
+        text
+          .replace('sources [".ia/src @authored"]', 'sources [". @authored"]')
+          .replace('moves [Observation, Verification, Synthesis, Delegation, Execution]', 'moves [Observation]')
+          .replace('scope [@workspace demo]', 'scope [@workspace demo, @workspace second]'),
+      );
+      mkdirSync(resolve(root, '.ia/src/second'), { recursive: true });
+      writeFileSync(
+        resolve(root, '.ia/src/second/workspace.ia'),
+        '#! ia 1.0\n\n@workspace second\n  meaning\n    says "A department."\n    answers "Which sources make up the department?"\n  composition\n    systems [@system work-system]\n    sources [". @authored"]\n',
+      );
+    });
+  it('keeps the root governed: ia validate and ia capture --preview refuse', async () => {
+    const root = shared();
+    const db = open(root, { cache: false });
+    try {
+      expect(db.resolveSeat('')).toMatchObject({ by: 'shared', declarers: [demo, second] });
+    } finally {
+      db.close();
+    }
+    for (const argv of [
+      ['validate', '--root', root, '--json'],
+      ['capture', '--preview', '--root', root, '--json'],
+    ]) {
+      const result = await run(argv);
+      expect(result.exitCode, argv[0]).toBe(1);
+      expect(result.stdout + result.stderr, argv[0]).toContain('IA-RUNTIME-MANDATE-MOVE');
+    }
+  });
+  it('owns its authored path as a declarer, and refuses what the mandate does not allow', async () => {
+    const refusal = await refused(shared(), ['law', 'probe', '--at', '.ia/src/probe.ia'], 'IA-RUNTIME-MANDATE-MOVE');
+    expect(refusal['message']).toContain('allows Observation');
+  });
+  it('composes a default position of each declarer', async () => {
+    const root = shared();
+    const composition = async (seat: readonly string[]) => {
+      const json = await run(['position', ...seat, '--root', root, '--json']);
+      expect(json.exitCode, json.stdout).toBe(0);
+      return (JSON.parse(json.stdout) as { body: { counts: { composition: number } } }).body.counts.composition;
+    };
+    expect(await composition([])).toBe(2);
+    expect(await composition(['--seat', '.'])).toBe(2);
+  });
+});
+
+describe('a repository root two other workspaces share (#228)', () => {
+  const EVERYTHING = 'Observation, Verification, Synthesis, Delegation, Execution';
+  /** `aaa` and `zzz` list `.`; `demo` lists only `.ia/src`, so it is no declarer. Each mandate is scoped to its own declarer. */
+  const apart = (grants: readonly [string, string]): string =>
+    workspace((root) => {
+      for (const [name, moves] of [
+        ['aaa', grants[0]],
+        ['zzz', grants[1]],
+      ] as const) {
+        mkdirSync(resolve(root, `.ia/src/${name}`), { recursive: true });
+        writeFileSync(
+          resolve(root, `.ia/src/${name}/workspace.ia`),
+          `#! ia 1.0\n\n@workspace ${name}\n  meaning\n    says "A department."\n    answers "Which sources make up the department?"\n  composition\n    systems [@system work-system]\n    sources [". @authored"]\n\n@mandate ${name}-mandate\n  meaning\n    says "Fixture mandate."\n    answers "What may it do?"\n  governance\n    requires "Claim no host permission or execution from this mandate."\n  authority\n    moves [${moves}]\n    scope [@workspace ${name}]\n`,
+        );
+      }
+    });
+  it.each([
+    ['the first declarer grants', [EVERYTHING, 'Observation']],
+    ['the last declarer grants', ['Observation', EVERYTHING]],
+  ] as const)('governs the root by no grant scoped to one declarer, when %s', async (_name, grants) => {
+    const root = apart(grants),
+      db = open(root, { cache: false });
+    try {
+      expect(db.resolveSeat('')).toMatchObject({ by: 'shared' });
+    } finally {
+      db.close();
+    }
+    // Neither mandate names both declarers: the root is ungoverned, and no declarer's mandate (the granting one
+    // included) is listed as governing it.
+    for (const argv of [
+      ['validate', '--root', root, '--json'],
+      ['capture', '--preview', '--root', root, '--json'],
+    ]) {
+      const result = await run(argv);
+      expect(result.stdout + result.stderr, argv[0]).not.toContain('IA-RUNTIME-MANDATE');
+      expect(result.exitCode, result.stdout + result.stderr).toBe(0);
+    }
+    const position = await run(['position', '--shape', 'governance', '--root', root, '--json']);
+    expect(position.exitCode, position.stdout).toBe(0);
+    const listed = (JSON.parse(position.stdout) as { body: { mandates: { identity: string }[] } }).body.mandates.map(
+      (entry) => entry.identity,
+    );
+    expect(listed).not.toContain(mandate('zzz-mandate'));
+    expect(listed).not.toContain(mandate('aaa-mandate'));
+  });
+});
+
 describe('a root the workspace shares with another', () => {
   // `alpha` sorts before `demo` and declares `.ia/src/shared` too: the root seats as shared (db D02b), so the
   // repository's workspace owns it as one of its declarers, not by sorting first.

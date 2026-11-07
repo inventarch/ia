@@ -26,7 +26,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, relative, resolve } from 'node:path';
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { open, readInputs } from '@inventarch/db';
 import { Door, HOOK_CODES, admissionReport } from '@inventarch/runtime';
 import { digestValue } from '@inventarch/runtime/authoring';
@@ -143,6 +143,45 @@ const OBSERVING = starter([
 ]);
 const authorized = (name: string, authority: readonly string[]): string =>
   `\n@mandate ${name}\n  meaning\n    says "Fixture mandate ${name}."\n    answers "What may it do?"\n  governance\n    requires "Claim no host permission or execution from this mandate."\n  authority\n${authority.map((line) => `    ${line}\n`).join('')}`;
+
+describe('a root several workspaces share', () => {
+  const declarer = (name: string, sources: string, rest = ''): string =>
+    `#! ia 1.0\n\n@workspace ${name}\n  meaning\n    says "A department."\n    answers "Which sources make up the department?"\n  composition\n    systems [@system agent-system]\n    sources [${sources}]\n${rest}`;
+  const EVERYWHERE = hooks(['paths ["docs/**", "restricted/**"]', 'paths ["**"]']);
+  const OPS = `\n@agent ops\n  meaning\n    says "A fixture participant."\n    answers "Who is ops?"\n  governance\n    applies []\n`;
+  /** `alpha` and `beta` declare `.ia/src/joint`, and the repository's `demo` does not; the mandate is scoped to both. */
+  const joint = (...authority: readonly string[]): string =>
+    workspace({
+      '.ia/src/hooks.ia': EVERYWHERE,
+      '.ia/src/alpha/workspace.ia': declarer('alpha', '".ia/src/alpha @authored", ".ia/src/joint @authored"', OPS),
+      '.ia/src/beta/workspace.ia': declarer('beta', '".ia/src/beta @authored", ".ia/src/joint @authored"'),
+      '.ia/src/joint/rules.ia': `#! ia 1.0\n${authorized('joint-mandate', [...authority, 'moves [Observation]', 'scope [@workspace alpha, @workspace beta]'])}`,
+    });
+
+  it('refuses a main-session edit a mandate scoped to every declarer governs, with no authority.covers', () => {
+    const named = check(joint('participant @agent ops'), '.ia/src/joint/new.ia');
+    expect(code(named)).toBe('IA-HOOK-IDENTITY-UNAVAILABLE');
+    expect(reason(named)).toContain(`${mandate('joint-mandate')} binds agent-system/binding/agent/ops`);
+    const anyone = check(joint(), '.ia/src/joint/new.ia');
+    expect(code(anyone)).toBe('IA-HOOK-NOT-MANDATED');
+    expect(reason(anyone)).toContain(`${mandate('joint-mandate')} allows Observation; author needs Synthesis`);
+  });
+
+  it.each(['README.md', '.ia/src/new.ia'])('refuses %s when the repository root is the shared root', (path) => {
+    const root = workspace({
+      '.ia/src/hooks.ia': EVERYWHERE,
+      '.ia/src/workspace.ia': starter(
+        ['moves [Observation, Verification, Synthesis, Delegation, Execution]', 'moves [Observation]'],
+        ['scope [@workspace demo]', 'scope [@workspace demo, @workspace second]'],
+        ['sources [".ia/src @authored"]', 'sources [". @authored"]'],
+      ),
+      '.ia/src/second/workspace.ia': declarer('second', '". @authored"'),
+    });
+    const denied = check(root, path);
+    expect(code(denied)).toBe('IA-HOOK-NOT-MANDATED');
+    expect(reason(denied)).toContain('allows Observation; author needs Synthesis');
+  });
+});
 
 it.each(['docs/not-created', '.ia/distributions/not-created'])(
   'refuses dangling and chained directory aliases into absent protected targets %s',
