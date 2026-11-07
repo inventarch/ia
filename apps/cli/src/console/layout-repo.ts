@@ -189,10 +189,20 @@ const HELP: readonly (readonly [string, string, string])[] = [
   ['esc', 'esc', 'back'],
   ['q', 'q', 'quit'],
 ];
-function helpPane(ascii: boolean): PaneLine[] {
+/** In a workspace opened from the all-workspaces table, `q` and Escape on the offers go back to it (contract §1.2). */
+const HELP_DRILLED: readonly (readonly [string, string, string])[] = [
+  ...HELP.filter(([key]) => key !== 'esc' && key !== 'q'),
+  ['esc', 'esc', 'back; from the offers, back to all workspaces'],
+  ['q', 'q', 'from the offers, back to all workspaces; elsewhere quit'],
+  ['ctrl-c', 'ctrl-c', 'quit'],
+];
+function helpPane(ascii: boolean, drilled: boolean): PaneLine[] {
   return [
     { text: 'KEYS', role: 'bold' },
-    ...HELP.map(([unicode, plain, what]) => ({ text: `${(ascii ? plain : unicode).padEnd(8)} ${what}`, role: null })),
+    ...(drilled ? HELP_DRILLED : HELP).map(([unicode, plain, what]) => ({
+      text: `${(ascii ? plain : unicode).padEnd(8)} ${what}`,
+      role: null,
+    })),
   ];
 }
 function keys(view: View, ascii: boolean, drilled: boolean): string {
@@ -296,7 +306,7 @@ export function layoutRepo(input: LayoutInput): Grid {
     input.view === 'diagnostics'
       ? diagnosticsPane(state, ascii)
       : input.view === 'help'
-        ? helpPane(ascii)
+        ? helpPane(ascii, input.drilled === true)
         : offerPane(offers[input.selected], at.pane.width, ascii);
   const start = Math.max(0, Math.min(input.scroll.pane, pane.length - at.pane.height));
   pane.slice(start, start + at.pane.height).forEach((line, index) => {

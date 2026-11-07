@@ -167,6 +167,8 @@ export interface DoctorRequest {
   readonly discover?: typeof discoverRoot;
   /** The extensions whose console state contributes checks (doctor-extensions.ts); none by default. */
   readonly extensions?: readonly Extension[];
+  /** Whether git tracks a copy (handoff.ts `committed`); the console passes the one it remembers answers with. */
+  readonly committed?: ((packageRoot: string) => boolean) | undefined;
 }
 
 /** The supported targets: Linux and Windows on x64 and macOS on arm64, on Node 22 with 22.22.0 the initial minimum; pnpm is contributor-only. */
@@ -1301,6 +1303,7 @@ export function collectDoctor(request: DoctorRequest): DoctorView {
     now: request.now ?? new Date(),
     channel: request.channel,
     host: request.host !== undefined,
+    committed: request.committed,
   });
   checks.push(...user.checks);
   // Extension rows follow the user rows; ids are an open set, but none replaces a row doctor already reports.
@@ -1460,6 +1463,7 @@ export function doctorRequest(input: {
   readonly version: string;
   readonly host?: string | undefined;
   readonly extensions?: readonly Extension[];
+  readonly committed?: ((packageRoot: string) => boolean) | undefined;
 }): DoctorRequest {
   return {
     cwd: input.cwd,
@@ -1471,6 +1475,7 @@ export function doctorRequest(input: {
     version: input.version,
     host: input.host,
     extensions: input.extensions ?? [],
+    committed: input.committed,
   };
 }
 

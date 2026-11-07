@@ -2,7 +2,9 @@
  * host-plugin-distribution §7.3 and §11: doctor's kit rows and the refresh it schedules, read from the per-registry
  * update cache and local configuration only.
  */
+import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { hostname } from 'node:os';
 import { mkdirSync, readFileSync, realpathSync, utimesSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { afterAll, expect, it } from 'vitest';
@@ -376,4 +378,62 @@ it('a record without checkedAt says not recorded, stays valid, and reads the sam
   expect(first).toMatchObject({ status: 'ok', detail: expect.stringMatching(/ · last checked: not recorded$/) });
   utimesSync(join(at, MARKETPLACE_RECORD), new Date('2020-01-01'), new Date('2020-01-01'));
   expect(rows(at, root).find((check) => check.id === 'marketplace')).toEqual(first);
+});
+it('a home lock whose owner is gone is a row naming the file; a running, foreign-host or unreadable owner is none', () => {
+  const { root } = workspace([]);
+  const at = home([]);
+  const dead = Number(
+    spawnSync(process.execPath, ['-e', 'process.stdout.write(String(process.pid))'], { encoding: 'utf8' }).stdout,
+  );
+  const lock = (name: string, owner: Record<string, unknown> | string): string => {
+    const path = join(at, name);
+    put(path, typeof owner === 'string' ? owner : JSON.stringify(owner));
+    return path;
+  };
+  const owner = (extra: Record<string, unknown>) => ({
+    token: 't',
+    pid: dead,
+    start: null,
+    host: hostname(),
+    createdAt: '2026-11-03T10:00:00.000Z',
+    ...extra,
+  });
+  const locks = () => rows(at, root).filter((check) => check.id.startsWith('home-lock:'));
+  expect(locks()).toEqual([]);
+  // Not gone: a running process, another host, a token that does not parse.
+  const cache = lock('state/update-check.json.lock', owner({ pid: process.pid }));
+  expect(locks()).toEqual([]);
+  // A running pid whose start differs is another process; only Linux reports a start time to compare.
+  lock('state/update-check.json.lock', owner({ pid: process.pid, start: 'not-this-start' }));
+  expect(locks()).toEqual(
+    process.platform === 'linux'
+      ? [
+          expect.objectContaining({
+            id: 'home-lock:state/update-check.json.lock',
+            detail: expect.stringContaining('whose pid now names another process'),
+          }),
+        ]
+      : [],
+  );
+  lock('state/update-check.json.lock', owner({ host: 'some-other-host' }));
+  expect(locks()).toEqual([]);
+  lock('state/update-check.json.lock', '{');
+  expect(locks()).toEqual([]);
+  // Gone: this host, a pid that has exited.
+  lock('state/update-check.json.lock', owner({}));
+  const tracked = lock('tracked-workspaces.json.lock', owner({}));
+  expect(locks()).toEqual([
+    expect.objectContaining({
+      id: 'home-lock:state/update-check.json.lock',
+      status: 'warn',
+      detail: expect.stringContaining(cache),
+      remedy: expect.stringContaining(`delete ${cache} by hand`),
+      fix: null,
+    }),
+    expect.objectContaining({
+      id: 'home-lock:tracked-workspaces.json.lock',
+      status: 'warn',
+      remedy: expect.stringContaining(`delete ${tracked} by hand`),
+    }),
+  ]);
 });

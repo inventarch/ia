@@ -44,9 +44,9 @@ const plantLock = (at: string, owner: Record<string, unknown>): string => {
   );
   return lock;
 };
-const refusalOf = (action: () => unknown): Refusal => {
+const refusalOf = async (action: () => unknown): Promise<Refusal> => {
   try {
-    action();
+    await action();
   } catch (error) {
     if (error instanceof Refusal) return error;
     throw error;
@@ -114,7 +114,7 @@ it('real processes adding at once lose no row', async () => {
     const [home, base, child, each, gate] = process.argv.slice(1);
     signal(gate, 'ready-' + child);
     until(gate, 'go');
-    for (let n = 0; n < Number(each); n += 1) trackWorkspace(home, { root: base + '/c' + child + 'w' + n, id: 'c' + child + 'w' + n });
+    for (let n = 0; n < Number(each); n += 1) await trackWorkspace(home, { root: base + '/c' + child + 'w' + n, id: 'c' + child + 'w' + n });
   `;
   const base = scratch('tracked-roots');
   for (let c = 0; c < count; c += 1)
@@ -144,7 +144,7 @@ it('a process that finds the lock held waits until its holder releases it', asyn
     const { withTrackedLock } = await import(${JSON.stringify(dist('tracked-lock.js'))});
     const [role, home, gate] = process.argv.slice(1);
     if (role === 'holder')
-      withTrackedLock(home, () => {
+      await withTrackedLock(home, () => {
         signal(gate, 'held');
         until(gate, 'blocked');
         signal(gate, 'released');
@@ -152,7 +152,7 @@ it('a process that finds the lock held waits until its holder releases it', asyn
     else {
       until(gate, 'held');
       let blocked = 0;
-      withTrackedLock(
+      await withTrackedLock(
         home,
         () => signal(gate, 'waited', JSON.stringify({ blocked, holderDone: existsSync(gate + '/released') })),
         { waitMs: ${SIGNAL_WAIT_MS}, onBlocked: () => { if (blocked++ === 0) signal(gate, 'blocked'); } },
@@ -171,14 +171,14 @@ it('a process that finds the lock held waits until its holder releases it', asyn
   expect(existsSync(resolve(at, TRACKED_LOCK_FILE))).toBe(false);
 }, 240_000);
 
-it('never removes the lock of an owner on this host whose process is gone: it refuses and says so', () => {
+it('never removes the lock of an owner on this host whose process is gone: it refuses and says so', async () => {
   const at = home(),
     pid = deadPid(),
     lock = plantLock(at, { pid }),
     before = readFileSync(lock);
   let ran = false;
   const started = performance.now();
-  const refusal = refusalOf(() =>
+  const refusal = await refusalOf(() =>
     withTrackedLock(
       at,
       () => {
@@ -201,30 +201,32 @@ it('never removes the lock of an owner on this host whose process is gone: it re
   expect(existsSync(resolve(at, TRACKED_FILE))).toBe(false);
 });
 
-it('never removes a lock whose owner is running, however old it is', () => {
+it('never removes a lock whose owner is running, however old it is', async () => {
   const at = home(),
     lock = plantLock(at, { pid: process.pid, createdAt: '2000-01-01T00:00:00.000Z' }),
     before = readFileSync(lock);
-  const refusal = refusalOf(() => withTrackedLock(at, () => 'ran', { waitMs: 150 }));
+  const refusal = await refusalOf(() => withTrackedLock(at, () => 'ran', { waitMs: 150 }));
   expect(refusal.code).toBe('IA-CLI-TRACKED-LOCKED');
   expect(refusal.message).toContain(lock);
   expect(refusal.message).not.toContain('is not running');
   expect(readFileSync(lock).equals(before)).toBe(true);
 });
 
-it('never removes a lock another host owns, nor one it cannot parse', () => {
+it('never removes a lock another host owns, nor one it cannot parse', async () => {
   const at = home(),
     lock = plantLock(at, { pid: deadPid(), host: `${hostname()}-elsewhere` });
-  const elsewhere = refusalOf(() => withTrackedLock(at, () => 'ran', { waitMs: 100 }));
+  const elsewhere = await refusalOf(() => withTrackedLock(at, () => 'ran', { waitMs: 100 }));
   expect(elsewhere.message).toContain(`on ${hostname()}-elsewhere`);
   expect(elsewhere.message).not.toContain('is not running');
   writeFileSync(lock, 'not json');
-  expect(refusalOf(() => withTrackedLock(at, () => 'ran', { waitMs: 100 })).message).toMatch(/could not be read/);
+  expect((await refusalOf(() => withTrackedLock(at, () => 'ran', { waitMs: 100 }))).message).toMatch(
+    /could not be read/,
+  );
   expect(readFileSync(lock, 'utf8')).toBe('not json');
   expect(existsSync(resolve(at, TRACKED_FILE))).toBe(false);
 });
 
-it('a lock it cannot read still reaches the refusal within the wait', () => {
+it('a lock it cannot read still reaches the refusal within the wait', async () => {
   const at = home(),
     lock = plantLock(at, { pid: process.pid });
   const read = (path: string): string => {
@@ -232,7 +234,7 @@ it('a lock it cannot read still reaches the refusal within the wait', () => {
     return readFileSync(path, 'utf8');
   };
   const started = performance.now();
-  const refusal = refusalOf(() => withTrackedLock(at, () => 'ran', { waitMs: 100, read }));
+  const refusal = await refusalOf(() => withTrackedLock(at, () => 'ran', { waitMs: 100, read }));
   expect(performance.now() - started).toBeLessThan(5_000);
   expect(refusal.code).toBe('IA-CLI-TRACKED-LOCKED');
   expect(refusal.message).toContain('its owner could not be read (EACCES)');
@@ -240,30 +242,30 @@ it('a lock it cannot read still reaches the refusal within the wait', () => {
   expect(existsSync(lock)).toBe(true);
 }, 10_000);
 
-it('measures the wait on a monotonic clock, so a wall clock that stands still cannot extend it', () => {
+it('measures the wait on a monotonic clock, so a wall clock that stands still cannot extend it', async () => {
   const at = home();
   plantLock(at, { pid: process.pid });
   vi.spyOn(Date, 'now').mockReturnValue(0);
-  expect(refusalOf(() => withTrackedLock(at, () => 'ran', { waitMs: 100 })).code).toBe('IA-CLI-TRACKED-LOCKED');
+  expect((await refusalOf(() => withTrackedLock(at, () => 'ran', { waitMs: 100 }))).code).toBe('IA-CLI-TRACKED-LOCKED');
 }, 10_000);
 
-it('releases the lock when the action throws', () => {
+it('releases the lock when the action throws', async () => {
   const at = home();
-  expect(() =>
+  await expect(
     withTrackedLock(at, () => {
       throw new Error('boom');
     }),
-  ).toThrow('boom');
+  ).rejects.toThrow('boom');
   expect(existsSync(resolve(at, TRACKED_LOCK_FILE))).toBe(false);
 });
 
-it('releases the lock when removing its staging file fails after the lock is published', () => {
+it('releases the lock when removing its staging file fails after the lock is published', async () => {
   const at = home();
   let ran = false;
   const removeStage = (): void => {
     throw errno('EPERM');
   };
-  expect(() =>
+  await expect(
     withTrackedLock(
       at,
       () => {
@@ -271,21 +273,21 @@ it('releases the lock when removing its staging file fails after the lock is pub
       },
       { removeStage },
     ),
-  ).toThrow(/EPERM/);
+  ).rejects.toThrow(/EPERM/);
   expect(ran).toBe(false);
   expect(existsSync(resolve(at, TRACKED_LOCK_FILE))).toBe(false);
   // The next call in the same process takes the lock at once.
-  expect(withTrackedLock(at, () => 'ran', { waitMs: 100 })).toBe('ran');
+  expect(await withTrackedLock(at, () => 'ran', { waitMs: 100 })).toBe('ran');
 });
 
-it('a lock it cannot remove after the list was written refuses saying the change was made, naming the lock', () => {
+it('a lock it cannot remove after the list was written refuses saying the change was made, naming the lock', async () => {
   const at = home(),
     root = resolve(scratch('tracked-lock-left'), 'demo');
   mkdirSync(resolve(root, '.ia/src'), { recursive: true });
   const removeLock = (): void => {
     throw errno('EBUSY');
   };
-  const refusal = refusalOf(() => trackWorkspace(at, { root, id: 'demo' }, new Date(), { removeLock }));
+  const refusal = await refusalOf(() => trackWorkspace(at, { root, id: 'demo' }, new Date(), { removeLock }));
   const lock = resolve(at, TRACKED_LOCK_FILE);
   expect(refusal).toMatchObject({ code: 'IA-CLI-TRACKED-LOCK-LEFT', exit: 3, where: { path: lock } });
   expect(refusal.message).toContain('The change was made');
@@ -295,3 +297,36 @@ it('a lock it cannot remove after the list was written refuses saying the change
   expect(readTracked(at).map((row) => row.id)).toEqual(['demo']);
   expect(existsSync(lock)).toBe(true);
 });
+
+it.skipIf(process.platform === 'win32')(
+  'SIGINT during the wait for a held lock exits 130 promptly, leaving that lock and the list as they were',
+  async () => {
+    const at = home(),
+      root = workspaceAt(resolve(scratch('tracked-lock-signal'), 'demo'), 'demo'),
+      lock = plantLock(at, { pid: process.pid }),
+      before = readFileSync(lock);
+    const child = spawn(
+      process.execPath,
+      [resolve(import.meta.dirname, '../dist/main.js'), 'workspaces', 'add', root],
+      {
+        env: { ...process.env, IA_HOME: at, IA_HOST_HOME: at },
+        stdio: ['ignore', 'ignore', 'pipe'],
+      },
+    );
+    let stderr = '';
+    child.stderr.on('data', (chunk) => (stderr += chunk));
+    const exit = new Promise<number | null>((done) => child.on('close', (code) => done(code)));
+    // Its staging file beside the lock says it has reached the wait.
+    expect(await settle(() => leftovers(at).length > 0)).toBe(true);
+    const signalled = performance.now();
+    child.kill('SIGINT');
+    const code = await exit;
+    expect(code, stderr).toBe(130);
+    expect(performance.now() - signalled).toBeLessThan(3_000);
+    expect(stderr).toContain('Interrupted.');
+    expect(readFileSync(lock).equals(before)).toBe(true);
+    expect(leftovers(at)).toEqual([]);
+    expect(existsSync(resolve(at, TRACKED_FILE))).toBe(false);
+  },
+  240_000,
+);

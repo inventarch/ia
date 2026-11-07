@@ -4,7 +4,7 @@
  * activation committed, and a reader never names a collection version that did not commit, except in the one accepted
  * residual case an older CLI can open.
  */
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
@@ -283,6 +283,61 @@ it('the accepted residual: an older-CLI restore after a rolled-back upgrade recr
   expect(versions(root)).toEqual(['acme/same@2.0.0']);
 });
 
+it('an unreadable collection record refuses the install and is left as it was', async () => {
+  const dir = await registry(),
+    root = workspaceRoot();
+  await install(root, dir, ['acme/kit@^1.0.0']);
+  const good = JSON.parse(read(root, KIT_COLLECTIONS)!) as { collections: { members: { id: string }[] }[] };
+  // A member id that is not a package id, the shape the record's own decoder refuses.
+  good.collections[0]!.members[0]!.id = '--root=/other';
+  const damaged = JSON.stringify(good);
+  writeFileSync(join(root, KIT_COLLECTIONS), damaged);
+  const lockBefore = read(root, INSTALL_PATHS.lock);
+  await expect(install(root, dir, ['acme/other@^1.0.0'])).rejects.toMatchObject({
+    code: 'IA-DIST-COLLECTIONS-UNREADABLE',
+    message: expect.stringContaining(`${KIT_COLLECTIONS}`),
+  });
+  await expect(install(root, dir, ['acme/other@^1.0.0'])).rejects.toThrow(/move .*kit-collections\.json aside/);
+  expect(read(root, KIT_COLLECTIONS)).toBe(damaged);
+  expect(read(root, INSTALL_PATHS.lock)).toBe(lockBefore);
+  expect(existsSync(join(root, INSTALL_PATHS.pending))).toBe(false);
+});
+it('an unreadable collection record refuses a restore with verb-neutral wording and writes no store or generation file', async () => {
+  const dir = await registry(),
+    root = workspaceRoot();
+  await install(root, dir, ['acme/kit@^1.0.0']);
+  writeFileSync(join(root, KIT_COLLECTIONS), '{ not json');
+  const plan = planInstallation(root, lockAt(root)!, 'restore'),
+    stages: string[] = [];
+  let message = '';
+  try {
+    applyInstallation(plan, { checkpoint: (name) => stages.push(name) });
+  } catch (error) {
+    message = (error as Error).message;
+  }
+  expect(message).toMatch(/the next apply would replace it/);
+  expect(message).toMatch(/then run the command again/);
+  expect(message).not.toMatch(/ia install/);
+  expect(stages).toEqual([]);
+  expect(read(root, KIT_COLLECTIONS)).toBe('{ not json');
+});
+it('an unreadable collection record in a workspace with no lock refuses without claiming installed packages', async () => {
+  const dir = await registry(),
+    root = workspaceRoot();
+  mkdirSync(join(root, '.ia'), { recursive: true });
+  writeFileSync(join(root, KIT_COLLECTIONS), '{ nope');
+  let message = '';
+  try {
+    await install(root, dir, ['acme/kit@^1.0.0']);
+  } catch (error) {
+    message = (error as Error).message;
+  }
+  expect(message).toMatch(/the next apply would replace it/);
+  expect(message).not.toMatch(/installed packages stay/);
+  expect(message).toMatch(/no package lock yet/);
+  expect(read(root, KIT_COLLECTIONS)).toBe('{ nope');
+  expect(existsSync(join(root, INSTALL_PATHS.lock))).toBe(false);
+});
 it('a restore of an unchanged lock does not rewrite the record', async () => {
   const dir = await registry(),
     root = workspaceRoot();

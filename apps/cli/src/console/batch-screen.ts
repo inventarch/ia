@@ -11,7 +11,7 @@ import type { Env } from '../program.js';
 import { commitPassed, ghReady, nextChoices, pushAndOpenPrs, removeWorktrees } from './batch-next.js';
 import type { RepoResult, Runner } from './batch-run.js';
 import { runBatch } from './batch-run.js';
-import { installsFirst } from './batch-plan.js';
+import { BATCH_BASE, installLine } from './batch-plan.js';
 import type { BatchPreview } from './layout-all.js';
 import type { Step } from './offers.js';
 import { shownArgument } from './run.js';
@@ -37,8 +37,6 @@ export type BatchOutcome =
 
 const shown = (text: string): string => shownArgument(text);
 
-/** The base every worktree starts from (batch-run.ts `findBase`), named before anything runs. */
-const BASE = "origin's default branch after git fetch origin (origin/HEAD, else origin/main, else origin/master)";
 /** Why the base matters: the offers were read from the local checkout, which the worktree does not start from. */
 export const BASE_NOTE =
   'The offers were read from each local checkout, but each worktree starts from that base: a change the checkout has and the base lacks is not in it, and a repository whose workspace the base does not hold is refused.';
@@ -58,10 +56,8 @@ export function previewLines(preview: BatchPreview): readonly string[] {
     out.push(
       `  worktree ${shown(plan.worktree)}`,
       `  branch   ${shown(plan.branch)}`,
-      `  base     ${BASE}`,
-      installsFirst(plan.steps) !== null
-        ? "  install  by the first step, the package manager's own install"
-        : "  install  the package manager's install, first, where the worktree holds a package.json",
+      `  base     ${BATCH_BASE}`,
+      `  install  ${installLine(plan.steps)}`,
     );
     plan.steps.forEach((step, index) => out.push(`  ${index + 1}. ${shown(displayFix(step))}`));
   }
@@ -77,7 +73,7 @@ export function previewLines(preview: BatchPreview): readonly string[] {
 function table(results: readonly RepoResult[]): readonly string[] {
   return results.map(
     (result) =>
-      `${result.ok ? 'ok    ' : result.stopped === true ? 'stopped' : result.refused !== null ? 'refused' : 'failed'} ${shown(result.branch)}  ${shown(result.worktree || result.root)}  ${shown(result.last)}`,
+      `${result.ok ? 'ok    ' : result.stopped === true ? 'stopped' : result.refused !== null ? 'refused' : 'failed'} ${shown(result.branch)}  ${shown(result.worktree || result.root)}  ${result.base === undefined ? '' : `from ${shown(result.base)}  `}${shown(result.last)}`,
   );
 }
 

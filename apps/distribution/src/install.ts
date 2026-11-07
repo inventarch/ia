@@ -272,9 +272,26 @@ function acquire(root: string, recovering = false): () => void {
   };
 }
 /**
+ * A record this build cannot decode is not an absent one: the merge would replace it and lose its collection rows.
+ * Checked at the start of an apply, before any store or generation file, and again where the merge is made.
+ */
+function refuseUnreadableCollections(root: string, read: ReturnType<typeof readKitCollections>): void {
+  if (read.state !== 'invalid') return;
+  // With no lock there is nothing installed for the record to describe, so the refusal claims no installed package.
+  const kept = existsSync(join(root, INSTALL_PATHS.lock))
+    ? ' (the installed packages stay)'
+    : ' (the workspace has no package lock yet, so nothing installed is at stake)';
+  fail(
+    'COLLECTIONS-UNREADABLE',
+    `${read.problem}; the next apply would replace it and lose the collection rows it holds${kept}. ` +
+      `Restore the file from version control or a backup, or move ${KIT_COLLECTIONS} aside if its collections may be forgotten, then run the command again`,
+  );
+}
+/**
  * The collections journal this apply writes, or null when the record does not change. The merge starts from the record
  * that describes the lock before the operation, or from none when it describes another (an older CLI changed the lock).
- * A record left with no collection and no unknown entry is removed rather than written empty.
+ * A record left with no collection and no unknown entry is removed rather than written empty. A record that cannot be
+ * decoded refuses (`IA-DIST-COLLECTIONS-UNREADABLE`) rather than being replaced.
  */
 function collectionsChange(
   root: string,
@@ -284,6 +301,7 @@ function collectionsChange(
   named: readonly string[] = [],
 ): CollectionsJournal | null {
   const read = readKitCollections(root);
+  refuseUnreadableCollections(root, read);
   // The file's own bytes, readable or not, so a rollback puts back exactly what was there.
   const before = bytes(root, KIT_COLLECTIONS, DISTRIBUTION_LIMITS.metadata)?.toString('utf8') ?? null;
   const current =
@@ -323,6 +341,7 @@ export function applyInstallation(
     noPending(root);
     // A collections journal no pending.json stands beside was left by a recovery that did not read it; settle it first.
     settleOrphanJournal(root);
+    refuseUnreadableCollections(root, readKitCollections(root));
     if (
       json(state(root)) !== json(plan.binding) ||
       json(planInstallation(root, plan.lock, plan.operation)) !== json(plan)

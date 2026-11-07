@@ -1,4 +1,4 @@
-import { lstatSync } from 'node:fs';
+import { lstatSync, readdirSync } from 'node:fs';
 import { parse } from 'smol-toml';
 import { reconcileConfig } from './config.js';
 import { bytes, contained, fail, json, replace, utf8, workspace } from './files.js';
@@ -107,21 +107,26 @@ function markdown(path: string, current: string | null, remove: boolean, contrib
     );
   const start = text.indexOf(BLOCK_BEGIN),
     endAt = text.indexOf(BLOCK_END);
-  const block = instructionBlock({ contributing });
+  // The block is written in the file's own line ending (its first one; LF for an empty file), so no file ends up mixed.
+  // Only LF and CRLF are recognised: a lone CR is not a line ending here, and a file with only those gets LF.
+  const eol = /\r?\n/.exec(text)?.[0] ?? '\n';
+  const block = instructionBlock({ contributing }).replace(/\n/g, eol);
   if (start < 0 && endAt < 0) {
     if (remove) return current;
     if (text === '') return block;
-    return `${text}${text.endsWith('\n') ? '' : '\n'}\n${block}`;
+    return `${text}${text.endsWith('\n') ? '' : eol}${eol}${block}`;
   }
   if (start < 0 || endAt < start || text.indexOf(BLOCK_BEGIN, start + 1) >= 0)
     fail('LOCAL-MODIFICATION', `${path} holds an incomplete or repeated IA bootstrap block`);
   let after = text.slice(endAt + BLOCK_END.length);
-  // The closing line's own terminator (CRLF, LF or none at the end of the file) is kept as it was found.
-  const terminator = after.startsWith('\r\n') ? '\r\n' : after.startsWith('\n') ? '\n' : '';
-  after = after.slice(terminator.length);
+  // The closing line is rewritten in the file's own ending too; at the end of the file it stays without one.
+  const found = after.startsWith('\r\n') ? 2 : after.startsWith('\n') ? 1 : 0;
+  const terminator = found === 0 ? '' : eol;
+  after = after.slice(found);
   const before = text.slice(0, start);
-  if (!remove) return before + block.slice(0, -1) + terminator + after;
-  const kept = (before.replace(/\n+$/, '\n') + after).replace(/^\n+/, '');
+  if (!remove) return before + block.slice(0, -eol.length) + terminator + after;
+  // Install adds one blank separator line before the block (the file's first line when it had none); take out only that.
+  const kept = before === '' ? after.replace(/^(?:\r?\n)+/, '') : before.replace(/(\r?\n)\r?\n$/, '$1') + after;
   return kept.trim() === '' ? null : kept;
 }
 
@@ -179,9 +184,12 @@ function tomlFile(path: string, current: string | null, version: string, remove:
 /**
  * Whether `CONTRIBUTING.md` is a plain file the block may name. A probe, never a read: a directory, a link, a hard link,
  * an oversized file or anything unreadable only selects the generic wording, so no guide can make a bootstrap fail.
+ * The name is matched exactly in the folder listing first, so `contributing.md` selects the same wording on a
+ * case-insensitive volume as on a case-sensitive one.
  */
 function hasContributingGuide(root: string): boolean {
   try {
+    if (!readdirSync(root).includes('CONTRIBUTING.md')) return false;
     const stat = lstatSync(contained(root, 'CONTRIBUTING.md'));
     return stat.isFile() && stat.nlink === 1 && stat.size <= 1024 * 1024;
   } catch {
