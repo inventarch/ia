@@ -216,6 +216,9 @@ describe('golden frames', () => {
     const text = lines.join('\n');
     expect(text).toContain('worktree /srv/repos/.ia-worktrees/atlas-ia-3-5-1');
     expect(text).toContain('branch   chore/ia-3-5-1');
+    // The base and the install, as the confirmation preview says them, since a commit afterwards holds what they bring.
+    expect(text).toContain("base     origin's default branch");
+    expect(text).toContain('install  by the first step');
     // The rebuilt command in full, wrapped under its number: --root names the worktree.
     const at = lines.findIndex((line) => line.endsWith('2. ia restore --apply --root'));
     expect(at).toBeGreaterThan(0);
@@ -286,6 +289,14 @@ describe('summary', () => {
     );
     expect(summaryText({ ...base, latest: null, global: '3.4.0', behind: true }, false)).toContain('Global 3.4.0 ▲');
     expect(summaryText({ ...base, behind: true }, true)).toContain('Global 3.5.1 !');
+  });
+  it('an unreadable row reads unreadable, with no cells, and counts in Unreadable', () => {
+    const repos: RepoRow[] = [{ ...loadingRow(tracked('locked')), state: 'unreadable' }];
+    const lines = frame({ selected: new Set(), choices: [], cursor: 0, columns: 140 }, repos);
+    expect(lines.some((line) => /\[ \] \? locked\s+unreadable/.test(line))).toBe(true);
+    expect(lines.some((line) => line.includes('Unreadable: the folder cannot be examined'))).toBe(true);
+    expect(lines[0]).toContain('Unreadable 1');
+    expect(lines[0]).toContain('Missing 0');
   });
   it('a repo whose only failure is advice-only shows ▲ and counts in Attention', () => {
     const repos = [

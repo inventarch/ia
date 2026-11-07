@@ -460,6 +460,8 @@ export function userRows(input: {
   readonly host?: boolean | undefined;
   /** The channel of the copy that handed off; detected from `IA_HANDOFF_FROM` when not supplied. */
   readonly handingChannel?: Channel | undefined;
+  /** Whether git tracks a copy (handoff.ts `committed`), for the `cli-version` row; asked fresh when not supplied. */
+  readonly committed?: ((packageRoot: string) => boolean) | undefined;
 }): { readonly checks: readonly Check[]; readonly facts: UserFacts } {
   const checks: Check[] = [];
   // §5: the filesystem and local git only.
@@ -481,6 +483,7 @@ export function userRows(input: {
         version: input.version,
         env: input.env,
         host: input.host === true,
+        ...(input.committed === undefined ? {} : { committed: input.committed }),
       }),
     );
 

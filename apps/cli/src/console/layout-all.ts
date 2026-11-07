@@ -10,6 +10,7 @@ import { displayFix } from '../fix.js';
 import type { Capabilities, Role, SymbolName } from '../render.js';
 import { statusSymbol } from '../render.js';
 import type { BatchChoice, RepoPlan } from './batch-plan.js';
+import { BATCH_BASE, installLine } from './batch-plan.js';
 import type { Grid } from './grid.js';
 import type { Prompt } from './layout-repo.js';
 import { canvas, MIN_COLUMNS, MIN_ROWS, SIDE_BY_SIDE, wrap } from './layout-repo.js';
@@ -73,6 +74,7 @@ const CLASS_SYMBOL: Readonly<Record<RepoClass, SymbolName>> = {
   loading: 'unknown',
   failed: 'unknown',
   missing: 'unreported',
+  unreadable: 'unknown',
 };
 const AREA_SYMBOL: Readonly<Record<AreaStatus, SymbolName>> = {
   fail: 'error',
@@ -165,7 +167,7 @@ function summaryParts(summary: Summary, ascii: boolean): readonly string[] {
     `Healthy ${summary.healthy}`,
     `Attention ${summary.attention}`,
     `Missing ${summary.missing}`,
-    ...(summary.failed > 0 ? [`Unreadable ${summary.failed}`] : []),
+    ...(summary.failed + summary.unreadable > 0 ? [`Unreadable ${summary.failed + summary.unreadable}`] : []),
     ...(summary.unchecked > 0 ? [`Unchecked ${summary.unchecked}`] : []),
     ...(summary.loading > 0 ? [`Loading ${summary.loading}`] : []),
   ];
@@ -195,6 +197,8 @@ function repoPane(row: RepoRow, width: number, ascii: boolean): PaneLine[] {
   if (row.state === 'loading') return [...out, { text: 'Reading this workspace…', role: 'dim' }];
   if (row.state === 'missing')
     return [...out, { text: 'Missing: the folder is gone or no longer holds .ia/src.', role: 'yellow' }];
+  if (row.state === 'unreadable')
+    return [...out, { text: 'Unreadable: the folder cannot be examined; check its permissions.', role: 'yellow' }];
   if (row.failure !== null) out.push({ text: `Its ia could not report: ${row.failure}`, role: 'yellow' });
   const state = row.console;
   if (state === null) return out;
@@ -239,6 +243,14 @@ function previewPane(preview: BatchPreview, repos: readonly RepoRow[], width: nu
       { text: `  worktree ${truncateMiddle(plan.worktree, Math.max(1, width - 11), ascii)}`, role: null },
       { text: `  branch   ${plan.branch}`, role: null },
     );
+    // What the confirmation preview says too: a commit afterwards holds what the base and the install bring.
+    for (const [name, value] of [
+      ['base', BATCH_BASE],
+      ['install', installLine(plan.steps)],
+    ] as const)
+      wrap(value, Math.max(1, width - 11), ascii).forEach((text, line) =>
+        out.push({ text: `  ${(line === 0 ? name : '').padEnd(8)} ${text}`, role: null }),
+      );
     // Each command in full, wrapped under its number: the preview is what the confirmation agrees to.
     plan.steps.forEach((step, index) =>
       wrap(`${index + 1}. ${displayFix(step)}`, Math.max(1, width - 11), ascii).forEach((text, line) =>
@@ -369,14 +381,14 @@ export function layoutAll(input: AllLayoutInput): Grid {
           const values = cells(row);
           for (const column of extra) {
             const cell = column.pick(values);
-            if (row.state === 'missing') break;
+            if (row.state === 'missing' || row.state === 'unreadable') break;
             const shown = cell.symbol === null ? null : symbol(cell.symbol, ascii);
             if (shown !== null) g.put(at, y, shown.text, shown.role, undefined, ascii);
             if (cell.symbol !== 'unreported' || cell.text !== '—')
               g.put(at + 2, y, cell.text, null, column.width - 2, ascii);
             at += column.width + 1;
           }
-          if (row.state === 'missing') g.put(at, y, 'missing', 'dim', undefined, ascii);
+          if (row.state === 'missing' || row.state === 'unreadable') g.put(at, y, row.state, 'dim', undefined, ascii);
         },
       }),
     );

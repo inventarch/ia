@@ -70,7 +70,10 @@ const upgrade = (_root: string): Offer =>
   );
 const relock = (root: string): Offer =>
   offer('fix:generation', [ia(['restore', '--apply', '--root', root])], { title: 'Re-lock' });
-const tops = (map: Readonly<Record<string, string>>) => ({ top: (root: string) => map[root] ?? null });
+const tops = (map: Readonly<Record<string, string>>) => ({
+  top: (root: string) => map[root] ?? null,
+  enclosing: () => null,
+});
 
 describe('choices and selection', () => {
   const alpha = native('srv', 'repos', 'alpha'),
@@ -403,5 +406,143 @@ describe('the grammar marks', () => {
     expect(pathArguments(ia(['workspaces', 'add', '/srv/x'], 'user'))).toEqual([
       { index: 2, value: '/srv/x', form: 'separate', kind: 'path' },
     ]);
+  });
+});
+
+describe('one worktree for each planned repository', () => {
+  const repoTop = native('srv', 'repos', 'mono');
+  const first = join(repoTop, 'one');
+  const second = join(repoTop, 'two');
+  it('a second workspace in one repository is refused when planning, naming the first', () => {
+    const plan = planBatch(
+      'fix:generation',
+      [row(first, [relock(first)]), row(second, [relock(second)])],
+      new Set([0, 1]),
+      { iaHome: HOME },
+      tops({ [first]: repoTop, [second]: repoTop }),
+    );
+    expect(plan.repos[0]).toMatchObject({
+      root: first,
+      refused: null,
+      worktree: native('srv', 'repos', '.ia-worktrees', 'mono-ia-fix-generation'),
+    });
+    expect(plan.repos[1]).toMatchObject({ root: second, worktree: '', workspace: '' });
+    expect(plan.repos[1]!.refused).toContain('already planned for');
+    expect(plan.repos[1]!.refused).toContain(first);
+  });
+  it('a first workspace that was refused leaves the worktree free for the next one', () => {
+    const outsider = offer('fix:generation', [ia(['restore', '--apply', '--root', native('elsewhere')])]);
+    const plan = planBatch(
+      'fix:generation',
+      [row(first, [outsider]), row(second, [relock(second)])],
+      new Set([0, 1]),
+      { iaHome: HOME },
+      tops({ [first]: repoTop, [second]: repoTop }),
+    );
+    expect(plan.repos[0]!.refused).toContain('outside the worktree');
+    expect(plan.repos[1]!.refused).toBeNull();
+  });
+  it('two repositories that would share a worktree under one root are refused the same way', () => {
+    const left = native('srv', 'left', 'same');
+    const right = native('srv', 'right', 'same');
+    const plan = planBatch(
+      'fix:generation',
+      [row(left, [relock(left)]), row(right, [relock(right)])],
+      new Set([0, 1]),
+      { iaHome: HOME, worktreeRoot: native('work', 'trees') },
+      tops({ [left]: left, [right]: right }),
+    );
+    expect(plan.repos[0]!.refused).toBeNull();
+    expect(plan.repos[1]!.refused).toContain('already planned for');
+  });
+  it('the refusal says the first branch has to go before a later batch can run this workspace', () => {
+    const plan = planBatch(
+      'fix:generation',
+      [row(first, [relock(first)]), row(second, [relock(second)])],
+      new Set([0, 1]),
+      { iaHome: HOME },
+      tops({ [first]: repoTop, [second]: repoTop }),
+    );
+    expect(plan.repos[1]!.refused).toContain('chore/ia-fix-generation is merged and deleted');
+  });
+});
+
+describe('a worktree inside another repository of the batch', () => {
+  const a = native('w', 'a');
+  const b = native('w', 'b');
+  const both = [row(a, [relock(a)]), row(b, [relock(b)])];
+  it('a configured worktreeRoot inside another selected repository refuses the row that would write there', () => {
+    const plan = planBatch(
+      'fix:generation',
+      both,
+      new Set([0, 1]),
+      { iaHome: HOME, worktreeRoot: join(b, 'wt') },
+      tops({ [a]: a, [b]: b }),
+    );
+    expect(plan.repos[0]!.refused).toContain(`inside ${b}, another repository of this batch`);
+    expect(plan.repos[0]!.worktree).toBe('');
+    // b's own worktree is inside b, which is refused as before.
+    expect(plan.repos[1]!.refused).toContain(`inside the repository ${b}`);
+  });
+  it('a repository that is not selected is no bar', () => {
+    const plan = planBatch(
+      'fix:generation',
+      both,
+      new Set([0]),
+      { iaHome: HOME, worktreeRoot: join(b, 'wt') },
+      tops({ [a]: a, [b]: b }),
+    );
+    expect(plan.repos[0]!.refused).toBeNull();
+  });
+});
+
+describe('when git cannot say what is around a repository', () => {
+  const lone = native('srv', 'lone');
+  const refusing = { ...tops({ [lone]: lone }), enclosing: () => ({ refused: 'git cannot say: dubious ownership' }) };
+  it('the default place is refused with git’s reason, not taken as free', () => {
+    const plan = planBatch('fix:generation', [row(lone, [relock(lone)])], new Set([0]), { iaHome: HOME }, refusing);
+    expect(plan.repos[0]!.refused).toBe('git cannot say: dubious ownership');
+  });
+  it('a configured worktreeRoot does not ask', () => {
+    const plan = planBatch(
+      'fix:generation',
+      [row(lone, [relock(lone)])],
+      new Set([0]),
+      { iaHome: HOME, worktreeRoot: native('work', 'trees') },
+      refusing,
+    );
+    expect(plan.repos[0]!.refused).toBeNull();
+  });
+});
+
+describe('a worktree inside an enclosing repository', () => {
+  const outer = native('srv', 'outer');
+  const inner = join(outer, 'vendor', 'inner');
+  const nested = { ...tops({ [inner]: inner }), enclosing: (path: string) => (path.startsWith(outer) ? outer : null) };
+  it('the default place is refused, naming the enclosing repository and the way out', () => {
+    const plan = planBatch('fix:generation', [row(inner, [relock(inner)])], new Set([0]), { iaHome: HOME }, nested);
+    expect(plan.repos[0]!.refused).toContain(`inside the enclosing repository ${outer}`);
+    expect(plan.repos[0]!.refused).toContain('worktreeRoot');
+  });
+  it('a configured worktreeRoot is the user’s own choice and is not judged', () => {
+    const plan = planBatch(
+      'fix:generation',
+      [row(inner, [relock(inner)])],
+      new Set([0]),
+      { iaHome: HOME, worktreeRoot: join(outer, 'trees') },
+      nested,
+    );
+    expect(plan.repos[0]).toMatchObject({ refused: null, worktree: join(outer, 'trees', 'inner-ia-fix-generation') });
+  });
+  it('a repository with nothing around it plans as before', () => {
+    const lone = native('srv', 'lone');
+    const plan = planBatch(
+      'fix:generation',
+      [row(lone, [relock(lone)])],
+      new Set([0]),
+      { iaHome: HOME },
+      { ...tops({ [lone]: lone }), enclosing: () => null },
+    );
+    expect(plan.repos[0]!.refused).toBeNull();
   });
 });

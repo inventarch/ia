@@ -27,28 +27,58 @@ export type SpawnDoctor = (entry: string, root: string, signal?: AbortSignal) =>
 /** What decides which `info` rows count as "not set up": the ids a set-up offer answers. */
 export type SetupIds = (state: Omit<ConsoleState, 'areas'>) => ReadonlySet<string>;
 
-/** `<entry> doctor --json --root <root>` under `IA_NO_HANDOFF=1`, bounded at 20 s unless told otherwise; never throws. */
+/** How long a doctor gets to end after its SIGTERM, which the consumer route reads as "stop starting work". */
+export const DOCTOR_KILL_GRACE_MS = 2_000;
+/**
+ * `<entry> doctor --json --root <root>` under `IA_NO_HANDOFF=1`, bounded at 20 s unless told otherwise; never throws. At
+ * the bound or on an abort it gets a SIGTERM and, still running `DOCTOR_KILL_GRACE_MS` later, a SIGKILL. It settles only
+ * once the process has ended, so the pool's slot (workspaces-state.ts) stays held until then, and a run past its bound
+ * reads as timed out however it then ended.
+ */
 export function doctorProcess(env: Env, timeoutMs: number = DOCTOR_TIMEOUT_MS): SpawnDoctor {
   return (entry, root, signal) =>
     new Promise((settle) => {
-      execFile(
+      let timedOut = false;
+      let kill: ReturnType<typeof setTimeout> | undefined;
+      let bound: ReturnType<typeof setTimeout> | undefined = undefined;
+      const stop = (): void => {
+        if (kill !== undefined) return;
+        child.kill('SIGTERM');
+        kill = setTimeout(() => {
+          child.kill('SIGKILL');
+          // A process it started could hold the pipes open, and `close` would never come.
+          child.stdout?.destroy();
+          child.stderr?.destroy();
+        }, DOCTOR_KILL_GRACE_MS);
+        kill.unref();
+      };
+      const child = execFile(
         process.execPath,
         [entry, 'doctor', '--json', '--root', root],
         {
           cwd: root,
           env: { ...env, [NO_HANDOFF]: '1' },
-          timeout: timeoutMs,
           maxBuffer: 16 * 1024 * 1024,
           windowsHide: true,
           encoding: 'utf8',
-          ...(signal === undefined ? {} : { signal }),
         },
         (error, stdout) => {
-          if (error === null) settle({ status: 0, stdout });
+          clearTimeout(bound);
+          clearTimeout(kill);
+          signal?.removeEventListener('abort', stop);
+          if (timedOut) settle({ status: null, stdout, timedOut: true });
+          else if (error === null) settle({ status: 0, stdout });
           else if (typeof error.code === 'number') settle({ status: error.code, stdout });
           else settle({ status: null, stdout, timedOut: error.killed === true });
         },
       );
+      bound = setTimeout(() => {
+        timedOut = true;
+        stop();
+      }, timeoutMs);
+      bound.unref();
+      if (signal?.aborted === true) stop();
+      else signal?.addEventListener('abort', stop, { once: true });
     });
 }
 
@@ -75,12 +105,16 @@ export async function loadState(input: {
   readonly signal?: AbortSignal;
   /** The bound on the workspace copy's doctor run; 20 s by default. */
   readonly timeoutMs?: number;
+  /** Whether git tracks a copy (handoff.ts `committed`); the console passes one that remembers its answers. */
+  readonly committed?: (packageRoot: string) => boolean;
 }): Promise<ConsoleState> {
   const { env, packageRoot, version } = input;
   const extensions = input.extensions ?? [];
   const consoles = extensions.flatMap((extension) => (extension.console === undefined ? [] : [extension.console]));
   const owned = runningOwner(extensions);
-  const view = input.collect(doctorRequest({ cwd: input.cwd, packageRoot, env, version, extensions }));
+  const view = input.collect(
+    doctorRequest({ cwd: input.cwd, packageRoot, env, version, extensions, committed: input.committed }),
+  );
   const found = discoverRoot(input.cwd, iaHomeOf(env));
   const root = found === undefined ? null : real(found);
   const dependency = root === null ? null : readCliDependency(root);
@@ -88,7 +122,14 @@ export async function loadState(input: {
   // The copy hand-off would run (handoff.ts): found up to the workspaces root that hoists it, and none when the
   // repository commits it or the user set IA_NO_HANDOFF=1. Without one, the rows come from this process and every step
   // runs on the running copy, as when no copy is installed.
-  const copy = root === null ? null : runnableCopy(root, { env, running: packageRoot });
+  const copy =
+    root === null
+      ? null
+      : runnableCopy(root, {
+          env,
+          running: packageRoot,
+          ...(input.committed === undefined ? {} : { committed: input.committed }),
+        });
   // The running copy answers for itself; only another copy is run.
   const other = copy !== null && !sameFile(copy.packageRoot, packageRoot) ? copy : null;
   let report: DoctorReport | null = null;
@@ -106,7 +147,14 @@ export async function loadState(input: {
     repoCopy: other,
     owned,
     cliVersion: (from) =>
-      cliVersionRow({ root: root!, packageRoot: from.packageRoot, version: from.version, env, host: false }),
+      cliVersionRow({
+        root: root!,
+        packageRoot: from.packageRoot,
+        version: from.version,
+        env,
+        host: false,
+        ...(input.committed === undefined ? {} : { committed: input.committed }),
+      }),
   });
   // Outside a workspace the view is the running copy's areas and the root row, which offers `ia init`.
   const checks =
