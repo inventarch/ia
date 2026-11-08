@@ -4,15 +4,37 @@
 
 ## Seat
 
-- workspace `workspace-system/definition/workspace/language-workspace`; sources `.ia/src @authored`; systems 11
+- workspace `workspace-system/definition/workspace/language-workspace`; sources `.ia/src @authored`; systems 11; steward `agent-system/binding/agent/language-participant`
 
 ## Participants
 
 - `agent-system/binding/agent/language-participant`: The IDE agent operating in the language workspace, any vendor.
+- `agent-system/binding/agent/public-agent-composition-system-steward`: Accountable owner of agent-composition-system vocabulary, canonical schemas, relationship consent and direct dependencies.
+- `agent-system/binding/agent/public-agent-system-steward`: Accountable owner of agent-system vocabulary, canonical schemas, relationship consent and direct dependencies.
+- `agent-system/binding/agent/public-authoring-system-steward`: Accountable owner of authoring-system vocabulary, canonical schemas, relationship consent and direct dependencies.
+- `agent-system/binding/agent/public-compliance-system-steward`: Accountable owner of compliance-system vocabulary, canonical schemas, relationship consent and direct dependencies.
+- `agent-system/binding/agent/public-governance-system-steward`: Accountable owner of governance-system vocabulary, canonical schemas, relationship consent and direct dependencies.
+- `agent-system/binding/agent/public-hook-authoring-system-steward`: Accountable owner of hook-authoring-system vocabulary, canonical schemas, relationship consent and direct dependencies.
+- `agent-system/binding/agent/public-learning-system-steward`: Accountable owner of learning-system vocabulary, canonical schemas, relationship consent and direct dependencies.
+- `agent-system/binding/agent/public-session-system-steward`: Accountable owner of session-system vocabulary, canonical schemas, relationship consent and direct dependencies.
+- `agent-system/binding/agent/public-template-system-steward`: Accountable owner of template-system vocabulary, canonical schemas, relationship consent and direct dependencies.
+- `agent-system/binding/agent/public-work-system-steward`: Accountable owner of work-system vocabulary, canonical schemas, relationship consent and direct dependencies.
+- `agent-system/binding/agent/public-workspace-system-steward`: Accountable owner of workspace-system vocabulary, canonical schemas, relationship consent and direct dependencies.
 
 ## Mandates
 
 - `agent-system/policy/mandate/language-mandate`: participant `agent-system/binding/agent/language-participant`; moves Observation, Verification, Synthesis, Delegation, Execution; scope `workspace-system/definition/workspace/language-workspace`; covers `.ia/src/`
+- `agent-system/policy/mandate/public-agent-composition-system-stewardship`: participant `agent-system/binding/agent/public-agent-composition-system-steward`; moves Observation, Verification, Synthesis; scope `workspace-system/definition/workspace/language-workspace`; covers `.ia/src/systems/agent-composition-system/`
+- `agent-system/policy/mandate/public-agent-system-stewardship`: participant `agent-system/binding/agent/public-agent-system-steward`; moves Observation, Verification, Synthesis; scope `workspace-system/definition/workspace/language-workspace`; covers `.ia/src/systems/agent-system/`
+- `agent-system/policy/mandate/public-authoring-system-stewardship`: participant `agent-system/binding/agent/public-authoring-system-steward`; moves Observation, Verification, Synthesis; scope `workspace-system/definition/workspace/language-workspace`; covers `.ia/src/systems/authoring-system/`
+- `agent-system/policy/mandate/public-compliance-system-stewardship`: participant `agent-system/binding/agent/public-compliance-system-steward`; moves Observation, Verification, Synthesis; scope `workspace-system/definition/workspace/language-workspace`; covers `.ia/src/systems/compliance-system/`
+- `agent-system/policy/mandate/public-governance-system-stewardship`: participant `agent-system/binding/agent/public-governance-system-steward`; moves Observation, Verification, Synthesis; scope `workspace-system/definition/workspace/language-workspace`; covers `.ia/src/systems/governance-system/`
+- `agent-system/policy/mandate/public-hook-authoring-system-stewardship`: participant `agent-system/binding/agent/public-hook-authoring-system-steward`; moves Observation, Verification, Synthesis; scope `workspace-system/definition/workspace/language-workspace`; covers `.ia/src/systems/hook-authoring-system/`
+- `agent-system/policy/mandate/public-learning-system-stewardship`: participant `agent-system/binding/agent/public-learning-system-steward`; moves Observation, Verification, Synthesis; scope `workspace-system/definition/workspace/language-workspace`; covers `.ia/src/systems/learning-system/`
+- `agent-system/policy/mandate/public-session-system-stewardship`: participant `agent-system/binding/agent/public-session-system-steward`; moves Observation, Verification, Synthesis; scope `workspace-system/definition/workspace/language-workspace`; covers `.ia/src/systems/session-system/`
+- `agent-system/policy/mandate/public-template-system-stewardship`: participant `agent-system/binding/agent/public-template-system-steward`; moves Observation, Verification, Synthesis; scope `workspace-system/definition/workspace/language-workspace`; covers `.ia/src/systems/template-system/`
+- `agent-system/policy/mandate/public-work-system-stewardship`: participant `agent-system/binding/agent/public-work-system-steward`; moves Observation, Verification, Synthesis; scope `workspace-system/definition/workspace/language-workspace`; covers `.ia/src/systems/work-system/`
+- `agent-system/policy/mandate/public-workspace-system-stewardship`: participant `agent-system/binding/agent/public-workspace-system-steward`; moves Observation, Verification, Synthesis; scope `workspace-system/definition/workspace/language-workspace`; covers `.ia/src/systems/workspace-system/`
 
 ## Systems
 
@@ -39,7 +61,7 @@
 - distribution 12
 - execution-binding 1
 - law 1
-- mandate 1
+- mandate 12
 - milestone 1
 - operation 4
 - plan 1
@@ -95,4 +117,4 @@
 - when a word's owner is not this workspace, delegate by re-seating at the owning system; a steward pointer is readable, not an invocation
 - start each session with the IA door's ia_session; for a task, use the lane ia:work, ia:knowledge or ia:delivery: ia_catalogue names its keys and ia_method returns the method for one key
 
-ia-generated 3d9e3f2e6612118722e64c9005b2a57fb8f0e17c0a97f0f8fb1b21302606a5c9 3a1b8cbedd20642c79ac81b0e88bfa9968954e58e5fe0059e80caa1417b923df ia-claude
+ia-generated eb89cb563f3167cb558ddd4f8628e1deb21a6ada9efbc3ec414ac92619c18337 bd6d0cdc4ba77908d55a1da320c886a40b5024b906bdc2f5649772173483630a ia-claude
