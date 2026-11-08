@@ -85,15 +85,7 @@ const workspaceWith = (composition: string, name = 'kit-workspace') =>
   `@workspace ${name}\n  meaning\n    says "The shipped kit workspace."\n    answers "What does the kit workspace compose?"\n  composition\n    systems [@system kit-a]\n${composition}`;
 const ruleFindings = (graph: ReturnType<typeof graphOf>, code: string) =>
   canonFindings(graph).filter((f) => f.code === code);
-/**
- * The graph's nodes without the conformance corpus's own `foundation-distribution`: it sits under
- * `systems/workspace-system/records/` and lists a `@workspace`, so kit detection (H5) reads the bare corpus as a kit.
- * These tests judge the shapes they author, not the corpus.
- */
-const nodesOf = (graph: ReturnType<typeof graphOf>) =>
-  [...graph.nodes.values()].filter(
-    (n) => !(n.discriminator === 'distribution' && n.name === 'foundation-distribution'),
-  );
+const nodesOf = (graph: ReturnType<typeof graphOf>) => [...graph.nodes.values()];
 const wordsLaw = [
   ['law.ia', lawFor('words', 'blocking')],
   ['check.ia', checkFor('words', 'CANON-KIT-WORDS')],
@@ -158,6 +150,27 @@ describe('kit detection and C4/C5a', () => {
     };
     expect(canonKitMethodWords(nodes, [folder])).toHaveLength(1);
     expect(canonKitMethodWords(nodes, [{ ...folder, records: [] }])).toEqual([]);
+  });
+  it("the conformance corpus's foundation-distribution, a vocabulary system's @workspace-only list, is not a kit", () => {
+    const corpus = nodesOf(graphOf());
+    const foundation = corpus.find((n) => n.discriminator === 'distribution' && n.name === 'foundation-distribution');
+    expect(foundation?.source.path).toBe('.ia/src/systems/workspace-system/records/foundation-distribution.ia');
+    expect(isKitWorkspace(corpus)).toBe(false);
+    // The same shape in a system that mints words is not a kit either.
+    const vocabulary = graphOf(
+      [`${KIT}/system.ia`, kitSystem('  discriminators\n    widget lowers to definition\n      category state\n')],
+      [`${KIT}/records/distribution.ia`, plainDistribution('kit-a-distribution', '@workspace kit-workspace')],
+      [`${KIT}/records/workspace.ia`, workspaceWith('')],
+    );
+    expect(isKitWorkspace(nodesOf(vocabulary))).toBe(false);
+  });
+  it('isKitWorkspace recognises a wordless system whose distribution lists a @workspace (ia-brand shape)', () => {
+    const brand = graphOf(
+      [`${KIT}/system.ia`, kitSystem('')],
+      [`${KIT}/records/distribution.ia`, plainDistribution('kit-a-distribution', '@workspace kit-workspace')],
+      [`${KIT}/records/workspace.ia`, workspaceWith('')],
+    );
+    expect(isKitWorkspace(nodesOf(brand))).toBe(true);
   });
   it('isKitWorkspace recognises a native distribution listing a @workspace, as ia-brand ships', () => {
     const brand = [
@@ -266,6 +279,14 @@ describe('E5 mandate narrowing', () => {
     const found = ruleFindings(graph, WIDEN);
     expect(found).toHaveLength(1);
     expect(found[0]!.message).toContain('docs/');
+  });
+  it('E5 does not report a child covers ./docs/ under a parent docs/ as a widening', () => {
+    const graph = graphOf(
+      ...narrowLaw,
+      ['parent.ia', mandateOf('parent-mandate', 'Observation', '"docs/"')],
+      ['child.ia', mandateOf('child-mandate', 'Observation', '"./docs/"', 'parent-mandate')],
+    );
+    expect(ruleFindings(graph, WIDEN)).toEqual([]);
   });
   it('E5 accepts a narrower citing mandate and ignores a mandate citing none', () => {
     const narrower = graphOf(...narrowLaw, parent, [

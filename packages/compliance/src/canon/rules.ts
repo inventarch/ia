@@ -11,24 +11,23 @@ const WORK_INSTANCES: ReadonlySet<string> = new Set(['plan', 'milestone', 'task'
 
 const SYSTEM_FOLDER = /^\.ia\/src\/systems\/([^/]+)\//;
 
-/**
- * The system folders `.ia/src/systems/<name>/` whose `@system` declares discriminators, so mints words: a vocabulary
- * system's folder. The `@system` is the one authored in the folder, else the one named `<name>`.
- */
-function vocabularyFolders(nodes: readonly Node[]): ReadonlySet<string> {
+/** The `@system` of the folder `.ia/src/systems/<folder>/`: the one authored in it, else the one named `<folder>`. */
+function folderSystems(nodes: readonly Node[], folder: string): readonly Node[] {
   const systems = nodes.filter((node) => node.discriminator === 'system');
+  const inside = systems.filter((s) => posix(s.source.path).startsWith(`.ia/src/systems/${folder}/`));
+  return inside.length > 0 ? inside : systems.filter((s) => s.name === folder);
+}
+const mintsWords = (systems: readonly Node[]): boolean =>
+  systems.some((s) => sectionKeys(s, 'discriminators').length > 0);
+
+/** The system folders `.ia/src/systems/<name>/` whose `@system` declares discriminators, so mints words. */
+function vocabularyFolders(nodes: readonly Node[]): ReadonlySet<string> {
   const folders = new Set<string>();
   for (const node of nodes) {
     const match = SYSTEM_FOLDER.exec(posix(node.source.path));
     if (match !== null) folders.add(match[1]!);
   }
-  const found = new Set<string>();
-  for (const folder of folders) {
-    const inside = systems.filter((s) => posix(s.source.path).startsWith(`.ia/src/systems/${folder}/`));
-    const declaring = inside.length > 0 ? inside : systems.filter((s) => s.name === folder);
-    if (declaring.some((s) => sectionKeys(s, 'discriminators').length > 0)) found.add(folder);
-  }
-  return found;
+  return new Set([...folders].filter((folder) => mintsWords(folderSystems(nodes, folder))));
 }
 
 /**
@@ -92,9 +91,15 @@ function loweredKit(nodes: readonly Node[]): Kit {
 
 /**
  * Form (b): a `@distribution` authored under `.ia/src/systems/<n>/records/` whose `distribution.records` lists `@system`
- * or `@workspace` records. Its kit systems are the `@system`s it lists; one listing only `@workspace`s (as ia-brand,
- * ia-design, ia-ui and ia-ux ship) makes `<n>`, the system folder holding it, the kit system.
+ * or `@workspace` records. Its kit systems are the `@system`s it lists. One listing only `@workspace`s (as ia-brand,
+ * ia-design, ia-ui and ia-ux ship) makes `<n>`, the system folder holding it, the kit system, but only when that folder's
+ * `@system` declares no discriminators: a vocabulary system's `@workspace`-only distribution (the foundation's
+ * `workspace-system`) is not a kit. A folder with no `@system` is not one either. The detection is heuristic.
  */
+const wordless = (nodes: readonly Node[], folder: string): boolean => {
+  const systems = folderSystems(nodes, folder);
+  return systems.length > 0 && !mintsWords(systems);
+};
 function nativeKit(nodes: readonly Node[]): Kit {
   const systems = new Set<string>();
   const distributions: Node[] = [];
@@ -104,7 +109,7 @@ function nativeKit(nodes: readonly Node[]): Kit {
     if (match === null) continue;
     const named = listed(node, 'system');
     if (named.length > 0) for (const name of named) systems.add(name);
-    else if (listed(node, 'workspace').length > 0) systems.add(match[1]!);
+    else if (listed(node, 'workspace').length > 0 && wordless(nodes, match[1]!)) systems.add(match[1]!);
     else continue;
     distributions.push(node);
   }
@@ -299,9 +304,9 @@ export function canonMandateNarrowing(nodes: readonly Node[], graph?: Graph): re
 
 /**
  * A canon record: one under `.ia/src/systems/<system>/records/canon/`, in the folder of the system owning its word, as
- * authored or as installed (a store prefix such as `.ia/distributions/store/<digest>/` before it).
+ * authored or as installed (the store prefix `.ia/distributions/store/<sha256 hex>/` before it).
  */
-const CANON_LAWS = /(?:^|\/)\.ia\/src\/systems\/[^/]+\/records\/canon\//;
+const CANON_LAWS = /^(?:\.ia\/distributions\/store\/[0-9a-f]{64}\/)?\.ia\/src\/systems\/[^/]+\/records\/canon\//;
 const underCanon = (node: Node): boolean => CANON_LAWS.test(posix(node.source.path));
 
 /**

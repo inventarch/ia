@@ -82,6 +82,8 @@ C21 delivered with the database view builder: report options accept prior non-pa
 
 The canon file rules (C12, A6 and C6, which read the checkout) enter through their own option, `canonFiles`, which is not filtered: a warning-only assessment passes, and its findings and its passing verdict both reach the report, so an advisory file law is seen and reads enforced. The `admission` filter above is unchanged.
 
+Canon kit detection (`isKitWorkspace`, read by C4, C5a, C6 and A6) is heuristic. A kit is the one system whose `records/plugin.ia` authors a product `@distribution`, or a `@distribution` under `.ia/src/systems/<n>/records/` that lists `@system` records, or lists only `@workspace` records while `<n>`'s `@system` declares no discriminators. A vocabulary system's `@workspace`-only distribution, such as the foundation's `workspace-system`, is not a kit. An unmigrated `ia init` 1.1.0 workspace (`.ia/src/systems/<n>/records/workspace.ia` plus a `@distribution` listing `[@workspace <n>]`, with a wordless system) cannot be told apart from a `@workspace`-only kit. Explicit kit designation in the language is pending.
+
 C22–C24 (the host projection renderers renderHostArtifacts and renderWorkspaceProjection, their ProjectionMembership input, the steward composition behind them and the IA-COMP-PROJECTION-INVALID refusal) were retired on 2026-10-09. The position packet and its claude and codex adapters replace them in @inventarch/runtime (runtime SPEC R19 and R20), and the CLI and tools/projections render through those. Compliance exports no projection API, no projection marker and no steward host table, and the ids C22–C24 are not reused.
 
 ## Trusted evaluator catalog, obligations and evidence (producer side)
