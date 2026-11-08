@@ -83,7 +83,7 @@ export function evaluate(graph: Graph, options: ReportOptions = {}): Report {
       nodes,
     ),
     ...validateAdoption(graph, options.adoptionEvaluators, options.coordinate),
-    ...canonAssessments(nodes, options.folders),
+    ...canonAssessments(nodes, options.folders, graph),
   ];
   assessments.push(...(options.admission?.filter((a) => a.outcome !== 'pass') ?? []));
   if (options.folders === undefined)

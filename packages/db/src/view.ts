@@ -735,7 +735,13 @@ function views(
         sourceDiagnostics,
         folders: folders.filter((f) => !blockedFolders.has(f.path)),
         // Canon file rules (C12, A6) read the checkout, so they enter evaluate beside the admission observations.
-        admission: [...observations, ...canonFileAssessments(input.root, [...graph.nodes.values()])],
+        admission: [
+          ...observations,
+          ...canonFileAssessments(input.root, [...graph.nodes.values()], {
+            graph,
+            ...(input.installed ? { installed: input.installed } : {}),
+          }),
+        ],
         ...(options.checks === 'structural' ? { checks: 'structural' as const } : {}),
       },
       unverified = evaluate(graph, evaluated),

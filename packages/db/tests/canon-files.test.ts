@@ -2,7 +2,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { isAbsolute, relative, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { canonSourceRoots, canonTeachingLinks, open } from '../src/index.js';
+import type { Node } from '@inventarch/graph';
+import { canonFileAssessments, canonSourceRoots, canonTeachingLinks, open, sourceRootScope } from '../src/index.js';
 import { put, workspace } from './workspace.js';
 
 const temporary: string[] = [];
@@ -82,6 +83,70 @@ describe('A6 source roots', () => {
   });
   it('A6 is inactive outside kits and knowledge repositories', () => {
     expect(canonSourceRoots(tree(nested), null)).toEqual([]);
+  });
+});
+
+describe('A6 separate checkouts', () => {
+  it('A6 does not enter a nested directory holding a .git file or directory', () => {
+    const root = tree({
+      '.ia/src/a.ia': '',
+      'wt/.git': 'gitdir: ../.git/worktrees/wt',
+      'wt/.ia/src/b.ia': '',
+      'clone/.git/HEAD': '',
+      'clone/.ia/src/b.ia': '',
+      'plain/.ia/src/b.ia': '',
+    });
+    expect(canonSourceRoots(root, 'kit')).toMatchObject([{ path: 'plain/.ia/src' }]);
+  });
+});
+
+describe('A6 scope through canonFileAssessments', () => {
+  const field = (key: string, text: string) => ({
+    key,
+    value: { kind: 'scalar', text },
+    span: { line: 1, endLine: 1 },
+  });
+  const node = (discriminator: string, identity: string, extra: object): Node =>
+    ({
+      discriminator,
+      identity,
+      name: identity,
+      edges: [],
+      sections: [],
+      source: { path: 'x.ia', line: 1 },
+      ...extra,
+    }) as unknown as Node;
+  const enforcing = [
+    node('law', 'law/a', {
+      edges: [{ predicate: 'enforce', direction: 'in', target: 'check/a' }],
+      sections: [{ name: 'governance', span: { line: 1, endLine: 1 }, fields: [field('severity', 'blocking')] }],
+    }),
+    node('check', 'check/a', {
+      sections: [{ name: 'check', span: { line: 1, endLine: 1 }, fields: [field('runs', 'CANON-SOURCE-ROOTS')] }],
+    }),
+  ];
+  const kit = node('distribution', 'distribution/kit', {
+    source: { path: '.ia/src/systems/kit-a/records/plugin.ia', line: 1 },
+    sections: [{ name: 'product', span: { line: 1, endLine: 1 }, fields: [] }],
+  });
+  const nested = { '.ia/src/a.ia': '', 'sub/.ia/src/b.ia': '' };
+  it('a kit is scope kit and the nested root is reported', () => {
+    const found = canonFileAssessments(tree(nested), [...enforcing, kit]);
+    expect(found.flatMap((a) => a.findings)).toMatchObject([
+      { code: CODE_ROOTS, severity: 'error', path: 'sub/.ia/src' },
+    ]);
+    expect(found.flatMap((a) => a.findings)[0]!.message).toContain('A kit');
+  });
+  it('a lock installing inventarch/ia-kb-kit is scope knowledge and the nested root is reported', () => {
+    const found = canonFileAssessments(tree(nested), enforcing, { installed: [{ id: 'inventarch/ia-kb-kit' }] });
+    expect(found.flatMap((a) => a.findings)).toMatchObject([{ code: CODE_ROOTS, path: 'sub/.ia/src' }]);
+    expect(found.flatMap((a) => a.findings)[0]!.message).toContain('knowledge repository');
+  });
+  it('neither a kit nor the knowledge kit leaves A6 inactive', () => {
+    expect(canonFileAssessments(tree(nested), enforcing, { installed: [{ id: 'inventarch/other' }] })).toMatchObject([
+      { check: 'CANON-SOURCE-ROOTS', findings: [] },
+    ]);
+    expect(sourceRootScope(enforcing, [])).toBeNull();
   });
 });
 

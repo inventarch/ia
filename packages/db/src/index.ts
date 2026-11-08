@@ -42,6 +42,7 @@ export {
   canonFileAssessments,
   canonSourceRoots,
   canonTeachingLinks,
+  sourceRootScope,
   teachingFiles,
   teachingLinkFindings,
 } from './canon/files.js';

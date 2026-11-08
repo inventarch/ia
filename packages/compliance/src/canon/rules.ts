@@ -1,4 +1,4 @@
-import type { Node } from '@inventarch/graph';
+import type { Graph, Node } from '@inventarch/graph';
 import type { Severity } from '@inventarch/language';
 import type { SystemFolder } from '../systems.js';
 import { assess } from '../types.js';
@@ -162,8 +162,13 @@ const RULES: readonly (readonly [string, Rule])[] = [
  * One built-in canon check as an assessment: null while no law enforces a check that runs `id`, else its findings at the
  * severity the law sets. `find` runs only when the check is active, so a rule that reads files reads none while inactive.
  */
-export function canonAssessment(nodes: readonly Node[], id: string, find: () => readonly Finding[]): Assessment | null {
-  const severity: Severity | null = canonSeverity(nodes, id);
+export function canonAssessment(
+  nodes: readonly Node[],
+  id: string,
+  find: () => readonly Finding[],
+  graph?: Graph,
+): Assessment | null {
+  const severity: Severity | null = canonSeverity(nodes, id, graph);
   return severity === null
     ? null
     : assess(
@@ -180,6 +185,7 @@ export function canonAssessment(nodes: readonly Node[], id: string, find: () => 
 export function canonAssessments(
   nodes: readonly Node[],
   folders: readonly SystemFolder[] | undefined,
+  graph?: Graph,
 ): readonly Assessment[] {
-  return RULES.flatMap(([id, rule]) => canonAssessment(nodes, id, () => rule(nodes, folders)) ?? []);
+  return RULES.flatMap(([id, rule]) => canonAssessment(nodes, id, () => rule(nodes, folders), graph) ?? []);
 }

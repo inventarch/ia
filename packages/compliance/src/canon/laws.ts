@@ -1,4 +1,4 @@
-import type { Node } from '@inventarch/graph';
+import type { Graph, Node } from '@inventarch/graph';
 import type { Severity } from '@inventarch/language';
 import { isBuiltinCheck } from '../check-ids.js';
 import { checkRunner, textField } from '../graph-checks.js';
@@ -22,31 +22,23 @@ const lawSeverity = (law: Node): LawSeverity => {
   return text === 'blocking' || text === 'advisory' ? text : 'informational';
 };
 
-type NodeEdge = Node['edges'][number];
 /**
- * The identity an edge points at. A record compiled without the pool carries `target: null` (the db view compiles each
- * source alone), so a reference is resolved here by identity, or by discriminator and name when exactly one node has them.
+ * The identities of the checks enforcing `law`. With the graph, only its resolved `enforce` edges count (from the check
+ * to the law); without one, the node edges' own targets, on either side.
  */
-function targetOf(nodes: readonly Node[], edge: NodeEdge): string | null {
-  if (edge.target !== null) return edge.target;
-  if (edge.reference.kind === 'identity') return edge.reference.identity;
-  const { discriminator, name } = edge.reference;
-  const named = nodes.filter((n) => n.discriminator === discriminator && n.name.toLowerCase() === name.toLowerCase());
-  return named.length === 1 ? named[0]!.identity : null;
-}
-
-/** The identities of the checks enforcing `law`, read from either side of the `enforce` edge. */
-function enforcingChecks(nodes: readonly Node[], law: Node): readonly string[] {
+function enforcingChecks(nodes: readonly Node[], law: Node, graph?: Graph): readonly string[] {
   const found = new Set<string>();
+  if (graph !== undefined) {
+    for (const edge of graph.edges)
+      if (edge.predicate === 'enforce' && edge.to === law.identity && edge.from !== null) found.add(edge.from);
+    return [...found].sort();
+  }
   for (const edge of law.edges)
-    if (edge.predicate === 'enforce' && edge.direction === 'in') {
-      const target = targetOf(nodes, edge);
-      if (target !== null) found.add(target);
-    }
+    if (edge.predicate === 'enforce' && edge.direction === 'in' && edge.target !== null) found.add(edge.target);
   for (const node of nodes)
     if (node.discriminator === 'check')
       for (const edge of node.edges)
-        if (edge.predicate === 'enforce' && edge.direction === 'out' && targetOf(nodes, edge) === law.identity)
+        if (edge.predicate === 'enforce' && edge.direction === 'out' && edge.target === law.identity)
           found.add(node.identity);
   return [...found].sort();
 }
@@ -61,13 +53,13 @@ function suspension(nodes: readonly Node[], law: Node): Node | undefined {
   );
 }
 
-export function lawStatuses(nodes: readonly Node[], verdicts: readonly Verdict[]): readonly LawStatus[] {
+export function lawStatuses(nodes: readonly Node[], verdicts: readonly Verdict[], graph?: Graph): readonly LawStatus[] {
   const byIdentity = new Map(nodes.map((node) => [node.identity, node]));
   const evaluated = new Set(verdicts.filter((v) => v.outcome !== 'not-evaluated').map((v) => v.check));
   return nodes
     .filter((node) => node.discriminator === 'law')
     .map((law): LawStatus => {
-      const checks = enforcingChecks(nodes, law),
+      const checks = enforcingChecks(nodes, law, graph),
         suspendedBy = suspension(nodes, law)?.identity ?? null,
         runners = checks.map((id) => {
           const check = byIdentity.get(id);
@@ -90,12 +82,12 @@ export function lawStatuses(nodes: readonly Node[], verdicts: readonly Verdict[]
  * The severity a built-in canon check reports at: the strongest of the laws enforcing a check that runs `checkId`.
  * Blocking gives error, advisory gives warning, and a suspended law gives warning. Null leaves the check inactive.
  */
-export function canonSeverity(nodes: readonly Node[], checkId: string): Severity | null {
+export function canonSeverity(nodes: readonly Node[], checkId: string, graph?: Graph): Severity | null {
   let strongest: LawSeverity = 'informational';
   let suspended = false;
   for (const law of nodes) {
     if (law.discriminator !== 'law') continue;
-    const enforces = enforcingChecks(nodes, law).some((id) => {
+    const enforces = enforcingChecks(nodes, law, graph).some((id) => {
       const check = nodes.find((node) => node.identity === id);
       return check !== undefined && checkRunner(check) === checkId;
     });

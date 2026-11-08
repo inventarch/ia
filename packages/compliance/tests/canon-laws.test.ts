@@ -16,7 +16,7 @@ const check = (name: string, runs: string) =>
   `@check ${name}\n  meaning\n    says "Canon check ${name}."\n    answers "What does canon check ${name} evaluate?"\n  check\n    runs ${runs}\n    scope "fixture"\n`;
 const improvement = (name: string, target: string, status: string) =>
   `@improvement ${name}\n  meaning\n    says "Improvement ${name}."\n    answers "What does improvement ${name} propose?"\n  proposal\n    target ${target}\n    system governance-system\n    path "x"\n    before "a"\n    candidate "b"\n    digest "d"\n    applies "now"\n    verification "v"\n    reversal "r"\n  review\n    status ${status}\n  publication\n    status draft\n  relationships\n    cites @law sample-rule\n`;
-function build(...texts: string[]) {
+function graphOf(...texts: string[]) {
   const sources = texts.map((text, i) => ({ path: `canon-${i}.ia`, text: `#! ia 1.0\n${text}`, location }));
   // Two passes, as native.ts does: the second resolves edges between the new records.
   const pass = (pool: typeof records) =>
@@ -36,8 +36,9 @@ function build(...texts: string[]) {
     kernelDigest: KERNEL_DIGEST,
     location: '',
   });
-  return [...graph.nodes.values()];
+  return graph;
 }
+const build = (...texts: string[]) => [...graphOf(...texts).nodes.values()];
 const verdict = (id: string, outcome: Verdict['outcome']): Verdict =>
   ({ check: id, scope: 'graph', outcome, findings: [], revision: 'r' }) as Verdict;
 const only = (nodes: ReturnType<typeof build>, name: string) =>
@@ -101,11 +102,27 @@ describe('canon law status and severity', () => {
   });
 });
 
-describe('canon severity over edges compiled without the pool', () => {
-  it('resolves a reference whose target is null by discriminator and name', () => {
-    const nodes = build(law('hard-law', 'blocking', enforcedBy('hard-runner')), check('hard-runner', 'COMP-VARIANT'));
-    const unresolved = nodes.map((node) => ({ ...node, edges: node.edges.map((edge) => ({ ...edge, target: null })) }));
-    expect(canonSeverity(unresolved, 'COMP-VARIANT')).toBe('error');
-    expect(canonSeverity(unresolved, 'COMP-OTHER')).toBeNull();
+describe("canon severity over the graph's resolved edges", () => {
+  const texts = [law('hard-law', 'blocking', enforcedBy('hard-runner')), check('hard-runner', 'COMP-VARIANT')];
+  const unresolved = (nodes: ReturnType<typeof build>) =>
+    nodes.map((node) => ({ ...node, edges: node.edges.map((edge) => ({ ...edge, target: null })) }));
+  it('uses the graph edges when nodes carry no targets, as in the db view', () => {
+    const graph = graphOf(...texts);
+    const nodes = unresolved([...graph.nodes.values()]);
+    expect(canonSeverity(nodes, 'COMP-VARIANT')).toBeNull();
+    expect(canonSeverity(nodes, 'COMP-VARIANT', graph)).toBe('error');
+    expect(lawStatuses(nodes, [], graph).find((s) => s.identity.endsWith('/hard-law'))!.checks).toHaveLength(1);
+  });
+  it('a same-named check in another system, which the graph does not resolve to, changes nothing', () => {
+    const graph = graphOf(...texts);
+    const [decoy] = build(check('hard-runner', 'COMP-OTHER')).filter(
+      (n) => n.discriminator === 'check' && n.name === 'hard-runner',
+    );
+    const nodes = [
+      ...unresolved([...graph.nodes.values()]),
+      { ...decoy!, identity: 'other-system/check/gate/hard-runner' },
+    ];
+    expect(canonSeverity(nodes, 'COMP-VARIANT', graph)).toBe('error');
+    expect(canonSeverity(nodes, 'COMP-OTHER', graph)).toBeNull();
   });
 });

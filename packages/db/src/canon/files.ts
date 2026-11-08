@@ -3,7 +3,7 @@ import type { Dirent } from 'node:fs';
 import { posix, resolve } from 'node:path';
 import { canonAssessment, isKitWorkspace } from '@inventarch/compliance';
 import type { Assessment, Finding } from '@inventarch/compliance';
-import type { Node } from '@inventarch/graph';
+import type { Graph, Node } from '@inventarch/graph';
 import { localTarget, parseMarkdown } from './markdown.js';
 
 /** The directories no canon file walk enters. */
@@ -133,8 +133,10 @@ function nestedSources(root: string): readonly string[] {
       if (!entry.isDirectory() || SKIPPED.has(entry.name)) continue;
       const path = `${here}${entry.name}`;
       if (RUNTIME_STATE.has(path)) continue;
+      const children = entries(resolve(root, path));
+      // A `.git` entry (directory, or the file a worktree has) is the boundary of a separate checkout.
+      if (children.some((child) => child.name === '.git')) continue;
       if (entry.name === '.ia') {
-        const children = entries(resolve(root, path));
         if (
           path !== '.ia' &&
           children.some((child) => child.isDirectory() && child.name === 'src') &&
@@ -166,39 +168,42 @@ export function canonSourceRoots(root: string, scope: 'kit' | 'knowledge' | null
   );
 }
 
-/** Whether `<root>/.ia/distributions.lock.json` pins the knowledge kit. */
-function pinsKnowledgeKit(root: string): boolean {
-  try {
-    const pending: unknown[] = [JSON.parse(readFileSync(resolve(root, '.ia/distributions.lock.json'), 'utf8'))];
-    for (let value = pending.pop(); value !== undefined; value = pending.pop()) {
-      if (Array.isArray(value)) pending.push(...value);
-      else if (typeof value === 'object' && value !== null) {
-        const record = value as Record<string, unknown>;
-        if (record['id'] === KB_KIT) return true;
-        pending.push(...Object.values(record));
-      }
-    }
-  } catch {
-    // No readable lock pins nothing.
-  }
-  return false;
+export interface CanonFileOptions {
+  /** The Markdown documents C12 reads (default: every `.md` under `<root>/.ia/src`). */
+  readonly files?: readonly string[];
+  /** The graph whose resolved `enforce` edges decide which laws are enforced. */
+  readonly graph?: Graph;
+  /** The packages the lock installs, as the db reader returns them; one with the knowledge kit's id sets scope 'knowledge'. */
+  readonly installed?: readonly { readonly id: string }[];
 }
 
-/**
- * The file-based canon rules C12 and A6 as assessments, each active only when a law enforces a check that runs it.
- * `files` are the Markdown documents C12 reads (default: every `.md` under `<root>/.ia/src`).
- */
+/** A6's scope: a kit, else a knowledge repository (the lock installs the knowledge kit), else none. */
+export function sourceRootScope(
+  nodes: readonly Node[],
+  installed: readonly { readonly id: string }[] = [],
+): 'kit' | 'knowledge' | null {
+  return isKitWorkspace(nodes) ? 'kit' : installed.some((p) => p.id === KB_KIT) ? 'knowledge' : null;
+}
+
+/** The file-based canon rules C12 and A6 as assessments, each active only when a law enforces a check that runs it. */
 export function canonFileAssessments(
   root: string,
   nodes: readonly Node[],
-  files?: readonly string[],
+  options: CanonFileOptions = {},
 ): readonly Assessment[] {
-  const scope = (): 'kit' | 'knowledge' | null =>
-    isKitWorkspace(nodes) ? 'kit' : pinsKnowledgeKit(root) ? 'knowledge' : null;
+  const { files, graph, installed } = options;
   return [
-    canonAssessment(nodes, 'CANON-TEACHING-LINKS', () =>
-      canonTeachingLinks(root, files ?? teachingFiles(root), new Set()),
+    canonAssessment(
+      nodes,
+      'CANON-TEACHING-LINKS',
+      () => canonTeachingLinks(root, files ?? teachingFiles(root), new Set()),
+      graph,
     ),
-    canonAssessment(nodes, 'CANON-SOURCE-ROOTS', () => canonSourceRoots(root, scope())),
+    canonAssessment(
+      nodes,
+      'CANON-SOURCE-ROOTS',
+      () => canonSourceRoots(root, sourceRootScope(nodes, installed)),
+      graph,
+    ),
   ].flatMap((assessment) => assessment ?? []);
 }
