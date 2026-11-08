@@ -24,6 +24,18 @@
   relationships
     cites @agent public-governance-system-steward
 
+@convention canon-split-costs
+  meaning
+    says "A review of whether to split a system states the expected costs of both splitting and keeping the system before it chooses, or says they are unknown."
+    answers "What must a system split review state before it chooses?"
+  governance
+    severity advisory
+    requires "Before choosing in a split review, state the expected costs of splitting and of keeping the system, or say they are unknown."
+  subject
+    subject-word system
+  relationships
+    cites @agent public-governance-system-steward
+
 @convention canon-split-ask
   meaning
     says "When the agent is unsure whether a system should split, it surfaces the question and asks the person."

@@ -81,6 +81,8 @@ const PRINCIPLES = [
 ];
 const CONVENTIONS = [
   'canon-ask-before-boundary',
+  'canon-boundary-at-distribution',
+  'canon-boundary-at-system',
   'canon-boundary-authority-order',
   'canon-boundary-independence',
   'canon-boundary-made-by-many',
@@ -93,6 +95,7 @@ const CONVENTIONS = [
   'canon-one-workspace-per-root',
   'canon-rule-suspension',
   'canon-split-ask',
+  'canon-split-costs',
   'canon-split-on-fact',
   'canon-split-triggers',
   'canon-steward-definition-approval',

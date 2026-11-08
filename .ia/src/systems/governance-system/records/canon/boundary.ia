@@ -6,11 +6,39 @@
     answers "In what order are the boundary questions asked, and which boundary does each yes decide?"
   governance
     severity advisory
-    requires "Ask the eight boundary questions in order, stop at the first yes, record the evidence for each answer, and treat the verdict as provisional while an earlier answer is unknown."
+    requires "Ask the eight boundary questions in order, stop at the first yes, record the evidence for each answer, and treat the verdict as provisional while an earlier answer is unknown; do not skip it merely to reach a preferred category."
   subject
     subject-word workspace
   relationships
     cites @agent public-workspace-system-steward
+
+@convention canon-boundary-at-distribution
+  meaning
+    says "Before creating a kit or distribution record, the agent applies the boundary order (canon-boundary-order) and asks before creating it on an unknown or provisional answer (canon-ask-before-boundary)."
+    answers "Which boundary rules apply before a kit or distribution record is created?"
+  governance
+    severity advisory
+    requires "Before creating a kit or distribution record, apply canon-boundary-order and canon-ask-before-boundary."
+  subject
+    subject-word distribution
+  relationships
+    cites @convention canon-boundary-order
+    cites @convention canon-ask-before-boundary
+    cites @agent public-workspace-system-steward
+
+@convention canon-boundary-at-system
+  meaning
+    says "Before creating a system record, the agent applies the boundary order (canon-boundary-order) and asks before creating it on an unknown or provisional answer (canon-ask-before-boundary)."
+    answers "Which boundary rules apply before a system record is created?"
+  governance
+    severity advisory
+    requires "Before creating a system record, apply canon-boundary-order and canon-ask-before-boundary."
+  subject
+    subject-word system
+  relationships
+    cites @convention canon-boundary-order
+    cites @convention canon-ask-before-boundary
+    cites @agent public-governance-system-steward
 
 @convention canon-boundary-made-by-many
   meaning

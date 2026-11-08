@@ -1,13 +1,14 @@
 import { createHash } from 'node:crypto';
-import { cpSync, readFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { describe, expect, it } from 'vitest';
-import { readInputs } from '@inventarch/db';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { open, readInputs } from '@inventarch/db';
 import type { Handle } from '@inventarch/db';
 import { stableSerialize } from '@inventarch/graph';
 import { normalizeScopeKey, positionBody, resolveScopeKey } from '../src/index.js';
 import type { PositionBody, ScopeKey } from '../src/index.js';
-import { database, packetFixture, put, workspace } from './workspace.js';
+import { packetFixture, put } from './workspace.js';
 
 // The goal-1 scenario set, offline: a workspace pinning this repository's language (its floor and systems, the canon
 // records with them) receives the canon by subject word (R17) at a seat of each boundary word.
@@ -19,9 +20,12 @@ const language = resolve(import.meta.dirname, '../../../.ia/src'),
 const DISTRIBUTION =
   '#! ia 1.0\n\n@distribution demo-kit\n  meaning\n    says "The demo kit\'s release."\n    answers "Which records does the demo kit release?"\n  distribution\n    records [@workspace demo]\n';
 
-/** A fresh init adopting this repository's floor and systems at band 90 from `vendor/language`, pinned by revision. */
+/**
+ * A fresh init adopting this repository's floor and systems at band 90 from `vendor/language`, pinned by revision, in a
+ * temporary root of its own: the tests only read, so one fixture serves them all, outside the per-test helper cleanup.
+ */
 function pinned(): string {
-  const root = workspace(null),
+  const root = mkdtempSync(resolve(tmpdir(), 'ia-canon-delivery-')),
     vendor = 'vendor/language';
   for (const part of ['floor', 'systems'])
     cpSync(resolve(language, part), resolve(root, vendor, '.ia/src', part), {
@@ -41,24 +45,28 @@ function pinned(): string {
   put(root, '.ia/src/releases/demo-kit.ia', DISTRIBUTION);
   return root;
 }
-/** The applies-by-word identities at `seat` alone: no hop and no budget, so only the seat's own word is answered. */
-const appliesAt = (db: Handle, seat: string): readonly string[] => {
+/** The applies-by-word entries at `seat` alone: no hop and no budget, so only the seat's own word is answered. */
+const entriesAt = (db: Handle, seat: string): PositionBody['appliesByWord'] => {
   const within = db.resolveScope().token,
-    key: Partial<ScopeKey> = { seat, depth: 0, budget: 0 },
-    body: PositionBody = positionBody(db, within, resolveScopeKey(db, within, normalizeScopeKey(key)));
-  return body.appliesByWord.map((entry) => entry.identity);
+    key: Partial<ScopeKey> = { seat, depth: 0, budget: 0 };
+  return positionBody(db, within, resolveScopeKey(db, within, normalizeScopeKey(key))).appliesByWord;
 };
 
 describe('canon delivery by subject word', () => {
-  /** A fresh pinned workspace, admitted with no error. */
-  const open = (): Handle => {
-    const db = database(pinned());
+  let root: string, db: Handle;
+  const appliesAt = (seat: string): readonly string[] => entriesAt(db, seat).map((entry) => entry.identity);
+  beforeAll(() => {
+    root = pinned();
+    db = open(root, { cache: false });
     expect(db.report.findings.filter((finding) => finding.severity === 'error')).toEqual([]);
-    return db;
-  };
+  }, 30_000);
+  afterAll(() => {
+    db?.close();
+    if (root !== undefined) rmSync(root, { recursive: true, force: true });
+  });
 
   it('a seat touching @workspace receives canon-boundary-order and canon-ask-before-boundary', () => {
-    const applies = appliesAt(open(), 'workspace-system/definition/workspace/demo');
+    const applies = appliesAt('workspace-system/definition/workspace/demo');
     expect(applies).toEqual(
       expect.arrayContaining([
         convention('canon-boundary-order'),
@@ -77,9 +85,18 @@ describe('canon delivery by subject word', () => {
   });
 
   it('a seat touching @distribution receives the kit boundary rows', () => {
-    const applies = appliesAt(open(), 'workspace-system/definition/distribution/demo-kit');
+    const seat = 'workspace-system/definition/distribution/demo-kit',
+      entries = entriesAt(db, seat),
+      applies = entries.map((entry) => entry.identity);
+    // The boundary order reaches a kit seat through its pointer convention, a field match on the seat's word.
+    expect(entries.find((entry) => entry.identity === convention('canon-boundary-at-distribution'))?.via).toEqual({
+      by: 'subject',
+      label: 'field match, not a row',
+      matches: [{ field: 'subject.subject-word', value: 'distribution', record: seat }],
+    });
     expect(applies).toEqual(
       expect.arrayContaining([
+        convention('canon-boundary-at-distribution'),
         convention('canon-boundary-authority-order'),
         principle('canon-distribution-release-form'),
         principle('canon-kits-mint-no-words'),
@@ -90,12 +107,14 @@ describe('canon delivery by subject word', () => {
   });
 
   it('a seat touching @system receives the split conventions', () => {
-    const applies = appliesAt(open(), 'floor/definition/system/workspace-system');
+    const applies = appliesAt('floor/definition/system/workspace-system');
     expect(applies).toEqual(
       expect.arrayContaining([
         convention('canon-split-triggers'),
         convention('canon-split-on-fact'),
         convention('canon-split-ask'),
+        convention('canon-split-costs'),
+        convention('canon-boundary-at-system'),
         principle('canon-one-registration-owner'),
       ]),
     );
@@ -103,7 +122,7 @@ describe('canon delivery by subject word', () => {
   });
 
   it('a seat touching @mandate receives canon-steward-authority', () => {
-    const applies = appliesAt(open(), 'agent-system/policy/mandate/demo-mandate');
+    const applies = appliesAt('agent-system/policy/mandate/demo-mandate');
     expect(applies).toEqual(
       expect.arrayContaining([
         law('canon-steward-authority'),

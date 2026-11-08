@@ -2,7 +2,7 @@
 
 @law canon-steward-authority
   meaning
-    says "The steward authority policy lives in the language, and every steward inherits it. A steward accepts wording changes that leave the meaning of a canon rule on its words unchanged, and may suspend a disputed blocking rule pending a decision. It does not accept a change of meaning, the adding or removing of a rule, or a move across the public/proprietary line, which the owner accepts; and no steward approves a change that widens steward authority. Every steward receives the policy through its stewardship @mandate: the law applies by subject word to every mandate in a workspace whose language release carries it. Private stewards inherit the public policy, and a private improvement reaches it only as a proposal."
+    says "The steward authority policy lives in the language, and every steward inherits it. A steward accepts wording changes that leave the meaning of a canon rule on its words unchanged, and may suspend a disputed blocking rule on its words pending a decision. It does not accept a change of meaning, the adding or removing of a rule, or a move across the public/proprietary line, which the owner accepts; and no steward approves a change that widens steward authority. Every steward receives the policy through its stewardship @mandate: the law applies by subject word to every mandate in a workspace whose language release carries it. Private stewards inherit the public policy, and a private improvement reaches it only as a proposal."
     answers "What may a steward do and not do, who approves changes to that policy, and how does every steward receive it?"
   governance
     severity advisory
@@ -26,11 +26,11 @@
 
 @convention canon-rule-suspension
   meaning
-    says "A steward may suspend a disputed blocking rule pending a decision. The suspension is an @improvement whose proposal.target is the rule, with review.status suspended, review.reviewer the actor who authorised it, and cites @decision the pending decision. While it lasts, the rule's evaluator reports suspended instead of blocking."
+    says "The steward of the word a blocking rule constrains may suspend that rule, when disputed, pending a decision. The suspension is an @improvement whose proposal.target is the rule, with review.status suspended, review.reviewer the actor who authorised it, and cites @decision the pending decision. While it lasts, the rule's evaluator reports suspended instead of blocking."
     answers "How is a disputed blocking rule suspended, and what records the suspension?"
   governance
     severity advisory
-    requires "Record a suspension as an @improvement targeting the rule, with review.status suspended, review.reviewer naming the actor, and a cites @decision edge to the pending decision."
+    requires "Suspend only a disputed blocking rule on your own words, and record the suspension as an @improvement targeting the rule, with review.status suspended, review.reviewer naming the actor, and a cites @decision edge to the pending decision."
   subject
     subject-word law
   relationships
@@ -62,11 +62,11 @@
 
 @convention canon-steward-local-variation
   meaning
-    says "A workspace may add steward permissions where its owner grants them. It never removes or lifts an inherited prohibition."
+    says "A workspace's stewards may narrow the inherited steward authority policy, and the workspace may also add steward permissions where its owner grants them. It never removes or lifts an inherited prohibition."
     answers "How far may a workspace vary the inherited steward authority policy?"
   governance
     severity advisory
-    requires "Add a steward permission only where the workspace's owner grants it, and never remove or lift an inherited prohibition."
+    requires "Narrow the inherited steward authority policy freely, add a steward permission only where the workspace's owner grants it, and never remove or lift an inherited prohibition."
   subject
     subject-word mandate
   relationships
