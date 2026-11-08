@@ -1255,6 +1255,7 @@
         "tests/refusal-next.test.ts",
         "tests/tracked-concurrency.test.ts",
         "tests/validate-checks.test.ts",
+        "tests/validate-laws.test.ts",
         "tests/workspace-verbs.test.ts",
         "tests/workspaces.test.ts"
       ],

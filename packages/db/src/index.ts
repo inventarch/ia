@@ -5,6 +5,7 @@ export { caseFold, linked, pathKey, sameFile, unaliased, within } from './paths.
 export type { AdoptedBinding, AdoptedSource, FloorSource, InputOptions, InputSnapshot } from './inputs.js';
 export { readWorkspaceBytes } from './inputs.js';
 export { open, Handle } from './handle.js';
+export type { LawStatus } from '@inventarch/compliance';
 export type {
   OpenOptions,
   ReadOptions,
