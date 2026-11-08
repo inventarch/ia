@@ -292,7 +292,21 @@ describe("this repository's participant pair", () => {
   const participantFile = '.ia/src/participant.ia',
     participant = 'agent-system/binding/agent/language-participant',
     mandate = 'agent-system/policy/mandate/language-mandate',
-    language = 'workspace-system/definition/workspace/language-workspace';
+    language = 'workspace-system/definition/workspace/language-workspace',
+    stewardships = [
+      'agent-system',
+      'agent-composition-system',
+      'authoring-system',
+      'compliance-system',
+      'governance-system',
+      'hook-authoring-system',
+      'learning-system',
+      'session-system',
+      'template-system',
+      'work-system',
+      'workspace-system',
+    ].map((system) => `agent-system/policy/mandate/public-${system}-stewardship`),
+    allMandates = [mandate, ...stewardships].sort();
   const own = readNative(root),
     corpus = checkNative(own.inputs, own.folders);
   it('admits from the unpacked participant file as the one band-100 @mandate under .ia/src, minting no word', () => {
@@ -305,8 +319,11 @@ describe("this repository's participant pair", () => {
       mandate,
     ]);
     expect(
-      corpus.records.filter((r) => r.discriminator === 'mandate').map((r) => [r.identity, r.placement.band]),
-    ).toEqual([[mandate, 100]]);
+      corpus.records
+        .filter((r) => r.discriminator === 'mandate')
+        .map((r) => [r.identity, r.placement.band] as const)
+        .sort((a, b) => a[0].localeCompare(b[0])),
+    ).toEqual(allMandates.map((identity) => [identity, 100]));
     // Outside every system folder the file joins no system's assessment and registers nothing.
     const without = compileNative(own.inputs.filter((input) => input.path !== participantFile));
     expect([...corpus.registry.registrations.keys()]).toEqual([...without.registry.registrations.keys()]);
@@ -327,23 +344,39 @@ describe("this repository's participant pair", () => {
         db
           .records()
           .filter((r) => r.discriminator === 'mandate')
-          .map((r) => r.identity),
-      ).toEqual([mandate]);
+          .map((r) => r.identity)
+          .sort(),
+      ).toEqual(allMandates);
       const within = db.resolveScope().token;
       // `covers [".ia/src/"]`: the trailing `/` selects the subtree (graph G06c), so a system folder's file is claimed.
-      expect(
-        position(db, within, { seat: { path: '.ia/src/systems/work-system/system.ia' } }).body.mandates.map((m) => [
-          m.identity,
-          m.band,
-          m.via,
-        ]),
-      ).toEqual([[mandate, 100, { by: 'claim', matches: [{ field: 'authority.covers', selection: '.ia/src/' }] }]]);
+      const claims = position(db, within, { seat: { path: '.ia/src/systems/work-system/system.ia' } }).body.mandates.map(
+        (m) => [m.identity, m.band, m.via] as const,
+      );
+      expect(claims.find((c) => c[0] === mandate)).toEqual([
+        mandate,
+        100,
+        { by: 'claim', matches: [{ field: 'authority.covers', selection: '.ia/src/' }] },
+      ]);
+      // The system's own steward additionally claims its folder; the other stewardships reach the seat only by scope.
+      expect(claims.map((c) => c[0]).sort()).toEqual(allMandates);
+      expect(claims.find((c) => c[0] === 'agent-system/policy/mandate/public-work-system-stewardship')?.[2]).toEqual({
+        by: 'claim',
+        matches: [{ field: 'authority.covers', selection: '.ia/src/systems/work-system/' }],
+      });
       expect(db.resolveSeat('README.md').claimants.map((c) => c.identity)).not.toContain(mandate);
       const k0 = position(db, within).body;
       expect(k0.seat).toEqual({ kind: 'workspace', identity: language });
-      expect(k0.mandates.map((m) => [m.identity, m.band, m.via])).toEqual([
-        [mandate, 100, { by: 'field', from: language, field: 'authority.scope', direction: 'in' }],
-      ]);
+      expect(
+        k0.mandates
+          .map((m) => [m.identity, m.band, m.via] as const)
+          .sort((a, b) => a[0].localeCompare(b[0])),
+      ).toEqual(
+        allMandates.map((identity) => [
+          identity,
+          100,
+          { by: 'field', from: language, field: 'authority.scope', direction: 'in' },
+        ]),
+      );
     } finally {
       db.close();
     }
