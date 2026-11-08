@@ -1,0 +1,48 @@
+#! ia 1.0
+
+@contract ia-canon-work
+  version "0.1.0"
+  meaning
+    says "What the public IA canon requires of work-system's canon law A14. Its check names the built-in evaluator, and each case names the test that exercises it. The law is not enforced by a check yet, so it reports pending and no evaluator runs."
+    answers "Which requirement does the public IA canon state for work-record placement, and which evaluator and tests cover it?"
+  invariants
+    REQ-CANON-A14 "No plan, milestone, task, decision or spec sits inside a vocabulary system's folder under .ia/src/systems/ (law canon-a14-work-placement)."
+  relationships
+    governs @law canon-a14-work-placement
+    cites @agent public-work-system-steward
+
+@check canon-a14
+  meaning
+    says "Names the built-in evaluator for the work-placement requirement: CANON-WORK-PLACEMENT reports work records inside a vocabulary system's folder."
+    answers "Which evaluator checks where work records are placed?"
+  check
+    runs CANON-WORK-PLACEMENT
+    scope "graph"
+  relationships
+    enforces @contract ia-canon-work#REQ-CANON-A14
+
+@case canon-a14-success
+  meaning
+    says "A spec authored outside every system folder is not reported."
+    answers "Which positive case keeps workspace-authored work records admitted?"
+  scenario
+    kind success
+    given "A spec authored outside .ia/src/systems/."
+    request "Run the CANON-WORK-PLACEMENT rule."
+    expected "No IA-COMP-CANON-WORK-PLACEMENT finding."
+    evaluator "packages/compliance/tests/canon-rules.test.ts | a spec outside system folders is not reported"
+  relationships
+    implements @contract ia-canon-work#REQ-CANON-A14
+
+@case canon-a14-refusal
+  meaning
+    says "A spec inside a vocabulary system's folder is reported, as a warning while its law is advisory."
+    answers "Which negative case reports a work record inside a system folder?"
+  scenario
+    kind refusal
+    given "A spec authored under .ia/src/systems/, with an advisory law enforced by a check running CANON-WORK-PLACEMENT."
+    request "Run the CANON-WORK-PLACEMENT rule."
+    expected "IA-COMP-CANON-WORK-PLACEMENT is reported as a warning."
+    evaluator "packages/compliance/tests/canon-rules.test.ts | A14 reports as warning when its law is advisory"
+  relationships
+    implements @contract ia-canon-work#REQ-CANON-A14

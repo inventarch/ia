@@ -1,0 +1,13 @@
+#! ia 1.0
+
+@law canon-a14-work-placement
+  meaning
+    says "Work records (plans, milestones, tasks, decisions and specs) never sit inside a vocabulary system's folder."
+    answers "Where may plans, milestones, tasks, decisions and specs be authored relative to vocabulary system folders?"
+  governance
+    severity advisory
+    requires "Author plans, milestones, tasks, decisions and specs outside every vocabulary system's folder under .ia/src/systems/."
+  subject
+    subject-word spec
+  relationships
+    cites @agent public-work-system-steward

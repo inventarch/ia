@@ -219,8 +219,8 @@ describe('E5 mandate narrowing', () => {
 });
 
 const CANON_DIR = '.ia/src/systems/governance-system/records/canon';
-const subjectRule = (kind: 'law' | 'convention', name: string, severity: string, cites?: string) =>
-  `@${kind} ${name}\n  meaning\n    says "Rule ${name}."\n    answers "What does ${name} require?"\n  governance\n    severity ${severity}\n  subject\n    subject-word widget\n${cites === undefined ? '' : `  relationships\n    cites @law ${cites}\n`}`;
+const subjectRule = (kind: 'law' | 'convention', name: string, severity: string, cites?: string, word = 'widget') =>
+  `@${kind} ${name}\n  meaning\n    says "Rule ${name}."\n    answers "What does ${name} require?"\n  governance\n    severity ${severity}\n  subject\n    subject-word ${word}\n${cites === undefined ? '' : `  relationships\n    cites @law ${cites}\n`}`;
 const tightenRules = [
   ['law.ia', lawFor('tighten', 'blocking')],
   ['check.ia', checkFor('tighten', 'CANON-LOCAL-TIGHTEN')],
@@ -252,5 +252,24 @@ describe('E4 local tightening', () => {
     ]);
     expect(ruleFindings(graph, TIGHTEN)).toEqual([]);
     expect(ruleFindings(graphOf(...tightenRules, canon), TIGHTEN)).toEqual([]);
+  });
+  it('E4 treats a law under any system records/canon folder as canon', () => {
+    const work = [
+      '.ia/src/systems/work-system/records/canon/laws.ia',
+      subjectRule('law', 'spec-canon', 'advisory', undefined, 'spec'),
+    ] as const;
+    const uncited = graphOf(...tightenRules, work, [
+      'local.ia',
+      subjectRule('convention', 'spec-local', 'advisory', undefined, 'spec'),
+    ]);
+    const found = ruleFindings(uncited, TIGHTEN);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ path: 'local.ia' });
+    expect(found[0]!.message).toContain('spec-canon');
+    const cited = graphOf(...tightenRules, work, [
+      'local.ia',
+      subjectRule('convention', 'spec-local', 'advisory', 'spec-canon', 'spec'),
+    ]);
+    expect(ruleFindings(cited, TIGHTEN)).toEqual([]);
   });
 });

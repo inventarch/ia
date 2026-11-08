@@ -4,7 +4,7 @@
     "tag": "v3.6.0",
     "commit": "ec5dec6d8b37ff15e0e5d2fa625d8de4b2838cc2"
   },
-  "notesSha256": "4de5684ae8597c6f7f5ec32e68c77e2fb420093616d6f3ce6a20ff13da3bb10a",
+  "notesSha256": "68891d4276b64e43dc7baa822c8e67f1dc0257df80eae466839544e65c99a431",
   "archives": [
     {
       "id": "inventarch/agent-composition-system",
@@ -32,8 +32,8 @@
     {
       "id": "inventarch/authoring-system",
       "version": "3.2.1",
-      "archive": "0034e339389c67b8b445cc88da7ebfc6af121a3cc75961c95861cf0d78dd7bfb",
-      "manifest": "0b780b6bcadccbf6aca5560cfebb9604d4e3dcbb7c950ba03a70c8771e342b12",
+      "archive": "44a9cdc7a49d8c44a3b78a41964d928ae3e1b0a3591642200c330cf914553c9d",
+      "manifest": "7c4cfead2a1aad10c2ef90f0714b2605aea1fede8cb66fb079f68efedef169fb",
       "dependencies": [
         "inventarch/agent-composition-system",
         "inventarch/agent-system",
@@ -60,12 +60,11 @@
     {
       "id": "inventarch/governance-system",
       "version": "3.2.0",
-      "archive": "2f1eff277c831ad97e84a034eaed69489bbe5a27198c8e676ba3cb679edb2b02",
-      "manifest": "052468ea7063565c9740dedad32f3855f4710b8c11999530652e6f6e0485ab28",
+      "archive": "33fb063025c67e8a90a2a738abe298ba80ba5e5b294c6cd033442b385c7d042e",
+      "manifest": "4257ab6920250c1f884bd3ee78655ec3559644aabfc7461476540318abe49556",
       "dependencies": [
         "inventarch/agent-system",
         "inventarch/compliance-system",
-        "inventarch/work-system",
         "inventarch/workspace-system"
       ]
     },
@@ -85,8 +84,8 @@
     {
       "id": "inventarch/language",
       "version": "3.2.1",
-      "archive": "ab2f5450fc73f99c2e4e1c3e8a0b2ccb38d2547f5f3f0eba323d0b8a8084aa5d",
-      "manifest": "4e28f43ae76d229b8ecf4deb6e657ca7eb1129eb4f53c07933dd2ac760dd52a5",
+      "archive": "9a0b31e850c16e26e862832f6a7d389a058beaab6b40b7d7946c476c10946eca",
+      "manifest": "72adc748e04fa2ed030e426f36d8e3b981841d13ed8f8b78483fa630529245a3",
       "dependencies": [
         "inventarch/agent-composition-system",
         "inventarch/agent-system",
@@ -140,9 +139,9 @@
     },
     {
       "id": "inventarch/work-system",
-      "version": "3.2.1",
-      "archive": "42d00c669a9dff9cc6e2f7b85169c71069c60cbf66e0aa4ef04b107e02b2f1c1",
-      "manifest": "405c8cc05fc0906e71102d152838cf8c0f453681fca44969a7b404366416ce34",
+      "version": "3.3.0",
+      "archive": "093eead6ddd5658a1dd7690ab43fa1ceb930082b7a70e4908066ecbc58ccb2c6",
+      "manifest": "4490154f7f33ef172b9a3320b8ffb4e0829888b645e3183160151d6db235ad58",
       "dependencies": [
         "inventarch/agent-system",
         "inventarch/compliance-system",

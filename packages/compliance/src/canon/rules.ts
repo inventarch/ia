@@ -223,8 +223,9 @@ export function canonMandateNarrowing(nodes: readonly Node[], graph?: Graph): re
   return found;
 }
 
-const CANON_LAWS = '.ia/src/systems/governance-system/records/canon/';
-const underCanon = (node: Node): boolean => posix(node.source.path).startsWith(CANON_LAWS);
+/** A canon record: one authored under `.ia/src/systems/<system>/records/canon/`, in the folder of the system owning its word. */
+const CANON_LAWS = /^\.ia\/src\/systems\/[^/]+\/records\/canon\//;
+const underCanon = (node: Node): boolean => CANON_LAWS.test(posix(node.source.path));
 
 /** E4: a local law or convention on a canon law's subject word cites that law and is at least as strong. */
 export function canonLocalTightening(nodes: readonly Node[], graph?: Graph): readonly Finding[] {

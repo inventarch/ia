@@ -18,7 +18,7 @@
     {
       "id": "inventarch/governance-system",
       "bump": "minor",
-      "summary": "Add the public IA canon as pending guidance: nine advisory `law` records (A6, A14, C4, C5a, C6, C12, D9, E4 and E5), the `principle` records A13 and C5b, and the `contract` ia-canon with one `check` naming the built-in evaluator for each evaluated requirement and a success and a refusal `case` for each. No canon `law` is enforced by a `check` yet, so every canon `law` reports pending and no canon rule runs; D9's evaluator is deferred."
+      "summary": "Add the public IA canon owned by `governance-system` as pending guidance: the advisory `law` records A6, C4, C5a, C6, C12, D9, E4 and E5, the `principle` records A13 and C5b, and the `contract` ia-canon with one `check` naming the built-in evaluator for each evaluated requirement and its success and refusal `case` records. No canon `law` is enforced by a `check` yet, so each reports pending and no canon rule runs; D9's evaluator is deferred."
     },
     {
       "id": "inventarch/hook-authoring-system",
@@ -47,8 +47,8 @@
     },
     {
       "id": "inventarch/work-system",
-      "bump": "patch",
-      "summary": "Align exact native dependencies on the changed `governance-system`."
+      "bump": "minor",
+      "summary": "Add the public IA canon `law` A14 (work records never sit inside a vocabulary system's folder) as pending, advisory guidance on the `spec` word, with the `contract` ia-canon-work, a `check` naming its built-in evaluator and its success and refusal `case` records. No `check` enforces the `law` yet. Exact native dependencies follow the changed `governance-system`."
     }
   ]
 }

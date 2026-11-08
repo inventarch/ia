@@ -2,7 +2,7 @@
 
 @law canon-a6-source-roots
   meaning
-    says "A repository root holds one .ia/src. Another .ia/src is nested inside it only for a separately released or adopted workspace."
+    says "In a knowledge repository or a kit, a repository root holds one .ia/src. Another .ia/src is nested inside it only for a separately released or adopted workspace."
     answers "How many .ia/src roots may a knowledge repository or a kit hold?"
   governance
     severity advisory
@@ -11,18 +11,6 @@
     subject-word workspace
   relationships
     cites @agent public-workspace-system-steward
-
-@law canon-a14-work-placement
-  meaning
-    says "Work records (plans, milestones, tasks, decisions and specs) never sit inside a vocabulary system's folder."
-    answers "Where may plans, milestones, tasks, decisions and specs be authored relative to vocabulary system folders?"
-  governance
-    severity advisory
-    requires "Author plans, milestones, tasks, decisions and specs outside every vocabulary system's folder under .ia/src/systems/."
-  subject
-    subject-word spec
-  relationships
-    cites @agent public-work-system-steward
 
 @law canon-c4-kit-words
   meaning

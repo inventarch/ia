@@ -7,7 +7,9 @@ import { load } from '@inventarch/graph';
 import { CHECK_IDS, canonSeverity, lawStatuses } from '../src/index.js';
 
 const root = resolve(import.meta.dirname, '../../..');
-const CANON = '.ia/src/systems/governance-system/records/canon/';
+/** Canon records sit in the folder of the system owning their word: `.ia/src/systems/<system>/records/canon/`. */
+const CANON = /^\.ia\/src\/systems\/([^/]+)\/records\/canon\//;
+const canonSystem = (path: string): string | undefined => CANON.exec(path)?.[1];
 const SKIP = new Set(['node_modules', 'dist', '.git']);
 
 /** The repository's own `.ia/src`, read as `pnpm native:check` reads it, compiled in two passes and loaded as a graph. */
@@ -70,7 +72,12 @@ describe('the canon corpus', () => {
   it('the canon corpus admits and every canon law is pending', () => {
     const { diagnostics, graph, nodes } = corpus();
     expect(diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
-    const canon = nodes.filter((node) => node.source.path.startsWith(CANON));
+    const canon = nodes.filter((node) => CANON.test(node.source.path));
+    // A14 constrains a work-system word, so it lives with work-system; every other canon record with governance-system.
+    for (const node of canon)
+      expect(canonSystem(node.source.path), node.identity).toBe(
+        node.name.startsWith('canon-a14') || node.name === 'ia-canon-work' ? 'work-system' : 'governance-system',
+      );
     expect(
       canon
         .filter((node) => node.discriminator === 'law')
