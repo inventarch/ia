@@ -3,6 +3,7 @@ import type { Severity } from '@inventarch/language';
 import type { SystemFolder } from '../systems.js';
 import { assess } from '../types.js';
 import type { Assessment, Finding } from '../types.js';
+import { fields } from '../graph-checks.js';
 import { canonSeverity } from './laws.js';
 
 const WORK_INSTANCES: ReadonlySet<string> = new Set(['plan', 'milestone', 'task', 'decision', 'spec']);
@@ -22,17 +23,115 @@ export function canonWorkPlacement(nodes: readonly Node[]): readonly Finding[] {
     );
 }
 
-const RULES: readonly (readonly [string, (nodes: readonly Node[]) => readonly Finding[]])[] = [
+const posix = (path: string): string => path.split(String.fromCharCode(92)).join('/');
+const PLUGIN_RECORDS = /^\.ia\/src\/systems\/([^/]+)\/records\/plugin\.ia$/;
+
+/** The one system that authors a product distribution in `records/plugin.ia`, else null (host-plugin-distribution section 12). */
+function kitSystem(nodes: readonly Node[]): string | null {
+  const found = new Set<string>();
+  for (const node of nodes) {
+    if (node.discriminator !== 'distribution' || !node.sections.some((s) => s.name === 'product')) continue;
+    const match = PLUGIN_RECORDS.exec(posix(node.source.path));
+    if (match !== null) found.add(match[1]!);
+  }
+  return found.size === 1 ? [...found][0]! : null;
+}
+
+/** True when exactly one system under `.ia/src/systems/<name>/` has `records/plugin.ia` authoring a product `@distribution`. */
+export function isKitWorkspace(nodes: readonly Node[]): boolean {
+  return kitSystem(nodes) !== null;
+}
+
+const systemNode = (nodes: readonly Node[], name: string): Node | undefined =>
+  nodes.find((node) => node.discriminator === 'system' && node.name === name);
+const sectionKeys = (node: Node, section: string): readonly string[] =>
+  node.sections
+    .filter((s) => s.name === section)
+    .flatMap((s) => s.fields.map((f) => ('key' in f ? f.key : f.item.kind === 'scalar' ? f.item.text : '')));
+
+/** C4: in a kit, the method system declares no discriminators and requires the owner of every word its records use. */
+export function canonKitMethodWords(
+  nodes: readonly Node[],
+  folders: readonly SystemFolder[] | undefined,
+): readonly Finding[] {
+  const kit = kitSystem(nodes);
+  if (kit === null) return [];
+  const found: Finding[] = [];
+  const method = systemNode(nodes, kit);
+  const report = (path: string, line: number, message: string): void => {
+    found.push({
+      code: 'IA-COMP-CANON-KIT-WORDS',
+      path,
+      line,
+      severity: 'error',
+      message: `${path}:${line}: ${message}`,
+    });
+  };
+  if (method !== undefined) {
+    const minted = sectionKeys(method, 'discriminators');
+    if (minted.length > 0)
+      report(
+        method.source.path,
+        method.source.line,
+        `Kit system ${kit} declares ${minted.join(', ')}; a kit method system mints no words and requires the system that owns each word it uses.`,
+      );
+  }
+  const folder = folders?.find((f) => f.name === kit);
+  const used = new Map<string, { path: string; line: number }>();
+  const record = (word: string, path: string, line: number): void => {
+    if (!used.has(word)) used.set(word, { path, line });
+  };
+  if (folder !== undefined) for (const r of folder.records) record(r.discriminator, r.source.path, r.source.line);
+  else
+    for (const node of nodes)
+      if (posix(node.source.path).startsWith(`.ia/src/systems/${kit}/`))
+        record(node.discriminator, node.source.path, node.source.line);
+  const owners = new Map<string, string>();
+  for (const node of nodes)
+    if (node.discriminator === 'system' && node.name !== kit)
+      for (const word of sectionKeys(node, 'discriminators')) owners.set(word, node.name);
+  const required = new Set(method === undefined ? [] : sectionKeys(method, 'requires'));
+  for (const [word, where] of [...used].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
+    const owner = owners.get(word);
+    if (owner !== undefined && !required.has(owner))
+      report(where.path, where.line, `Kit system ${kit} uses ${word} but does not require ${owner}, which owns it.`);
+  }
+  return found;
+}
+
+/** C5a: in a kit, the shipped `@workspace` has no `composition.steward` and no `composition.sources`. */
+export function canonKitWorkspace(nodes: readonly Node[]): readonly Finding[] {
+  if (!isKitWorkspace(nodes)) return [];
+  const found: Finding[] = [];
+  for (const node of nodes) {
+    if (node.discriminator !== 'workspace') continue;
+    for (const key of ['steward', 'sources'])
+      for (const field of fields(node, 'composition', key))
+        found.push({
+          code: 'IA-COMP-CANON-KIT-WORKSPACE',
+          path: node.source.path,
+          line: field.span.line,
+          severity: 'error',
+          message: `${node.source.path}:${field.span.line}: A kit workspace declares no composition.${key}; the host workspace supplies it.`,
+        });
+  }
+  return found;
+}
+
+type Rule = (nodes: readonly Node[], folders: readonly SystemFolder[] | undefined) => readonly Finding[];
+const RULES: readonly (readonly [string, Rule])[] = [
   ['CANON-WORK-PLACEMENT', canonWorkPlacement],
+  ['CANON-KIT-WORDS', canonKitMethodWords],
+  ['CANON-KIT-WORKSPACE', canonKitWorkspace],
 ];
 
 /**
  * The built-in canon rules, each active only when a law enforces a check that runs it. The law sets the severity;
- * an inactive rule reports nothing. `_folders` is reserved for rules that read system folders.
+ * an inactive rule reports nothing. `folders` is read by the rules that look at system folders.
  */
 export function canonAssessments(
   nodes: readonly Node[],
-  _folders: readonly SystemFolder[] | undefined,
+  folders: readonly SystemFolder[] | undefined,
 ): readonly Assessment[] {
   const results: Assessment[] = [];
   for (const [id, rule] of RULES) {
@@ -42,7 +141,7 @@ export function canonAssessments(
       assess(
         id,
         'graph',
-        rule(nodes).map((finding) => ({ ...finding, severity })),
+        rule(nodes, folders).map((finding) => ({ ...finding, severity })),
       ),
     );
   }

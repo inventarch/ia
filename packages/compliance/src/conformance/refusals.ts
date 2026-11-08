@@ -44,6 +44,43 @@ export function runRefusalFixtures(
     contract = records.find((r) => r.name === 'foundation-authoring-contract')!,
     check = records.find((r) => r.discriminator === 'check')!,
     mandate = records.find((r) => r.discriminator === 'mandate' && r.name === 'sample-mandate')!;
+  /** A blocking `@law` enforced by a `@check` that runs `checkId`, so the canon rule is active; returns its findings over `offenders`. */
+  const canonFixture = (checkId: string, offenders: readonly Node[]) => {
+    const canonCheck: Node = {
+      ...check,
+      identity: `fixture/check/${checkId.toLowerCase()}`,
+      name: checkId.toLowerCase(),
+      sections: check.sections.map((s) =>
+        s.name !== 'check'
+          ? s
+          : {
+              ...s,
+              fields: s.fields.map((f) =>
+                'key' in f && f.key === 'runs' ? { ...f, value: { kind: 'scalar' as const, text: checkId } } : f,
+              ),
+            },
+      ),
+    };
+    const canonLaw: Node = {
+      ...law,
+      identity: `fixture/law/${checkId.toLowerCase()}`,
+      name: checkId.toLowerCase(),
+      edges: law.edges.map((e) =>
+        e.predicate === 'enforce' ? { ...e, direction: 'in' as const, target: canonCheck.identity } : e,
+      ),
+    };
+    return canonAssessments([canonLaw, canonCheck, ...offenders], undefined).flatMap((a) => a.findings);
+  };
+  const kitRecords: readonly Node[] = [
+    {
+      ...method,
+      discriminator: 'distribution',
+      identity: 'fixture/distribution/kit-a-plugin',
+      name: 'kit-a-plugin',
+      source: { ...method.source, path: '.ia/src/systems/kit-a/records/plugin.ia' },
+      sections: [{ name: 'product', span: { line: 1, endLine: 1 }, fields: [] }],
+    },
+  ];
   const ambiguous: Node = {
     ...law,
     variants: [
@@ -421,42 +458,70 @@ export function runRefusalFixtures(
     ['IA-COMP-NOT-EVALUATED', () => validateParse(undefined).findings],
     [
       'IA-COMP-CANON-WORK-PLACEMENT',
-      () => {
-        // Without a blocking law enforced by a check that runs the rule, the rule is inactive and reports nothing.
-        const canonCheck: Node = {
-          ...check,
-          identity: 'fixture/check/canon-work-placement',
-          name: 'canon-work-placement',
-          sections: check.sections.map((s) =>
-            s.name !== 'check'
-              ? s
-              : {
-                  ...s,
-                  fields: s.fields.map((f) =>
-                    'key' in f && f.key === 'runs'
-                      ? { ...f, value: { kind: 'scalar' as const, text: 'CANON-WORK-PLACEMENT' } }
-                      : f,
-                  ),
-                },
-          ),
-        };
-        const canonLaw: Node = {
-          ...law,
-          identity: 'fixture/law/canon-work-placement',
-          name: 'canon-work-placement',
-          edges: law.edges.map((e) =>
-            e.predicate === 'enforce' ? { ...e, direction: 'in' as const, target: canonCheck.identity } : e,
-          ),
-        };
-        const offender: Node = {
-          ...method,
-          discriminator: 'spec',
-          identity: 'fixture/spec/offending-spec',
-          name: 'offending-spec',
-          source: { ...method.source, path: '.ia/src/systems/work-system/records/offending-spec.ia' },
-        };
-        return canonAssessments([canonLaw, canonCheck, offender], undefined).flatMap((a) => a.findings);
-      },
+      () =>
+        canonFixture('CANON-WORK-PLACEMENT', [
+          {
+            ...method,
+            discriminator: 'spec',
+            identity: 'fixture/spec/offending-spec',
+            name: 'offending-spec',
+            source: { ...method.source, path: '.ia/src/systems/work-system/records/offending-spec.ia' },
+          },
+        ]),
+    ],
+    [
+      'IA-COMP-CANON-KIT-WORDS',
+      () =>
+        canonFixture('CANON-KIT-WORDS', [
+          ...kitRecords,
+          {
+            ...method,
+            discriminator: 'system',
+            identity: 'fixture/system/kit-a',
+            name: 'kit-a',
+            source: { ...method.source, path: '.ia/src/systems/kit-a/system.ia' },
+            sections: [
+              {
+                name: 'discriminators',
+                span: { line: 1, endLine: 1 },
+                fields: [
+                  {
+                    key: 'widget',
+                    value: { kind: 'scalar' as const, text: 'lowers to definition' },
+                    span: { line: 1, endLine: 1 },
+                  },
+                ],
+              },
+            ],
+          },
+        ]),
+    ],
+    [
+      'IA-COMP-CANON-KIT-WORKSPACE',
+      () =>
+        canonFixture('CANON-KIT-WORKSPACE', [
+          ...kitRecords,
+          {
+            ...method,
+            discriminator: 'workspace',
+            identity: 'fixture/workspace/kit-workspace',
+            name: 'kit-workspace',
+            source: { ...method.source, path: '.ia/src/workspace.ia' },
+            sections: [
+              {
+                name: 'composition',
+                span: { line: 1, endLine: 1 },
+                fields: [
+                  {
+                    key: 'sources',
+                    value: { kind: 'string' as const, text: '.ia/src @authored' },
+                    span: { line: 1, endLine: 1 },
+                  },
+                ],
+              },
+            ],
+          },
+        ]),
     ],
     [
       'IA-COMP-FIXTURE-MISMATCH',

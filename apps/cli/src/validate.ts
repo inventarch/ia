@@ -127,6 +127,10 @@ const ACTIONS: Readonly<Record<string, string>> = {
     'Declare the owning system as a direct requirement, or move the record to a system that already requires it.',
   'IA-COMP-CANON-WORK-PLACEMENT':
     'Move the plan, milestone, task, decision or specification to a workspace-authored record outside .ia/src/systems/, then run "ia validate" again.',
+  'IA-COMP-CANON-KIT-WORDS':
+    'Remove the discriminators from the kit system, and list the owning system of every word its records use under requires, then run "ia validate" again.',
+  'IA-COMP-CANON-KIT-WORKSPACE':
+    'Remove composition.steward and composition.sources from the kit workspace, then run "ia validate" again.',
 };
 
 /** The next action for a check verification did not evaluate: its evaluator is built in, so there is none to supply. */
