@@ -26,7 +26,7 @@ A kit is one folder. These parts are read:
 | `releases.json` | The recorded releases, with their archive and sources digests. Format 1 is one file; format 2 adds `releases/<version>.json` |
 | `checks.json`, `delivery.json`, `bindings.json`, `onwrite.json` | The sidecars of sections 3 to 6 |
 
-The recorded `sources` digest covers `.ia/`, the assets `.ia/release.json` declares and the sidecars. The reference also reads a fifth sidecar, `handlers.json` (session, prompt, tool and stop handlers). The runtime does not read it, and this specification does not define it.
+The recorded `sources` digest covers the files under `.ia/` other than `distributions*` and `work*`, the assets `.ia/release.json` declares and the five sidecars when present, with CRLF normalised to LF in text files ([`lib/kit.mjs` lines 94 to 109](https://github.com/inventarch/marketplace/blob/main/plugins/ia/scripts/lib/kit.mjs#L94-L109)). The reference also reads a fifth sidecar, `handlers.json` (session, prompt, tool and stop handlers). The runtime does not read it, and this specification does not define it.
 
 Kits are found in an ordered list of sources:
 
@@ -63,11 +63,16 @@ A kit that a lock entry names is taken from no other source. When the store lack
 
 `checks.json` is `{format: 1, checks: {<name>: {argv, cwd?, record?, timeout?, arguments?}}}`. `argv` is a non-empty list of strings and is run without a shell. `cwd` is `workspace` (default), `kit` or `plugin`. `timeout` is a positive integer of seconds (default 600). A name that is not also a `@check` record of the kit is dropped and reported as undeclared. The tokens `${IA}`, `${NODE}`, `${WORKSPACE}`, `${KIT}` and `${PLUGIN}` are substituted, and an argument slot declared in `arguments` is filled by name.
 
-The reference checker runs one declared check by name and nothing else. It picks the kit from `--kit`, else the task's pin, else every kit the repository's bindings name, else the installed kits, and an undeclared name refuses `IA-CORE-CHECK-UNKNOWN`. Only a trusted kit runs a check: another kit's check is refused with `IA-CORE-KIT-UNTRUSTED` and runs nothing. A check runs with an allowlisted environment, its process tree is killed at its deadline, and its output is bounded and kept as evidence.
+The reference checker runs one declared check by name and nothing else. It picks the kits in this order ([`check.mjs` lines 55 to 78](https://github.com/inventarch/marketplace/blob/main/plugins/ia/scripts/check.mjs#L55-L78)): the task's pin, when one exists, in which case `--kit` only narrows to one of the pinned kits; else `--kit`; else every kit the repository's `.ia/bindings.json` names (bindings and defaults) that the plugin carries; else the kits installed in the repository that the plugin carries. The first of the chosen kits that declares the check runs it. An undeclared name refuses `IA-CORE-CHECK-UNKNOWN`. Only a trusted kit runs a check: another kit's check is refused with `IA-CORE-KIT-UNTRUSTED` and runs nothing. A check runs with an allowlisted environment, its process tree is killed at its deadline, and its output is bounded and kept as evidence.
 
 ## 4 Delivery sidecar
 
-`delivery.json` is `{format: 1, whole: [<capability name>, ...]}`. A capability listed in `whole` is a procedure: the resolver delivers every cell of its playbooks, whatever the position returns at the seat. Otherwise the resolver delivers the playbook cells the position delivers. A listed name that is not a `@capability` record of the kit is dropped and reported as undeclared. Without the file no capability is whole.
+`delivery.json` is `{format: 1, whole: [<capability name>, ...]}`. The resolver chooses the instructions a packet carries from the cells the position delivers at the lane's scope key, and from every cell of the bound capability's playbooks (read by identity). It delivers every cell of those playbooks, not only the position's, in two cases ([`resolve.mjs` lines 246 and 251](https://github.com/inventarch/marketplace/blob/main/plugins/ia/scripts/resolve.mjs#L246-L251)):
+
+1. the activity is a whole procedure, because `isWholeProcedure(entry, activity)` is true or the bound capability is listed in `whole`. `isWholeProcedure` reads the core's built-in `WHOLE_PROCEDURE` table ([`lib/workspace.mjs` line 66](https://github.com/inventarch/marketplace/blob/main/plugins/ia/scripts/lib/workspace.mjs#L66)), which is empty in the reference: the core names no whole activity, and a kit declares its own whole capabilities here;
+2. the position delivers none of the bound playbooks' cells (`!own.length`, where `own` is the position's cells that belong to the bound capability's playbooks). Cells the position delivers for other playbooks are never delivered as the procedure.
+
+Otherwise the packet carries only the position's cells for the bound playbooks. A capability with no playbooks but with checks carries no cells, and a capability with neither refuses `IA-CORE-COMPOSITION-MISSING`. A listed name that is not a `@capability` record of the kit is dropped and reported as undeclared. Without the file no capability is whole.
 
 ## 5 Kit bindings sidecar
 

@@ -36,7 +36,7 @@
       "genre": "spec",
       "title": "Kit runtime",
       "status": "implemented",
-      "sourceDigest": "f5a86dcd6647ea838e3fc49fe358dceb8947d1446f2bd162dcd5a3a8cc4abd9b"
+      "sourceDigest": "717c0c6864b4427e0d260130b75ddb6c1563d49fcb1ee0e53be5bd463683c091"
     },
     {
       "id": "spec-registry",

@@ -4,7 +4,7 @@ IA has a public part and a hosted part. This page says which is which, how a hos
 
 ## What is public
 
-The language is public: the words, the rules for writing a sentence with them, and the checks that evaluate whether a sentence is correct. A rule that a check can evaluate belongs to the language, and breaking one is a stopping error that `ia validate` reports. The CLI, the runtime, the MCP door, the kit format ([kit runtime](../../specs/kit-runtime/README.md)) and the public method kits in the [marketplace](https://github.com/inventarch/marketplace) are public too, as is the base method kit `ia-method`.
+The language is public: the words, the rules for writing a sentence with them, and the checks that evaluate whether a sentence is correct. A rule that a check can evaluate belongs to the language, and a check can report when a rule is broken. A broken rule becomes a stopping error only once its law is enforced and blocking; a law ships as advisory guidance first. The CLI, the runtime, the MCP door, the kit format ([kit runtime](../../specs/kit-runtime/README.md)) and the public method kits in the [marketplace](https://github.com/inventarch/marketplace) are public too, as is the base method kit `ia-method`.
 
 ## What is hosted
 
