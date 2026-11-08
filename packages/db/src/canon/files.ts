@@ -4,7 +4,7 @@ import { posix, resolve } from 'node:path';
 import { canonAssessment, executingKitSystems, isKitWorkspace } from '@inventarch/compliance';
 import type { Assessment, Finding } from '@inventarch/compliance';
 import type { Graph, Node } from '@inventarch/graph';
-import { localTarget, parseMarkdown } from './markdown.js';
+import { localTarget, scanMarkdown } from './links.js';
 
 /** The directories no canon file walk enters. */
 const SKIPPED: ReadonlySet<string> = new Set(['node_modules', 'dist', '.git']);
@@ -77,7 +77,7 @@ export function teachingLinkFindings(
   exists: (path: string) => boolean,
 ): readonly Finding[] {
   const available = new Set([...nativePaths, ...files.map((file) => file.path)]),
-    parsed = new Map(files.map((file) => [file.path, parseMarkdown(file.text)])),
+    parsed = new Map(files.map((file) => [file.path, scanMarkdown(file.text)])),
     found: Finding[] = [];
   const report = (path: string, line: number, message: string): void => {
     found.push({ code: 'IA-COMP-CANON-TEACHING-LINKS', path, line, severity: 'error', message: `${path}: ${message}` });

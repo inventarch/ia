@@ -3641,7 +3641,8 @@
       "project": ".",
       "files": [
         "tools/docs/audit.test.ts",
-        "tools/docs/link-parity.test.ts"
+        "tools/docs/link-parity.test.ts",
+        "tools/docs/teaching-scanner-parity.test.ts"
       ],
       "profile": "unit",
       "platforms": [

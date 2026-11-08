@@ -48,3 +48,4 @@ export {
   teachingFiles,
   teachingLinkFindings,
 } from './canon/files.js';
+export { createSlugger, scanMarkdown } from './canon/links.js';

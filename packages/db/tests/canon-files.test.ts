@@ -9,6 +9,7 @@ import {
   canonSourceRoots,
   canonTeachingLinks,
   open,
+  scanMarkdown,
   sourceRootScope,
 } from '../src/index.js';
 import { put, workspace } from './workspace.js';
@@ -71,6 +72,30 @@ describe('C12 teaching links', () => {
     // A backslash-spelled target is a path separator, and an absolute path under the root loses its drive and root.
     const spelled = tree({ '.ia/src/a/doc.md': '[b](..\\b.md)\n', '.ia/src/b.md': '# B\n' });
     expect(canonTeachingLinks(spelled, [resolve(spelled, '.ia/src/a/doc.md'), '.ia/src/b.md'], new Set())).toEqual([]);
+  });
+});
+
+describe('the dependency-free link scanner', () => {
+  const hrefs = (text: string) => scanMarkdown(text).links.map((link) => `${link.kind}:${link.href}`);
+  it('reads inline links and images with a title, and reference definitions', () => {
+    expect(hrefs('[a](./a.md "t") ![i](<./i one.png>) [r][x]\n\n[x]: ./x.md\n')).toEqual([
+      'link:./a.md',
+      'image:./i one.png',
+      'definition:./x.md',
+    ]);
+  });
+  it('skips fenced code blocks and inline code spans', () => {
+    const text = '```\n[a](./a.md)\n```\n~~~\n[b](./b.md)\n~~~\n`[c](./c.md)` [d](./d.md)\n';
+    expect(hrefs(text)).toEqual(['link:./d.md']);
+  });
+  it('reads HTML href and src attributes and ids', () => {
+    const scanned = scanMarkdown('<a href="./a.md" id="top">x</a> <img src=./i.png name=pic>\n');
+    expect(scanned.links.map((link) => link.href)).toEqual(['./a.md', './i.png']);
+    expect([...scanned.ids]).toEqual(['top', 'pic']);
+  });
+  it('slugs headings GitHub-style and dedupes repeats', () => {
+    const scanned = scanMarkdown('# Hello, World!\n## Hello, World!\n## Hello, World!\n### a_b `c` - d\n');
+    expect([...scanned.ids]).toEqual(['hello-world', 'hello-world-1', 'hello-world-2', 'a_b-c---d']);
   });
 });
 
