@@ -285,6 +285,42 @@ describe.each(['memory', 'sqlite'] as const)('%s atomic store conformance', (kin
       send(store, owner, { type: 'outcome.accept', runId: 'child', outcome: {}, terminal: 'completed' }),
     ).rejects.toThrow('unresolved');
   });
+  it("charges a child's release to the child's own journal byte budget", async () => {
+    const store = make();
+    await store.command(creation());
+    const owner = await store.acquire('s');
+    await send(store, owner, { type: 'run.ready', runId: 'root' });
+    await send(store, owner, {
+      type: 'child.create',
+      parentId: 'root',
+      childId: 'child',
+      profile: 'architect',
+      agent: 'architect-agent',
+      task: {},
+      contract: { id: 'bounded' },
+      limits: { ...(creation().mutation as Extract<Mutation, { type: 'session.create' }>).limits, bytes: 4000 },
+    } as Mutation);
+    await send(store, owner, { type: 'run.ready', runId: 'child' });
+    const release = (output: string): Mutation => ({
+      type: 'release.accept',
+      release: {
+        id: 'release',
+        runId: 'child',
+        output,
+        label: ['public'],
+        policy: 'summary',
+        policyRevision: '1',
+        sources: [{ id: 's:3', digest: 'head', label: ['private'] }],
+      },
+    });
+    await expect(send(store, owner, release('x'.repeat(8000)))).rejects.toMatchObject({
+      code: 'IA-SESSION-LIMIT-EXCEEDED',
+    });
+    await send(store, owner, release('summary'));
+    const state = await store.read('s');
+    expect(state.runs['child']!.status).toBe('completed');
+    expect(state.runs['child']!.retainedBytes).toBeGreaterThan(0);
+  });
   it('charges bounded reconciliation before lookup and appends evidence without rewriting a failed receipt', async () => {
     const store = make();
     await store.command(creation());

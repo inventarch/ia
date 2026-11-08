@@ -23,6 +23,7 @@ Section relationships: optional.
 - execution.status: id; required.
 - execution.phase: id; optional. — The declared phase, when known; omit it when unknown. Historical id values remain valid. A declaration does not prove engine state.
 - execution.owner: ref; required.
+- execution.label: list of text; optional. — Opaque host-defined content labels retained from the session; readers must enforce their own current clearance.
 
 
 A valid declaration establishes structural conformance. Execution, host authority and evidence verification require their respective explicit consumers.

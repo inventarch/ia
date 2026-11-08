@@ -44,6 +44,7 @@ export interface CompiledCapability {
   mapping: string;
 }
 export interface CompiledProfile extends Profile {
+  release?: { policy: string };
   review?: IndependentReviewPolicy;
   requestBytes?: number;
   native: string;

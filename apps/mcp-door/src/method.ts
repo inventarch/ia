@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { isAbsolute, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { applyInstallation, cacheArchive, planInstallation } from '@inventarch/distribution/install';
 import {
   ENTRIES,
@@ -37,11 +38,13 @@ export interface MethodHost {
   readonly env?: NodeJS.ProcessEnv;
   /** The parent of the per-user kit read-root cache; `<IA home>/kit-roots-v1` by default. */
   readonly cache?: string;
+  /** The folder holding the language base, `base.json` and `base/<archive>.ia.tgz`; this package's `assets` by default. */
+  readonly base?: string;
 }
 export type MethodOperation = 'method:session' | 'method:catalogue' | 'method:method';
 type Result = { readonly ok: true; readonly value: unknown } | { readonly ok: false; readonly value: unknown };
 
-const BASE_URL = new URL('../assets/base.json', import.meta.url);
+const ASSETS = fileURLToPath(new URL('../assets/', import.meta.url));
 const SLUG = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const KEY = /^([a-z]+)\.([a-z][a-z0-9-]*|\*)$/;
 const text = { type: 'string' };
@@ -120,10 +123,10 @@ interface BasePin {
   readonly archive: string;
 }
 /** Restores a kit's read root in process: the language base this package carries, cached, planned and installed. */
-export function restoreKit(root: string, kit: Kit): void {
+export function restoreKit(root: string, kit: Kit, base = ASSETS): void {
   let pin: BasePin;
   try {
-    pin = JSON.parse(readFileSync(BASE_URL, 'utf8')) as BasePin;
+    pin = JSON.parse(readFileSync(join(base, 'base.json'), 'utf8')) as BasePin;
   } catch {
     throw new MethodError('this door carries no language base; reinstall @inventarch/mcp-door', 'IA-CORE-CLI-MISSING');
   }
@@ -136,7 +139,7 @@ export function restoreKit(root: string, kit: Kit): void {
       `kit ${kit.id} ${kit.latest?.version ?? kit.version} locks ${pin.id} ${language?.version ?? 'an unknown version'}, and this door carries ${pin.version}: use the @inventarch/mcp-door release that ships it`,
       'IA-CORE-CLI-UNSUPPORTED',
     );
-  cacheArchive(root, readFileSync(new URL(`../assets/base/${pin.archive}.ia.tgz`, import.meta.url)), pin.archive);
+  cacheArchive(root, readFileSync(join(base, 'base', `${pin.archive}.ia.tgz`)), pin.archive);
   applyInstallation(planInstallation(root, lock, 'restore'));
 }
 
@@ -282,7 +285,7 @@ export class MethodTools {
       },
       {
         kits: this.#sources,
-        restore: restoreKit,
+        restore: (target, kit) => restoreKit(target, kit, this.#host.base),
         env: this.#env,
         ...(this.#host.cache === undefined ? {} : { cache: this.#host.cache }),
       },

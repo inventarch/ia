@@ -199,6 +199,7 @@ export function readFixture(SDK, root) {
     manifest = SDK.executionManifest(compiled, catalog),
     principal = 'read-operator';
   const grant = {
+    clearances: [],
     id: 'read-example',
     principal,
     workspace: manifest.workspace,

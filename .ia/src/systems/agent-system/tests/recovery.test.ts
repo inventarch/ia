@@ -73,6 +73,7 @@ function fixture(actions: ModelAction[] = [answer]) {
   const manifest = { ...body, digest: manifestDigest(body) },
     store = memoryStore();
   const grant: Grant = {
+    clearances: [],
     id: 'grant',
     principal: 'alice',
     workspace: 'w',

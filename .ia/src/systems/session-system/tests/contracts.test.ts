@@ -1,6 +1,25 @@
 import * as graph from '@inventarch/graph';
 import { expect, it } from 'vitest';
-import { CodecError, SessionError, canonical, copy, digest, identifier } from '../src/index.js';
+import { CodecError, SessionError, canonical, copy, digest, identifier, labels } from '../src/index.js';
+
+it('keeps opaque label ids exactly while refusing ids native evidence cannot represent', () => {
+  const ids = ['private/"quoted"\\path', 'é'.repeat(512), '😀'.repeat(256), ' '];
+  expect(labels([...ids, ...ids])).toEqual([...ids].sort());
+  expect(labels()).toEqual([]);
+  for (const id of [
+    '',
+    'é'.repeat(513),
+    'a'.repeat(1025),
+    '\u0000',
+    '\n',
+    '\u007f',
+    '\u009f',
+    '\u2028',
+    '\u2029',
+    '\ud800',
+  ])
+    expect(() => labels([id])).toThrow('Invalid label');
+});
 
 it('canonical command digests preserve exact data and reject unsafe or non-JSON inputs', () => {
   expect(digest({ z: [1, 2], a: 'x\r\n' })).toBe(digest({ a: 'x\r\n', z: [1, 2] }));

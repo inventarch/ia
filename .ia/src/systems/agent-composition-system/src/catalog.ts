@@ -24,6 +24,7 @@ export interface OutcomeContract {
   completion: 'response' | 'proposal' | 'artifact';
 }
 export interface MandateContract {
+  release?: { policy: string };
   review?: IndependentReviewPolicy;
   input: string;
   outcomes: string;

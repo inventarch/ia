@@ -48,6 +48,7 @@ it('executes a compiled native profile through the shared engine and rejects an 
     store = memoryStore(),
     corpus = new Corpus(capture);
   const grant: Grant = {
+    clearances: [],
     id: 'native',
     principal: 'alice',
     workspace: manifest.workspace,

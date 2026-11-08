@@ -1,5 +1,14 @@
 import { randomUUID } from 'node:crypto';
-import { canonical, copy, digest, terminal, unresolved, humanWaitRuns, SessionError } from '@inventarch/session-system';
+import {
+  canonical,
+  copy,
+  digest,
+  terminal,
+  unresolved,
+  humanWaitRuns,
+  labels,
+  SessionError,
+} from '@inventarch/session-system';
 import type {
   Attempt,
   Json,
@@ -7,6 +16,7 @@ import type {
   Mutation,
   Owner,
   Question,
+  Release,
   ReviewContract,
   Run,
   Session,
@@ -39,6 +49,50 @@ import {
 } from './contracts.js';
 
 const json = (value: unknown): Json => JSON.parse(canonical(value)) as Json;
+// Unlabelled content keeps its legacy event version, so label-blind readers still replay it.
+const labelled = (label: string[]): { label?: string[] } => (label.length ? { label } : {});
+// A grant from a host that predates labels clears none; a present but malformed value still refuses.
+function unlabelledGrant(grant: Grant): Grant {
+  if (grant && typeof grant === 'object' && grant.clearances === undefined) grant.clearances = [];
+  return grant;
+}
+const proposesRelease = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === 'object' && !Array.isArray(value) && 'type' in value && value.type === 'release';
+/** The shape every current grant must have before any rule reads it; malformed clearances throw. */
+function wellFormedGrant(grant: Grant, principal: string, workspace: string, now: number): boolean {
+  return Boolean(
+    grant &&
+      typeof grant.id === 'string' &&
+      grant.id.length > 0 &&
+      grant.principal === principal &&
+      grant.workspace === workspace &&
+      Number.isFinite(grant.expiresAt) &&
+      grant.expiresAt > now &&
+      ['profiles', 'operations', 'effects', 'sources', 'models', 'clearances'].every(
+        (key) =>
+          Array.isArray(grant[key as keyof Grant]) &&
+          (grant[key as keyof Grant] as unknown[]).every((value) => typeof value === 'string'),
+      ) &&
+      labels(grant.clearances) &&
+      grant.limits &&
+      ['steps', 'modelCalls', 'operations', 'tokens', 'children', 'depth', 'bytes', 'deadline'].every(
+        (key) =>
+          Number.isSafeInteger(grant.limits[key as keyof Limits]) &&
+          grant.limits[key as keyof Limits] >= (key === 'deadline' ? 1 : 0),
+      ) &&
+      grant.effects.every((effect) => ['read', 'local-write', 'external-write'].includes(effect)),
+  );
+}
+/** Whether a grant's clearances cover every label. */
+function clears(grant: Grant, label: string[]): boolean {
+  const clearances = labels(grant.clearances);
+  return labels(label).every((id) => clearances.includes(id));
+}
+/** A release action that reaches ordinary parsing has no release policy to answer it. */
+function unreleased(action: ModelAction): ModelAction {
+  check(action.type !== 'release', 'IA-ENGINE-ACTION-INVALID', 'Release is unavailable for this profile');
+  return action;
+}
 const modelOutputTokens = 2048;
 async function bounded<T>(work: () => Promise<T>, signal: AbortSignal): Promise<T> {
   signal.throwIfAborted();
@@ -107,6 +161,17 @@ export class Engine {
           'Unsupported completion or recovery contract',
         );
         const review = profile.contract.review;
+        const release = profile.contract.release;
+        check(
+          release === undefined ||
+            (release &&
+              Object.keys(release).join(',') === 'policy' &&
+              typeof release.policy === 'string' &&
+              release.policy.trim().length > 0 &&
+              release.policy.length <= 512),
+          'IA-ENGINE-BINDING-UNAVAILABLE',
+          'Unsupported release policy',
+        );
         check(
           review === undefined ||
             (review.rule === 'independent-exact-candidate-v1' &&
@@ -182,17 +247,57 @@ export class Engine {
     state: Session | null,
     profile: string,
     signal: AbortSignal,
+    label: string[] = state?.label ?? [],
   ): Promise<Grant> {
-    const grant = await bounded(() => this.host.authorize(principal, this.manifest, state), signal);
+    try {
+      const grant = unlabelledGrant(
+        copy(
+          await bounded(() => this.host.authorize(principal, copy(this.manifest), state ? copy(state) : null), signal),
+        ),
+      );
+      check(
+        wellFormedGrant(grant, principal, this.manifest.workspace, this.now()) &&
+          // Disclosure follows the workspace; only execution (grant) pins the manifest digest.
+          (!state || state.workspace === this.manifest.workspace) &&
+          grant.profiles.includes(profile) &&
+          (!state || grant.profiles.includes(state.runs[state.rootId]!.profile)) &&
+          clears(grant, label),
+        'IA-ENGINE-AUTHORITY-DENIED',
+        'Current authority does not permit disclosure',
+      );
+      return grant;
+    } catch {
+      // A caller's cancellation is not a withdrawn grant.
+      signal.throwIfAborted();
+      throw new EngineError('IA-ENGINE-AUTHORITY-DENIED', 'Current authority does not permit disclosure');
+    }
+  }
+  private async disclose(state: Session, principal: string): Promise<Session> {
+    await this.currentGrant(principal, state, state.runs[state.rootId]!.profile, AbortSignal.timeout(60_000));
+    return state;
+  }
+  /** Current-authority owner read, without executing scheduler work. */
+  async view(sessionId: string, principal: string): Promise<Session> {
+    const state = await this.store().read(sessionId);
+    check(state.principal === principal, 'IA-ENGINE-AUTHORITY-DENIED', 'Session belongs to another principal');
+    return this.disclose(state, principal);
+  }
+  /** A cross-session hand-over never exposes the source session's private history. */
+  async boundary(sessionId: string, principal: string, releaseId?: string): Promise<{ output: Json; label: string[] }> {
+    const state = await this.store().read(sessionId),
+      root = state.runs[state.rootId]!;
+    const release = releaseId
+      ? state.releases.find((item) => item.id === releaseId && item.runId === root.id)
+      : undefined;
+    check(!releaseId || release, 'IA-ENGINE-AUTHORITY-DENIED', 'Boundary output is unavailable');
     check(
-      grant.principal === principal &&
-        grant.workspace === this.manifest.workspace &&
-        grant.expiresAt > this.now() &&
-        grant.profiles.includes(profile),
+      release || (terminal(root) && root.outcome !== null),
       'IA-ENGINE-AUTHORITY-DENIED',
-      'Current grant does not authorize this profile',
+      'Boundary output is unavailable',
     );
-    return grant;
+    const label = labels(release ? release.label : state.label);
+    await this.currentGrant(principal, state, root.profile, AbortSignal.timeout(60_000), label);
+    return { output: copy(release ? release.output : root.outcome), label };
   }
   private async grant(
     principal: string,
@@ -253,26 +358,33 @@ export class Engine {
       'Independent review identity, mandate or policy differs',
     );
     const timed = this.attemptSignal(state, run, undefined, 60000, signal);
-    const current = await bounded(
-      () => this.host.authorizeReview!(review.reviewer, this.manifest, copy(state), copy(review)),
-      timed,
-    );
-    check(
-      current.principal === review.reviewer &&
-        current.workspace === this.manifest.workspace &&
-        current.mandate === policy.mandate &&
-        current.policyRevision === policy.policyRevision &&
-        current.expiresAt > this.now() &&
-        review.expiresAt > this.now() &&
-        current.operations.includes(review.operation) &&
-        current.effects.includes(review.effect) &&
-        current.sources.includes(this.manifest.sourceDigest) &&
-        current.destinations.some((d) => digest(d) === digest(review.destination)),
-      'IA-ENGINE-AUTHORITY-DENIED',
-      'Current independent reviewer grant does not admit the exact operation, source and destination',
-    );
-    timed.throwIfAborted();
-    return Math.min(current.expiresAt, review.expiresAt);
+    try {
+      const current = copy(
+        await bounded(
+          () => this.host.authorizeReview!(review.reviewer, this.manifest, copy(state), copy(review)),
+          timed,
+        ),
+      );
+      check(
+        current.principal === review.reviewer &&
+          current.workspace === this.manifest.workspace &&
+          current.mandate === policy.mandate &&
+          current.policyRevision === policy.policyRevision &&
+          current.expiresAt > this.now() &&
+          review.expiresAt > this.now() &&
+          current.operations.includes(review.operation) &&
+          current.effects.includes(review.effect) &&
+          current.sources.includes(this.manifest.sourceDigest) &&
+          current.destinations.some((d) => digest(d) === digest(review.destination)),
+        'IA-ENGINE-AUTHORITY-DENIED',
+        'Current independent reviewer grant does not admit the exact operation, source and destination',
+      );
+      timed.throwIfAborted();
+      return Math.min(current.expiresAt, review.expiresAt);
+    } catch {
+      signal?.throwIfAborted();
+      throw new EngineError('IA-ENGINE-AUTHORITY-DENIED', 'Current independent review authority is unavailable');
+    }
   }
   private effectContext(
     state: Session,
@@ -386,6 +498,7 @@ export class Engine {
     } catch (error) {
       if (!(error instanceof SessionError && error.code === 'IA-SESSION-NOT-FOUND')) throw error;
     }
+    if (prior) await this.disclose(prior, request.principal);
     const limits = boundedLimits(
       { ...(prior?.limits ?? grant.limits), ...request.limits },
       profile.contract?.limits,
@@ -416,7 +529,7 @@ export class Engine {
           : {}),
       },
     });
-    return this.store().read(request.sessionId);
+    return this.view(request.sessionId, request.principal);
   }
   async advance(
     sessionId: string,
@@ -584,7 +697,7 @@ export class Engine {
         );
         if (response) {
           try {
-            const action = parseAction((response.output as { action: unknown }).action);
+            const action = unreleased(parseAction((response.output as { action: unknown }).action));
             this.limits(state, grant, 'action', 0, run);
             await save({
               type: 'action.accept',
@@ -616,8 +729,7 @@ export class Engine {
       const state = await store.read(sessionId);
       // Stopping execution never bypasses disclosure authority. Its check is independent
       // of task deadlines and caller cancellation, which may have stopped the scheduler.
-      await this.currentGrant(principal, state, state.runs[state.rootId]!.profile, AbortSignal.timeout(60_000));
-      return state;
+      return this.disclose(state, principal);
     } finally {
       await store.release(owner);
     }
@@ -780,6 +892,25 @@ export class Engine {
     } catch {
       error = 'model-attempt-failed';
     }
+    if (
+      !error &&
+      output &&
+      typeof output === 'object' &&
+      !Array.isArray(output) &&
+      this.releasing(profile, output['action'])
+    ) {
+      const result = await this.releaseResponse(
+        await this.store().read(state.id),
+        run,
+        profile,
+        id,
+        output['action'],
+        usage,
+        signal,
+      );
+      await save(result.mutation, result.following);
+      return;
+    }
     await save({ type: 'attempt.observe', attemptId: id, output: error ? null : output, error, usage, effect: 'none' });
     if (error)
       await save({
@@ -787,6 +918,99 @@ export class Engine {
         runId: run.id,
         wait: { id, reason: 'model-error', objectIds: [id], continuation: 'retry-authorized', details: null },
       });
+  }
+  /** Only a profile with a release policy, on a host that can release, sends a release action to the host. */
+  private releasing(profile: Profile, action: unknown): boolean {
+    return proposesRelease(action) && profile.contract?.release !== undefined && this.host.release !== undefined;
+  }
+  /** Candidate stays in memory until the deterministic host policy has answered. */
+  private async releaseResponse(
+    state: Session,
+    run: Run,
+    profile: Profile,
+    attemptId: string,
+    candidateAction: unknown,
+    usage: number | null,
+    signal?: AbortSignal,
+  ): Promise<{ mutation: Extract<Mutation, { type: 'attempt.observe' }>; following: Mutation[] }> {
+    let release: Release | undefined;
+    try {
+      const action = parseAction(candidateAction),
+        policy = profile.contract?.release?.policy;
+      check(
+        action.type === 'release' && policy && this.host.release,
+        'IA-ENGINE-RELEASE-DENIED',
+        'Release is unavailable',
+      );
+      const grant = await this.grant(state.principal, state, profile, state.runs[run.id], signal);
+      const journal = await this.store().journal(state.id);
+      check(journal.events.at(-1)?.hash === state.hash, 'IA-ENGINE-RELEASE-DENIED', 'Release source changed');
+      const sources = [{ id: `${state.id}:${state.sequence}`, digest: state.hash, label: labels(state.label) }];
+      const timed = this.attemptSignal(state, run, grant, 60_000, signal);
+      const result = copy(
+        await bounded(
+          () =>
+            this.host.release!(state.principal, copy(grant), {
+              sessionId: state.id,
+              runId: run.id,
+              policy,
+              candidate: copy(action.candidate),
+              sources: copy(sources),
+            }),
+          timed,
+        ),
+      );
+      check(grant.expiresAt > this.now(), 'IA-ENGINE-RELEASE-DENIED', 'Release authority expired');
+      check(
+        result &&
+          Object.keys(result).sort().join(',') === 'label,output,policyRevision' &&
+          Array.isArray(result.label) &&
+          typeof result.policyRevision === 'string' &&
+          result.policyRevision.trim().length > 0 &&
+          result.policyRevision.length <= 512 &&
+          Buffer.byteLength(canonical(result)) <= 65_536,
+        'IA-ENGINE-RELEASE-DENIED',
+        'Release was refused',
+      );
+      release = {
+        id: attemptId,
+        runId: run.id,
+        policy,
+        policyRevision: result.policyRevision,
+        sources,
+        output: result.output,
+        label: labels(result.label),
+      };
+    } catch {
+      // A cancelled release is not a refusal: recovery decides what the dispatched attempt became.
+      signal?.throwIfAborted();
+      // Never retain candidates, host exceptions or diagnostics on a refused release.
+    }
+    return {
+      mutation: {
+        type: 'attempt.observe',
+        attemptId,
+        output: null,
+        effect: 'none',
+        usage,
+        error: release ? null : 'release-refused',
+      },
+      following: release
+        ? [{ type: 'release.accept', release }]
+        : [
+            {
+              type: 'run.wait',
+              runId: run.id,
+              wait: {
+                id: attemptId,
+                reason: 'model-error',
+                objectIds: [attemptId],
+                continuation: 'retry-authorized',
+                details: { code: 'IA-ENGINE-RELEASE-DENIED' },
+              },
+            },
+          ],
+    };
   }
   private async act(
     state: Session,
@@ -803,6 +1027,11 @@ export class Engine {
       await save({ type: 'action.clear', runId: run.id });
       return;
     }
+    check(
+      action.type !== 'release',
+      'IA-ENGINE-ACTION-INVALID',
+      'Release candidates must pass the host before persistence',
+    );
     if (action.type === 'delegate') {
       const child = this.manifest.profiles[action.profile];
       check(
@@ -947,6 +1176,7 @@ export class Engine {
       await save({ type: 'attempt.dispatch', attemptId: id });
       await this.store().validate(owner);
       let output: Json = null,
+        label: string[] = [],
         error: string | null = null,
         effect: Attempt['effect'] = operation.effects.every((v) => v === 'read') ? 'none' : 'unknown';
       try {
@@ -967,11 +1197,12 @@ export class Engine {
           'IA-ENGINE-OUTPUT-INVALID',
           'Operation output failed its installed contract',
         );
+        label = labels(result.label);
         output = result.output;
       } catch {
         error = 'operation-attempt-failed';
       }
-      await save({ type: 'attempt.observe', attemptId: id, output, error, effect, usage: 0 });
+      await save({ type: 'attempt.observe', attemptId: id, output, ...labelled(label), error, effect, usage: 0 });
       if (error && effect === 'none')
         await save({
           type: 'run.wait',
@@ -1004,7 +1235,7 @@ export class Engine {
       'IA-ENGINE-EVIDENCE-INVALID',
       'Outcome cites evidence not observed by this session',
     );
-    const questions: Question[] = (action.questions ?? []).map((q) => {
+    const questions: Omit<Question, 'label'>[] = (action.questions ?? []).map((q) => {
       const contract = { prompt: q.prompt, respondent: state.principal, choices: q.choices, revision: 1 };
       return {
         ...contract,
@@ -1200,6 +1431,7 @@ export class Engine {
       }
       await save({ type: 'attempt.reconcile.start', attemptId: attempt.id, maxAttempts: allowance });
       let effect: Attempt['effect'] = 'unknown',
+        label: string[] = [],
         output: Json = null,
         error: string | null = 'reconciliation-unavailable';
       try {
@@ -1225,6 +1457,7 @@ export class Engine {
             'IA-ENGINE-OUTPUT-INVALID',
             'Reconciled output failed its installed contract',
           );
+          label = labels(observed.label);
           output = observed.output;
           error = null;
         } else error = effect === 'none' ? 'reconciled-absent' : `reconciliation-${effect}`;
@@ -1236,6 +1469,7 @@ export class Engine {
         attemptId: attempt.id,
         effect,
         output,
+        ...labelled(label),
         error,
         evidence: `Installed ${attempt.target} reconciliation: ${effect}`,
       });
@@ -1287,7 +1521,20 @@ export class Engine {
       'IA-ENGINE-SOURCE-CHANGED',
       'Pinned inputs or executable bindings are unavailable',
     );
-    const grant = copy(await bounded(() => this.host.authorizeRenewal!(principal, this.manifest, state), timed));
+    let grant: Grant;
+    try {
+      grant = unlabelledGrant(
+        copy(await bounded(() => this.host.authorizeRenewal!(principal, this.manifest, copy(state)), timed)),
+      );
+      check(
+        wellFormedGrant(grant, principal, state.workspace, this.now()),
+        'IA-ENGINE-AUTHORITY-DENIED',
+        'Current renewal authority is unavailable',
+      );
+    } catch {
+      signal?.throwIfAborted();
+      throw new EngineError('IA-ENGINE-AUTHORITY-DENIED', 'Current renewal authority is unavailable');
+    }
     check(
       await bounded(
         () => this.host.verifyManifest(this.manifest),
@@ -1299,6 +1546,8 @@ export class Engine {
     check(
       grant.principal === principal &&
         grant.workspace === state.workspace &&
+        clears(grant, state.label) &&
+        grant.profiles.includes(state.runs[state.rootId]!.profile) &&
         grant.sources.includes(this.manifest.sourceDigest) &&
         grant.expiresAt > this.now() &&
         grant.limits.deadline > this.now(),
@@ -1428,7 +1677,7 @@ export class Engine {
           'IA-SESSION-COMMAND-CONFLICT',
           'Renewal command content changed',
         );
-        return state;
+        return this.disclose(state, principal);
       }
       check(
         state.sequence === request.expectedSequence,
@@ -1449,7 +1698,7 @@ export class Engine {
         { id: request.commandId, sessionId, actor: principal, expected: request.expectedSequence, mutation },
         owner,
       );
-      return this.store().read(sessionId);
+      return this.view(sessionId, principal);
     } finally {
       await this.store().release(owner);
     }
@@ -1514,7 +1763,7 @@ export class Engine {
         { id: commandId, sessionId, actor: principal, expected: state.sequence, mutation },
         owner,
       );
-      return this.store().read(sessionId);
+      return this.view(sessionId, principal);
     } finally {
       await this.store().release(owner);
     }
@@ -1527,6 +1776,7 @@ export class Engine {
     questionDigest: string,
     answer: Json,
     commandId: string,
+    label?: string[],
   ): Promise<Session> {
     const state = await this.store().read(sessionId),
       question = state.questions[questionId];
@@ -1538,9 +1788,16 @@ export class Engine {
       sessionId,
       actor: principal,
       expected: state.sequence,
-      mutation: { type: 'question.reply', questionId, revision, digest: questionDigest, answer },
+      mutation: {
+        type: 'question.reply',
+        questionId,
+        revision,
+        digest: questionDigest,
+        answer,
+        ...(label === undefined ? {} : { label: labels(label) }),
+      },
     });
-    return this.store().read(sessionId);
+    return this.view(sessionId, principal);
   }
   async review(
     sessionId: string,
@@ -1561,6 +1818,7 @@ export class Engine {
     );
     const run = state.runs[proposal.runId]!,
       profile = this.manifest.profiles[run.profile]!;
+    await this.disclose(state, principal);
     // Reviewers never receive the writer's session-owner path. Both authorities must remain current.
     const grant = await this.grant(profile.contract?.review ? state.principal : principal, state, profile, run);
     if (proposal.review) await this.reviewAuthority(state, run, profile, proposal.review);
@@ -1591,7 +1849,7 @@ export class Engine {
         decisionId: `decision-${digest(commandId)}`,
       },
     });
-    return this.store().read(sessionId);
+    return this.disclose(await this.store().read(sessionId), principal);
   }
   /** IDE host supplies one structured response to the exact persisted request; no API/model credential is needed. */
   async submitModel(
@@ -1617,7 +1875,8 @@ export class Engine {
       'IA-ENGINE-MODEL-INVALID',
       'Invalid model/usage',
     );
-    parseAction(response.action);
+    const releasing = this.releasing(profile, response.action);
+    if (!releasing) unreleased(parseAction(response.action));
     check(Buffer.byteLength(canonical(response)) <= 65_536, 'IA-ENGINE-MODEL-INVALID', 'Response too large');
     const owner = await this.store().acquire(sessionId);
     try {
@@ -1630,6 +1889,38 @@ export class Engine {
         'IA-ENGINE-MODEL-INVALID',
         'No external response is pending',
       );
+      if (releasing) {
+        if (journal.commands[commandId]) {
+          const prior = journal.events.find((event) => event.id === commandId)?.mutation;
+          check(
+            prior?.type === 'attempt.observe' &&
+              prior.attemptId === attemptId &&
+              // A refusal keeps no fingerprint, so its command id answers with the recorded refusal.
+              (prior.submissionDigest === undefined
+                ? prior.error === 'release-refused'
+                : prior.submissionDigest === digest(response)),
+            'IA-SESSION-COMMAND-CONFLICT',
+            'Command ID already has different content',
+          );
+        } else {
+          const result = await this.releaseResponse(state, run, profile, attemptId, response.action, response.usage);
+          await this.store().command(
+            {
+              id: commandId,
+              sessionId,
+              actor: principal,
+              expected: state.sequence,
+              // Only an accepted release keeps the response fingerprint: a refused candidate leaves no trace to guess against.
+              mutation: result.mutation.error
+                ? result.mutation
+                : { ...result.mutation, submissionDigest: digest(response) },
+              following: result.following,
+            },
+            owner,
+          );
+        }
+        return this.view(sessionId, principal);
+      }
       await this.store().command(
         {
           id: commandId,
@@ -1647,7 +1938,7 @@ export class Engine {
         },
         owner,
       );
-      return this.store().read(sessionId);
+      return this.view(sessionId, principal);
     } finally {
       await this.store().release(owner);
     }

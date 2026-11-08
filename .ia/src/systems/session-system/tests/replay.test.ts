@@ -94,3 +94,16 @@ it('keeps caller states and event payloads detached across replay, public reduct
   expect(() => reduce(start, { type: 'child.return', childId: 'missing' }, 'alice', events[3]!.at, 4)).toThrow();
   expect(start).toEqual(untouched);
 });
+
+it('normalizes a legacy unlabelled starting state, with or without further events', () => {
+  const events = journal(3, 16),
+    legacy = replay(events.slice(0, 2)) as unknown as Record<string, unknown>;
+  delete legacy['label'];
+  delete legacy['releases'];
+  for (const run of Object.values(legacy['runs'] as Record<string, Record<string, unknown>>)) delete run['label'];
+  for (const state of [replay([], legacy as never), replay(events.slice(2), legacy as never)]) {
+    expect(state.label).toEqual([]);
+    expect(state.releases).toEqual([]);
+    expect(state.runs['root']!.label).toEqual([]);
+  }
+});

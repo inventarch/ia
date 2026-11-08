@@ -140,6 +140,7 @@ function setup(kind = 'draft', additions: Partial<DraftToolOptions> = {}) {
     });
   cleanups.push(tools.close);
   const grant: Grant = {
+    clearances: [],
     id: 'tools',
     principal: 'alice',
     workspace: manifest.workspace,

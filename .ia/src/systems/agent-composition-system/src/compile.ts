@@ -497,6 +497,24 @@ class Compiler {
     ]);
     const contracts = contractIds.map((id) => this.use('mandates', id, node, 'execution.mandate-contract'));
     const reviews = contracts.flatMap((c) => (c.review ? [c.review] : []));
+    const releases = contracts.flatMap((c) => (c.release === undefined ? [] : [c.release]));
+    if (
+      releases.some(
+        (r) =>
+          !r ||
+          Object.keys(r).join(',') !== 'policy' ||
+          typeof r.policy !== 'string' ||
+          !r.policy.trim() ||
+          r.policy.length > 512 ||
+          digest(r) !== digest(releases[0]),
+      )
+    )
+      fail(
+        'IA-COMPOSITION-CONFLICT',
+        'Conflicting or invalid installed release policies',
+        node,
+        'execution.mandate-contract',
+      );
     if (
       reviews.some(
         (r) =>
@@ -632,6 +650,7 @@ class Compiler {
       model: model.model,
       ...(this.host.requestBytes === undefined ? {} : { requestBytes: this.host.requestBytes }),
       ...(reviews[0] ? { review: copy(reviews[0]) } : {}),
+      ...(releases[0] ? { release: copy(releases[0]) } : {}),
       mandate: mandate?.identity ?? null,
       mandateContracts: contractIds,
       inputContracts,
@@ -678,6 +697,7 @@ class Compiler {
         ? {}
         : { requestBytes: [`hosts:${field(this.harness, 'execution', 'host-profile')}`] }),
       ...(reviews.length ? { review: contractIds.map((id) => `mandates:${id}`) } : {}),
+      ...(releases.length ? { release: contractIds.map((id) => `mandates:${id}`) } : {}),
       agent: [agent.identity],
       role: [node.identity],
       voice: [voice?.identity ?? node.identity],

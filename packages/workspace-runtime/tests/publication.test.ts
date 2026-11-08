@@ -71,6 +71,7 @@ async function setup(timeoutMs = 15000) {
       evidence: [],
     },
     grant: {
+      clearances: [],
       id: 'grant',
       principal: 'alice',
       workspace: 'test',

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { isAbsolute, relative, resolve } from 'node:path';
 import { runInNewContext } from 'node:vm';
 import { afterEach, describe, expect, it } from 'vitest';
-import { digest, JournalStore, MemoryBackend, memoryStore } from '../src/index.js';
+import { digest, JournalStore, MemoryBackend, memoryStore, replay } from '../src/index.js';
 import { SqliteBackend, sqliteStore } from '../src/sqlite.js';
 import type { Admission, AdmissionGate, Command, Json, Mutation, Owner, SessionStore } from '../src/index.js';
 
@@ -116,6 +116,7 @@ describe('host admission at the SQLite write boundary', () => {
       queueMicrotask(() => {
         revoked = true;
       });
+
       return !revoked;
     };
     expect(authorize()).toBe(true);
@@ -128,6 +129,90 @@ describe('host admission at the SQLite write boundary', () => {
     expect(await persisted(root)).toBe(false);
   });
 });
+
+it.each(['memory', 'sqlite'])(
+  'preserves labelled reconciliations and reactions through %s replay and admission',
+  async (kind) => {
+    const offers: Admission[] = [],
+      root = kind === 'sqlite' ? temporary() : '';
+    const admit: AdmissionGate = (offer) => {
+      offers.push(structuredClone(offer));
+      return true;
+    };
+    const store = kind === 'sqlite' ? sqliteStore(root, { admit }) : memoryStore({ admit });
+    stores.push(store);
+    const owner = await dispatched(store);
+    expect((await store.read('s')).label).toEqual([]);
+    await send(store, owner, {
+      type: 'attempt.observe',
+      attemptId: 'read',
+      output: 'partial',
+      effect: 'partial',
+      error: null,
+      usage: 0,
+      label: ['private'],
+    });
+    await send(store, owner, {
+      type: 'attempt.reconcile',
+      attemptId: 'read',
+      output: 'resolved',
+      effect: 'applied',
+      evidence: 'installed reconciliation',
+      label: ['private', 'reconciled'],
+    });
+    await send(store, owner, {
+      type: 'reaction.queue',
+      reaction: {
+        id: 'react',
+        cause: 'read',
+        binding: 'reaction',
+        runId: 'root',
+        input: 'derived',
+        required: false,
+        status: 'queued',
+        result: null,
+      },
+    });
+    await send(store, owner, {
+      type: 'reaction.settle',
+      reactionId: 'react',
+      result: 'labelled reaction',
+      label: ['reaction'],
+    });
+    const state = await store.read('s');
+    expect(state.label).toEqual(['private', 'reaction', 'reconciled']);
+    expect(state.attempts['read']!.label).toEqual(['private', 'reconciled']);
+    expect(state.receipts.at(-1)!.label).toEqual(['private', 'reconciled']);
+    const events = (await store.journal('s')).events;
+    const firstLabel = events.findIndex((event) => Object.hasOwn(event.mutation, 'label'));
+    expect(events.slice(0, firstLabel).every((event) => event.version === 1)).toBe(true);
+    expect(events.filter((event) => Object.hasOwn(event.mutation, 'label')).every((event) => event.version === 3)).toBe(
+      true,
+    );
+    const downgraded = structuredClone(events.slice(0, firstLabel + 1));
+    const last = downgraded.at(-1)!;
+    last.version = 1;
+    const { hash: _hash, ...body } = last;
+    last.hash = digest(body);
+    expect(() => replay(downgraded)).toThrow('Unsupported event version');
+    expect(offers.find((offer) => offer.command?.mutation.type === 'attempt.reconcile')!.labels).toEqual([
+      'private',
+      'reconciled',
+    ]);
+    expect(offers.find((offer) => offer.command?.mutation.type === 'reaction.settle')!.labels).toEqual([
+      'private',
+      'reaction',
+      'reconciled',
+    ]);
+    await store.release(owner);
+    if (kind === 'sqlite') {
+      await store.close();
+      const reopened = sqliteStore(root);
+      stores.push(reopened);
+      expect(await reopened.read('s')).toEqual(state);
+    }
+  },
+);
 
 describe.each(['memory', 'sqlite'] as const)('%s backend admission position', (kind) => {
   it.each(['commit', 'checkpoint'] as const)(

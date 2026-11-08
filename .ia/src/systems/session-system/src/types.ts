@@ -61,6 +61,7 @@ export interface ReviewContract {
   validationReceipt: string;
 }
 export interface Run {
+  label: string[];
   id: string;
   parentId: string | null;
   profile: string;
@@ -84,6 +85,7 @@ export interface Run {
   repairs?: number;
 }
 export interface Attempt {
+  label: string[];
   id: string;
   invocationId: string;
   runId: string;
@@ -109,6 +111,7 @@ export interface Attempt {
   reconciliations?: number;
 }
 export interface Question {
+  label: string[];
   id: string;
   revision: number;
   runId: string;
@@ -145,6 +148,7 @@ export interface Decision {
   proposalDigest?: string;
 }
 export interface Reaction {
+  label?: string[];
   id: string;
   cause: string;
   binding: string;
@@ -162,6 +166,7 @@ export interface Control {
   applied: boolean;
 }
 export interface Receipt {
+  label: string[];
   version: 1;
   id: string;
   sessionId: string;
@@ -183,7 +188,18 @@ export interface Receipt {
   cause?: CausalReferences;
   review?: Attempt['review'];
 }
+export interface Release {
+  id: string;
+  runId: string;
+  output: Json;
+  label: string[];
+  policy: string;
+  policyRevision: string;
+  sources: { id: string; digest: string; label: string[] }[];
+}
 export interface Session {
+  label: string[];
+  releases: Release[];
   version: 1;
   id: string;
   principal: string;
@@ -226,13 +242,16 @@ export type Mutation =
       type: 'attempt.prepare';
       attempt: Omit<
         Attempt,
-        'status' | 'effect' | 'actionAccepted' | 'output' | 'error' | 'usage' | 'preparedAt' | 'observedAt'
+        'label' | 'status' | 'effect' | 'actionAccepted' | 'output' | 'error' | 'usage' | 'preparedAt' | 'observedAt'
       >;
     }
   | { type: 'attempt.dispatch'; attemptId: string }
   | { type: 'attempt.abandon'; attemptId: string }
   | {
       type: 'attempt.observe';
+      label?: string[];
+      /** Exact external release response fingerprint; retains idempotency without retaining candidate bytes. */
+      submissionDigest?: string;
       attemptId: string;
       output: Json | null;
       effect: Effect;
@@ -250,11 +269,12 @@ export type Mutation =
       runId: string;
       outcome: Json;
       terminal: 'completed' | 'failed' | null;
-      questions?: Question[];
+      questions?: (Omit<Question, 'label'> & { label?: string[] })[];
       proposal?: Proposal;
       wait?: Wait;
     }
-  | { type: 'question.reply'; questionId: string; revision: number; digest: string; answer: Json }
+  | { type: 'question.reply'; questionId: string; revision: number; digest: string; answer: Json; label?: string[] }
+  | { type: 'release.accept'; release: Release }
   | {
       type: 'proposal.review';
       proposalId: string;
@@ -290,10 +310,11 @@ export type Mutation =
     }
   | { type: 'budget.extend'; limits: Limits }
   | { type: 'reaction.queue'; reaction: Reaction }
-  | { type: 'reaction.settle'; reactionId: string; result: Json }
+  | { type: 'reaction.settle'; reactionId: string; result: Json; label?: string[] }
   | { type: 'attempt.reconcile.start'; attemptId: string; maxAttempts: number }
   | {
       type: 'attempt.reconcile';
+      label?: string[];
       attemptId: string;
       effect: Effect;
       output: Json | null;
@@ -301,7 +322,7 @@ export type Mutation =
       error?: string | null;
     };
 export interface Event {
-  version: 1 | 2;
+  version: 1 | 2 | 3;
   id: string;
   sequence: number;
   sessionId: string;
@@ -351,6 +372,8 @@ export interface Journal {
  * output inside it is payload, never authority.
  */
 export interface Admission {
+  /** Labels of content added, including labels the session already held. Empty for checkpoints. */
+  labels: string[];
   /** `commit` appends journal events; `checkpoint` replaces the stored checkpoint with a copy of the session. */
   kind: 'commit' | 'checkpoint';
   sessionId: string;

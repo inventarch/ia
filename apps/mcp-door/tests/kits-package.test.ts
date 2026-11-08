@@ -10,6 +10,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { gunzipSync } from 'node:zlib';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import { applyInstallation, cacheArchive, planInstallation } from '@inventarch/distribution/install';
@@ -22,11 +23,12 @@ import { Protocol } from '../src/protocol.js';
  * The door at a workspace whose lock installs kits from an npm package of kits (contract C7b, ia-kb `dec-133`). npm is
  * transport only: the engine installs the package entry's kits as ordinary releases in the workspace store, and the
  * door reads them from there. The kit is the ia-kb kit of `fixtures/method/plugin.json.gz` (marketplace 63f5d75,
- * Apache-2.0; `fixtures/method/PROVENANCE.json`), packed here with this package's language base into exactly the
+ * Apache-2.0; `fixtures/method/PROVENANCE.json`), packed here with the published language base it locks (`fixtures/method/language`) into exactly the
  * archive its `releases.json` names for 0.9.0, so the entry pins the published release.
  */
 const fixtures = new URL('./fixtures/', import.meta.url);
-const BASE = JSON.parse(readFileSync(new URL('../assets/base.json', import.meta.url), 'utf8')) as {
+const LANGUAGE = fileURLToPath(new URL('method/language/', fixtures));
+const BASE = JSON.parse(readFileSync(join(LANGUAGE, 'base.json'), 'utf8')) as {
   id: string;
   version: string;
   archive: string;
@@ -53,7 +55,7 @@ beforeAll(() => {
       mkdirSync(dirname(target), { recursive: true });
       writeFileSync(target, text);
     }
-  restoreKit(source, folderKits(join(root, 'kits'))[0]!);
+  restoreKit(source, folderKits(join(root, 'kits'))[0]!, LANGUAGE);
   const packed = packDistribution(source, readFileSync(join(source, '.ia', 'release.json'), 'utf8'));
   const released = readReleases(source).releases.find((row) => row.version === '0.9.0')!;
   kit = {
@@ -68,7 +70,7 @@ beforeAll(() => {
   consumer = join(root, 'consumer');
   mkdirSync(join(consumer, '.ia', 'src'), { recursive: true });
   copyFileSync(new URL('method/bindings.json', fixtures), join(consumer, '.ia', 'bindings.json'));
-  cacheArchive(consumer, readFileSync(new URL(`../assets/base/${BASE.archive}.ia.tgz`, import.meta.url)), BASE.archive);
+  cacheArchive(consumer, readFileSync(join(LANGUAGE, 'base', `${BASE.archive}.ia.tgz`)), BASE.archive);
   cacheArchive(consumer, kit.bytes, kit.archive);
   applyInstallation(
     planInstallation(
@@ -115,7 +117,13 @@ beforeAll(() => {
 afterAll(() => rmSync(root, { recursive: true, force: true }));
 
 const tools = (kits?: string): MethodTools =>
-  new MethodTools({ root: consumer, env, cache: join(root, 'cache'), ...(kits === undefined ? {} : { kits }) });
+  new MethodTools({
+    root: consumer,
+    env,
+    base: LANGUAGE,
+    cache: join(root, 'cache'),
+    ...(kits === undefined ? {} : { kits }),
+  });
 
 it('reads a kit the package entry installs from the workspace store, as an installed release', () => {
   const door = tools();
@@ -153,7 +161,12 @@ it('tells a fresh clone to run ia restore, and never answers the kit from anothe
     expect(String(session['briefing'])).toContain('Kits not restored:');
     expect(door.call('method:method', { key: 'knowledge.find' }).ok).toBe(false);
     // The protocol still starts, as a door launched in a fresh clone does: the method tools answer, the read tools refuse.
-    const protocol = new Protocol(consumer, { kits: join(plugin, 'config', 'kits'), env, cache: join(root, 'cache') });
+    const protocol = new Protocol(consumer, {
+      kits: join(plugin, 'config', 'kits'),
+      env,
+      base: LANGUAGE,
+      cache: join(root, 'cache'),
+    });
     protocol.request({
       jsonrpc: '2.0',
       id: 1,
