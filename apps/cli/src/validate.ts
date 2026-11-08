@@ -125,6 +125,8 @@ const ACTIONS: Readonly<Record<string, string>> = {
     'Add an unconditional implementing case for the named requirement, or withdraw the requirement.',
   'IA-COMP-DISCRIMINATOR-FOREIGN':
     'Declare the owning system as a direct requirement, or move the record to a system that already requires it.',
+  'IA-COMP-CANON-WORK-PLACEMENT':
+    'Move the plan, milestone, task, decision or specification to a workspace-authored record outside .ia/src/systems/, then run "ia validate" again.',
 };
 
 /** The next action for a check verification did not evaluate: its evaluator is built in, so there is none to supply. */

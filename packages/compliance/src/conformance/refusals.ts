@@ -12,6 +12,7 @@ import {
   variants,
 } from '@inventarch/graph';
 import type { Graph, Node, RevisionSource } from '@inventarch/graph';
+import { canonAssessments } from '../canon/rules.js';
 import { validateAdoption } from '../adoption.js';
 import type { AdoptionEvaluators } from '../adoption.js';
 import { runLanguageFixture } from '../fixtures.js';
@@ -418,6 +419,45 @@ export function runRefusalFixtures(
       },
     ],
     ['IA-COMP-NOT-EVALUATED', () => validateParse(undefined).findings],
+    [
+      'IA-COMP-CANON-WORK-PLACEMENT',
+      () => {
+        // Without a blocking law enforced by a check that runs the rule, the rule is inactive and reports nothing.
+        const canonCheck: Node = {
+          ...check,
+          identity: 'fixture/check/canon-work-placement',
+          name: 'canon-work-placement',
+          sections: check.sections.map((s) =>
+            s.name !== 'check'
+              ? s
+              : {
+                  ...s,
+                  fields: s.fields.map((f) =>
+                    'key' in f && f.key === 'runs'
+                      ? { ...f, value: { kind: 'scalar' as const, text: 'CANON-WORK-PLACEMENT' } }
+                      : f,
+                  ),
+                },
+          ),
+        };
+        const canonLaw: Node = {
+          ...law,
+          identity: 'fixture/law/canon-work-placement',
+          name: 'canon-work-placement',
+          edges: law.edges.map((e) =>
+            e.predicate === 'enforce' ? { ...e, direction: 'in' as const, target: canonCheck.identity } : e,
+          ),
+        };
+        const offender: Node = {
+          ...method,
+          discriminator: 'spec',
+          identity: 'fixture/spec/offending-spec',
+          name: 'offending-spec',
+          source: { ...method.source, path: '.ia/src/systems/work-system/records/offending-spec.ia' },
+        };
+        return canonAssessments([canonLaw, canonCheck, offender], undefined).flatMap((a) => a.findings);
+      },
+    ],
     [
       'IA-COMP-FIXTURE-MISMATCH',
       () =>

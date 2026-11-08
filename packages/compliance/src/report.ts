@@ -18,6 +18,7 @@ import {
   validateParse,
   validateSelectors,
 } from './graph-checks.js';
+import { canonAssessments } from './canon/rules.js';
 import { validateSystems } from './systems.js';
 import type { SystemFolder } from './systems.js';
 import { validateVariants } from './variants.js';
@@ -82,6 +83,7 @@ export function evaluate(graph: Graph, options: ReportOptions = {}): Report {
       nodes,
     ),
     ...validateAdoption(graph, options.adoptionEvaluators, options.coordinate),
+    ...canonAssessments(nodes, options.folders),
   ];
   assessments.push(...(options.admission?.filter((a) => a.outcome !== 'pass') ?? []));
   if (options.folders === undefined)

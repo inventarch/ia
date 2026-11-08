@@ -17,5 +17,6 @@ export const CHECK_IDS = Object.freeze([
   'COMP-STEWARD',
   'COMP-BOOTSTRAP',
   'COMP-CHECK',
+  'CANON-WORK-PLACEMENT',
 ] as const);
 export const isBuiltinCheck = (id: string): boolean => (CHECK_IDS as readonly string[]).includes(id);

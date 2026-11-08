@@ -2274,6 +2274,7 @@
       "project": "packages/compliance",
       "files": [
         "tests/canon-laws.test.ts",
+        "tests/canon-rules.test.ts",
         "tests/evaluator-catalog.test.ts",
         "tests/field-relations-baseline.test.ts",
         "tests/graph.test.ts",
