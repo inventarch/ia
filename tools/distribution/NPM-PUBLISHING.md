@@ -41,6 +41,8 @@ A note is one JSON file under `releases/pending/`. The file name is the change i
 
 `pnpm release:note` fills `packages` and `paths` from the files the branch changes. It infers `bump` only when every branch commit has a conventional type (`fix:` is a patch, `feat:` is minor, and `!` or `BREAKING CHANGE:` is major). Otherwise pass `--bump patch|minor|major`. Use `--bump none` for a package change with no consumer impact, such as tests or an internal refactor. Such a note satisfies the check and is folded into the next release, but never starts one. Pass `--title` and `--summary` to replace the commit-derived defaults. Review the file and commit it. Record user-facing behavior and limits, not filenames or test counts. Automated checks establish completeness and freshness only; a reviewer judges whether the prose is accurate.
 
+Dependabot writes no notes. On its npm pull requests the [Dependabot release note](../../.github/workflows/dependabot-release-note.yml) workflow commits one when `pnpm release:check` asks for it, then runs Public quality on that commit. The note lists each moved dependency and is a patch when a runtime dependency moved, or `none` when only development dependencies did. Review it like any other note. The added commit stops Dependabot rebasing the pull request; comment `@dependabot recreate` to rebuild it, and the workflow adds the note again.
+
 ## How the version is chosen
 
 A version is published when its immutable `v<version>` tag exists. The tag is created only after registry verification. `pnpm release:version --write` behaves differently in each state.
