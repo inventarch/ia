@@ -349,9 +349,9 @@ describe("this repository's participant pair", () => {
       ).toEqual(allMandates);
       const within = db.resolveScope().token;
       // `covers [".ia/src/"]`: the trailing `/` selects the subtree (graph G06c), so a system folder's file is claimed.
-      const claims = position(db, within, { seat: { path: '.ia/src/systems/work-system/system.ia' } }).body.mandates.map(
-        (m) => [m.identity, m.band, m.via] as const,
-      );
+      const claims = position(db, within, {
+        seat: { path: '.ia/src/systems/work-system/system.ia' },
+      }).body.mandates.map((m) => [m.identity, m.band, m.via] as const);
       expect(claims.find((c) => c[0] === mandate)).toEqual([
         mandate,
         100,
@@ -367,9 +367,7 @@ describe("this repository's participant pair", () => {
       const k0 = position(db, within).body;
       expect(k0.seat).toEqual({ kind: 'workspace', identity: language });
       expect(
-        k0.mandates
-          .map((m) => [m.identity, m.band, m.via] as const)
-          .sort((a, b) => a[0].localeCompare(b[0])),
+        k0.mandates.map((m) => [m.identity, m.band, m.via] as const).sort((a, b) => a[0].localeCompare(b[0])),
       ).toEqual(
         allMandates.map((identity) => [
           identity,
