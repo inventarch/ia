@@ -173,3 +173,84 @@ describe('kit detection and C4/C5a', () => {
     expect(canonAssessments(nodes, undefined)).toEqual([]);
   });
 });
+
+const mandateOf = (name: string, moves: string, covers: string, cites?: string) =>
+  `@mandate ${name}\n  meaning\n    says "Mandate ${name}."\n    answers "What may ${name} do?"\n  governance\n    requires "Stay in bounds."\n  authority\n    moves [${moves}]\n    covers [${covers}]\n${cites === undefined ? '' : `  relationships\n    cites @mandate ${cites}\n`}`;
+const narrowLaw = [
+  ['law.ia', lawFor('narrow', 'blocking')],
+  ['check.ia', checkFor('narrow', 'CANON-MANDATE-NARROW')],
+] as const;
+const WIDEN = 'IA-COMP-CANON-MANDATE-WIDEN';
+
+describe('E5 mandate narrowing', () => {
+  const parent = ['parent.ia', mandateOf('parent-mandate', 'Observation, Verification', '".ia/src/"')] as const;
+  it('E5 reports a citing mandate with a wider move', () => {
+    const graph = graphOf(...narrowLaw, parent, [
+      'child.ia',
+      mandateOf('child-mandate', 'Observation, Execution', '".ia/src/records/"', 'parent-mandate'),
+    ]);
+    const found = ruleFindings(graph, WIDEN);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ severity: 'error', path: 'child.ia' });
+    expect(found[0]!.message).toContain('Execution');
+  });
+  it('E5 reports a citing mandate covering outside its parent', () => {
+    const graph = graphOf(...narrowLaw, parent, [
+      'child.ia',
+      mandateOf('child-mandate', 'Observation', '".ia/src/records/", "docs/"', 'parent-mandate'),
+    ]);
+    const found = ruleFindings(graph, WIDEN);
+    expect(found).toHaveLength(1);
+    expect(found[0]!.message).toContain('docs/');
+  });
+  it('E5 accepts a narrower citing mandate and ignores a mandate citing none', () => {
+    const narrower = graphOf(...narrowLaw, parent, [
+      'child.ia',
+      mandateOf('child-mandate', 'Observation', '".ia/src/records/"', 'parent-mandate'),
+    ]);
+    expect(ruleFindings(narrower, WIDEN)).toEqual([]);
+    const alone = graphOf(...narrowLaw, ['wide.ia', mandateOf('wide-mandate', 'Execution', '"/"')]);
+    expect(ruleFindings(alone, WIDEN)).toEqual([]);
+  });
+  it('E5 is inactive without an enforcing law', () => {
+    const graph = graphOf(parent, ['child.ia', mandateOf('child-mandate', 'Execution', '"docs/"', 'parent-mandate')]);
+    expect(ruleFindings(graph, WIDEN)).toEqual([]);
+  });
+});
+
+const CANON_DIR = '.ia/src/systems/governance-system/records/canon';
+const subjectRule = (kind: 'law' | 'convention', name: string, severity: string, cites?: string) =>
+  `@${kind} ${name}\n  meaning\n    says "Rule ${name}."\n    answers "What does ${name} require?"\n  governance\n    severity ${severity}\n  subject\n    subject-word widget\n${cites === undefined ? '' : `  relationships\n    cites @law ${cites}\n`}`;
+const tightenRules = [
+  ['law.ia', lawFor('tighten', 'blocking')],
+  ['check.ia', checkFor('tighten', 'CANON-LOCAL-TIGHTEN')],
+] as const;
+const TIGHTEN = 'IA-COMP-CANON-LOCAL-TIGHTEN';
+
+describe('E4 local tightening', () => {
+  const canon = [`${CANON_DIR}/widget.ia`, subjectRule('law', 'widget-canon', 'advisory')] as const;
+  it('E4 reports a local rule on a canon word that does not cite the canon law', () => {
+    const graph = graphOf(...tightenRules, canon, ['local.ia', subjectRule('convention', 'widget-local', 'blocking')]);
+    const found = ruleFindings(graph, TIGHTEN);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ severity: 'error', path: 'local.ia' });
+    expect(found[0]!.message).toContain('widget-canon');
+  });
+  it('E4 reports a local rule weaker than the canon law', () => {
+    const graph = graphOf(...tightenRules, canon, [
+      'local.ia',
+      subjectRule('law', 'widget-local', 'informational', 'widget-canon'),
+    ]);
+    const found = ruleFindings(graph, TIGHTEN);
+    expect(found).toHaveLength(1);
+    expect(found[0]!.message).toContain('informational');
+  });
+  it('E4 accepts a citing local rule at least as strong and never checks canon against itself', () => {
+    const graph = graphOf(...tightenRules, canon, [
+      'local.ia',
+      subjectRule('law', 'widget-local', 'advisory', 'widget-canon'),
+    ]);
+    expect(ruleFindings(graph, TIGHTEN)).toEqual([]);
+    expect(ruleFindings(graphOf(...tightenRules, canon), TIGHTEN)).toEqual([]);
+  });
+});

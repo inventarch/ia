@@ -3,8 +3,8 @@ import type { Severity } from '@inventarch/language';
 import type { SystemFolder } from '../systems.js';
 import { assess } from '../types.js';
 import type { Assessment, Finding } from '../types.js';
-import { fields } from '../graph-checks.js';
-import { canonSeverity } from './laws.js';
+import { fields, textField } from '../graph-checks.js';
+import { SEVERITY_ORDER, canonSeverity, lawSeverity } from './laws.js';
 
 const WORK_INSTANCES: ReadonlySet<string> = new Set(['plan', 'milestone', 'task', 'decision', 'spec']);
 
@@ -164,11 +164,106 @@ export function canonKitWorkspace(nodes: readonly Node[]): readonly Finding[] {
   return found;
 }
 
-type Rule = (nodes: readonly Node[], folders: readonly SystemFolder[] | undefined) => readonly Finding[];
+/** The identities `node` cites. With the graph, only its resolved `cite` edges count; without one, its edges' own targets. */
+function citedBy(node: Node, graph?: Graph): ReadonlySet<string> {
+  const found = new Set<string>();
+  if (graph !== undefined) {
+    for (const edge of graph.edges)
+      if (edge.predicate === 'cite' && edge.from === node.identity && edge.to !== null) found.add(edge.to);
+  } else
+    for (const edge of node.edges)
+      if (edge.predicate === 'cite' && edge.direction === 'out' && edge.target !== null) found.add(edge.target);
+  return found;
+}
+
+/** The text of each non-reference item of a list field. */
+const listTexts = (node: Node, section: string, key: string): readonly string[] =>
+  fields(node, section, key).flatMap((field) =>
+    field.value.kind === 'list' ? field.value.items.flatMap((item) => ('text' in item ? [item.text] : [])) : [],
+  );
+
+const normalPath = (path: string): string => posix(path).replace(/^\.\//, '').replace(/\*+$/, '');
+/** True when `path` lies within `parent`: equal, or under it when `parent` is a folder (a trailing `/`, or `/**`). */
+function pathWithin(path: string, parent: string): boolean {
+  const child = normalPath(path);
+  const base = normalPath(parent);
+  return base.endsWith('/') ? child.startsWith(base) || `${child}/` === base : child === base;
+}
+
+/** E5: a mandate citing a mandate allows no move and covers no path the cited mandate does not. */
+export function canonMandateNarrowing(nodes: readonly Node[], graph?: Graph): readonly Finding[] {
+  const found: Finding[] = [];
+  const mandates = new Map(nodes.filter((n) => n.discriminator === 'mandate').map((n) => [n.identity, n]));
+  for (const mandate of mandates.values())
+    for (const id of [...citedBy(mandate, graph)].sort()) {
+      const parent = mandates.get(id);
+      if (parent === undefined) continue;
+      const moves = new Set(listTexts(parent, 'authority', 'moves'));
+      const covers = listTexts(parent, 'authority', 'covers');
+      const report = (key: string, message: string): void => {
+        const line = fields(mandate, 'authority', key)[0]?.span.line ?? mandate.source.line;
+        found.push({
+          code: 'IA-COMP-CANON-MANDATE-WIDEN',
+          path: mandate.source.path,
+          line,
+          severity: 'error',
+          message: `${mandate.source.path}:${line}: ${message}`,
+        });
+      };
+      for (const move of listTexts(mandate, 'authority', 'moves'))
+        if (!moves.has(move))
+          report('moves', `Mandate ${mandate.name} allows ${move}, which ${parent.name}, which it cites, does not.`);
+      for (const path of listTexts(mandate, 'authority', 'covers'))
+        if (!covers.some((c) => pathWithin(path, c)))
+          report(
+            'covers',
+            `Mandate ${mandate.name} covers ${path}, outside every path ${parent.name}, which it cites, covers.`,
+          );
+    }
+  return found;
+}
+
+const CANON_LAWS = '.ia/src/systems/governance-system/records/canon/';
+const underCanon = (node: Node): boolean => posix(node.source.path).startsWith(CANON_LAWS);
+
+/** E4: a local law or convention on a canon law's subject word cites that law and is at least as strong. */
+export function canonLocalTightening(nodes: readonly Node[], graph?: Graph): readonly Finding[] {
+  const found: Finding[] = [];
+  const canon = nodes.filter((node) => node.discriminator === 'law' && underCanon(node));
+  for (const local of nodes) {
+    if ((local.discriminator !== 'law' && local.discriminator !== 'convention') || underCanon(local)) continue;
+    const word = textField(local, 'subject', 'subject-word');
+    if (word === undefined) continue;
+    const cited = citedBy(local, graph);
+    for (const law of canon) {
+      if (textField(law, 'subject', 'subject-word') !== word) continue;
+      const report = (message: string): void => {
+        found.push({
+          code: 'IA-COMP-CANON-LOCAL-TIGHTEN',
+          path: local.source.path,
+          line: local.source.line,
+          severity: 'error',
+          message: `${local.source.path}:${local.source.line}: ${message}`,
+        });
+      };
+      if (!cited.has(law.identity))
+        report(`${local.name} governs the word ${word} but does not cite the canon law ${law.name}.`);
+      else if (SEVERITY_ORDER[lawSeverity(local)] < SEVERITY_ORDER[lawSeverity(law)])
+        report(
+          `${local.name} is ${lawSeverity(local)}, weaker than the canon law ${law.name}, which is ${lawSeverity(law)}.`,
+        );
+    }
+  }
+  return found;
+}
+
+type Rule = (nodes: readonly Node[], folders: readonly SystemFolder[] | undefined, graph?: Graph) => readonly Finding[];
 const RULES: readonly (readonly [string, Rule])[] = [
   ['CANON-WORK-PLACEMENT', canonWorkPlacement],
   ['CANON-KIT-WORDS', canonKitMethodWords],
   ['CANON-KIT-WORKSPACE', canonKitWorkspace],
+  ['CANON-MANDATE-NARROW', (nodes, _folders, graph) => canonMandateNarrowing(nodes, graph)],
+  ['CANON-LOCAL-TIGHTEN', (nodes, _folders, graph) => canonLocalTightening(nodes, graph)],
 ];
 
 /**
@@ -200,5 +295,5 @@ export function canonAssessments(
   folders: readonly SystemFolder[] | undefined,
   graph?: Graph,
 ): readonly Assessment[] {
-  return RULES.flatMap(([id, rule]) => canonAssessment(nodes, id, () => rule(nodes, folders), graph) ?? []);
+  return RULES.flatMap(([id, rule]) => canonAssessment(nodes, id, () => rule(nodes, folders, graph), graph) ?? []);
 }

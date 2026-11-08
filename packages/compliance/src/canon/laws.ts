@@ -5,7 +5,7 @@ import { checkRunner, textField } from '../graph-checks.js';
 import type { Verdict } from '../types.js';
 
 export type LawState = 'enforced' | 'pending' | 'not-evaluated' | 'suspended';
-type LawSeverity = 'blocking' | 'advisory' | 'informational';
+export type LawSeverity = 'blocking' | 'advisory' | 'informational';
 export interface LawStatus {
   readonly identity: string;
   readonly severity: LawSeverity;
@@ -16,8 +16,8 @@ export interface LawStatus {
   readonly suspendedBy: string | null;
 }
 
-const SEVERITY_ORDER: Readonly<Record<LawSeverity, number>> = { informational: 0, advisory: 1, blocking: 2 };
-const lawSeverity = (law: Node): LawSeverity => {
+export const SEVERITY_ORDER: Readonly<Record<LawSeverity, number>> = { informational: 0, advisory: 1, blocking: 2 };
+export const lawSeverity = (law: Node): LawSeverity => {
   const text = textField(law, 'governance', 'severity');
   return text === 'blocking' || text === 'advisory' ? text : 'informational';
 };

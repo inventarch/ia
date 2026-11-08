@@ -589,6 +589,72 @@ export function runRefusalFixtures(
         ]),
     ],
     [
+      'IA-COMP-CANON-MANDATE-WIDEN',
+      () => {
+        const authority = (moves: string, covers: string) => ({
+          name: 'authority',
+          span: { line: 1, endLine: 1 },
+          fields: [
+            ['moves', moves],
+            ['covers', covers],
+          ].map(([key, text]) => ({
+            key: key!,
+            value: { kind: 'list' as const, items: [{ kind: 'scalar' as const, text: text! }] },
+            span: { line: 1, endLine: 1 },
+          })),
+        });
+        const parent: Node = {
+          ...mandate,
+          identity: 'fixture/mandate/parent-mandate',
+          name: 'parent-mandate',
+          edges: [],
+          sections: [authority('Observation', '.ia/src/')],
+        };
+        return canonFixture('CANON-MANDATE-NARROW', [
+          parent,
+          {
+            ...mandate,
+            identity: 'fixture/mandate/child-mandate',
+            name: 'child-mandate',
+            edges: [
+              { ...law.edges[0]!, predicate: 'cite', direction: 'out' as const, target: parent.identity },
+            ] as Node['edges'],
+            sections: [authority('Execution', 'docs/')],
+          },
+        ]);
+      },
+    ],
+    [
+      'IA-COMP-CANON-LOCAL-TIGHTEN',
+      () => {
+        const subject = {
+          name: 'subject',
+          span: { line: 1, endLine: 1 },
+          fields: [
+            { key: 'subject-word', value: { kind: 'scalar' as const, text: 'widget' }, span: { line: 1, endLine: 1 } },
+          ],
+        };
+        return canonFixture('CANON-LOCAL-TIGHTEN', [
+          {
+            ...law,
+            identity: 'fixture/law/widget-canon',
+            name: 'widget-canon',
+            edges: [],
+            source: { ...law.source, path: '.ia/src/systems/governance-system/records/canon/widget.ia' },
+            sections: [subject],
+          },
+          {
+            ...law,
+            identity: 'fixture/law/widget-local',
+            name: 'widget-local',
+            edges: [],
+            source: { ...law.source, path: '.ia/src/records/widget-local.ia' },
+            sections: [subject],
+          },
+        ]);
+      },
+    ],
+    [
       'IA-COMP-FIXTURE-MISMATCH',
       () =>
         runLanguageFixture({

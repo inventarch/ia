@@ -26,6 +26,8 @@ export {
   canonAssessments,
   canonKitMethodWords,
   canonKitWorkspace,
+  canonLocalTightening,
+  canonMandateNarrowing,
   canonWorkPlacement,
   executingKitSystems,
   isKitWorkspace,
