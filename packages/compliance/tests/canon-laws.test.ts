@@ -92,6 +92,28 @@ describe('canon law status and severity', () => {
     );
     expect(only(open, 'hard-law').state).toBe('enforced');
   });
+  it('a blocking law enforced by one built-in and one non-built-in check yields warning, not error', () => {
+    const twoChecks = `  relationships\n    enforced-by @check mixed-builtin\n    enforced-by @check mixed-external\n`;
+    const nodes = build(
+      law('mixed-law', 'blocking', twoChecks),
+      check('mixed-builtin', 'COMP-VARIANT'),
+      check('mixed-external', 'NOT-A-BUILTIN'),
+    );
+    expect(only(nodes, 'mixed-law').checks).toHaveLength(2);
+    expect(canonSeverity(nodes, 'COMP-VARIANT')).toBe('warning');
+    const graph = graphOf(
+      law('mixed-law', 'blocking', twoChecks),
+      check('mixed-builtin', 'COMP-VARIANT'),
+      check('mixed-external', 'NOT-A-BUILTIN'),
+    );
+    expect(canonSeverity([...graph.nodes.values()], 'COMP-VARIANT', graph)).toBe('warning');
+    const builtins = build(
+      law('mixed-law', 'blocking', twoChecks),
+      check('mixed-builtin', 'COMP-VARIANT'),
+      check('mixed-external', 'COMP-SCHEMA'),
+    );
+    expect(canonSeverity(builtins, 'COMP-VARIANT')).toBe('error');
+  });
   it('informational or absent law makes the check inactive', () => {
     const nodes = build(
       law('soft-law', 'informational', enforcedBy('soft-runner')),

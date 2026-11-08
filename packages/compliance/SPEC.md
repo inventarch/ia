@@ -80,6 +80,8 @@ C21 (database admission integration). The report assembler may receive prior fai
 
 C21 delivered with the database view builder: report options accept prior non-pass admission observations, coalesce identical check/scope at the worst outcome and deduplicate findings. Candidate-only passes are ignored. The regression test retains removed-subject evidence without duplicate verdicts.
 
+The canon file rules (C12, A6 and C6, which read the checkout) enter through their own option, `canonFiles`, which is not filtered: a warning-only assessment passes, and its findings and its passing verdict both reach the report, so an advisory file law is seen and reads enforced. The `admission` filter above is unchanged.
+
 C22–C24 (the host projection renderers renderHostArtifacts and renderWorkspaceProjection, their ProjectionMembership input, the steward composition behind them and the IA-COMP-PROJECTION-INVALID refusal) were retired on 2026-10-09. The position packet and its claude and codex adapters replace them in @inventarch/runtime (runtime SPEC R19 and R20), and the CLI and tools/projections render through those. Compliance exports no projection API, no projection marker and no steward host table, and the ids C22–C24 are not reused.
 
 ## Trusted evaluator catalog, obligations and evidence (producer side)

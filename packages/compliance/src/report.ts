@@ -26,7 +26,13 @@ import { assess, verdict } from './types.js';
 import type { Assessment, Finding, Verdict } from './types.js';
 
 export interface ReportOptions {
+  /** Admission observations; only those that do not pass are kept. */
   readonly admission?: readonly Assessment[];
+  /**
+   * The canon file rules' assessments (C12, A6, C6), which read the checkout. They are kept as given, unfiltered: a
+   * warning-only assessment passes, and its findings and its passing verdict both reach the report.
+   */
+  readonly canonFiles?: readonly Assessment[];
   readonly sourceDiagnostics?: readonly Diagnostic[];
   readonly folders?: readonly SystemFolder[];
   /** Caller-asserted COMP-KERNEL and COMP-FIXTURES verdicts (C19); a result taken from it is labelled `caller-asserted`. */
@@ -86,6 +92,7 @@ export function evaluate(graph: Graph, options: ReportOptions = {}): Report {
     ...canonAssessments(nodes, options.folders, graph),
   ];
   assessments.push(...(options.admission?.filter((a) => a.outcome !== 'pass') ?? []));
+  assessments.push(...(options.canonFiles ?? []));
   if (options.folders === undefined)
     for (const check of ['COMP-SYSTEM', 'COMP-STEWARD'])
       assessments.push(unavailable(check, 'System folder discovery observations were not supplied'));

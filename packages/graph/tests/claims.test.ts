@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { KERNEL_DIGEST, LANGUAGE_VERSION, compile, parse } from '@inventarch/language';
 import type { Location } from '@inventarch/language';
-import { CLAIM_FIELDS, claimants, isSelection, load, selects, serialize, stableSerialize } from '../src/index.js';
+import {
+  CLAIM_FIELDS,
+  claimants,
+  isSelection,
+  load,
+  selectionWithin,
+  selects,
+  serialize,
+  stableSerialize,
+} from '../src/index.js';
 import type { Graph, LoadOptions } from '../src/index.js';
 import { inputs, records, registry } from './native.js';
 
@@ -122,6 +131,46 @@ describe('the path selection dialect (G06c)', () => {
     }
     for (const selection of ['a/b', 'a/', '**', 'docs/*.md', 'supplied module source'])
       expect(isSelection(selection), selection).toBe(true);
+  });
+
+  it('says a selection is within another when every path it selects, the other selects too', () => {
+    const within: readonly (readonly [string, string])[] = [
+      ['docs/readme.md', 'docs/*.md'],
+      ['docs/readme.md', 'docs/'],
+      ['docs/*.md', 'docs/*.md'],
+      ['docs/a*.md', 'docs/*.md'],
+      ['docs/ab.md', 'docs/a?.md'],
+      ['docs/a?.md', 'docs/a?.md'],
+      ['docs/a?.md', 'docs/a*'],
+      ['docs/*', 'docs/**'],
+      ['docs/a/', 'docs/'],
+      ['docs', 'docs/'],
+      ['.ia/src/records/', '.ia/src/'],
+      ['a/**/b', '**/b'],
+      ['a\\b', 'a/*'],
+    ];
+    for (const [selection, parent] of within)
+      expect(selectionWithin(selection, parent), `${selection} in ${parent}`).toBe(true);
+    const outside: readonly (readonly [string, string])[] = [
+      ['docs/a/readme.md', 'docs/*.md'],
+      ['docs/readme.txt', 'docs/*.md'],
+      ['docs/*.md', 'docs/a*.md'],
+      ['docs/a*.md', 'docs/a?.md'],
+      ['docs/**', 'docs/*'],
+      ['docs/', 'docs'],
+      ['docs/', '.ia/src/'],
+      ['**', 'docs/**'],
+      ['a/**/b', 'a/*/b'],
+      ['Docs/x', 'docs/'],
+      ['docs/x', '/docs/'],
+    ];
+    for (const [selection, parent] of outside)
+      expect(selectionWithin(selection, parent), `${selection} not in ${parent}`).toBe(false);
+    // A selection the dialect does not read selects nothing, so it lies within any selection.
+    for (const inert of ['', '/', './docs', 'a/../b']) expect(selectionWithin(inert, 'docs/'), inert).toBe(true);
+    // Agrees with selects for every literal path.
+    for (const [path, parent] of [...within, ...outside].filter(([s]) => !/[*?]|\/$/.test(s)))
+      expect(selectionWithin(path, parent), path).toBe(selects(parent, path));
   });
 
   it('stays bounded on selections built to backtrack', () => {

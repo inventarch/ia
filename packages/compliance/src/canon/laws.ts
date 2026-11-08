@@ -80,20 +80,25 @@ export function lawStatuses(nodes: readonly Node[], verdicts: readonly Verdict[]
 
 /**
  * The severity a built-in canon check reports at: the strongest of the laws enforcing a check that runs `checkId`.
- * Blocking gives error, advisory gives warning, and a suspended law gives warning. Null leaves the check inactive.
+ * Blocking gives error, advisory gives warning, and a suspended law gives warning. A blocking law gives error only when
+ * every check enforcing it runs a built-in id; while any of them does not (6c-3: an evaluation this run cannot make
+ * does not block), it gives warning. Null leaves the check inactive.
  */
 export function canonSeverity(nodes: readonly Node[], checkId: string, graph?: Graph): Severity | null {
   let strongest: LawSeverity = 'informational';
   let suspended = false;
+  const runnerOf = (id: string): string | undefined => {
+    const check = nodes.find((node) => node.identity === id);
+    return check === undefined ? undefined : checkRunner(check);
+  };
   for (const law of nodes) {
     if (law.discriminator !== 'law') continue;
-    const enforces = enforcingChecks(nodes, law, graph).some((id) => {
-      const check = nodes.find((node) => node.identity === id);
-      return check !== undefined && checkRunner(check) === checkId;
-    });
-    if (!enforces) continue;
-    const severity = lawSeverity(law);
+    const runners = enforcingChecks(nodes, law, graph).map(runnerOf);
+    if (!runners.includes(checkId)) continue;
+    let severity = lawSeverity(law);
     if (severity === 'informational') continue;
+    if (severity === 'blocking' && !runners.every((runner) => runner !== undefined && isBuiltinCheck(runner)))
+      severity = 'advisory';
     if (suspension(nodes, law) !== undefined) suspended = true;
     else if (SEVERITY_ORDER[severity] > SEVERITY_ORDER[strongest]) strongest = severity;
   }

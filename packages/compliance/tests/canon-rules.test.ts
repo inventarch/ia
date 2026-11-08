@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { KERNEL_DIGEST, LANGUAGE_VERSION, compile, parse } from '@inventarch/language';
 import { load } from '@inventarch/graph';
 import { canonAssessments, canonKitMethodWords, canonKitWorkspace, evaluate, isKitWorkspace } from '../src/index.js';
+import { assess } from '../src/types.js';
 import { inputs, records, registry } from './native.js';
 
 const location = {
@@ -80,11 +81,19 @@ const native = (system: string): readonly (readonly [string, string])[] => [
   [`${KIT}/records/distribution.ia`, plainDistribution('kit-a-distribution', '@system kit-a, @system kit-b')],
   ['.ia/src/systems/kit-b/system.ia', kitSystem('', ['workspace-system'], 'kit-b')],
 ];
-const workspaceWith = (composition: string) =>
-  `@workspace kit-workspace\n  meaning\n    says "The shipped kit workspace."\n    answers "What does the kit workspace compose?"\n  composition\n    systems [@system kit-a]\n${composition}`;
+const workspaceWith = (composition: string, name = 'kit-workspace') =>
+  `@workspace ${name}\n  meaning\n    says "The shipped kit workspace."\n    answers "What does the kit workspace compose?"\n  composition\n    systems [@system kit-a]\n${composition}`;
 const ruleFindings = (graph: ReturnType<typeof graphOf>, code: string) =>
   canonFindings(graph).filter((f) => f.code === code);
-const nodesOf = (graph: ReturnType<typeof graphOf>) => [...graph.nodes.values()];
+/**
+ * The graph's nodes without the conformance corpus's own `foundation-distribution`: it sits under
+ * `systems/workspace-system/records/` and lists a `@workspace`, so kit detection (H5) reads the bare corpus as a kit.
+ * These tests judge the shapes they author, not the corpus.
+ */
+const nodesOf = (graph: ReturnType<typeof graphOf>) =>
+  [...graph.nodes.values()].filter(
+    (n) => !(n.discriminator === 'distribution' && n.name === 'foundation-distribution'),
+  );
 const wordsLaw = [
   ['law.ia', lawFor('words', 'blocking')],
   ['check.ia', checkFor('words', 'CANON-KIT-WORDS')],
@@ -150,14 +159,69 @@ describe('kit detection and C4/C5a', () => {
     expect(canonKitMethodWords(nodes, [folder])).toHaveLength(1);
     expect(canonKitMethodWords(nodes, [{ ...folder, records: [] }])).toEqual([]);
   });
-  it('C5a reports a kit workspace with a steward or sources', () => {
-    const graph = graphOf(
-      ['law.ia', lawFor('ws', 'blocking')],
-      ['check.ia', checkFor('ws', 'CANON-KIT-WORKSPACE')],
-      ...native(kitSystem('')),
-      ['.ia/src/workspace.ia', workspaceWith('    steward @agent kit-steward\n    sources [".ia/src @authored"]\n')],
+  it('isKitWorkspace recognises a native distribution listing a @workspace, as ia-brand ships', () => {
+    const brand = [
+      [`${KIT}/system.ia`, kitSystem('')],
+      [`${KIT}/records/distribution.ia`, plainDistribution('kit-a-distribution', '@workspace kit-workspace')],
+      [`${KIT}/records/workspace.ia`, workspaceWith('')],
+    ] as const;
+    expect(isKitWorkspace(nodesOf(graphOf(...brand)))).toBe(true);
+    // The kit system is the folder holding the distribution: its method law must require governance-system (C4).
+    const words = ruleFindings(graphOf(...wordsLaw, ...brand, methodLaw), 'IA-COMP-CANON-KIT-WORDS');
+    expect(words).toHaveLength(1);
+    expect(words[0]!.message).toContain('Kit system kit-a');
+    const release = graphOf(
+      [`${KIT}/system.ia`, kitSystem('')],
+      ['.ia/src/releases/distribution.ia', plainDistribution('kit-a-distribution', '@workspace kit-workspace')],
+      ['.ia/src/workspace.ia', workspaceWith('')],
     );
-    expect(ruleFindings(graph, 'IA-COMP-CANON-KIT-WORKSPACE')).toHaveLength(2);
+    expect(isKitWorkspace(nodesOf(release))).toBe(false);
+  });
+  const wsLaw = [
+    ['law.ia', lawFor('ws', 'blocking')],
+    ['check.ia', checkFor('ws', 'CANON-KIT-WORKSPACE')],
+  ] as const;
+  const stewardAndSources = '    steward @agent kit-steward\n    sources [".ia/src @authored"]\n';
+  it("C5a does not flag the kit's own seat .ia/src/workspace.ia, which the kit does not ship", () => {
+    const graph = graphOf(...wsLaw, ...native(kitSystem('')), [
+      '.ia/src/workspace.ia',
+      workspaceWith(stewardAndSources),
+    ]);
+    expect(isKitWorkspace(nodesOf(graph))).toBe(true);
+    expect(ruleFindings(graph, 'IA-COMP-CANON-KIT-WORKSPACE')).toEqual([]);
+    const listed = graphOf(
+      ...wsLaw,
+      [`${KIT}/system.ia`, kitSystem('')],
+      [`${KIT}/records/distribution.ia`, plainDistribution('kit-a-distribution', '@system kit-a, @workspace seat')],
+      ['.ia/src/workspace.ia', workspaceWith(stewardAndSources, 'seat')],
+    );
+    expect(ruleFindings(listed, 'IA-COMP-CANON-KIT-WORKSPACE')).toEqual([]);
+  });
+  it('C5a reports a shipped workspace in a kit system folder with a steward or sources', () => {
+    const graph = graphOf(
+      ...wsLaw,
+      [`${KIT}/system.ia`, kitSystem('')],
+      [`${KIT}/records/distribution.ia`, plainDistribution('kit-a-distribution', '@workspace kit-workspace')],
+      [`${KIT}/records/workspace.ia`, workspaceWith('    steward @agent kit-steward\n')],
+      ['.ia/src/workspace.ia', workspaceWith(stewardAndSources, 'seat')],
+    );
+    expect(ruleFindings(graph, 'IA-COMP-CANON-KIT-WORKSPACE')).toMatchObject([
+      { severity: 'error', path: `${KIT}/records/workspace.ia` },
+    ]);
+  });
+  it('C5a reports a workspace a kit distribution lists, outside the kit system folder', () => {
+    const graph = graphOf(
+      ...wsLaw,
+      [`${KIT}/system.ia`, kitSystem('')],
+      [`${KIT}/records/distribution.ia`, plainDistribution('kit-a-distribution', '@system kit-a, @workspace shipped')],
+      ['.ia/src/shipped/workspace.ia', workspaceWith(stewardAndSources, 'shipped')],
+      ['.ia/src/other/workspace.ia', workspaceWith(stewardAndSources, 'unshipped')],
+    );
+    const found = ruleFindings(graph, 'IA-COMP-CANON-KIT-WORKSPACE');
+    expect(found).toHaveLength(2);
+    expect(new Set(found.map((f) => f.path))).toEqual(new Set(['.ia/src/shipped/workspace.ia']));
+  });
+  it('C5a reports nothing for a clean kit', () => {
     const clean = graphOf(
       ['law.ia', lawFor('ws', 'blocking')],
       ['check.ia', checkFor('ws', 'CANON-KIT-WORKSPACE')],
@@ -212,6 +276,21 @@ describe('E5 mandate narrowing', () => {
     const alone = graphOf(...narrowLaw, ['wide.ia', mandateOf('wide-mandate', 'Execution', '"/"')]);
     expect(ruleFindings(alone, WIDEN)).toEqual([]);
   });
+  it("E5 reads covers in the graph's selection dialect: docs/readme.md is within docs/*.md", () => {
+    const globParent = ['parent.ia', mandateOf('parent-mandate', 'Observation', '"docs/*.md"')] as const;
+    const within = graphOf(...narrowLaw, globParent, [
+      'child.ia',
+      mandateOf('child-mandate', 'Observation', '"docs/readme.md", "docs/a*.md"', 'parent-mandate'),
+    ]);
+    expect(ruleFindings(within, WIDEN)).toEqual([]);
+    const wider = graphOf(...narrowLaw, globParent, [
+      'child.ia',
+      mandateOf('child-mandate', 'Observation', '"docs/guide/readme.md", "docs/**"', 'parent-mandate'),
+    ]);
+    const found = ruleFindings(wider, WIDEN);
+    expect(found).toHaveLength(2);
+    expect(found.map((f) => f.message).join(' ')).toContain('docs/guide/readme.md');
+  });
   it('E5 is inactive without an enforcing law', () => {
     const graph = graphOf(parent, ['child.ia', mandateOf('child-mandate', 'Execution', '"docs/"', 'parent-mandate')]);
     expect(ruleFindings(graph, WIDEN)).toEqual([]);
@@ -253,6 +332,41 @@ describe('E4 local tightening', () => {
     expect(ruleFindings(graph, TIGHTEN)).toEqual([]);
     expect(ruleFindings(graphOf(...tightenRules, canon), TIGHTEN)).toEqual([]);
   });
+  it('E4 recognises an installed canon law under a store prefix', () => {
+    const installed = [
+      `.ia/distributions/store/${'a'.repeat(64)}/.ia/src/systems/governance-system/records/canon/widget.ia`,
+      subjectRule('law', 'widget-canon', 'advisory'),
+    ] as const;
+    const uncited = graphOf(...tightenRules, installed, [
+      'local.ia',
+      subjectRule('convention', 'widget-local', 'blocking'),
+    ]);
+    const found = ruleFindings(uncited, TIGHTEN);
+    expect(found).toMatchObject([{ path: 'local.ia' }]);
+    expect(found[0]!.message).toContain('widget-canon');
+    const cited = graphOf(...tightenRules, installed, [
+      'local.ia',
+      subjectRule('convention', 'widget-local', 'advisory', 'widget-canon'),
+    ]);
+    expect(ruleFindings(cited, TIGHTEN)).toEqual([]);
+  });
+  it('E4 accepts a local rule citing one of two canon laws on its word, at least as strong as the one it cites', () => {
+    const two = [canon, [`${CANON_DIR}/widget-two.ia`, subjectRule('law', 'widget-canon-two', 'blocking')]] as const;
+    const citesOne = graphOf(...tightenRules, ...two, [
+      'local.ia',
+      subjectRule('law', 'widget-local', 'advisory', 'widget-canon'),
+    ]);
+    expect(ruleFindings(citesOne, TIGHTEN)).toEqual([]);
+    const weaker = graphOf(...tightenRules, ...two, [
+      'local.ia',
+      subjectRule('law', 'widget-local', 'advisory', 'widget-canon-two'),
+    ]);
+    const found = ruleFindings(weaker, TIGHTEN);
+    expect(found).toHaveLength(1);
+    expect(found[0]!.message).toContain('widget-canon-two');
+    const none = graphOf(...tightenRules, ...two, ['local.ia', subjectRule('law', 'widget-local', 'blocking')]);
+    expect(ruleFindings(none, TIGHTEN)).toHaveLength(1);
+  });
   it('E4 treats a law under any system records/canon folder as canon', () => {
     const work = [
       '.ia/src/systems/work-system/records/canon/laws.ia',
@@ -271,5 +385,54 @@ describe('E4 local tightening', () => {
       subjectRule('convention', 'spec-local', 'advisory', 'spec-canon', 'spec'),
     ]);
     expect(ruleFindings(cited, TIGHTEN)).toEqual([]);
+  });
+});
+
+describe('canon file assessments through canonFiles', () => {
+  const warning = assess('CANON-TEACHING-LINKS', 'graph', [
+    {
+      code: 'IA-COMP-CANON-TEACHING-LINKS',
+      path: '.ia/src/doc.md',
+      line: 3,
+      severity: 'warning',
+      message: '.ia/src/doc.md:3: target outside .ia/src: ../README.md',
+    },
+  ]);
+  const clean = assess('CANON-SOURCE-ROOTS', 'graph', []);
+  it('keeps a warning-only file assessment and its passing verdict', () => {
+    const report = evaluate(graphOf(['plain.ia', spec]), { canonFiles: [warning, clean] });
+    expect(report.findings.filter((f) => f.code === 'IA-COMP-CANON-TEACHING-LINKS')).toMatchObject([
+      { severity: 'warning', path: '.ia/src/doc.md', line: 3 },
+    ]);
+    expect(report.verdicts.find((v) => v.check === 'CANON-TEACHING-LINKS')).toMatchObject({ outcome: 'pass' });
+    expect(report.verdicts.find((v) => v.check === 'CANON-SOURCE-ROOTS')).toMatchObject({
+      outcome: 'pass',
+      findings: [],
+    });
+  });
+  it('leaves the admission filter unchanged: passing admission assessments are still dropped', () => {
+    const report = evaluate(graphOf(['plain.ia', spec]), { admission: [warning, clean] });
+    expect(report.findings.filter((f) => f.code === 'IA-COMP-CANON-TEACHING-LINKS')).toEqual([]);
+    expect(report.verdicts.some((v) => v.check === 'CANON-TEACHING-LINKS' || v.check === 'CANON-SOURCE-ROOTS')).toBe(
+      false,
+    );
+  });
+});
+
+describe('A14 only in vocabulary system folders', () => {
+  const a14 = [
+    ['law.ia', law('blocking')],
+    ['check.ia', check],
+  ] as const;
+  const words = '  discriminators\n    widget lowers to definition\n      category state\n';
+  it('A14 does not flag a spec in a wordless method system folder', () => {
+    const graph = graphOf(...a14, [`${KIT}/system.ia`, kitSystem('')], [`${KIT}/records/offending-spec.ia`, spec]);
+    expect(canonFindings(graph)).toEqual([]);
+  });
+  it("A14 flags a spec in a vocabulary system's folder, whose system declares discriminators", () => {
+    const graph = graphOf(...a14, [`${KIT}/system.ia`, kitSystem(words)], [`${KIT}/records/offending-spec.ia`, spec]);
+    expect(canonFindings(graph)).toMatchObject([
+      { code: CODE, severity: 'error', path: `${KIT}/records/offending-spec.ia` },
+    ]);
   });
 });

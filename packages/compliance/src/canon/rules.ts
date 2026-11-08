@@ -1,3 +1,4 @@
+import { selectionWithin } from '@inventarch/graph';
 import type { Graph, Node } from '@inventarch/graph';
 import type { Severity } from '@inventarch/language';
 import type { SystemFolder } from '../systems.js';
@@ -8,10 +9,40 @@ import { SEVERITY_ORDER, canonSeverity, lawSeverity } from './laws.js';
 
 const WORK_INSTANCES: ReadonlySet<string> = new Set(['plan', 'milestone', 'task', 'decision', 'spec']);
 
-/** A14: work records inside a reusable system payload under `.ia/src/systems/`. The caller sets the severity. */
+const SYSTEM_FOLDER = /^\.ia\/src\/systems\/([^/]+)\//;
+
+/**
+ * The system folders `.ia/src/systems/<name>/` whose `@system` declares discriminators, so mints words: a vocabulary
+ * system's folder. The `@system` is the one authored in the folder, else the one named `<name>`.
+ */
+function vocabularyFolders(nodes: readonly Node[]): ReadonlySet<string> {
+  const systems = nodes.filter((node) => node.discriminator === 'system');
+  const folders = new Set<string>();
+  for (const node of nodes) {
+    const match = SYSTEM_FOLDER.exec(posix(node.source.path));
+    if (match !== null) folders.add(match[1]!);
+  }
+  const found = new Set<string>();
+  for (const folder of folders) {
+    const inside = systems.filter((s) => posix(s.source.path).startsWith(`.ia/src/systems/${folder}/`));
+    const declaring = inside.length > 0 ? inside : systems.filter((s) => s.name === folder);
+    if (declaring.some((s) => sectionKeys(s, 'discriminators').length > 0)) found.add(folder);
+  }
+  return found;
+}
+
+/**
+ * A14: work records inside a vocabulary system's folder `.ia/src/systems/<name>/`, one whose `@system` declares
+ * discriminators. A wordless method system's folder is not a vocabulary payload. The caller sets the severity.
+ */
 export function canonWorkPlacement(nodes: readonly Node[]): readonly Finding[] {
+  const vocabulary = vocabularyFolders(nodes);
   return nodes
-    .filter((node) => node.source.path.startsWith('.ia/src/systems/') && WORK_INSTANCES.has(node.discriminator))
+    .filter((node) => {
+      if (!WORK_INSTANCES.has(node.discriminator)) return false;
+      const match = SYSTEM_FOLDER.exec(posix(node.source.path));
+      return match !== null && vocabulary.has(match[1]!);
+    })
     .map(
       (node): Finding => ({
         code: 'IA-COMP-CANON-WORK-PLACEMENT',
@@ -25,44 +56,91 @@ export function canonWorkPlacement(nodes: readonly Node[]): readonly Finding[] {
 
 const posix = (path: string): string => path.split(String.fromCharCode(92)).join('/');
 const PLUGIN_RECORDS = /^\.ia\/src\/systems\/([^/]+)\/records\/plugin\.ia$/;
-const SYSTEM_RECORDS = /^\.ia\/src\/systems\/[^/]+\/records\/[^/]+$/;
+const SYSTEM_RECORDS = /^\.ia\/src\/systems\/([^/]+)\/records\/[^/]+$/;
+/** The kit's seat workspace: the repository's own, which a kit never ships. */
+const SEAT_WORKSPACE = '.ia/src/workspace.ia';
+
+/** A kit: its systems, and the `@distribution` records that make it one. */
+interface Kit {
+  readonly systems: readonly string[];
+  readonly distributions: readonly Node[];
+}
+const NO_KIT: Kit = { systems: [], distributions: [] };
+
+/** The names of the `@<discriminator>` references a distribution's `distribution.records` lists. */
+function listed(distribution: Node, discriminator: string): readonly string[] {
+  const names: string[] = [];
+  for (const field of fields(distribution, 'distribution', 'records'))
+    if (field.value.kind === 'list')
+      for (const item of field.value.items)
+        if (item.kind === 'ref' && item.discriminator === discriminator) names.push(item.name);
+  return names;
+}
 
 /** Form (a): the one system whose `records/plugin.ia` authors a product `@distribution` (host-plugin-distribution section 12). */
-function lowerKitSystems(nodes: readonly Node[]): readonly string[] {
-  const found = new Set<string>();
+function loweredKit(nodes: readonly Node[]): Kit {
+  const found = new Map<string, Node[]>();
   for (const node of nodes) {
     if (node.discriminator !== 'distribution' || !node.sections.some((s) => s.name === 'product')) continue;
     const match = PLUGIN_RECORDS.exec(posix(node.source.path));
-    if (match !== null) found.add(match[1]!);
+    if (match !== null) found.set(match[1]!, [...(found.get(match[1]!) ?? []), node]);
   }
-  return found.size === 1 ? [...found] : [];
-}
-
-/** Form (b): the `@system`s listed by a `@distribution` authored under `.ia/src/systems/<n>/records/`. */
-function nativeKitSystems(nodes: readonly Node[]): readonly string[] {
-  const found = new Set<string>();
-  for (const node of nodes) {
-    if (node.discriminator !== 'distribution' || !SYSTEM_RECORDS.test(posix(node.source.path))) continue;
-    for (const field of fields(node, 'distribution', 'records'))
-      if (field.value.kind === 'list')
-        for (const item of field.value.items)
-          if (item.kind === 'ref' && item.discriminator === 'system') found.add(item.name);
-  }
-  return [...found].sort();
-}
-
-/** The kit's systems: the single section 12 system, else the systems a native release distribution lists. */
-function kitSystems(nodes: readonly Node[]): readonly string[] {
-  const lowered = lowerKitSystems(nodes);
-  return lowered.length > 0 ? lowered : nativeKitSystems(nodes);
+  if (found.size !== 1) return NO_KIT;
+  const [system, distributions] = [...found][0]!;
+  return { systems: [system], distributions };
 }
 
 /**
+ * Form (b): a `@distribution` authored under `.ia/src/systems/<n>/records/` whose `distribution.records` lists `@system`
+ * or `@workspace` records. Its kit systems are the `@system`s it lists; one listing only `@workspace`s (as ia-brand,
+ * ia-design, ia-ui and ia-ux ship) makes `<n>`, the system folder holding it, the kit system.
+ */
+function nativeKit(nodes: readonly Node[]): Kit {
+  const systems = new Set<string>();
+  const distributions: Node[] = [];
+  for (const node of nodes) {
+    if (node.discriminator !== 'distribution') continue;
+    const match = SYSTEM_RECORDS.exec(posix(node.source.path));
+    if (match === null) continue;
+    const named = listed(node, 'system');
+    if (named.length > 0) for (const name of named) systems.add(name);
+    else if (listed(node, 'workspace').length > 0) systems.add(match[1]!);
+    else continue;
+    distributions.push(node);
+  }
+  return { systems: [...systems].sort(), distributions };
+}
+
+/** The kit: the single section 12 system, else the systems native release distributions name. */
+function kitOf(nodes: readonly Node[]): Kit {
+  const lowered = loweredKit(nodes);
+  return lowered.systems.length > 0 ? lowered : nativeKit(nodes);
+}
+const kitSystems = (nodes: readonly Node[]): readonly string[] => kitOf(nodes).systems;
+
+/**
  * True when the workspace is a kit: either exactly one system has `records/plugin.ia` authoring a product `@distribution`,
- * or a `@distribution` authored under `.ia/src/systems/<name>/records/` lists one or more `@system` records.
+ * or a `@distribution` authored under `.ia/src/systems/<name>/records/` lists one or more `@system` or `@workspace`
+ * records.
  */
 export function isKitWorkspace(nodes: readonly Node[]): boolean {
   return kitSystems(nodes).length > 0;
+}
+
+/**
+ * The `@workspace` records a kit ships: those its kit distributions list in `distribution.records`, and those authored
+ * under a kit system's folder `.ia/src/systems/<kit system>/`. Never the seat `.ia/src/workspace.ia`, which stays home.
+ */
+function shippedWorkspaces(nodes: readonly Node[]): readonly Node[] {
+  const kit = kitOf(nodes);
+  if (kit.systems.length === 0) return [];
+  const names = new Set(kit.distributions.flatMap((d) => listed(d, 'workspace')));
+  return nodes.filter((node) => {
+    if (node.discriminator !== 'workspace') return false;
+    const path = posix(node.source.path);
+    if (path === SEAT_WORKSPACE) return false;
+    return names.has(node.name) || kit.systems.some((system) => path.startsWith(`.ia/src/systems/${system}/`));
+  });
 }
 
 /**
@@ -145,12 +223,13 @@ export function canonKitMethodWords(
   return found;
 }
 
-/** C5a: in a kit, the shipped `@workspace` has no `composition.steward` and no `composition.sources`. */
+/**
+ * C5a: in a kit, each shipped `@workspace` (see `shippedWorkspaces`) has no `composition.steward` and no
+ * `composition.sources`. The kit's own seat workspace is not shipped, so it is not checked.
+ */
 export function canonKitWorkspace(nodes: readonly Node[]): readonly Finding[] {
-  if (!isKitWorkspace(nodes)) return [];
   const found: Finding[] = [];
-  for (const node of nodes) {
-    if (node.discriminator !== 'workspace') continue;
+  for (const node of shippedWorkspaces(nodes)) {
     for (const key of ['steward', 'sources'])
       for (const field of fields(node, 'composition', key))
         found.push({
@@ -182,15 +261,10 @@ const listTexts = (node: Node, section: string, key: string): readonly string[] 
     field.value.kind === 'list' ? field.value.items.flatMap((item) => ('text' in item ? [item.text] : [])) : [],
   );
 
-const normalPath = (path: string): string => posix(path).replace(/^\.\//, '').replace(/\*+$/, '');
-/** True when `path` lies within `parent`: equal, or under it when `parent` is a folder (a trailing `/`, or `/**`). */
-function pathWithin(path: string, parent: string): boolean {
-  const child = normalPath(path);
-  const base = normalPath(parent);
-  return base.endsWith('/') ? child.startsWith(base) || `${child}/` === base : child === base;
-}
-
-/** E5: a mandate citing a mandate allows no move and covers no path the cited mandate does not. */
+/**
+ * E5: a mandate citing a mandate allows no move and covers no path the cited mandate does not. Each `covers` selection
+ * must lie within one of the cited mandate's, read in the graph's path selection dialect (`selectionWithin`, G06c).
+ */
 export function canonMandateNarrowing(nodes: readonly Node[], graph?: Graph): readonly Finding[] {
   const found: Finding[] = [];
   const mandates = new Map(nodes.filter((n) => n.discriminator === 'mandate').map((n) => [n.identity, n]));
@@ -214,7 +288,7 @@ export function canonMandateNarrowing(nodes: readonly Node[], graph?: Graph): re
         if (!moves.has(move))
           report('moves', `Mandate ${mandate.name} allows ${move}, which ${parent.name}, which it cites, does not.`);
       for (const path of listTexts(mandate, 'authority', 'covers'))
-        if (!covers.some((c) => pathWithin(path, c)))
+        if (!covers.some((c) => selectionWithin(path, c)))
           report(
             'covers',
             `Mandate ${mandate.name} covers ${path}, outside every path ${parent.name}, which it cites, covers.`,
@@ -223,11 +297,18 @@ export function canonMandateNarrowing(nodes: readonly Node[], graph?: Graph): re
   return found;
 }
 
-/** A canon record: one authored under `.ia/src/systems/<system>/records/canon/`, in the folder of the system owning its word. */
-const CANON_LAWS = /^\.ia\/src\/systems\/[^/]+\/records\/canon\//;
+/**
+ * A canon record: one under `.ia/src/systems/<system>/records/canon/`, in the folder of the system owning its word, as
+ * authored or as installed (a store prefix such as `.ia/distributions/store/<digest>/` before it).
+ */
+const CANON_LAWS = /(?:^|\/)\.ia\/src\/systems\/[^/]+\/records\/canon\//;
 const underCanon = (node: Node): boolean => CANON_LAWS.test(posix(node.source.path));
 
-/** E4: a local law or convention on a canon law's subject word cites that law and is at least as strong. */
+/**
+ * E4: a local law or convention on a canon law's subject word cites at least one canon law on that word, and is at
+ * least as strong as each one it cites. Whether its content truly tightens is not machine-checkable; this compares only
+ * the citation and the severity.
+ */
 export function canonLocalTightening(nodes: readonly Node[], graph?: Graph): readonly Finding[] {
   const found: Finding[] = [];
   const canon = nodes.filter((node) => node.discriminator === 'law' && underCanon(node));
@@ -235,25 +316,29 @@ export function canonLocalTightening(nodes: readonly Node[], graph?: Graph): rea
     if ((local.discriminator !== 'law' && local.discriminator !== 'convention') || underCanon(local)) continue;
     const word = textField(local, 'subject', 'subject-word');
     if (word === undefined) continue;
+    const onWord = canon.filter((law) => textField(law, 'subject', 'subject-word') === word);
+    if (onWord.length === 0) continue;
+    const report = (message: string): void => {
+      found.push({
+        code: 'IA-COMP-CANON-LOCAL-TIGHTEN',
+        path: local.source.path,
+        line: local.source.line,
+        severity: 'error',
+        message: `${local.source.path}:${local.source.line}: ${message}`,
+      });
+    };
     const cited = citedBy(local, graph);
-    for (const law of canon) {
-      if (textField(law, 'subject', 'subject-word') !== word) continue;
-      const report = (message: string): void => {
-        found.push({
-          code: 'IA-COMP-CANON-LOCAL-TIGHTEN',
-          path: local.source.path,
-          line: local.source.line,
-          severity: 'error',
-          message: `${local.source.path}:${local.source.line}: ${message}`,
-        });
-      };
-      if (!cited.has(law.identity))
-        report(`${local.name} governs the word ${word} but does not cite the canon law ${law.name}.`);
-      else if (SEVERITY_ORDER[lawSeverity(local)] < SEVERITY_ORDER[lawSeverity(law)])
+    const tightened = onWord.filter((law) => cited.has(law.identity));
+    if (tightened.length === 0) {
+      const names = [...new Set(onWord.map((law) => law.name))].sort();
+      report(`${local.name} governs the word ${word} but cites none of the canon laws on it: ${names.join(', ')}.`);
+      continue;
+    }
+    for (const law of tightened)
+      if (SEVERITY_ORDER[lawSeverity(local)] < SEVERITY_ORDER[lawSeverity(law)])
         report(
           `${local.name} is ${lawSeverity(local)}, weaker than the canon law ${law.name}, which is ${lawSeverity(law)}.`,
         );
-    }
   }
   return found;
 }

@@ -480,6 +480,27 @@ export function runRefusalFixtures(
       'IA-COMP-CANON-WORK-PLACEMENT',
       () =>
         canonFixture('CANON-WORK-PLACEMENT', [
+          // A14 applies in a vocabulary system's folder: its @system declares discriminators.
+          {
+            ...method,
+            discriminator: 'system',
+            identity: 'fixture/system/work-system',
+            name: 'work-system',
+            source: { ...method.source, path: '.ia/src/systems/work-system/system.ia' },
+            sections: [
+              {
+                name: 'discriminators',
+                span: { line: 1, endLine: 1 },
+                fields: [
+                  {
+                    key: 'spec',
+                    value: { kind: 'scalar' as const, text: 'lowers to definition' },
+                    span: { line: 1, endLine: 1 },
+                  },
+                ],
+              },
+            ],
+          },
           {
             ...method,
             discriminator: 'spec',
@@ -532,7 +553,8 @@ export function runRefusalFixtures(
             discriminator: 'workspace',
             identity: 'fixture/workspace/kit-workspace',
             name: 'kit-workspace',
-            source: { ...method.source, path: '.ia/src/workspace.ia' },
+            // The shipped workspace, in the kit system's folder; the seat `.ia/src/workspace.ia` is never checked.
+            source: { ...method.source, path: '.ia/src/systems/kit-a/records/workspace.ia' },
             sections: [
               {
                 name: 'composition',
