@@ -24,6 +24,7 @@ import {
 import type { Assessment, Report, SystemFolder } from '@inventarch/compliance';
 import type { InputSnapshot } from './inputs.js';
 import { EVIDENCE_DIRECTORY, evidenceSource, systemMember } from './inputs.js';
+import { canonFileAssessments } from './canon/files.js';
 import { bindChecks } from './checks.js';
 import { conformanceOf } from './conformance.js';
 import { reproducesEvidence } from './evidence.js';
@@ -733,7 +734,8 @@ function views(
     const evaluated = {
         sourceDiagnostics,
         folders: folders.filter((f) => !blockedFolders.has(f.path)),
-        admission: observations,
+        // Canon file rules (C12, A6) read the checkout, so they enter evaluate beside the admission observations.
+        admission: [...observations, ...canonFileAssessments(input.root, [...graph.nodes.values()])],
         ...(options.checks === 'structural' ? { checks: 'structural' as const } : {}),
       },
       unverified = evaluate(graph, evaluated),

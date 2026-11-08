@@ -38,3 +38,10 @@ export { RUNNER_EVIDENCE_DIRECTORY } from './inputs.js';
 export { RUNNER_EVIDENCE_FORMAT, writeRunnerEvidence } from './runner-evidence.js';
 export type { RunnerEvidenceWrite } from './runner-evidence.js';
 export type { ViewOptions } from './view.js';
+export {
+  canonFileAssessments,
+  canonSourceRoots,
+  canonTeachingLinks,
+  teachingFiles,
+  teachingLinkFindings,
+} from './canon/files.js';

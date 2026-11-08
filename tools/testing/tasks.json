@@ -2438,6 +2438,7 @@
       "project": "packages/db",
       "files": [
         "tests/acceptance.test.ts",
+        "tests/canon-files.test.ts",
         "tests/check-evidence.test.ts",
         "tests/complete-scope.test.ts",
         "tests/descriptors.test.ts",

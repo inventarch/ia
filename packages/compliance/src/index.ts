@@ -22,6 +22,7 @@ export {
 } from './graph-checks.js';
 export { canonSeverity, lawStatuses } from './canon/laws.js';
 export {
+  canonAssessment,
   canonAssessments,
   canonKitMethodWords,
   canonKitWorkspace,

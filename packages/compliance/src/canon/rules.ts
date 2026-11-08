@@ -159,6 +159,21 @@ const RULES: readonly (readonly [string, Rule])[] = [
 ];
 
 /**
+ * One built-in canon check as an assessment: null while no law enforces a check that runs `id`, else its findings at the
+ * severity the law sets. `find` runs only when the check is active, so a rule that reads files reads none while inactive.
+ */
+export function canonAssessment(nodes: readonly Node[], id: string, find: () => readonly Finding[]): Assessment | null {
+  const severity: Severity | null = canonSeverity(nodes, id);
+  return severity === null
+    ? null
+    : assess(
+        id,
+        'graph',
+        find().map((finding) => ({ ...finding, severity })),
+      );
+}
+
+/**
  * The built-in canon rules, each active only when a law enforces a check that runs it. The law sets the severity;
  * an inactive rule reports nothing. `folders` is read by the rules that look at system folders.
  */
@@ -166,17 +181,5 @@ export function canonAssessments(
   nodes: readonly Node[],
   folders: readonly SystemFolder[] | undefined,
 ): readonly Assessment[] {
-  const results: Assessment[] = [];
-  for (const [id, rule] of RULES) {
-    const severity: Severity | null = canonSeverity(nodes, id);
-    if (severity === null) continue;
-    results.push(
-      assess(
-        id,
-        'graph',
-        rule(nodes, folders).map((finding) => ({ ...finding, severity })),
-      ),
-    );
-  }
-  return results;
+  return RULES.flatMap(([id, rule]) => canonAssessment(nodes, id, () => rule(nodes, folders)) ?? []);
 }

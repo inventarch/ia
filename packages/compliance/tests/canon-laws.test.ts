@@ -100,3 +100,12 @@ describe('canon law status and severity', () => {
     expect(canonSeverity(nodes, 'COMP-OTHER')).toBeNull();
   });
 });
+
+describe('canon severity over edges compiled without the pool', () => {
+  it('resolves a reference whose target is null by discriminator and name', () => {
+    const nodes = build(law('hard-law', 'blocking', enforcedBy('hard-runner')), check('hard-runner', 'COMP-VARIANT'));
+    const unresolved = nodes.map((node) => ({ ...node, edges: node.edges.map((edge) => ({ ...edge, target: null })) }));
+    expect(canonSeverity(unresolved, 'COMP-VARIANT')).toBe('error');
+    expect(canonSeverity(unresolved, 'COMP-OTHER')).toBeNull();
+  });
+});

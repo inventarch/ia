@@ -22,15 +22,31 @@ const lawSeverity = (law: Node): LawSeverity => {
   return text === 'blocking' || text === 'advisory' ? text : 'informational';
 };
 
+type NodeEdge = Node['edges'][number];
+/**
+ * The identity an edge points at. A record compiled without the pool carries `target: null` (the db view compiles each
+ * source alone), so a reference is resolved here by identity, or by discriminator and name when exactly one node has them.
+ */
+function targetOf(nodes: readonly Node[], edge: NodeEdge): string | null {
+  if (edge.target !== null) return edge.target;
+  if (edge.reference.kind === 'identity') return edge.reference.identity;
+  const { discriminator, name } = edge.reference;
+  const named = nodes.filter((n) => n.discriminator === discriminator && n.name.toLowerCase() === name.toLowerCase());
+  return named.length === 1 ? named[0]!.identity : null;
+}
+
 /** The identities of the checks enforcing `law`, read from either side of the `enforce` edge. */
 function enforcingChecks(nodes: readonly Node[], law: Node): readonly string[] {
   const found = new Set<string>();
   for (const edge of law.edges)
-    if (edge.predicate === 'enforce' && edge.direction === 'in' && edge.target !== null) found.add(edge.target);
+    if (edge.predicate === 'enforce' && edge.direction === 'in') {
+      const target = targetOf(nodes, edge);
+      if (target !== null) found.add(target);
+    }
   for (const node of nodes)
     if (node.discriminator === 'check')
       for (const edge of node.edges)
-        if (edge.predicate === 'enforce' && edge.direction === 'out' && edge.target === law.identity)
+        if (edge.predicate === 'enforce' && edge.direction === 'out' && targetOf(nodes, edge) === law.identity)
           found.add(node.identity);
   return [...found].sort();
 }

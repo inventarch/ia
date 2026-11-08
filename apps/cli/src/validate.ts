@@ -131,6 +131,10 @@ const ACTIONS: Readonly<Record<string, string>> = {
     'Remove the discriminators from the kit system, and list the owning system of every word its records use under requires, then run "ia validate" again.',
   'IA-COMP-CANON-KIT-WORKSPACE':
     'Remove composition.steward and composition.sources from the kit workspace, then run "ia validate" again.',
+  'IA-COMP-CANON-TEACHING-LINKS':
+    'Point the teaching link at an existing file or section under .ia/src/, or remove it, then run "ia validate" again.',
+  'IA-COMP-CANON-SOURCE-ROOTS':
+    'Remove the nested .ia/src, or release or adopt it as its own workspace (a release.json or distributions.lock.json beside it), then run "ia validate" again.',
 };
 
 /** The next action for a check verification did not evaluate: its evaluator is built in, so there is none to supply. */

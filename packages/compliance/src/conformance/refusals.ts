@@ -12,7 +12,7 @@ import {
   variants,
 } from '@inventarch/graph';
 import type { Graph, Node, RevisionSource } from '@inventarch/graph';
-import { canonAssessments } from '../canon/rules.js';
+import { canonAssessment, canonAssessments } from '../canon/rules.js';
 import { validateAdoption } from '../adoption.js';
 import type { AdoptionEvaluators } from '../adoption.js';
 import { runLanguageFixture } from '../fixtures.js';
@@ -45,7 +45,7 @@ export function runRefusalFixtures(
     check = records.find((r) => r.discriminator === 'check')!,
     mandate = records.find((r) => r.discriminator === 'mandate' && r.name === 'sample-mandate')!;
   /** A blocking `@law` enforced by a `@check` that runs `checkId`, so the canon rule is active; returns its findings over `offenders`. */
-  const canonFixture = (checkId: string, offenders: readonly Node[]) => {
+  const canonFixture = (checkId: string, offenders: readonly Node[], find?: () => readonly Finding[]) => {
     const canonCheck: Node = {
       ...check,
       identity: `fixture/check/${checkId.toLowerCase()}`,
@@ -69,7 +69,12 @@ export function runRefusalFixtures(
         e.predicate === 'enforce' ? { ...e, direction: 'in' as const, target: canonCheck.identity } : e,
       ),
     };
-    return canonAssessments([canonLaw, canonCheck, ...offenders], undefined).flatMap((a) => a.findings);
+    const nodes = [canonLaw, canonCheck, ...offenders];
+    // A file-based rule reads the checkout, which these record fixtures do not have: its db test reads real files, and
+    // this fixture observes only that the enforcing law activates it and sets the severity of what it finds.
+    return find === undefined
+      ? canonAssessments(nodes, undefined).flatMap((a) => a.findings)
+      : (canonAssessment(nodes, checkId, find)?.findings ?? []);
   };
   const kitRecords: readonly Node[] = [
     {
@@ -541,6 +546,32 @@ export function runRefusalFixtures(
                 ],
               },
             ],
+          },
+        ]),
+    ],
+    [
+      'IA-COMP-CANON-TEACHING-LINKS',
+      () =>
+        canonFixture('CANON-TEACHING-LINKS', [], () => [
+          {
+            code: 'IA-COMP-CANON-TEACHING-LINKS',
+            path: '.ia/src/doc.md',
+            line: 1,
+            severity: 'error',
+            message: '.ia/src/doc.md: target outside installed teaching closure: ../../README.md',
+          },
+        ]),
+    ],
+    [
+      'IA-COMP-CANON-SOURCE-ROOTS',
+      () =>
+        canonFixture('CANON-SOURCE-ROOTS', [], () => [
+          {
+            code: 'IA-COMP-CANON-SOURCE-ROOTS',
+            path: 'nested/.ia/src',
+            line: 1,
+            severity: 'error',
+            message: 'nested/.ia/src: A kit authors one .ia/src; this nested root is neither released nor adopted.',
           },
         ]),
     ],
