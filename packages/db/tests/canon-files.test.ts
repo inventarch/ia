@@ -93,6 +93,9 @@ describe('the dependency-free link scanner', () => {
     expect(scanned.links.map((link) => link.href)).toEqual(['./a.md', './i.png']);
     expect([...scanned.ids]).toEqual(['top', 'pic']);
   });
+  it('dedupes a repeat whose numbered slug already exists without looping', { timeout: 2000 }, () => {
+    expect([...scanMarkdown('# A\n# A-1\n# A\n').ids]).toEqual(['a', 'a-1', 'a-2']);
+  });
   it('slugs headings GitHub-style and dedupes repeats', () => {
     const scanned = scanMarkdown('# Hello, World!\n## Hello, World!\n## Hello, World!\n### a_b `c` - d\n');
     expect([...scanned.ids]).toEqual(['hello-world', 'hello-world-1', 'hello-world-2', 'a_b-c---d']);

@@ -21,9 +21,10 @@ export function createSlugger(): (text: string) => string {
       .replace(/[^\p{L}\p{M}\p{N}\p{Pc} -]/gu, '')
       .replace(/ /g, '-');
     let slug = base;
-    for (let count = seen.get(base); count !== undefined; count = seen.get(slug)) {
-      seen.set(base, count + 1);
-      slug = `${base}-${count + 1}`;
+    while (seen.has(slug)) {
+      const next = (seen.get(base) ?? 0) + 1;
+      seen.set(base, next);
+      slug = `${base}-${next}`;
     }
     seen.set(slug, 0);
     return slug;
