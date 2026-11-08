@@ -1,0 +1,59 @@
+#! ia 1.0
+
+@principle canon-storage-one-authority
+  meaning
+    says "Every mutable field has one authority, and every other copy is a derived view, an export or a link."
+    answers "How many authorities may a mutable field have?"
+  governance
+    severity advisory
+  subject
+    subject-word workspace
+  relationships
+    cites @agent public-workspace-system-steward
+
+@principle canon-storage-authority-before-medium
+  meaning
+    says "Authority is decided before medium. A store is first classified as authoritative or derived, and a derived store is rebuildable from its authority, whatever its medium or write pattern."
+    answers "Is a store's authority decided before or after its medium?"
+  governance
+    severity advisory
+  subject
+    subject-word workspace
+  relationships
+    cites @agent public-workspace-system-steward
+
+@convention canon-storage-review-default
+  meaning
+    says "When nothing is declared, authority follows review need. Content that must be reviewed and pinned before it counts has its authority where review happens: records and documents, or a database that keeps immutable reviewed revisions. Content that counts as soon as it is written, such as runtime state, events and machine output nobody reviews, has its authority where it is written."
+    answers "Where is a field's authority when nothing declares it?"
+  governance
+    severity advisory
+    requires "Absent a declaration, place the authority of reviewed-before-it-counts content where review happens, and of counts-when-written content where it is written."
+  subject
+    subject-word workspace
+  relationships
+    cites @agent public-workspace-system-steward
+
+@convention canon-storage-declare-exceptions
+  meaning
+    says "Only exceptions to the review-need default are declared, through existing records. No storage-binding word exists."
+    answers "Which storage authorities are declared, and through what?"
+  governance
+    severity advisory
+    requires "Declare a store's authority only where it departs from the review-need default, and declare it through an existing record."
+  subject
+    subject-word workspace
+  relationships
+    cites @agent public-workspace-system-steward
+
+@convention canon-storage-medium
+  meaning
+    says "The medium is chosen by read and write pattern: records and documents for small reviewed sets, a database for volume or concurrency. The medium never changes the authority."
+    answers "How is the medium for stored content chosen?"
+  governance
+    severity advisory
+    requires "Choose records and documents for small reviewed sets and a database for volume or concurrency, without letting the medium change the authority."
+  subject
+    subject-word workspace
+  relationships
+    cites @agent public-workspace-system-steward

@@ -1,0 +1,128 @@
+#! ia 1.0
+
+@convention canon-boundary-order
+  meaning
+    says "To choose a system, workspace, kit or plugin, ask the questions in order; the first yes decides. Record the evidence for each answer. An unknown earlier answer leaves the verdict provisional; do not skip it merely to reach a preferred category. 1. Does it introduce words (new kinds of record) that others must share and no existing system owns? Then it is a system: an owning @system with a steward and a contract, released as its own vocabulary. 2. Is it a boundary of who owns and who sees: a person, an employee in a company, an organization? Then it is a tenancy scope (personal home, employee-private home, organization), provided by the Directory and the KB service; how such a space works is a kit. 3. Does it have its own purpose, with kinds of work, an owner who decides, and records that persist under its own audience or custody rules? Then it is a workspace. 4. Is it a repeatable way of doing a kind of work that more than one workspace could perform? Then it is a kit: a method release that mints no words, adopted by pin, named ia-<work>. 5. Is it a partition of subject or authority inside one purpose, with no kinds of work of its own? Then it is a scope inside a workspace (a folder, tag or covers). 6. Is it one thing produced or used? Then it is an item: a record or document in the workspace that produced it. 7. Is it running software with users? Then it is an app (an L7 host). 8. Is it a package of kits, skills and agents for a host? Then it is a plugin: mechanism only; method stays in kits."
+    answers "In what order are the boundary questions asked, and which boundary does each yes decide?"
+  governance
+    severity advisory
+    requires "Ask the eight boundary questions in order, stop at the first yes, record the evidence for each answer, and treat the verdict as provisional while an earlier answer is unknown."
+  subject
+    subject-word workspace
+  relationships
+    cites @agent public-workspace-system-steward
+
+@convention canon-boundary-made-by-many
+  meaning
+    says "Made by many, viewed by many: the making is a kit, and the viewing is sharing items. A separate workspace exists only when the shared collection has a purpose, an owner and rules of its own."
+    answers "Is something many people make and many people view a kit, shared items or a workspace?"
+  governance
+    severity advisory
+    requires "Treat many makers as a kit and many viewers as shared items; choose a separate workspace only when the shared collection has its own purpose, owner and rules."
+  subject
+    subject-word workspace
+  relationships
+    cites @agent public-workspace-system-steward
+
+@convention canon-boundary-independence
+  meaning
+    says "Independence: the reader, worker and checker roles give per-task independence. A separate workspace is needed only when acceptance needs its own custody."
+    answers "When does independent review need a separate workspace?"
+  governance
+    severity advisory
+    requires "Get per-task independence from the reader, worker and checker roles; choose a separate workspace only when acceptance needs its own custody."
+  subject
+    subject-word workspace
+  relationships
+    cites @agent public-workspace-system-steward
+
+@convention canon-boundary-authority-order
+  meaning
+    says "Authority order: system laws, then workspace purpose, then kit methods. A kit only tightens."
+    answers "In what order do system laws, workspace purpose and kit methods take authority?"
+  governance
+    severity advisory
+    requires "Apply system laws first, then workspace purpose, then kit methods, and let a kit only tighten what comes before it."
+  subject
+    subject-word distribution
+  relationships
+    cites @agent public-workspace-system-steward
+
+@convention canon-boundary-smaller
+  meaning
+    says "When unsure, choose the smaller boundary and promote it later with evidence."
+    answers "Which boundary is chosen when the boundary questions leave it unsure?"
+  governance
+    severity advisory
+    requires "When unsure, choose the smaller boundary, and promote it later with evidence."
+  subject
+    subject-word workspace
+  relationships
+    cites @agent public-workspace-system-steward
+
+@principle canon-distribution-release-form
+  meaning
+    says "Shipping an admitted native closure is a distribution, a release form rather than a boundary or a ninth matrix row. The current packer requires native system-folder roots and includes whole selected systems; that packaging constraint does not make a product, department or customer corpus new vocabulary."
+    answers "Is shipping an admitted native closure a boundary, and does the packer's whole-system packaging make a corpus new vocabulary?"
+  governance
+    severity advisory
+  subject
+    subject-word distribution
+  relationships
+    cites @agent public-workspace-system-steward
+
+@principle canon-customer-corpus-workspace
+  meaning
+    says "One customer's world or organisation corpus is a workspace (matrix row 3) with identity, audience and lifecycle policy. An item within an existing corpus remains an item, and a tenancy boundary is still row 2. Independent native shipping may justify a wrapper system for release ownership, without minting duplicate words or changing the matrix verdict."
+    answers "Which boundary is one customer's world or organisation corpus, and when may it have a wrapper system?"
+  governance
+    severity advisory
+  subject
+    subject-word workspace
+  relationships
+    cites @agent public-workspace-system-steward
+
+@principle canon-kits-mint-no-words
+  meaning
+    says "A kit is not a registered word. Kits and workspaces never mint words. Historical single-workspace-root kit rules are a selected design profile, not universal plugin requirements. Reusable presets can deliberately travel; customer-specific content normally stays with the customer. Bundled plugin scripts and native record distributions have different execution and version boundaries."
+    answers "Is a kit a registered word, and what may travel with a kit?"
+  governance
+    severity advisory
+  subject
+    subject-word distribution
+  relationships
+    cites @agent public-workspace-system-steward
+
+@principle canon-one-registration-owner
+  meaning
+    says "One word has one registration owner. Workspace names and physical folders do not namespace instances of adopted words. Stewardship is structural accountability, not a universal exclusive-writer ACL. Declare participant scopes and inspect actual authorization, host permissions and project policy separately."
+    answers "How many registration owners may a word have, and is stewardship an exclusive-writer permission?"
+  governance
+    severity advisory
+  subject
+    subject-word system
+  relationships
+    cites @agent public-governance-system-steward
+
+@principle canon-hosted-method-path
+  meaning
+    says "Hosted proprietary methods are a separate delivery path from locally installed open-source framework definitions. A hosted construction result need not disclose the service recipe. A local native validator still needs resolvable registrations and schemas for the words it validates."
+    answers "How do hosted proprietary methods relate to locally installed framework definitions?"
+  governance
+    severity advisory
+  subject
+    subject-word distribution
+  relationships
+    cites @agent public-workspace-system-steward
+
+@convention canon-boundary-verdict
+  meaning
+    says "Return the verdict, the question that decided it and its evidence, rejected earlier rows with reasons, later rows not reached, the proposed route and its readiness, and open decisions. Keep declared, admitted, executed and accepted separate."
+    answers "What does a boundary verdict return?"
+  governance
+    severity advisory
+    requires "Return the verdict with its deciding question and evidence, the rejected earlier rows and their reasons, the later rows not reached, the proposed route and its readiness, and the open decisions, keeping declared, admitted, executed and accepted separate."
+  subject
+    subject-word workspace
+  relationships
+    cites @agent public-workspace-system-steward

@@ -57,15 +57,17 @@
 - case 32
 - check 9
 - contract 6
+- convention 21
 - decision 2
 - distribution 12
 - execution-binding 1
-- law 10
+- improvement 1
+- law 11
 - mandate 12
 - milestone 1
 - operation 4
 - plan 1
-- principle 2
+- principle 9
 - schema 28
 - system 11
 - task 2
@@ -118,4 +120,4 @@
 - when a word's owner is not this workspace, delegate by re-seating at the owning system; a steward pointer is readable, not an invocation
 - start each session with the IA door's ia_session; for a task, use the lane ia:work, ia:knowledge or ia:delivery: ia_catalogue names its keys and ia_method returns the method for one key
 
-ia-generated fd4b8039561c4d925783c1de1532975661bc587f8a3135e6ff32a9b13106ca65 9a88e549e52254fd83bdd5201b5eef3d1679d06a8aeca8ad7371bbfd80992645 ia-claude
+ia-generated 89e314fb0542f78e0b0e2545c2a0df84c3d907e7e9253aca479c886d6a050026 6e66d3590cac09b887494126cead796b414bcbc9d403c113750ad0bd557403f4 ia-claude

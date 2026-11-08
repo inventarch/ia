@@ -28,6 +28,7 @@ Compile and validate native corpora, repository architecture/work policy, public
 - [release-work.ts](release-work.ts).
 - [repository-architecture.test.ts](repository-architecture.test.ts) — behavior and refusal coverage.
 - [repository-architecture.ts](repository-architecture.ts).
+- [stewardship.test.ts](stewardship.test.ts) — behavior and refusal coverage.
 - [work-example.test.ts](work-example.test.ts) — behavior and refusal coverage.
 
 ## Commands

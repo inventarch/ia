@@ -1,0 +1,97 @@
+#! ia 1.0
+
+@law canon-steward-authority
+  meaning
+    says "The steward authority policy lives in the language, and every steward inherits it. A steward accepts wording changes that leave the meaning of a canon rule on its words unchanged, and may suspend a disputed blocking rule pending a decision. It does not accept a change of meaning, the adding or removing of a rule, or a move across the public/proprietary line, which the owner accepts; and no steward approves a change that widens steward authority. Every steward receives the policy through its stewardship @mandate: the law applies by subject word to every mandate in a workspace whose language release carries it. Private stewards inherit the public policy, and a private improvement reaches it only as a proposal."
+    answers "What may a steward do and not do, who approves changes to that policy, and how does every steward receive it?"
+  governance
+    severity advisory
+    requires "As a steward, accept only wording changes to the canon rules on your words, suspend a disputed blocking rule only by a recorded suspension, and leave changes of meaning, changes across the public/proprietary line and changes that widen steward authority to their approvers."
+  subject
+    subject-word mandate
+  relationships
+    cites @agent public-agent-system-steward
+
+@convention canon-change-acceptance
+  meaning
+    says "The steward of the word a canon rule constrains accepts a wording change that leaves the rule's meaning unchanged. The owner accepts a change to a rule's meaning, the adding or removing of a rule, and a move of a rule across the public/proprietary line."
+    answers "Who accepts each class of change to a canon rule?"
+  governance
+    severity advisory
+    requires "Have the word's steward accept a wording change, and the owner accept a change of meaning, an added or removed rule, or a move across the public/proprietary line."
+  subject
+    subject-word law
+  relationships
+    cites @agent public-governance-system-steward
+
+@convention canon-rule-suspension
+  meaning
+    says "A steward may suspend a disputed blocking rule pending a decision. The suspension is an @improvement whose proposal.target is the rule, with review.status suspended, review.reviewer the actor who authorised it, and cites @decision the pending decision. While it lasts, the rule's evaluator reports suspended instead of blocking."
+    answers "How is a disputed blocking rule suspended, and what records the suspension?"
+  governance
+    severity advisory
+    requires "Record a suspension as an @improvement targeting the rule, with review.status suspended, review.reviewer naming the actor, and a cites @decision edge to the pending decision."
+  subject
+    subject-word law
+  relationships
+    cites @agent public-governance-system-steward
+
+@convention canon-change-proposal
+  meaning
+    says "Anyone may propose a change to a canon rule, as an @improvement against the rule."
+    answers "Who may propose a change to a canon rule, and in what form?"
+  governance
+    severity advisory
+    requires "Propose a change to a canon rule as an @improvement whose proposal.target is the rule."
+  subject
+    subject-word law
+  relationships
+    cites @agent public-governance-system-steward
+
+@convention canon-steward-judgement
+  meaning
+    says "A steward's judgement method is a public base, with optional hosted depth that the steward declares."
+    answers "Where does a steward's judgement method live?"
+  governance
+    severity advisory
+    requires "Review as a steward from the public base method, and declare on the steward any hosted depth it uses."
+  subject
+    subject-word agent
+  relationships
+    cites @agent public-agent-system-steward
+
+@convention canon-steward-local-variation
+  meaning
+    says "A workspace may add steward permissions where its owner grants them. It never removes or lifts an inherited prohibition."
+    answers "How far may a workspace vary the inherited steward authority policy?"
+  governance
+    severity advisory
+    requires "Add a steward permission only where the workspace's owner grants it, and never remove or lift an inherited prohibition."
+  subject
+    subject-word mandate
+  relationships
+    cites @agent public-agent-system-steward
+
+@convention canon-steward-definition-approval
+  meaning
+    says "A change that widens steward authority, or changes who approves, is approved by a reviewer outside the steward class whom the owner names; until one is named, the owner approves. A wording, narrowing or other change is accepted by the actor that canon-change-acceptance names for its class. A change mixing kinds is classed by its widest kind: widening, then narrowing, then other, then wording."
+    answers "Who approves each kind of change to the steward definition?"
+  governance
+    severity advisory
+    requires "Have a change that widens steward authority or changes who approves approved by the owner-named reviewer outside the steward class, or by the owner until one is named, and class a mixed change by its widest kind."
+  subject
+    subject-word mandate
+  relationships
+    cites @agent public-agent-system-steward
+
+@convention canon-change-cadence
+  meaning
+    says "Each proposal to change a canon rule is reviewed and decided when it arrives. Accepted changes ship in public ia releases, and a change that removes or corrects a blocking rule may ship in an expedited release. Until a superseding-record mapping exists, a changed rule is replaced in place within a release, with an @improvement recording its lineage, and its evaluator is replaced in the same release; the approvals the acceptance rules require are kept."
+    answers "When are canon changes reviewed and released, and how does a changed rule replace the old one?"
+  governance
+    severity advisory
+    requires "Review each canon proposal as it arrives, ship accepted changes in a public ia release or, to remove or correct a blocking rule, an expedited one, and replace a changed rule in place with an @improvement recording its lineage and its evaluator replaced in the same release."
+  subject
+    subject-word law
+  relationships
+    cites @agent public-governance-system-steward

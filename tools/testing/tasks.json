@@ -2870,6 +2870,7 @@
       "files": [
         "tests/applies.test.ts",
         "tests/authoring.test.ts",
+        "tests/canon-delivery.test.ts",
         "tests/composition.test.ts",
         "tests/context.test.ts",
         "tests/coordinate.test.ts",

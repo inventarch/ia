@@ -66,6 +66,41 @@ const LAWS = [
   'canon-d9-no-secrets',
   'canon-e4-local-tighten',
   'canon-e5-mandate-narrow',
+  'canon-steward-authority',
+];
+const PRINCIPLES = [
+  'canon-a13-declared-homes',
+  'canon-c5b-no-consumer-records',
+  'canon-customer-corpus-workspace',
+  'canon-distribution-release-form',
+  'canon-hosted-method-path',
+  'canon-kits-mint-no-words',
+  'canon-one-registration-owner',
+  'canon-storage-authority-before-medium',
+  'canon-storage-one-authority',
+];
+const CONVENTIONS = [
+  'canon-ask-before-boundary',
+  'canon-boundary-authority-order',
+  'canon-boundary-independence',
+  'canon-boundary-made-by-many',
+  'canon-boundary-order',
+  'canon-boundary-smaller',
+  'canon-boundary-verdict',
+  'canon-change-acceptance',
+  'canon-change-cadence',
+  'canon-change-proposal',
+  'canon-one-workspace-per-root',
+  'canon-rule-suspension',
+  'canon-split-ask',
+  'canon-split-on-fact',
+  'canon-split-triggers',
+  'canon-steward-definition-approval',
+  'canon-steward-judgement',
+  'canon-steward-local-variation',
+  'canon-storage-declare-exceptions',
+  'canon-storage-medium',
+  'canon-storage-review-default',
 ];
 
 describe('the canon corpus', () => {
@@ -78,18 +113,14 @@ describe('the canon corpus', () => {
       expect(canonSystem(node.source.path), node.identity).toBe(
         node.name.startsWith('canon-a14') || node.name === 'ia-canon-work' ? 'work-system' : 'governance-system',
       );
-    expect(
+    const named = (discriminator: string) =>
       canon
-        .filter((node) => node.discriminator === 'law')
+        .filter((node) => node.discriminator === discriminator)
         .map((node) => node.name)
-        .sort(),
-    ).toEqual(LAWS);
-    expect(
-      canon
-        .filter((node) => node.discriminator === 'principle')
-        .map((node) => node.name)
-        .sort(),
-    ).toEqual(['canon-a13-declared-homes', 'canon-c5b-no-consumer-records']);
+        .sort();
+    expect(named('law')).toEqual(LAWS);
+    expect(named('principle')).toEqual(PRINCIPLES);
+    expect(named('convention')).toEqual(CONVENTIONS);
     const statuses = lawStatuses(nodes, [], graph).filter((status) =>
       canon.some((node) => node.identity === status.identity),
     );

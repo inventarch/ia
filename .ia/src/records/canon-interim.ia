@@ -1,0 +1,27 @@
+#! ia 1.0
+
+@improvement canon-steward-definition-version-interim
+  meaning
+    says "Until the steward definition is versioned separately from the release that carries it, with workspaces pinning a definition version and reporting when they lag, the language release is the steward definition's version. This interim lapses when that separately versioned, workspace-pinned line exists."
+    answers "Which version of the steward definition does a workspace hold before the steward definition has a version line of its own?"
+  proposal
+    target governance-system/governance/law/canon-steward-authority
+    system governance-system
+    path ".ia/src/systems/governance-system/records/canon/stewardship.ia"
+    before "No version line of the steward definition exists apart from the language release that carries canon-steward-authority."
+    candidate "The language release that carries canon-steward-authority is the steward definition's version: a workspace's pinned language release is its pinned steward definition version, and it lags when that release is behind."
+    digest "748a3297ce600a317e1a457d173f585903ff2e3fe014954d47b1b98caa51dec3"
+    applies "Every workspace whose language release carries canon-steward-authority, from that release until a separately versioned, workspace-pinned steward definition line exists; the law's text is unchanged."
+    verification "Run ia validate on a workspace pinning the language release and confirm canon-steward-authority is admitted from that release."
+    reversal "The interim lapses when the separately versioned, workspace-pinned steward definition line exists: workspaces then pin a version on that line, and this record stays as the interim's lineage."
+  review
+    status accepted
+    reviewer "owner"
+    authority "Owner decision B2-interim, under dec-013 13e-3 b"
+    at "2026-11-08"
+    rationale "The owner answered B2-interim yes (as recommended): the language release is the steward definition's version until a separately versioned, workspace-pinned line exists, and the interim is recorded in an improvement that lapses when that line exists."
+    revisit "When a separately versioned, workspace-pinned steward definition line exists; the interim then lapses."
+  publication
+    status unpublished
+  relationships
+    cites @law canon-steward-authority

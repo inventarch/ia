@@ -1,0 +1,37 @@
+#! ia 1.0
+
+@convention canon-split-triggers
+  meaning
+    says "A review of whether to split a system is triggered by ownership (a subset of the words needs, or has, a different steward), adoption (a consumer must adopt some words without the rest), release (a subset must release to a different audience, public or private, or on a different cadence) or maintenance (size or complexity crosses a threshold the steward sets). Maintenance triggers a review, not a split."
+    answers "What triggers a review of whether to split a system?"
+  governance
+    severity advisory
+    requires "Review a system for a split on an ownership, adoption, release or maintenance trigger, and treat maintenance as a reason to review only."
+  subject
+    subject-word system
+  relationships
+    cites @agent public-governance-system-steward
+
+@convention canon-split-on-fact
+  meaning
+    says "A system splits only when an ownership, adoption or release trigger holds as a declared fact, never on maintenance alone. Weighing the evidence belongs to the hosted gate."
+    answers "What decides that a system splits?"
+  governance
+    severity advisory
+    requires "Split a system only on a declared ownership, adoption or release fact, never on maintenance alone."
+  subject
+    subject-word system
+  relationships
+    cites @agent public-governance-system-steward
+
+@convention canon-split-ask
+  meaning
+    says "When the agent is unsure whether a system should split, it surfaces the question and asks the person."
+    answers "What does an agent do when it is unsure whether a system should split?"
+  governance
+    severity advisory
+    requires "When unsure whether a system should split, surface the question and ask the person."
+  subject
+    subject-word system
+  relationships
+    cites @agent public-governance-system-steward
