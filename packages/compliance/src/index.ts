@@ -20,6 +20,8 @@ export {
   validateConsent,
   validateIdentity,
 } from './graph-checks.js';
+export { canonSeverity, lawStatuses } from './canon/laws.js';
+export type { LawState, LawStatus } from './canon/laws.js';
 export { validateVariants } from './variants.js';
 export { validateAdoption } from './adoption.js';
 export type { AdoptionEvaluators, ClauseContext, ClauseEvaluator, ClauseResult } from './adoption.js';
