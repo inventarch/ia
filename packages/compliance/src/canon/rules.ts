@@ -25,22 +25,54 @@ export function canonWorkPlacement(nodes: readonly Node[]): readonly Finding[] {
 
 const posix = (path: string): string => path.split(String.fromCharCode(92)).join('/');
 const PLUGIN_RECORDS = /^\.ia\/src\/systems\/([^/]+)\/records\/plugin\.ia$/;
+const SYSTEM_RECORDS = /^\.ia\/src\/systems\/[^/]+\/records\/[^/]+$/;
 
-/** The one system that authors a product distribution in `records/plugin.ia`, else null (host-plugin-distribution section 12). */
-function kitSystem(nodes: readonly Node[]): string | null {
+/** Form (a): the one system whose `records/plugin.ia` authors a product `@distribution` (host-plugin-distribution section 12). */
+function lowerKitSystems(nodes: readonly Node[]): readonly string[] {
   const found = new Set<string>();
   for (const node of nodes) {
     if (node.discriminator !== 'distribution' || !node.sections.some((s) => s.name === 'product')) continue;
     const match = PLUGIN_RECORDS.exec(posix(node.source.path));
     if (match !== null) found.add(match[1]!);
   }
-  return found.size === 1 ? [...found][0]! : null;
+  return found.size === 1 ? [...found] : [];
 }
 
-/** True when exactly one system under `.ia/src/systems/<name>/` has `records/plugin.ia` authoring a product `@distribution`. */
-export function isKitWorkspace(nodes: readonly Node[]): boolean {
-  return kitSystem(nodes) !== null;
+/** Form (b): the `@system`s listed by a `@distribution` authored under `.ia/src/systems/<n>/records/`. */
+function nativeKitSystems(nodes: readonly Node[]): readonly string[] {
+  const found = new Set<string>();
+  for (const node of nodes) {
+    if (node.discriminator !== 'distribution' || !SYSTEM_RECORDS.test(posix(node.source.path))) continue;
+    for (const field of fields(node, 'distribution', 'records'))
+      if (field.value.kind === 'list')
+        for (const item of field.value.items)
+          if (item.kind === 'ref' && item.discriminator === 'system') found.add(item.name);
+  }
+  return [...found].sort();
 }
+
+/** The kit's systems: the single section 12 system, else the systems a native release distribution lists. */
+function kitSystems(nodes: readonly Node[]): readonly string[] {
+  const lowered = lowerKitSystems(nodes);
+  return lowered.length > 0 ? lowered : nativeKitSystems(nodes);
+}
+
+/**
+ * True when the workspace is a kit: either exactly one system has `records/plugin.ia` authoring a product `@distribution`,
+ * or a `@distribution` authored under `.ia/src/systems/<name>/records/` lists one or more `@system` records.
+ */
+export function isKitWorkspace(nodes: readonly Node[]): boolean {
+  return kitSystems(nodes).length > 0;
+}
+
+const METHOD_WORDS: ReadonlySet<string> = new Set([
+  'capability',
+  'playbook',
+  'convention',
+  'principle',
+  'law',
+  'agent-profile',
+]);
 
 const systemNode = (nodes: readonly Node[], name: string): Node | undefined =>
   nodes.find((node) => node.discriminator === 'system' && node.name === name);
@@ -49,15 +81,12 @@ const sectionKeys = (node: Node, section: string): readonly string[] =>
     .filter((s) => s.name === section)
     .flatMap((s) => s.fields.map((f) => ('key' in f ? f.key : f.item.kind === 'scalar' ? f.item.text : '')));
 
-/** C4: in a kit, the method system declares no discriminators and requires the owner of every word its records use. */
+/** C4: in a kit, each method system declares no discriminators and requires the owner of every word its records use. */
 export function canonKitMethodWords(
   nodes: readonly Node[],
   folders: readonly SystemFolder[] | undefined,
 ): readonly Finding[] {
-  const kit = kitSystem(nodes);
-  if (kit === null) return [];
   const found: Finding[] = [];
-  const method = systemNode(nodes, kit);
   const report = (path: string, line: number, message: string): void => {
     found.push({
       code: 'IA-COMP-CANON-KIT-WORDS',
@@ -67,34 +96,38 @@ export function canonKitMethodWords(
       message: `${path}:${line}: ${message}`,
     });
   };
-  if (method !== undefined) {
-    const minted = sectionKeys(method, 'discriminators');
-    if (minted.length > 0)
-      report(
-        method.source.path,
-        method.source.line,
-        `Kit system ${kit} declares ${minted.join(', ')}; a kit method system mints no words and requires the system that owns each word it uses.`,
-      );
-  }
-  const folder = folders?.find((f) => f.name === kit);
-  const used = new Map<string, { path: string; line: number }>();
-  const record = (word: string, path: string, line: number): void => {
-    if (!used.has(word)) used.set(word, { path, line });
-  };
-  if (folder !== undefined) for (const r of folder.records) record(r.discriminator, r.source.path, r.source.line);
-  else
-    for (const node of nodes)
-      if (posix(node.source.path).startsWith(`.ia/src/systems/${kit}/`))
-        record(node.discriminator, node.source.path, node.source.line);
   const owners = new Map<string, string>();
   for (const node of nodes)
-    if (node.discriminator === 'system' && node.name !== kit)
+    if (node.discriminator === 'system')
       for (const word of sectionKeys(node, 'discriminators')) owners.set(word, node.name);
-  const required = new Set(method === undefined ? [] : sectionKeys(method, 'requires'));
-  for (const [word, where] of [...used].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
-    const owner = owners.get(word);
-    if (owner !== undefined && !required.has(owner))
-      report(where.path, where.line, `Kit system ${kit} uses ${word} but does not require ${owner}, which owns it.`);
+  for (const kit of kitSystems(nodes)) {
+    const folder = folders?.find((f) => f.name === kit);
+    const used = new Map<string, { path: string; line: number }>();
+    const record = (word: string, path: string, line: number): void => {
+      if (!used.has(word)) used.set(word, { path, line });
+    };
+    if (folder !== undefined) for (const r of folder.records) record(r.discriminator, r.source.path, r.source.line);
+    else
+      for (const node of nodes)
+        if (posix(node.source.path).startsWith(`.ia/src/systems/${kit}/`))
+          record(node.discriminator, node.source.path, node.source.line);
+    if (![...used.keys()].some((word) => METHOD_WORDS.has(word))) continue;
+    const method = systemNode(nodes, kit);
+    if (method !== undefined) {
+      const minted = sectionKeys(method, 'discriminators');
+      if (minted.length > 0)
+        report(
+          method.source.path,
+          method.source.line,
+          `Kit system ${kit} declares ${minted.join(', ')}; a kit method system mints no words and requires the system that owns each word it uses.`,
+        );
+    }
+    const required = new Set(method === undefined ? [] : sectionKeys(method, 'requires'));
+    for (const [word, where] of [...used].sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0))) {
+      const owner = owners.get(word);
+      if (owner !== undefined && owner !== kit && !required.has(owner))
+        report(where.path, where.line, `Kit system ${kit} uses ${word} but does not require ${owner}, which owns it.`);
+    }
   }
   return found;
 }

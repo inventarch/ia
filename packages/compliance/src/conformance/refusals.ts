@@ -75,10 +75,25 @@ export function runRefusalFixtures(
     {
       ...method,
       discriminator: 'distribution',
-      identity: 'fixture/distribution/kit-a-plugin',
-      name: 'kit-a-plugin',
-      source: { ...method.source, path: '.ia/src/systems/kit-a/records/plugin.ia' },
-      sections: [{ name: 'product', span: { line: 1, endLine: 1 }, fields: [] }],
+      identity: 'fixture/distribution/kit-a-distribution',
+      name: 'kit-a-distribution',
+      source: { ...method.source, path: '.ia/src/systems/kit-a/records/distribution.ia' },
+      sections: [
+        {
+          name: 'distribution',
+          span: { line: 1, endLine: 1 },
+          fields: [
+            {
+              key: 'records',
+              value: {
+                kind: 'list' as const,
+                items: [{ kind: 'ref' as const, discriminator: 'system', name: 'kit-a' }],
+              },
+              span: { line: 1, endLine: 1 },
+            },
+          ],
+        },
+      ],
     },
   ];
   const ambiguous: Node = {
@@ -474,6 +489,12 @@ export function runRefusalFixtures(
       () =>
         canonFixture('CANON-KIT-WORDS', [
           ...kitRecords,
+          {
+            ...law,
+            identity: 'fixture/law/kit-method',
+            name: 'kit-method',
+            source: { ...law.source, path: '.ia/src/systems/kit-a/records/method.ia' },
+          },
           {
             ...method,
             discriminator: 'system',
