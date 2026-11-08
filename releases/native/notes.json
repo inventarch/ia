@@ -11,9 +11,19 @@
       "summary": "Align exact native dependencies on the changed `governance-system`."
     },
     {
+      "id": "inventarch/agent-system",
+      "bump": "patch",
+      "summary": "Link the supplied-independently sentence of the SPEC to the public hosted-service relationship page."
+    },
+    {
       "id": "inventarch/authoring-system",
       "bump": "patch",
       "summary": "Align exact native dependencies on the changed `governance-system`."
+    },
+    {
+      "id": "inventarch/compliance-system",
+      "bump": "patch",
+      "summary": "Link the supplied-independently sentence of the SPEC to the public hosted-service relationship page."
     },
     {
       "id": "inventarch/governance-system",
@@ -49,6 +59,11 @@
       "id": "inventarch/work-system",
       "bump": "minor",
       "summary": "Add the public IA canon `law` A14 (work records never sit inside a vocabulary system's folder) as pending, advisory guidance on the `spec` word, with the `contract` ia-canon-work, a `check` naming its built-in evaluator and its success and refusal `case` records. No `check` enforces the `law` yet. Exact native dependencies follow the changed `governance-system`."
+    },
+    {
+      "id": "inventarch/workspace-system",
+      "bump": "patch",
+      "summary": "Link the supplied-independently sentence of the SPEC to the public hosted-service relationship page."
     }
   ]
 }

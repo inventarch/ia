@@ -32,7 +32,7 @@
       "native": {
         "system": "agent-system",
         "id": "inventarch/agent-system",
-        "version": "3.1.3",
+        "version": "3.1.4",
         "distribution": "workspace-system/definition/distribution/package-agent-system"
       }
     },
@@ -54,7 +54,7 @@
       "native": {
         "system": "compliance-system",
         "id": "inventarch/compliance-system",
-        "version": "3.1.3",
+        "version": "3.1.4",
         "distribution": "workspace-system/definition/distribution/package-compliance-system"
       }
     },
@@ -131,7 +131,7 @@
       "native": {
         "system": "workspace-system",
         "id": "inventarch/workspace-system",
-        "version": "3.1.3",
+        "version": "3.1.4",
         "distribution": "workspace-system/definition/distribution/package-workspace-system"
       }
     }

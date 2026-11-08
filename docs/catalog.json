@@ -30,6 +30,15 @@
       "sourceDigest": "e6f8b0bc4902524bb53bf56305dc78ace3cc91ca8c2f068dcbd26dd11aefa3aa"
     },
     {
+      "id": "spec-kit-runtime",
+      "path": "docs/specs/kit-runtime/README.md",
+      "profile": "lifecycle",
+      "genre": "spec",
+      "title": "Kit runtime",
+      "status": "implemented",
+      "sourceDigest": "f5a86dcd6647ea838e3fc49fe358dceb8947d1446f2bd162dcd5a3a8cc4abd9b"
+    },
+    {
       "id": "spec-registry",
       "path": "docs/specs/registry/README.md",
       "profile": "lifecycle",
