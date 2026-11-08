@@ -397,11 +397,13 @@ const RESULT_NEUTRAL_WORKFLOW_ENV: Readonly<Record<string, string>> = {
   HOMEBREW_NO_AUTO_UPDATE: 'Homebrew smoke step only, outside every Nx task',
   HOMEBREW_NO_INSTALL_CLEANUP: 'Homebrew smoke step only, outside every Nx task',
   GH_TOKEN:
-    "the Plan job's lookups of the last successful scheduled run and of a copied verdict, GitHub API calls outside every Nx task",
+    "the Plan job's lookups of the last successful scheduled run and of a copied verdict, and the Dependabot note job's push and dispatch, GitHub API calls outside every Nx task",
   HEAD_REPO:
     "the pull request's head repository, which the Plan job's verdict copy matches runs on, outside every Nx task",
   HEAD_BRANCH:
-    "the pull request's head branch, which the Plan job's verdict copy matches runs on, outside every Nx task",
+    "the pull request's head branch, which the Plan job's verdict copy matches runs on and the Dependabot note job pushes to, outside every Nx task",
+  BASE_SHA:
+    "the pull request's base commit, which the Dependabot note job diffs the branch against, outside every Nx task",
   IA_REVIEW_RUN_ID: 'selects an upstream run for the uncached advisory review caller, outside every Nx task',
   IA_REVIEW_API: 'API origin for the uncached advisory review caller, outside every Nx task',
   IA_REVIEW_BINDING: 'workload binding for the uncached advisory review caller, outside every Nx task',

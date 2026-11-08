@@ -1,0 +1,100 @@
+name: Dependabot release note
+
+# Dependabot moves the exact dependencies of public packages but writes no pending release note, so the Plan job of
+# Public quality refuses its pull requests at pnpm release:check. This job writes that note on the Dependabot branch,
+# pushes it, and dispatches Public quality on the new head: a push made with this workflow's token starts no other
+# workflow, so the required check reports against that commit only through the dispatch. The run Dependabot's own push
+# started still fails, but on a commit that is no longer the pull request head.
+#
+# A pushed note is a commit by someone other than Dependabot, so Dependabot stops rebasing the pull request. Comment
+# `@dependabot recreate` to rebuild it; this job then adds the note again. Review the note before merging: it states
+# the moves and picks patch (a runtime dependency moved) or none (only development dependencies moved), never more.
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependabot-release-note-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  note:
+    name: Add a pending release note
+    # Only Dependabot's npm pull requests from this repository, and only for Dependabot's own pushes: a person who
+    # pushes to the branch writes the note themselves. A Dependabot-triggered run gets a read-only token unless the job
+    # asks for more, as it does here.
+    if: >-
+      github.repository == 'inventarch/ia' &&
+      github.actor == 'dependabot[bot]' &&
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'dependabot/npm_and_yarn/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.22.2'
+          package-manager-cache: false
+      # The note tools use only Node built-ins and Git, so no dependency install runs with this write token, and the
+      # branch may change only manifests, the lockfile and pending notes: every tool this job runs is then the one
+      # already on main.
+      - name: Write a pending release note if the branch needs one
+        id: note
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          merge_base="$(git merge-base "$BASE_SHA" HEAD)"
+          outside="$(git diff --name-only --no-renames "$merge_base" HEAD -- |
+            grep -Ev '^(([^/]+/)*package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|releases/pending/[a-z0-9-]+\.json)$' || true)"
+          if [ -n "$outside" ]; then
+            printf '::error::This branch changes files other than manifests and the lockfile, so no note is written:\n%s\n' "$outside"
+            exit 1
+          fi
+          if node tools/distribution/release-changes.mjs check > "$RUNNER_TEMP/release-check.log" 2>&1; then
+            echo "pnpm release:check already passes; no note is needed."
+            echo "written=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! grep -q 'Changed public packages need a pending release note' "$RUNNER_TEMP/release-check.log"; then
+            cat "$RUNNER_TEMP/release-check.log"
+            echo "::warning::pnpm release:check refuses this branch for a reason a release note does not fix; Public quality reports it."
+            echo "written=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # .ia/public-package-inputs.json stays as it is: the release pull request refreshes it, and only a sealed
+          # release check reads it.
+          note="$(node tools/distribution/dependency-note.mjs --base "$BASE_SHA" --id "dependabot-${HEAD_BRANCH#dependabot/npm_and_yarn/}")"
+          cat "$note"
+          git add "$note"
+          node tools/distribution/release-changes.mjs check
+          echo "written=true" >> "$GITHUB_OUTPUT"
+      - name: Push the note and run Public quality on it
+        if: steps.note.outputs.written == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit --quiet --message 'chore: release note for the Dependabot dependency moves'
+          # No force: if Dependabot pushed again meanwhile, this push fails and the run for that push writes the note.
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/${HEAD_BRANCH}"
+          gh workflow run platform-quality.yml --ref "$HEAD_BRANCH"
