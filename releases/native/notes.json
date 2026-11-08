@@ -1,8 +1,54 @@
 {
   "format": "ia.native-release-notes.v1",
   "baseline": {
-    "tag": "v3.5.1",
-    "commit": "3832a8061e9a826f8b86f7f52e7f15961ea4da91"
+    "tag": "v3.6.0",
+    "commit": "ec5dec6d8b37ff15e0e5d2fa625d8de4b2838cc2"
   },
-  "changes": []
+  "changes": [
+    {
+      "id": "inventarch/agent-composition-system",
+      "bump": "patch",
+      "summary": "Align exact native dependencies on the changed `governance-system`."
+    },
+    {
+      "id": "inventarch/authoring-system",
+      "bump": "patch",
+      "summary": "Align exact native dependencies on the changed `governance-system`."
+    },
+    {
+      "id": "inventarch/governance-system",
+      "bump": "minor",
+      "summary": "Add the public IA canon as pending guidance: nine advisory `law` records (A6, A14, C4, C5a, C6, C12, D9, E4 and E5), the `principle` records A13 and C5b, and the `contract` ia-canon with one `check` naming the built-in evaluator for each evaluated requirement and a success and a refusal `case` for each. No canon `law` is enforced by a `check` yet, so every canon `law` reports pending and no canon rule runs; D9's evaluator is deferred."
+    },
+    {
+      "id": "inventarch/hook-authoring-system",
+      "bump": "patch",
+      "summary": "Align exact native dependencies on the changed `governance-system`."
+    },
+    {
+      "id": "inventarch/language",
+      "bump": "patch",
+      "summary": "Align the embedded native system selection with the changed `governance-system`. IA syntax remains 1.0."
+    },
+    {
+      "id": "inventarch/learning-system",
+      "bump": "patch",
+      "summary": "Align exact native dependencies on the changed `governance-system`."
+    },
+    {
+      "id": "inventarch/session-system",
+      "bump": "patch",
+      "summary": "Align exact native dependencies on the changed `governance-system`."
+    },
+    {
+      "id": "inventarch/template-system",
+      "bump": "patch",
+      "summary": "Align exact native dependencies on the changed `governance-system`."
+    },
+    {
+      "id": "inventarch/work-system",
+      "bump": "patch",
+      "summary": "Align exact native dependencies on the changed `governance-system`."
+    }
+  ]
 }

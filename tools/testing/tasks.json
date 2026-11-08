@@ -2274,6 +2274,7 @@
       "kind": "vitest",
       "project": "packages/compliance",
       "files": [
+        "tests/canon-corpus.test.ts",
         "tests/canon-laws.test.ts",
         "tests/canon-rules.test.ts",
         "tests/evaluator-catalog.test.ts",

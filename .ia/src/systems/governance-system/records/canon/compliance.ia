@@ -1,0 +1,314 @@
+#! ia 1.0
+
+@contract ia-canon
+  version "0.1.0"
+  meaning
+    says "What the public IA canon requires, one requirement per canon law that has an evaluator. Each check names the built-in evaluator for its requirement, and each case names the test that exercises it. Law canon-d9-no-secrets has no requirement here, because its evaluator is deferred. No canon law is enforced by a check yet, so every law reports pending and no evaluator runs."
+    answers "Which requirements does the public IA canon state, and which evaluator and tests cover each one?"
+  invariants
+    REQ-CANON-A6 "A knowledge repository or a kit holds one .ia/src per repository root; a nested .ia/src is reported unless it is a separately released or adopted workspace (law canon-a6-source-roots)."
+    REQ-CANON-A14 "No plan, milestone, task, decision or spec sits inside a vocabulary system's folder under .ia/src/systems/ (law canon-a14-work-placement)."
+    REQ-CANON-C4 "A kit's method system mints no words and requires the owner of every word it uses (law canon-c4-kit-words)."
+    REQ-CANON-C5A "A kit's shipped workspace declares no steward and no sources (law canon-c5a-kit-workspace)."
+    REQ-CANON-C6 "A kit holds no scripts outside the folder of a system that acts through an execution-binding (law canon-c6-kit-scripts)."
+    REQ-CANON-C12 "A markdown link in a shipped .ia/src stays inside that .ia/src or is an absolute URL (law canon-c12-teaching-links)."
+    REQ-CANON-E4 "A local law or convention on a canon law's word cites that law and is no weaker than it (law canon-e4-local-tighten)."
+    REQ-CANON-E5 "A mandate that cites a mandate allows no move and covers no path the cited mandate does not (law canon-e5-mandate-narrow)."
+  relationships
+    governs @law canon-a6-source-roots
+    governs @law canon-a14-work-placement
+    governs @law canon-c4-kit-words
+    governs @law canon-c5a-kit-workspace
+    governs @law canon-c6-kit-scripts
+    governs @law canon-c12-teaching-links
+    governs @law canon-e4-local-tighten
+    governs @law canon-e5-mandate-narrow
+    cites @agent public-governance-system-steward
+
+@check canon-a6
+  meaning
+    says "Names the built-in evaluator for the source-root requirement: CANON-SOURCE-ROOTS reports a nested .ia/src in a kit or knowledge repository."
+    answers "Which evaluator checks the one-source-root requirement?"
+  check
+    runs CANON-SOURCE-ROOTS
+    scope "graph"
+  relationships
+    enforces @contract ia-canon#REQ-CANON-A6
+
+@check canon-a14
+  meaning
+    says "Names the built-in evaluator for the work-placement requirement: CANON-WORK-PLACEMENT reports work records inside a vocabulary system's folder."
+    answers "Which evaluator checks where work records are placed?"
+  check
+    runs CANON-WORK-PLACEMENT
+    scope "graph"
+  relationships
+    enforces @contract ia-canon#REQ-CANON-A14
+
+@check canon-c4
+  meaning
+    says "Names the built-in evaluator for the kit-words requirement: CANON-KIT-WORDS reports a kit method system that mints a word or leaves a used word's owner unrequired."
+    answers "Which evaluator checks a kit method system's words?"
+  check
+    runs CANON-KIT-WORDS
+    scope "graph"
+  relationships
+    enforces @contract ia-canon#REQ-CANON-C4
+
+@check canon-c5a
+  meaning
+    says "Names the built-in evaluator for the kit-workspace requirement: CANON-KIT-WORKSPACE reports a kit workspace with a steward or sources."
+    answers "Which evaluator checks a kit's shipped workspace?"
+  check
+    runs CANON-KIT-WORKSPACE
+    scope "graph"
+  relationships
+    enforces @contract ia-canon#REQ-CANON-C5A
+
+@check canon-c6
+  meaning
+    says "Names the built-in evaluator for the kit-scripts requirement: CANON-KIT-SCRIPTS reports a script in a kit outside an executing system's folder."
+    answers "Which evaluator checks a kit for scripts?"
+  check
+    runs CANON-KIT-SCRIPTS
+    scope "graph"
+  relationships
+    enforces @contract ia-canon#REQ-CANON-C6
+
+@check canon-c12
+  meaning
+    says "Names the built-in evaluator for the teaching-links requirement: CANON-TEACHING-LINKS reports a markdown link that leaves a shipped .ia/src."
+    answers "Which evaluator checks markdown links in a shipped .ia/src?"
+  check
+    runs CANON-TEACHING-LINKS
+    scope "graph"
+  relationships
+    enforces @contract ia-canon#REQ-CANON-C12
+
+@check canon-e4
+  meaning
+    says "Names the built-in evaluator for the local-tightening requirement: CANON-LOCAL-TIGHTEN reports a local rule that does not cite, or is weaker than, the canon law on its word."
+    answers "Which evaluator checks that local rules only tighten the canon?"
+  check
+    runs CANON-LOCAL-TIGHTEN
+    scope "graph"
+  relationships
+    enforces @contract ia-canon#REQ-CANON-E4
+
+@check canon-e5
+  meaning
+    says "Names the built-in evaluator for the mandate-narrowing requirement: CANON-MANDATE-NARROW reports a citing mandate with a wider move or path."
+    answers "Which evaluator checks that mandates never widen?"
+  check
+    runs CANON-MANDATE-NARROW
+    scope "graph"
+  relationships
+    enforces @contract ia-canon#REQ-CANON-E5
+
+@case canon-a6-success
+  meaning
+    says "A nested .ia/src that is a separately released or adopted workspace is accepted."
+    answers "Which positive case allows a nested source root for a released or adopted workspace?"
+  scenario
+    kind success
+    given "A kit whose nested .ia/ holds a release.json, and a knowledge repository whose nested .ia/ holds a distributions lock."
+    request "Run the CANON-SOURCE-ROOTS rule."
+    expected "No IA-COMP-CANON-SOURCE-ROOTS finding."
+    evaluator "packages/db/tests/canon-files.test.ts | A6 accepts a nested root with release.json"
+  relationships
+    implements @contract ia-canon#REQ-CANON-A6
+
+@case canon-a6-refusal
+  meaning
+    says "A nested .ia/src in a kit that is neither released nor adopted is reported."
+    answers "Which negative case reports a stray nested source root?"
+  scenario
+    kind refusal
+    given "A kit with a nested .ia/src and no release or adoption."
+    request "Run the CANON-SOURCE-ROOTS rule."
+    expected "IA-COMP-CANON-SOURCE-ROOTS is reported."
+    evaluator "packages/db/tests/canon-files.test.ts | A6 reports a nested .ia/src in a kit"
+  relationships
+    implements @contract ia-canon#REQ-CANON-A6
+
+@case canon-a14-success
+  meaning
+    says "A spec authored outside every system folder is not reported."
+    answers "Which positive case keeps workspace-authored work records admitted?"
+  scenario
+    kind success
+    given "A spec authored outside .ia/src/systems/."
+    request "Run the CANON-WORK-PLACEMENT rule."
+    expected "No IA-COMP-CANON-WORK-PLACEMENT finding."
+    evaluator "packages/compliance/tests/canon-rules.test.ts | a spec outside system folders is not reported"
+  relationships
+    implements @contract ia-canon#REQ-CANON-A14
+
+@case canon-a14-refusal
+  meaning
+    says "A spec inside a vocabulary system's folder is reported."
+    answers "Which negative case reports a work record inside a system folder?"
+  scenario
+    kind refusal
+    given "A spec authored under .ia/src/systems/, with a blocking law enforced by a check running CANON-WORK-PLACEMENT."
+    request "Run the CANON-WORK-PLACEMENT rule."
+    expected "IA-COMP-CANON-WORK-PLACEMENT is reported as an error."
+    evaluator "packages/compliance/tests/canon-rules.test.ts | A14 reports a spec inside a system folder as error when its law is blocking"
+  relationships
+    implements @contract ia-canon#REQ-CANON-A14
+
+@case canon-c4-success
+  meaning
+    says "A vocabulary-only kit system that mints words is not reported."
+    answers "Which positive case lets a kit's vocabulary system mint words?"
+  scenario
+    kind success
+    given "A kit whose vocabulary-only system mints words."
+    request "Run the CANON-KIT-WORDS rule."
+    expected "No IA-COMP-CANON-KIT-WORDS finding."
+    evaluator "packages/compliance/tests/canon-rules.test.ts | C4 does not flag a vocabulary-only kit system that mints words"
+  relationships
+    implements @contract ia-canon#REQ-CANON-C4
+
+@case canon-c4-refusal
+  meaning
+    says "A kit method system that mints a word is reported."
+    answers "Which negative case reports a kit method system minting a word?"
+  scenario
+    kind refusal
+    given "A kit whose method system mints a word."
+    request "Run the CANON-KIT-WORDS rule."
+    expected "IA-COMP-CANON-KIT-WORDS is reported."
+    evaluator "packages/compliance/tests/canon-rules.test.ts | C4 reports a kit method system that mints a word"
+  relationships
+    implements @contract ia-canon#REQ-CANON-C4
+
+@case canon-c5a-success
+  meaning
+    says "A kit workspace with no steward and no sources is not reported."
+    answers "Which positive case admits a kit workspace without a steward or sources?"
+  scenario
+    kind success
+    given "A lowered kit whose workspace declares no steward and no sources."
+    request "Run the CANON-KIT-WORKSPACE rule."
+    expected "No IA-COMP-CANON-KIT-WORKSPACE finding."
+    evaluator "packages/compliance/tests/canon-rules.test.ts | C5a reports a kit workspace with a steward or sources"
+  relationships
+    implements @contract ia-canon#REQ-CANON-C5A
+
+@case canon-c5a-refusal
+  meaning
+    says "A kit workspace with a steward and sources is reported once for each."
+    answers "Which negative case reports a kit workspace with a steward or sources?"
+  scenario
+    kind refusal
+    given "A native kit whose workspace declares a steward and sources."
+    request "Run the CANON-KIT-WORKSPACE rule."
+    expected "IA-COMP-CANON-KIT-WORKSPACE is reported twice."
+    evaluator "packages/compliance/tests/canon-rules.test.ts | C5a reports a kit workspace with a steward or sources"
+  relationships
+    implements @contract ia-canon#REQ-CANON-C5A
+
+@case canon-c6-success
+  meaning
+    says "Scripts in the folder of a kit system that has an execution-binding are not reported."
+    answers "Which positive case allows scripts in an executing kit system's folder?"
+  scenario
+    kind success
+    given "A kit whose executing system folder holds a script."
+    request "Run the CANON-KIT-SCRIPTS rule."
+    expected "No IA-COMP-CANON-KIT-SCRIPTS finding."
+    evaluator "packages/db/tests/canon-files.test.ts | C6 ignores an executing-system folder"
+  relationships
+    implements @contract ia-canon#REQ-CANON-C6
+
+@case canon-c6-refusal
+  meaning
+    says "A script in a kit is reported."
+    answers "Which negative case reports a script held by a kit?"
+  scenario
+    kind refusal
+    given "A kit holding a script outside any executing system's folder."
+    request "Run the CANON-KIT-SCRIPTS rule."
+    expected "IA-COMP-CANON-KIT-SCRIPTS is reported."
+    evaluator "packages/db/tests/canon-files.test.ts | C6 reports a script in a kit"
+  relationships
+    implements @contract ia-canon#REQ-CANON-C6
+
+@case canon-c12-success
+  meaning
+    says "A markdown link that stays under .ia/src, exists and is in the closure is accepted."
+    answers "Which positive case accepts a teaching link inside a shipped .ia/src?"
+  scenario
+    kind success
+    given "A shipped .ia/src markdown file linking to an existing file under .ia/src."
+    request "Run the CANON-TEACHING-LINKS rule."
+    expected "No IA-COMP-CANON-TEACHING-LINKS finding."
+    evaluator "packages/db/tests/canon-files.test.ts | C12 accepts a link that stays under .ia/src, exists and is in the closure"
+  relationships
+    implements @contract ia-canon#REQ-CANON-C12
+
+@case canon-c12-refusal
+  meaning
+    says "A relative markdown link that leaves .ia/src is reported."
+    answers "Which negative case reports a teaching link leaving a shipped .ia/src?"
+  scenario
+    kind refusal
+    given "A shipped .ia/src markdown file with a relative link outside .ia/src."
+    request "Run the CANON-TEACHING-LINKS rule."
+    expected "IA-COMP-CANON-TEACHING-LINKS is reported."
+    evaluator "packages/db/tests/canon-files.test.ts | C12 reports a relative link leaving .ia/src"
+  relationships
+    implements @contract ia-canon#REQ-CANON-C12
+
+@case canon-e4-success
+  meaning
+    says "A local rule that cites the canon law and is at least as strong is accepted, and canon is never checked against itself."
+    answers "Which positive case accepts a local rule that tightens the canon?"
+  scenario
+    kind success
+    given "A local law on a canon law's word that cites it at the same or a stronger severity."
+    request "Run the CANON-LOCAL-TIGHTEN rule."
+    expected "No IA-COMP-CANON-LOCAL-TIGHTEN finding."
+    evaluator "packages/compliance/tests/canon-rules.test.ts | E4 accepts a citing local rule at least as strong and never checks canon against itself"
+  relationships
+    implements @contract ia-canon#REQ-CANON-E4
+
+@case canon-e4-refusal
+  meaning
+    says "A local rule on a canon word that does not cite the canon law is reported."
+    answers "Which negative case reports a local rule that does not cite the canon law it tightens?"
+  scenario
+    kind refusal
+    given "A local law on a canon law's word that does not cite it."
+    request "Run the CANON-LOCAL-TIGHTEN rule."
+    expected "IA-COMP-CANON-LOCAL-TIGHTEN is reported."
+    evaluator "packages/compliance/tests/canon-rules.test.ts | E4 reports a local rule on a canon word that does not cite the canon law"
+  relationships
+    implements @contract ia-canon#REQ-CANON-E4
+
+@case canon-e5-success
+  meaning
+    says "A narrower citing mandate is accepted, and a mandate citing none is ignored."
+    answers "Which positive case accepts a mandate that narrows the one it cites?"
+  scenario
+    kind success
+    given "A mandate citing a parent mandate with a subset of its moves and paths, and a mandate citing none."
+    request "Run the CANON-MANDATE-NARROW rule."
+    expected "No IA-COMP-CANON-MANDATE-WIDEN finding."
+    evaluator "packages/compliance/tests/canon-rules.test.ts | E5 accepts a narrower citing mandate and ignores a mandate citing none"
+  relationships
+    implements @contract ia-canon#REQ-CANON-E5
+
+@case canon-e5-refusal
+  meaning
+    says "A citing mandate that allows a move its parent does not is reported."
+    answers "Which negative case reports a mandate that widens the one it cites?"
+  scenario
+    kind refusal
+    given "A mandate citing a parent mandate and allowing a move the parent does not."
+    request "Run the CANON-MANDATE-NARROW rule."
+    expected "IA-COMP-CANON-MANDATE-WIDEN is reported."
+    evaluator "packages/compliance/tests/canon-rules.test.ts | E5 reports a citing mandate with a wider move"
+  relationships
+    implements @contract ia-canon#REQ-CANON-E5
