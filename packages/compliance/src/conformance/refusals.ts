@@ -576,6 +576,19 @@ export function runRefusalFixtures(
         ]),
     ],
     [
+      'IA-COMP-CANON-KIT-SCRIPTS',
+      () =>
+        canonFixture('CANON-KIT-SCRIPTS', [], () => [
+          {
+            code: 'IA-COMP-CANON-KIT-SCRIPTS',
+            path: 'tools/run.mjs',
+            line: 1,
+            severity: 'warning',
+            message: 'tools/run.mjs: A kit holds no scripts; move this file into an executing system or remove it.',
+          },
+        ]),
+    ],
+    [
       'IA-COMP-FIXTURE-MISMATCH',
       () =>
         runLanguageFixture({

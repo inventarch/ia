@@ -65,6 +65,19 @@ export function isKitWorkspace(nodes: readonly Node[]): boolean {
   return kitSystems(nodes).length > 0;
 }
 
+/**
+ * The kit systems that execute (dec-040 A): a kit system whose records include an `@execution-binding`. Their folders
+ * `.ia/src/systems/<name>/` may hold scripts.
+ */
+export function executingKitSystems(nodes: readonly Node[]): readonly string[] {
+  return kitSystems(nodes).filter((name) =>
+    nodes.some(
+      (node) =>
+        node.discriminator === 'execution-binding' && posix(node.source.path).startsWith(`.ia/src/systems/${name}/`),
+    ),
+  );
+}
+
 const METHOD_WORDS: ReadonlySet<string> = new Set([
   'capability',
   'playbook',

@@ -1965,6 +1965,7 @@ export const INVENTORY: ConformanceInventory = {
   "boundaries": [
     "boundary/IA-COMP-ADOPTION-FAILED",
     "boundary/IA-COMP-BOOTSTRAP-ORDER",
+    "boundary/IA-COMP-CANON-KIT-SCRIPTS",
     "boundary/IA-COMP-CANON-KIT-WORDS",
     "boundary/IA-COMP-CANON-KIT-WORKSPACE",
     "boundary/IA-COMP-CANON-SOURCE-ROOTS",
@@ -2042,6 +2043,7 @@ export const INVENTORY: ConformanceInventory = {
   "requiredCodes": [
     "IA-COMP-ADOPTION-FAILED",
     "IA-COMP-BOOTSTRAP-ORDER",
+    "IA-COMP-CANON-KIT-SCRIPTS",
     "IA-COMP-CANON-KIT-WORDS",
     "IA-COMP-CANON-KIT-WORKSPACE",
     "IA-COMP-CANON-SOURCE-ROOTS",
@@ -2240,4 +2242,4 @@ export const INVENTORY: ConformanceInventory = {
   ]
 };
 
-export const INVENTORY_DIGEST = "b4b8ee38a2da19d93a7c8d3036c10bb99c5b2b3d85d0f5575b6897b7bc9b7ec2";
+export const INVENTORY_DIGEST = "f72d63940ab42d13dd66c2c736d8c43d8199bca312947b920af27144e09a3f01";

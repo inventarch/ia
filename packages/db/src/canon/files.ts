@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import type { Dirent } from 'node:fs';
 import { posix, resolve } from 'node:path';
-import { canonAssessment, isKitWorkspace } from '@inventarch/compliance';
+import { canonAssessment, executingKitSystems, isKitWorkspace } from '@inventarch/compliance';
 import type { Assessment, Finding } from '@inventarch/compliance';
 import type { Graph, Node } from '@inventarch/graph';
 import { localTarget, parseMarkdown } from './markdown.js';
@@ -39,13 +39,18 @@ function entries(directory: string): readonly Dirent[] {
   }
 }
 
+/** A `.git` entry (directory, or the file a worktree has) is the boundary of a separate checkout. */
+const isSeparateCheckout = (root: string, path: string): boolean =>
+  entries(resolve(root, path)).some((child) => child.name === '.git');
+
 /** Every file under `directory` as a root-relative `/` path, in order; links are not followed. */
-function walkFiles(root: string, directory: string): readonly string[] {
+function walkFiles(root: string, directory: string, bounded = false): readonly string[] {
   const found: string[] = [];
   const visit = (relative: string): void => {
     for (const entry of entries(resolve(root, relative))) {
       if (SKIPPED.has(entry.name)) continue;
-      const path = `${relative}/${entry.name}`;
+      const path = relative === '' ? entry.name : `${relative}/${entry.name}`;
+      if (bounded && entry.isDirectory() && (RUNTIME_STATE.has(path) || isSeparateCheckout(root, path))) continue;
       if (entry.isDirectory()) visit(path);
       else if (entry.isFile()) found.push(path);
     }
@@ -133,9 +138,8 @@ function nestedSources(root: string): readonly string[] {
       if (!entry.isDirectory() || SKIPPED.has(entry.name)) continue;
       const path = `${here}${entry.name}`;
       if (RUNTIME_STATE.has(path)) continue;
+      if (isSeparateCheckout(root, path)) continue;
       const children = entries(resolve(root, path));
-      // A `.git` entry (directory, or the file a worktree has) is the boundary of a separate checkout.
-      if (children.some((child) => child.name === '.git')) continue;
       if (entry.name === '.ia') {
         if (
           path !== '.ia' &&
@@ -168,6 +172,33 @@ export function canonSourceRoots(root: string, scope: 'kit' | 'knowledge' | null
   );
 }
 
+const SCRIPT = /\.(mjs|cjs|js|ts|py|sh|ps1)$/;
+
+/**
+ * C6: a kit holds no scripts. Files with a script extension are reported unless they sit under
+ * `.ia/src/systems/<allowed>/` (the folders of the executing systems, dec-040 A). The walk skips `node_modules`, `dist`,
+ * `.git`, `.ia/distributions`, `.ia/work` and separate checkouts. Nothing outside a kit.
+ */
+export function canonKitScripts(
+  root: string,
+  isKit: boolean,
+  allowedSystems: readonly string[] = [],
+): readonly Finding[] {
+  if (!isKit) return [];
+  const folders = allowedSystems.map((name) => `${SOURCE}/systems/${name}/`);
+  return walkFiles(root, '', true)
+    .filter((path) => SCRIPT.test(path) && !folders.some((folder) => path.startsWith(folder)))
+    .map(
+      (path): Finding => ({
+        code: 'IA-COMP-CANON-KIT-SCRIPTS',
+        path,
+        line: 1,
+        severity: 'error',
+        message: `${path}: A kit holds no scripts; move this file into the folder of an executing system or remove it.`,
+      }),
+    );
+}
+
 export interface CanonFileOptions {
   /** The Markdown documents C12 reads (default: every `.md` under `<root>/.ia/src`). */
   readonly files?: readonly string[];
@@ -185,7 +216,7 @@ export function sourceRootScope(
   return isKitWorkspace(nodes) ? 'kit' : installed.some((p) => p.id === KB_KIT) ? 'knowledge' : null;
 }
 
-/** The file-based canon rules C12 and A6 as assessments, each active only when a law enforces a check that runs it. */
+/** The file-based canon rules C12, A6 and C6 as assessments, each active only when a law enforces a check that runs it. */
 export function canonFileAssessments(
   root: string,
   nodes: readonly Node[],
@@ -203,6 +234,12 @@ export function canonFileAssessments(
       nodes,
       'CANON-SOURCE-ROOTS',
       () => canonSourceRoots(root, sourceRootScope(nodes, installed)),
+      graph,
+    ),
+    canonAssessment(
+      nodes,
+      'CANON-KIT-SCRIPTS',
+      () => canonKitScripts(root, isKitWorkspace(nodes), executingKitSystems(nodes)),
       graph,
     ),
   ].flatMap((assessment) => assessment ?? []);

@@ -27,6 +27,7 @@ export {
   canonKitMethodWords,
   canonKitWorkspace,
   canonWorkPlacement,
+  executingKitSystems,
   isKitWorkspace,
 } from './canon/rules.js';
 export type { LawState, LawStatus } from './canon/laws.js';

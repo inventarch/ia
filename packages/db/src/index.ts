@@ -40,6 +40,7 @@ export type { RunnerEvidenceWrite } from './runner-evidence.js';
 export type { ViewOptions } from './view.js';
 export {
   canonFileAssessments,
+  canonKitScripts,
   canonSourceRoots,
   canonTeachingLinks,
   sourceRootScope,

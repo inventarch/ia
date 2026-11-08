@@ -22,5 +22,6 @@ export const CHECK_IDS = Object.freeze([
   'CANON-KIT-WORKSPACE',
   'CANON-TEACHING-LINKS',
   'CANON-SOURCE-ROOTS',
+  'CANON-KIT-SCRIPTS',
 ] as const);
 export const isBuiltinCheck = (id: string): boolean => (CHECK_IDS as readonly string[]).includes(id);

@@ -135,6 +135,8 @@ const ACTIONS: Readonly<Record<string, string>> = {
     'Point the teaching link at an existing file or section under .ia/src/, or remove it, then run "ia validate" again.',
   'IA-COMP-CANON-SOURCE-ROOTS':
     'Remove the nested .ia/src, or release or adopt it as its own workspace (a release.json or distributions.lock.json beside it), then run "ia validate" again.',
+  'IA-COMP-CANON-KIT-SCRIPTS':
+    'Remove the script from the kit, or move it into the .ia/src/systems/<system>/ folder of a system that holds an execution-binding, then run "ia validate" again.',
 };
 
 /** The next action for a check verification did not evaluate: its evaluator is built in, so there is none to supply. */

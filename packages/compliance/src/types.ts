@@ -38,6 +38,7 @@ export const COMP_CODES = [
   'IA-COMP-CANON-KIT-WORKSPACE',
   'IA-COMP-CANON-TEACHING-LINKS',
   'IA-COMP-CANON-SOURCE-ROOTS',
+  'IA-COMP-CANON-KIT-SCRIPTS',
 ] as const;
 export type CompCode = (typeof COMP_CODES)[number];
 /** Evaluator-catalog, obligation and receipt codes (C25-C29). A separate inventory: the repository

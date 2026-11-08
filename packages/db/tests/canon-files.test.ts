@@ -3,7 +3,14 @@ import { tmpdir } from 'node:os';
 import { isAbsolute, relative, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Node } from '@inventarch/graph';
-import { canonFileAssessments, canonSourceRoots, canonTeachingLinks, open, sourceRootScope } from '../src/index.js';
+import {
+  canonFileAssessments,
+  canonKitScripts,
+  canonSourceRoots,
+  canonTeachingLinks,
+  open,
+  sourceRootScope,
+} from '../src/index.js';
 import { put, workspace } from './workspace.js';
 
 const temporary: string[] = [];
@@ -25,6 +32,7 @@ afterEach(() => {
 });
 const CODE_LINKS = 'IA-COMP-CANON-TEACHING-LINKS';
 const CODE_ROOTS = 'IA-COMP-CANON-SOURCE-ROOTS';
+const CODE_SCRIPTS = 'IA-COMP-CANON-KIT-SCRIPTS';
 
 describe('C12 teaching links', () => {
   it('C12 reports a relative link leaving .ia/src', () => {
@@ -168,5 +176,92 @@ describe('canon file rules through the view', () => {
     put(root, '.ia/src/systems/governance-system/records/teaching-links-law.ia', law);
     put(root, '.ia/src/systems/compliance-system/checks/teaching-links-check.ia', check);
     expect(canon(root)).toMatchObject([{ code: CODE_LINKS, severity: 'error', path: '.ia/src/docs/guide.md' }]);
+  });
+});
+
+describe('C6 kit scripts', () => {
+  it('C6 reports a script in a kit', () => {
+    const root = tree({ 'tools/run.mjs': '', 'a/b.ps1': '', 'a/c.sh': '', 'readme.md': '', 'x.json': '' });
+    expect(canonKitScripts(root, true).map((f) => f.path)).toEqual(['a/b.ps1', 'a/c.sh', 'tools/run.mjs']);
+    expect(canonKitScripts(root, true)[0]).toMatchObject({ code: CODE_SCRIPTS, severity: 'error', line: 1 });
+    for (const ext of ['mjs', 'cjs', 'js', 'ts', 'py', 'sh', 'ps1'])
+      expect(canonKitScripts(tree({ [`s.${ext}`]: '' }), true)).toHaveLength(1);
+  });
+  it('C6 is inactive outside a kit', () => {
+    expect(canonKitScripts(tree({ 'run.mjs': '' }), false)).toEqual([]);
+  });
+  it('C6 ignores node_modules, dist and .git', () => {
+    const root = tree({
+      'node_modules/p/i.js': '',
+      'dist/i.js': '',
+      '.git/hooks/h.sh': '',
+      'sub/node_modules/i.js': '',
+    });
+    expect(canonKitScripts(root, true)).toEqual([]);
+  });
+  it('C6 ignores runtime state and separate checkouts', () => {
+    const root = tree({
+      '.ia/distributions/x/i.js': '',
+      '.ia/work/w.py': '',
+      'wt/.git': 'gitdir: x',
+      'wt/i.js': '',
+      'clone/.git/HEAD': '',
+      'clone/i.js': '',
+      'plain/i.js': '',
+    });
+    expect(canonKitScripts(root, true).map((f) => f.path)).toEqual(['plain/i.js']);
+  });
+  it('C6 ignores an executing-system folder', () => {
+    const root = tree({ '.ia/src/systems/ia-1-run/lib/x.mjs': '', '.ia/src/systems/other/y.mjs': '', 'z.mjs': '' });
+    expect(canonKitScripts(root, true, ['ia-1-run']).map((f) => f.path)).toEqual([
+      '.ia/src/systems/other/y.mjs',
+      'z.mjs',
+    ]);
+  });
+});
+
+describe('C6 through canonFileAssessments', () => {
+  const field = (key: string, text: string) => ({
+    key,
+    value: { kind: 'scalar', text },
+    span: { line: 1, endLine: 1 },
+  });
+  const node = (discriminator: string, identity: string, extra: object): Node =>
+    ({
+      discriminator,
+      identity,
+      name: identity,
+      edges: [],
+      sections: [],
+      source: { path: 'x.ia', line: 1 },
+      ...extra,
+    }) as unknown as Node;
+  const enforcing = [
+    node('law', 'law/a', {
+      edges: [{ predicate: 'enforce', direction: 'in', target: 'check/a' }],
+      sections: [{ name: 'governance', span: { line: 1, endLine: 1 }, fields: [field('severity', 'blocking')] }],
+    }),
+    node('check', 'check/a', {
+      sections: [{ name: 'check', span: { line: 1, endLine: 1 }, fields: [field('runs', 'CANON-KIT-SCRIPTS')] }],
+    }),
+  ];
+  const kit = node('distribution', 'distribution/kit', {
+    source: { path: '.ia/src/systems/ia-1-run/records/plugin.ia', line: 1 },
+    sections: [{ name: 'product', span: { line: 1, endLine: 1 }, fields: [] }],
+  });
+  const binding = node('execution-binding', 'execution-binding/b', {
+    source: { path: '.ia/src/systems/ia-1-run/records/b.ia', line: 1 },
+  });
+  const files = { '.ia/src/systems/ia-1-run/lib/x.mjs': '', 'tools/y.mjs': '' };
+  it('an executing kit system allows its folder; others are reported', () => {
+    const found = canonFileAssessments(tree(files), [...enforcing, kit, binding]).flatMap((a) => a.findings);
+    expect(found).toMatchObject([{ code: CODE_SCRIPTS, path: 'tools/y.mjs' }]);
+  });
+  it('a kit system without an execution-binding is not allowed', () => {
+    const found = canonFileAssessments(tree(files), [...enforcing, kit]).flatMap((a) => a.findings);
+    expect(found.map((f) => f.path)).toEqual(['.ia/src/systems/ia-1-run/lib/x.mjs', 'tools/y.mjs']);
+  });
+  it('a workspace that is not a kit reports nothing', () => {
+    expect(canonFileAssessments(tree(files), enforcing).flatMap((a) => a.findings)).toEqual([]);
   });
 });
