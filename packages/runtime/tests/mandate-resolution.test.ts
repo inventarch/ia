@@ -34,6 +34,19 @@ const repository = resolve(import.meta.dirname, '../../..'),
   mandate = (name: string) => `agent-system/policy/mandate/${name}`,
   governance = (seat: string) => `ia position --seat ${seat} --shape governance`,
   ALL = ['Observation', 'Verification', 'Synthesis', 'Delegation', 'Execution'],
+  SYSTEMS = [
+    'agent-system',
+    'agent-composition-system',
+    'authoring-system',
+    'compliance-system',
+    'governance-system',
+    'hook-authoring-system',
+    'learning-system',
+    'session-system',
+    'template-system',
+    'work-system',
+    'workspace-system',
+  ],
   ALL_MOVES = 'moves [Observation, Verification, Synthesis, Delegation, Execution]',
   STEWARD = '    steward @agent demo\n',
   SCOPE = '    scope [@workspace demo]\n',
@@ -1253,15 +1266,19 @@ it("resolves this repository's participant as its default actor, granted all fiv
     language = 'workspace-system/definition/workspace/language-workspace',
     own = 'agent-system/binding/agent/language-participant';
   expect(db.resolveSeat('', { within }).seat).toBe(language);
-  // language-workspace states no composition.steward, so its one participant is the default actor.
+  // language-workspace states `composition.steward @agent language-participant`, so with twelve participants scoped to
+  // it the default actor still resolves, through the steward.
+  const stewards = SYSTEMS.map((system) => `agent-system/binding/agent/public-${system}-steward`);
+  const everyone = [own, ...stewards].sort();
   expect(defaultActor(db, within, language)).toEqual({
     actor: own,
-    by: 'participant',
-    participants: [own],
-    actors: [own],
+    by: 'steward',
+    participants: everyone,
+    actors: everyone,
   });
   const governing = governingMandates(db, within, { actor: own, workspace: language });
-  expect(governing).toEqual([
+  // The language participant is bound by its own mandate alone; the stewardship mandates bind the stewards.
+  expect(governing.filter((entry) => entry.binds)).toEqual([
     {
       identity: mandate('language-mandate'),
       band: 100,
@@ -1272,10 +1289,16 @@ it("resolves this repository's participant as its default actor, granted all fiv
       covers: ['.ia/src/'],
     },
   ]);
+  // The eleven stewardship mandates are listed as the workspace's, but bind none of this actor's moves.
+  expect(governing.map((entry) => entry.identity).sort()).toEqual(
+    [mandate('language-mandate'), ...SYSTEMS.map((system) => mandate(`public-${system}-stewardship`))].sort(),
+  );
+  expect(governing.filter((entry) => !entry.binds).every((entry) => entry.participant !== own)).toBe(true);
   // So ia capture, ia project and pnpm projections:generate (effect, Execution) pass the profile here, as every mode does.
   for (const mode of MODES) expect(profileRefusal(governing, mode), mode).toEqual({});
   expect(identities(db, { actor: own, path: '.ia/src/systems/work-system/system.ia' })).toEqual([
     mandate('language-mandate'),
+    mandate('public-work-system-stewardship'),
   ]);
   expect(identities(db, { actor: own, path: 'README.md' })).toEqual([]);
 });
