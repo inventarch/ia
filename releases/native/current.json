@@ -4,7 +4,7 @@
     "tag": "v3.6.0",
     "commit": "ec5dec6d8b37ff15e0e5d2fa625d8de4b2838cc2"
   },
-  "notesSha256": "6e66e582ec647148caabdf05b6670ed454bcc7aea2a4f6f5430feedc25e0043d",
+  "notesSha256": "e5e3571676af8073865d996536a4030b9811603b262b531b0c2b2fca9cefb395",
   "archives": [
     {
       "id": "inventarch/agent-composition-system",
@@ -60,8 +60,8 @@
     {
       "id": "inventarch/governance-system",
       "version": "3.2.0",
-      "archive": "70753093cd65dfd006f14cc92ca63af556fb786b602afb741f81cf5cdc7101ae",
-      "manifest": "6cdd4776abeb718dc5fadbf6838807aca93b3001fd988e069a5451b520010521",
+      "archive": "277874cd30abb76c78ee9f6730ee26d8efb769fede8c74b5391d353c586dacb5",
+      "manifest": "88e71bd5348c8bb6471dabc99b851f630251838b9251e6c3795f30f2ff4b64b9",
       "dependencies": [
         "inventarch/agent-system",
         "inventarch/compliance-system",

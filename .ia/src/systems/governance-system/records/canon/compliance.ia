@@ -11,7 +11,7 @@
     REQ-CANON-C5A "A kit's shipped workspace declares no steward and no sources (law canon-c5a-kit-workspace)."
     REQ-CANON-C6 "A kit holds no scripts outside the folder of a system that acts through an execution-binding (law canon-c6-kit-scripts)."
     REQ-CANON-C12 "A markdown link in a shipped .ia/src stays inside that .ia/src or is an absolute URL (law canon-c12-teaching-links)."
-    REQ-CANON-E4 "A local law or convention on a canon law's word cites that law and is no weaker than it (law canon-e4-local-tighten)."
+    REQ-CANON-E4 "A local law or convention that cites a canon law governs that law's word and is no weaker than it (law canon-e4-local-tighten). Whether a rule that tightens a canon law cites it is not machine-checkable and is left to review."
     REQ-CANON-E5 "A mandate that cites a mandate allows no move and covers no path the cited mandate does not (law canon-e5-mandate-narrow)."
   relationships
     governs @law canon-a6-source-roots
@@ -75,7 +75,7 @@
 
 @check canon-e4
   meaning
-    says "Names the built-in evaluator for the local-tightening requirement: CANON-LOCAL-TIGHTEN reports a local rule that does not cite, or is weaker than, the canon law on its word."
+    says "Names the built-in evaluator for the local-tightening requirement: CANON-LOCAL-TIGHTEN reports a local rule that cites a canon law but governs another word or is weaker than it. A local rule that cites no canon law is not judged."
     answers "Which evaluator checks that local rules only tighten the canon?"
   check
     runs CANON-LOCAL-TIGHTEN
@@ -242,23 +242,36 @@
     answers "Which positive case accepts a local rule that tightens the canon?"
   scenario
     kind success
-    given "A local law on a canon law's word that cites it at the same or a stronger severity."
+    given "A local law that cites a canon law, governs its word and is at the same or a stronger severity."
     request "Run the CANON-LOCAL-TIGHTEN rule."
     expected "No IA-COMP-CANON-LOCAL-TIGHTEN finding."
     evaluator "packages/compliance/tests/canon-rules.test.ts | E4 accepts a citing local rule at least as strong and never checks canon against itself"
   relationships
     implements @contract ia-canon#REQ-CANON-E4
 
+@case canon-e4-uncited-success
+  meaning
+    says "A local rule on a canon law's word that cites no canon law is not judged: sharing a word is no evidence that it tightens the canon law, and whether it should cite one is left to review."
+    answers "Which positive case shows that E4 does not ask an uncited local rule to cite a canon law?"
+  scenario
+    kind success
+    given "A local law or convention on a canon law's word, at any severity, that cites no canon law."
+    request "Run the CANON-LOCAL-TIGHTEN rule."
+    expected "No IA-COMP-CANON-LOCAL-TIGHTEN finding."
+    evaluator "packages/compliance/tests/canon-rules.test.ts | E4 does not ask an uncited local rule on a canon word to cite the canon law"
+  relationships
+    implements @contract ia-canon#REQ-CANON-E4
+
 @case canon-e4-refusal
   meaning
-    says "A local rule on a canon word that does not cite the canon law is reported."
-    answers "Which negative case reports a local rule that does not cite the canon law it tightens?"
+    says "A local rule that cites a canon law but governs another word, or none, is reported."
+    answers "Which negative case reports a local rule that cites a canon law on a word it does not govern?"
   scenario
     kind refusal
-    given "A local law on a canon law's word that does not cite it."
+    given "A local law that cites a canon law but whose subject word differs from the canon law's, or is absent."
     request "Run the CANON-LOCAL-TIGHTEN rule."
-    expected "IA-COMP-CANON-LOCAL-TIGHTEN is reported."
-    evaluator "packages/compliance/tests/canon-rules.test.ts | E4 reports a local rule on a canon word that does not cite the canon law"
+    expected "IA-COMP-CANON-LOCAL-TIGHTEN is reported, naming the canon law and both words."
+    evaluator "packages/compliance/tests/canon-rules.test.ts | E4 reports a citing local rule on a different subject word, or on none"
   relationships
     implements @contract ia-canon#REQ-CANON-E4
 
@@ -268,10 +281,10 @@
     answers "Which negative case reports a local rule weaker than the canon law it cites?"
   scenario
     kind refusal
-    given "A local law on a canon law's word that cites it at a weaker severity."
+    given "A local law that cites a canon law on its word at a weaker severity."
     request "Run the CANON-LOCAL-TIGHTEN rule."
     expected "IA-COMP-CANON-LOCAL-TIGHTEN is reported, naming the weaker severity."
-    evaluator "packages/compliance/tests/canon-rules.test.ts | E4 reports a local rule weaker than the canon law"
+    evaluator "packages/compliance/tests/canon-rules.test.ts | E4 reports a citing local rule weaker than the canon law"
   relationships
     implements @contract ia-canon#REQ-CANON-E4
 

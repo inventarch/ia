@@ -54,7 +54,7 @@
 
 - agent 12
 - authoring-guide 44
-- case 32
+- case 33
 - check 9
 - contract 6
 - convention 24
@@ -120,4 +120,4 @@
 - when a word's owner is not this workspace, delegate by re-seating at the owning system; a steward pointer is readable, not an invocation
 - start each session with the IA door's ia_session; for a task, use the lane ia:work, ia:knowledge or ia:delivery: ia_catalogue names its keys and ia_method returns the method for one key
 
-ia-generated 9e77c0ecd7d715803d2b6c5e949efc0f865035664f4bc3fec2a6ab36c6ce5e08 9638820e3ba846c7321d438b83e093356b6280d5a5a99535aa143e6414c6cdc6 ia-claude
+ia-generated fd852c5fecb34815b30a59dbdee88d6195b164a0ecaa72f43177064f29219774 6cef4f790a818fe9548f9af301be4e89034cfb7b10fab4a5583fd5e0cfa371c9 ia-claude

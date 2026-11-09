@@ -329,21 +329,49 @@ const TIGHTEN = 'IA-COMP-CANON-LOCAL-TIGHTEN';
 
 describe('E4 local tightening', () => {
   const canon = [`${CANON_DIR}/widget.ia`, subjectRule('law', 'widget-canon', 'advisory')] as const;
-  it('E4 reports a local rule on a canon word that does not cite the canon law', () => {
+  it('E4 does not ask an uncited local rule on a canon word to cite the canon law', () => {
+    // Subject-word equality is not evidence that a rule tightens a canon law; whether it should cite one is review's.
     const graph = graphOf(...tightenRules, canon, ['local.ia', subjectRule('convention', 'widget-local', 'blocking')]);
-    const found = ruleFindings(graph, TIGHTEN);
-    expect(found).toHaveLength(1);
-    expect(found[0]).toMatchObject({ severity: 'error', path: 'local.ia' });
-    expect(found[0]!.message).toContain('widget-canon');
+    expect(ruleFindings(graph, TIGHTEN)).toEqual([]);
+    const weaker = graphOf(...tightenRules, canon, ['local.ia', subjectRule('law', 'widget-local', 'informational')]);
+    expect(ruleFindings(weaker, TIGHTEN)).toEqual([]);
   });
-  it('E4 reports a local rule weaker than the canon law', () => {
+  it('E4 reports a citing local rule weaker than the canon law', () => {
     const graph = graphOf(...tightenRules, canon, [
       'local.ia',
       subjectRule('law', 'widget-local', 'informational', 'widget-canon'),
     ]);
     const found = ruleFindings(graph, TIGHTEN);
     expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ severity: 'error', path: 'local.ia' });
     expect(found[0]!.message).toContain('informational');
+    expect(found[0]!.message).toContain('widget-canon');
+  });
+  it('E4 reports a citing local rule on a different subject word, or on none', () => {
+    const other = graphOf(...tightenRules, canon, [
+      'local.ia',
+      subjectRule('convention', 'gadget-local', 'blocking', 'widget-canon', 'gadget'),
+    ]);
+    const found = ruleFindings(other, TIGHTEN);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ severity: 'error', path: 'local.ia' });
+    expect(found[0]!.message).toContain('widget-canon');
+    expect(found[0]!.message).toContain('gadget');
+    const wordless = graphOf(...tightenRules, canon, [
+      'local.ia',
+      `@law wordless-local
+  meaning
+    says "Rule wordless-local."
+    answers "What does wordless-local require?"
+  governance
+    severity blocking
+  relationships
+    cites @law widget-canon
+`,
+    ]);
+    const none = ruleFindings(wordless, TIGHTEN);
+    expect(none).toHaveLength(1);
+    expect(none[0]!.message).toContain('no subject word');
   });
   it('E4 accepts a citing local rule at least as strong and never checks canon against itself', () => {
     const graph = graphOf(...tightenRules, canon, [
@@ -360,9 +388,14 @@ describe('E4 local tightening', () => {
     ] as const;
     const uncited = graphOf(...tightenRules, installed, [
       'local.ia',
-      subjectRule('convention', 'widget-local', 'blocking'),
+      subjectRule('convention', 'widget-local', 'informational'),
     ]);
-    const found = ruleFindings(uncited, TIGHTEN);
+    expect(ruleFindings(uncited, TIGHTEN)).toEqual([]);
+    const weaker = graphOf(...tightenRules, installed, [
+      'local.ia',
+      subjectRule('convention', 'widget-local', 'informational', 'widget-canon'),
+    ]);
+    const found = ruleFindings(weaker, TIGHTEN);
     expect(found).toMatchObject([{ path: 'local.ia' }]);
     expect(found[0]!.message).toContain('widget-canon');
     const cited = graphOf(...tightenRules, installed, [
@@ -371,7 +404,7 @@ describe('E4 local tightening', () => {
     ]);
     expect(ruleFindings(cited, TIGHTEN)).toEqual([]);
   });
-  it('E4 accepts a local rule citing one of two canon laws on its word, at least as strong as the one it cites', () => {
+  it('E4 holds a local rule only to the canon law it cites, of two on its word', () => {
     const two = [canon, [`${CANON_DIR}/widget-two.ia`, subjectRule('law', 'widget-canon-two', 'blocking')]] as const;
     const citesOne = graphOf(...tightenRules, ...two, [
       'local.ia',
@@ -385,19 +418,19 @@ describe('E4 local tightening', () => {
     const found = ruleFindings(weaker, TIGHTEN);
     expect(found).toHaveLength(1);
     expect(found[0]!.message).toContain('widget-canon-two');
-    const none = graphOf(...tightenRules, ...two, ['local.ia', subjectRule('law', 'widget-local', 'blocking')]);
-    expect(ruleFindings(none, TIGHTEN)).toHaveLength(1);
+    const none = graphOf(...tightenRules, ...two, ['local.ia', subjectRule('law', 'widget-local', 'informational')]);
+    expect(ruleFindings(none, TIGHTEN)).toEqual([]);
   });
-  it('E4 treats a law under any system records/canon folder as canon', () => {
+  it('E4 treats a law under any system records/canon folder as canon, and a law elsewhere as not', () => {
     const work = [
       '.ia/src/systems/work-system/records/canon/laws.ia',
       subjectRule('law', 'spec-canon', 'advisory', undefined, 'spec'),
     ] as const;
-    const uncited = graphOf(...tightenRules, work, [
+    const weaker = graphOf(...tightenRules, work, [
       'local.ia',
-      subjectRule('convention', 'spec-local', 'advisory', undefined, 'spec'),
+      subjectRule('convention', 'spec-local', 'informational', 'spec-canon', 'spec'),
     ]);
-    const found = ruleFindings(uncited, TIGHTEN);
+    const found = ruleFindings(weaker, TIGHTEN);
     expect(found).toHaveLength(1);
     expect(found[0]).toMatchObject({ path: 'local.ia' });
     expect(found[0]!.message).toContain('spec-canon');
@@ -406,6 +439,12 @@ describe('E4 local tightening', () => {
       subjectRule('convention', 'spec-local', 'advisory', 'spec-canon', 'spec'),
     ]);
     expect(ruleFindings(cited, TIGHTEN)).toEqual([]);
+    const elsewhere = graphOf(
+      ...tightenRules,
+      ['.ia/src/records/laws.ia', subjectRule('law', 'spec-plain', 'blocking', undefined, 'spec')],
+      ['local.ia', subjectRule('convention', 'spec-local', 'informational', 'spec-plain', 'gadget')],
+    );
+    expect(ruleFindings(elsewhere, TIGHTEN)).toEqual([]);
   });
 });
 

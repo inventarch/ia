@@ -649,13 +649,14 @@ export function runRefusalFixtures(
     [
       'IA-COMP-CANON-LOCAL-TIGHTEN',
       () => {
-        const subject = {
+        const subject = (word: string) => ({
           name: 'subject',
           span: { line: 1, endLine: 1 },
           fields: [
-            { key: 'subject-word', value: { kind: 'scalar' as const, text: 'widget' }, span: { line: 1, endLine: 1 } },
+            { key: 'subject-word', value: { kind: 'scalar' as const, text: word }, span: { line: 1, endLine: 1 } },
           ],
-        };
+        });
+        // The local law cites the canon law but governs another word: E4 judges only a rule that cites canon.
         return canonFixture('CANON-LOCAL-TIGHTEN', [
           {
             ...law,
@@ -663,15 +664,17 @@ export function runRefusalFixtures(
             name: 'widget-canon',
             edges: [],
             source: { ...law.source, path: '.ia/src/systems/governance-system/records/canon/widget.ia' },
-            sections: [subject],
+            sections: [subject('widget')],
           },
           {
             ...law,
-            identity: 'fixture/law/widget-local',
-            name: 'widget-local',
-            edges: [],
-            source: { ...law.source, path: '.ia/src/records/widget-local.ia' },
-            sections: [subject],
+            identity: 'fixture/law/gadget-local',
+            name: 'gadget-local',
+            edges: [
+              { ...law.edges[0]!, predicate: 'cite', direction: 'out' as const, target: 'fixture/law/widget-canon' },
+            ] as Node['edges'],
+            source: { ...law.source, path: '.ia/src/records/gadget-local.ia' },
+            sections: [subject('gadget')],
           },
         ]);
       },

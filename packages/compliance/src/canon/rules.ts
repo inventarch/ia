@@ -310,19 +310,20 @@ const CANON_LAWS = /^(?:\.ia\/distributions\/store\/[0-9a-f]{64}\/)?\.ia\/src\/s
 const underCanon = (node: Node): boolean => CANON_LAWS.test(posix(node.source.path));
 
 /**
- * E4: a local law or convention on a canon law's subject word cites at least one canon law on that word, and is at
- * least as strong as each one it cites. Whether its content truly tightens is not machine-checkable; this compares only
- * the citation and the severity.
+ * E4, its verifiable half: a local law or convention that cites a canon law (a resolved `cites` edge to a law under a
+ * `records/canon/` folder) governs that law's subject word and is at least as strong (informational < advisory <
+ * blocking). The law also asks that a rule tightening a canon law cite it; subject-word equality is no evidence that a
+ * rule tightens one, so an uncited rule is not judged here and that half is left to review.
  */
 export function canonLocalTightening(nodes: readonly Node[], graph?: Graph): readonly Finding[] {
   const found: Finding[] = [];
   const canon = nodes.filter((node) => node.discriminator === 'law' && underCanon(node));
   for (const local of nodes) {
     if ((local.discriminator !== 'law' && local.discriminator !== 'convention') || underCanon(local)) continue;
+    const cited = citedBy(local, graph),
+      tightened = canon.filter((law) => cited.has(law.identity));
+    if (tightened.length === 0) continue;
     const word = textField(local, 'subject', 'subject-word');
-    if (word === undefined) continue;
-    const onWord = canon.filter((law) => textField(law, 'subject', 'subject-word') === word);
-    if (onWord.length === 0) continue;
     const report = (message: string): void => {
       found.push({
         code: 'IA-COMP-CANON-LOCAL-TIGHTEN',
@@ -332,18 +333,19 @@ export function canonLocalTightening(nodes: readonly Node[], graph?: Graph): rea
         message: `${local.source.path}:${local.source.line}: ${message}`,
       });
     };
-    const cited = citedBy(local, graph);
-    const tightened = onWord.filter((law) => cited.has(law.identity));
-    if (tightened.length === 0) {
-      const names = [...new Set(onWord.map((law) => law.name))].sort();
-      report(`${local.name} governs the word ${word} but cites none of the canon laws on it: ${names.join(', ')}.`);
-      continue;
-    }
-    for (const law of tightened)
+    for (const law of tightened) {
+      const lawWord = textField(law, 'subject', 'subject-word');
+      if (word !== lawWord)
+        report(
+          `${local.name} cites the canon law ${law.name}, which governs the word ${lawWord ?? '(none)'}, but ${
+            word === undefined ? 'governs no subject word' : `governs the word ${word}`
+          }.`,
+        );
       if (SEVERITY_ORDER[lawSeverity(local)] < SEVERITY_ORDER[lawSeverity(law)])
         report(
           `${local.name} is ${lawSeverity(local)}, weaker than the canon law ${law.name}, which is ${lawSeverity(law)}.`,
         );
+    }
   }
   return found;
 }
