@@ -1,6 +1,14 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
+/** The package's one switch, flipped here to prove the plain names come back exactly when the follow-up release flips it. */
+const flip = vi.hoisted(() => ({ plain: false }));
+vi.mock('../src/written-names.js', () => ({
+  get WRITE_PLAIN_NAMES() {
+    return flip.plain;
+  },
+}));
+
 import { CAPTURE_FORMAT, CAPTURE_FORMAT_VERSION, writeCapture } from '@inventarch/db';
 import type { Handle } from '@inventarch/db';
 import { digest } from '@inventarch/graph';
@@ -110,7 +118,9 @@ it('matches the golden packet of a fresh init and pins its entry count, the revi
   expect(packet.provenance.revision).toBe(db.revision);
   expect(packet.body).toBe(k0.digest);
   expect(packetDigest).toBe(digest(packet));
-  const file = resolve(import.meta.dirname, 'golden', 'plain', 'packet-fresh-init.json'),
+  expect(packet.format).toBe('ia.position-packet.v1');
+  expect(Object.hasOwn(packet, 'formatVersion')).toBe(false);
+  const file = resolve(import.meta.dirname, 'golden', 'packet-fresh-init.json'),
     text = `${JSON.stringify(
       {
         ...packet,
@@ -123,20 +133,6 @@ it('matches the golden packet of a fresh init and pins its entry count, the revi
     )}\n`;
   if (process.env['IA_POSITION_GOLDEN'] === 'write') writeFileSync(file, text);
   else expect(text).toBe(readFileSync(file, 'utf8'));
-  // The golden written before formats stopped carrying a version is kept as it was; it differs only in the stamp.
-  const { format: _format, formatVersion: _version, ...rest } = packet,
-    original = `${JSON.stringify(
-      {
-        format: 'ia.position-packet.v1',
-        ...rest,
-        revision: '<revision>',
-        body: '<body digest>',
-        provenance: { ...packet.provenance, revision: '<revision>' },
-      },
-      null,
-      2,
-    )}\n`;
-  expect(original).toBe(readFileSync(resolve(import.meta.dirname, 'golden', 'packet-fresh-init.json'), 'utf8'));
   // P = M = 1, N = 11, T = 3 (workspace, agent, mandate) and C = 9, `ia preview` and `ia author` among them: 28 + N.
   expect([packet.participants.length, packet.mandates.length, packet.systems.length, packet.tallies.length]).toEqual([
     1, 1, 11, 3,
@@ -151,6 +147,32 @@ it('matches the golden packet of a fresh init and pins its entry count, the revi
   ]);
   expect(packet.intents[0]!.kinds).toEqual(SHAPE_ROWS.context.kinds);
   expect(packet.intents[0]!.kinds).not.toBe(SHAPE_ROWS.context.kinds);
+});
+
+// The plain golden is what the same packet is once the follow-up release flips the switch (dec-008, A15).
+it('matches the golden packet of a fresh init under the plain names once the switch flips', () => {
+  flip.plain = true;
+  try {
+    const db = database(freshInit()),
+      { packet } = renderPacket(db, db.resolveScope().token, CATALOG);
+    expect(packet).toMatchObject({ format: 'position-packet', formatVersion: 1 });
+    const file = resolve(import.meta.dirname, 'golden', 'plain', 'packet-fresh-init.json'),
+      text = `${JSON.stringify(
+        {
+          ...packet,
+          revision: '<revision>',
+          body: '<body digest>',
+          provenance: { ...packet.provenance, revision: '<revision>' },
+        },
+        null,
+        2,
+      )}
+`;
+    if (process.env['IA_POSITION_GOLDEN'] === 'write') writeFileSync(file, text);
+    else expect(text).toBe(readFileSync(file, 'utf8'));
+  } finally {
+    flip.plain = false;
+  }
 });
 
 it('holds the entry formula on the conformance corpus and on this repository, counted from their records', () => {

@@ -1,6 +1,5 @@
 {
-  "format": "authoring-resources",
-  "formatVersion": 1,
+  "format": "ia.authoring-resources.v1",
   "files": [
     {
       "path": ".ia/src/floor/README.md",
@@ -32,15 +31,15 @@
     },
     {
       "path": ".ia/src/systems/agent-composition-system/SPEC.md",
-      "bytes": 3451,
-      "sha256": "3ade344bb8087f5ea08dafa1a678f316a91ec6bc183edc46a6bd193f58f8983d",
+      "bytes": 4379,
+      "sha256": "b360cc4ab25d11d645ba356b69e9f382abf542ccf007c3600f6800ff19a8ddf2",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
     {
       "path": ".ia/src/systems/agent-composition-system/references/installed-read.md",
-      "bytes": 7572,
-      "sha256": "a20dea4777cb0d84eac0a4d68ded78544938959960a0a0e985d5b0090af1de16",
+      "bytes": 7820,
+      "sha256": "9fa866ada08688d2a1d26e93ccdd596e72903193e33cbb6d5c7f807ccd2e5c0a",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },

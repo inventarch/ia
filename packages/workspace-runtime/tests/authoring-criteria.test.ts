@@ -1,6 +1,13 @@
 import { expect, it, vi } from 'vitest';
 
 const criteria = vi.hoisted(() => new Set<string>());
+/** The package's one switch, flipped here to prove the plain names come back exactly when the follow-up release flips it. */
+const flip = vi.hoisted(() => ({ plain: false }));
+vi.mock('../src/written-names.js', () => ({
+  get WRITE_PLAIN_NAMES() {
+    return flip.plain;
+  },
+}));
 vi.mock('../src/resource-format.js', async (original) => {
   const actual = await original<typeof import('../src/resource-format.js')>();
   return {
@@ -16,7 +23,8 @@ vi.mock('../src/resource-format.js', async (original) => {
 const { assessAuthoringMinting, createAuthoringIndex, resolveAuthoring } = await import('../src/authoring.js');
 const { authoringFixture } = await import('./authoring-fixture.js');
 
-it('names the primary-guide and minting-readiness proof criteria without a version', () => {
+const proved = (): string[] => {
+  criteria.clear();
   const f = authoringFixture();
   try {
     const view = resolveAuthoring(
@@ -29,5 +37,17 @@ it('names the primary-guide and minting-readiness proof criteria without a versi
   } finally {
     f.reader.close();
   }
-  expect([...criteria].sort()).toEqual(['minting-readiness', 'primary-guide']);
+  return [...criteria].sort();
+};
+
+// Forward compatibility (dec-008, A15): the criterion ids are digested into shared proofs that older programs compare
+// against their own, so the released ids are written until the switch flips.
+it('names the proof criteria with their released ids by default and without a version once the switch flips', () => {
+  expect(proved()).toEqual(['minting-readiness-v1', 'primary-guide-v1']);
+  flip.plain = true;
+  try {
+    expect(proved()).toEqual(['minting-readiness', 'primary-guide']);
+  } finally {
+    flip.plain = false;
+  }
 });

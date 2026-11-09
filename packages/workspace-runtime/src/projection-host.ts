@@ -63,7 +63,10 @@ function proseCatalog(
   profile: string,
   implementationDigest: string,
   selections: Pick<ProjectionCatalog, 'models' | 'tools' | 'inputFields'>,
-  stamp: Stamp<'projection-catalog', 'ia.projection-catalog.v1'> = writeStamp('projection-catalog', 'ia.projection-catalog.v1'),
+  stamp: Stamp<'projection-catalog', 'ia.projection-catalog.v1'> = writeStamp(
+    'projection-catalog',
+    'ia.projection-catalog.v1',
+  ),
 ): ProjectionCatalog {
   object(selections, ['models', 'tools', 'inputFields']);
   const names = (value: unknown) =>

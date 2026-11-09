@@ -19,7 +19,10 @@ export function profileFromRows(
   rows: ReadonlyMap<string, readonly string[]>,
   host: string,
   version: string,
-  stamp: Stamp<'lifecycle-profile', 'ia.lifecycle-profile.v1'> = writeStamp('lifecycle-profile', 'ia.lifecycle-profile.v1'),
+  stamp: Stamp<'lifecycle-profile', 'ia.lifecycle-profile.v1'> = writeStamp(
+    'lifecycle-profile',
+    'ia.lifecycle-profile.v1',
+  ),
 ): LifecycleProfile {
   const native = host === 'ia-native' && version === '1',
     fields = host === 'claude-code' ? rows.get(version) : undefined,
