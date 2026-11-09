@@ -1,9 +1,9 @@
 {
-  "format": "ia.npm-change-note",
+  "format": "npm-change-note",
   "formatVersion": 1,
   "bump": "none",
   "title": "Runtime tests write the plain capture format",
-  "summary": "Test fixtures only: the capture snapshot fixtures declare ia-snapshot with formatVersion 1.",
+  "summary": "Test fixtures only: the capture snapshot fixtures declare snapshot with formatVersion 1.",
   "packages": [
     "@inventarch/runtime"
   ],

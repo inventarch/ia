@@ -30,8 +30,8 @@ import type { AuthoringTarget, LifecycleCoordinate } from '@inventarch/workspace
 import { COORDINATE_DOMAINS, isEntry, prepareCoordinate } from '@inventarch/runtime';
 
 export interface ContextHookBindingInput {
-  /** `ia.context-hook-binding` with `formatVersion` 1, or the legacy `ia.context-hook-binding.v1` literal (no `formatVersion`), whose digest verifies as written. */
-  readonly format: 'ia.context-hook-binding' | 'ia.context-hook-binding.v1';
+  /** `context-hook-binding` with `formatVersion` 1, or the legacy `ia.context-hook-binding.v1` literal (no `formatVersion`), whose digest verifies as written. */
+  readonly format: 'context-hook-binding' | 'ia.context-hook-binding.v1';
   readonly formatVersion?: 1;
   readonly root: string;
   readonly owner: string;
@@ -106,7 +106,7 @@ const fields = [
 ];
 /** The binding fields its declared format carries: the plain format adds `formatVersion`. */
 const fieldsFor = (input: { readonly format?: unknown }): readonly string[] =>
-  input.format === 'ia.context-hook-binding' ? ['formatVersion', ...fields] : fields;
+  input.format === 'context-hook-binding' ? ['formatVersion', ...fields] : fields;
 /** Paths compare as the volume compares names: case on win32; normalization and full case folding on darwin. */
 const fold = pathKey;
 const hash = (value: string | Uint8Array): string => createHash('sha256').update(value).digest('hex');
@@ -192,9 +192,7 @@ function scopePath(value: unknown): string {
 export function createContextHookBinding(input: ContextHookBindingInput): ContextHookBinding {
   plain(input, fieldsFor(input));
   if (
-    input.format === 'ia.context-hook-binding'
-      ? input.formatVersion !== 1
-      : input.format !== 'ia.context-hook-binding.v1'
+    input.format === 'context-hook-binding' ? input.formatVersion !== 1 : input.format !== 'ia.context-hook-binding.v1'
   )
     fail('Unknown context binding format');
   const root = physicalDirectory(text(input.root)),
@@ -261,7 +259,7 @@ export function createContextHookBinding(input: ContextHookBindingInput): Contex
       fail('Context hook budget is outside its finite bound');
   const body: ContextHookBindingInput = {
     format: input.format,
-    ...(input.format === 'ia.context-hook-binding' ? { formatVersion: 1 as const } : {}),
+    ...(input.format === 'context-hook-binding' ? { formatVersion: 1 as const } : {}),
     root,
     owner: text(input.owner, 256),
     actor: text(input.actor, 256),
@@ -456,7 +454,7 @@ export function contextHookImplementationDigest(directory = import.meta.dirname)
   if (source === emitted) fail('Hook implementation is partial or mixed');
   return hash(
     canonicalDistributionJson({
-      format: 'ia.context-hook-implementation',
+      format: 'context-hook-implementation',
       formatVersion: 1,
       native: installedImplementationDigest(),
       kind: source ? 'source' : 'emitted',
@@ -662,7 +660,7 @@ export async function runContextHook(argv: readonly string[], input: string): Pr
   if (argv.length === 1 && argv[0] === 'identity') {
     const profile = lifecycleProfile('claude-code', SELECTED_CLAUDE_CODE_VERSION);
     return {
-      format: 'ia.context-hook-identity',
+      format: 'context-hook-identity',
       formatVersion: 2,
       implementation: contextHookImplementationDigest(),
       profile: profile.digest,

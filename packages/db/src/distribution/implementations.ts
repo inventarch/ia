@@ -16,7 +16,7 @@
  */
 import { deepFreeze, snapshot } from '../descriptors/codec.js';
 
-export const INSTALLED_IMPLEMENTATIONS_FORMAT = 'ia.installed-implementations';
+export const INSTALLED_IMPLEMENTATIONS_FORMAT = 'installed-implementations';
 export const INSTALLED_IMPLEMENTATIONS_FORMAT_VERSION = 1;
 /** The literal catalogs carried before `formatVersion` existed; read as written (the payload pins their bytes), never produced. */
 export const LEGACY_INSTALLED_IMPLEMENTATIONS_FORMATS: readonly string[] = ['ia.installed-implementations.v1'];
@@ -51,7 +51,7 @@ export interface RevokedOperation {
 }
 export type InstalledOperation = AvailableOperation | UnavailableOperation | RevokedOperation;
 export interface InstalledImplementationsValue {
-  /** `ia.installed-implementations` with `formatVersion` 1, or the legacy literal (no `formatVersion`). */
+  /** `installed-implementations` with `formatVersion` 1, or the legacy literal (no `formatVersion`). */
   readonly format: string;
   readonly formatVersion?: number;
   /**

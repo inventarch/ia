@@ -1,5 +1,5 @@
 {
-  "format": "ia.native-release-notes",
+  "format": "native-release-notes",
   "formatVersion": 1,
   "baseline": {
     "tag": "v3.7.0",

@@ -662,7 +662,7 @@ it("renders the fixture's @hook as one owned group, keeps every unrelated key an
     { matcher: 'Write|Edit|MultiEdit', hooks: [handler(cache, root, HOOK)] },
   ]);
   expect(JSON.parse(readFileSync(resolve(root, hookState), 'utf8'))).toEqual({
-    format: 'ia.hook-registration-state',
+    format: 'hook-registration-state',
     formatVersion: 1,
     id: 'workspace',
     cache,

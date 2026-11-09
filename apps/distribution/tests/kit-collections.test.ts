@@ -70,7 +70,7 @@ it('round-trips the record', () => {
   const record = recordFor(lockOf(X1, Y1), K1);
   expect(decodeKitCollections(serializeKitCollections(record))).toEqual(record);
   expect(record).toEqual({
-    format: 'ia-kit-collections',
+    format: 'kit-collections',
     formatVersion: 1,
     lock: sha256(lockText(lockOf(X1, Y1))),
     collections: [
@@ -90,7 +90,7 @@ it('round-trips the record', () => {
 it('reads the legacy ia-kit-collections-1 record, writes the plain format, and refuses other formats and versions', () => {
   const record = recordFor(lockOf(X1, Y1), K1),
     written = JSON.parse(serializeKitCollections(record)) as Record<string, unknown>;
-  expect(written).toMatchObject({ format: 'ia-kit-collections', formatVersion: 1 });
+  expect(written).toMatchObject({ format: 'kit-collections', formatVersion: 1 });
   const { formatVersion: _formatVersion, ...rest } = written;
   expect(decodeKitCollections(JSON.stringify({ ...rest, format: 'ia-kit-collections-1' }))).toEqual(record);
   for (const bad of [

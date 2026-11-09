@@ -7,7 +7,7 @@ const bytes = (text: string) => new TextEncoder().encode(text).byteLength;
 export const sourceChangeCandidate = z
   .strictObject({
     // Plain format name with an integer formatVersion; the pre-versioning literal is still read.
-    format: z.enum(['ia.source-change', 'ia.source-change.v1']),
+    format: z.enum(['source-change', 'ia.source-change.v1']),
     formatVersion: z.literal(1).optional(),
     workspaceId: id,
     base: z.strictObject({ revisionId: digest.nullable(), generation: counter }),

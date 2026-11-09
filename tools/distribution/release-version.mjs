@@ -147,7 +147,7 @@ function carriedNativeLedger(root, baseline, version) {
   let notes = existsSync(resolve(root, NATIVE_NOTES)) ? readFileSync(resolve(root, NATIVE_NOTES)) : null;
   if (notes && !isDeepStrictEqual(JSON.parse(notes.toString('utf8')).baseline, source)) {
     notes = Buffer.from(
-      JSON.stringify({ format: 'ia.native-release-notes', formatVersion: 1, baseline: source, changes: [] }, null, 2) +
+      JSON.stringify({ format: 'native-release-notes', formatVersion: 1, baseline: source, changes: [] }, null, 2) +
         '\n',
     );
     writes.set(NATIVE_NOTES, notes);
@@ -372,7 +372,7 @@ export async function versionRelease(root, projects, options = {}) {
             authored.map((change) => change.title),
           )
         : existing.summary;
-    const entry = { format: 'ia.npm-changeset', formatVersion: 1, version, state: 'consumed', baseline, bump, summary };
+    const entry = { format: 'npm-changeset', formatVersion: 1, version, state: 'consumed', baseline, bump, summary };
     writeFileSync(resolve(root, path), JSON.stringify({ ...entry, packages, changes, coverage: [] }, null, 2) + '\n');
     git(root, 'add', '--', ...touched, path);
     // Validate against the manifests as written, not the versions read before the bump.

@@ -490,6 +490,6 @@ it('reads a list written under the legacy ia-tracked-workspaces-1 literal and re
   expect(readTracked(at).map((entry) => entry.id)).toEqual(['first']);
   await trackWorkspace(at, { root: second }, NOW);
   const written = JSON.parse(readFileSync(file(at), 'utf8'));
-  expect(written).toMatchObject({ format: 'ia-tracked-workspaces', formatVersion: 1 });
+  expect(written).toMatchObject({ format: 'tracked-workspaces', formatVersion: 1 });
   expect(written.workspaces.map((entry: { id: string }) => entry.id)).toEqual(['first', 'second']);
 });

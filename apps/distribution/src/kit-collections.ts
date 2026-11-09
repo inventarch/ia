@@ -26,7 +26,7 @@ import { bytes, fail, replace, sha256, utf8, workspace } from './files.js';
 
 export const KIT_COLLECTIONS = '.ia/kit-collections.json';
 export const KIT_COLLECTIONS_JOURNAL = '.ia/distributions/kit-collections.journal.json';
-export const KIT_COLLECTIONS_FORMAT = 'ia-kit-collections';
+export const KIT_COLLECTIONS_FORMAT = 'kit-collections';
 export const KIT_COLLECTIONS_FORMAT_VERSION = 1;
 /** The literal a record committed before `formatVersion` existed carries; still read, never written. */
 const LEGACY_KIT_COLLECTIONS_FORMATS: readonly string[] = ['ia-kit-collections-1'];

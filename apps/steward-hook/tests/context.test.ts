@@ -646,7 +646,7 @@ describe('selected claude-code@2.1.285 bootstrap through the context executable 
 
   it('reports the selected row in the v2 identity handshake', async () => {
     expect(await runContextHook(['identity'], '')).toEqual({
-      format: 'ia.context-hook-identity',
+      format: 'context-hook-identity',
       formatVersion: 2,
       implementation: expect.stringMatching(/^[a-f0-9]{64}$/),
       profile: lifecycleProfile('claude-code', '2.1.285').digest,
@@ -1558,7 +1558,7 @@ describe('the context executable in new processes on the selected claude-code@2.
       second = await launch(['identity'], ''),
       extra = await launch(['identity', 'extra'], '');
     expect(answered(first)).toEqual({
-      format: 'ia.context-hook-identity',
+      format: 'context-hook-identity',
       formatVersion: 2,
       implementation: expect.stringMatching(/^[a-f0-9]{64}$/),
       profile: selectedDigest,

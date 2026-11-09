@@ -1366,7 +1366,7 @@ it('doctor warns for every provider of a fresh clone whose .ia/registries.json r
   ]);
   for (const row of rows)
     expect(row.detail).toBe(
-      'IA-DIST-INPUT-INVALID: Invalid .ia/registries.json: format must be ia.registries with formatVersion 1',
+      'IA-DIST-INPUT-INVALID: Invalid .ia/registries.json: format must be registries with formatVersion 1',
     );
   expect(trapped).not.toHaveBeenCalled();
 });

@@ -2,7 +2,7 @@
  * `ia capture`: the capture effect (SPEC `capture`; db D02a and D08a).
  *
  * The one verb that records what the workspace admits. It admits the workspace as every workspace verb does and writes
- * the admitted root snapshot to `.ia/work/snapshot/current.json`, an `ia-snapshot` document (`formatVersion` 1): the language identity,
+ * the admitted root snapshot to `.ia/work/snapshot/current.json`, an `snapshot` document (`formatVersion` 1): the language identity,
  * the revision and the authored revision, the admitted records sorted by identity with their graph G13 per-record
  * digests, their db D02a membership rows, the admission findings and their counts. The distribution's `json()`
  * serializer writes it, as it writes `ia.compiled.v1`, so identical sources on one language version capture to identical
@@ -75,7 +75,7 @@ export interface SnapshotCounts {
   readonly warnings: number;
   readonly notEvaluated: number;
 }
-/** The `ia-snapshot` document a capture writes to `current.json`. */
+/** The `snapshot` document a capture writes to `current.json`. */
 export interface SnapshotDocument {
   readonly format: typeof SNAPSHOT_FORMAT;
   readonly formatVersion: typeof SNAPSHOT_FORMAT_VERSION;
@@ -125,7 +125,7 @@ export const findingCounts = (records: number, findings: readonly Finding[]): Sn
   notEvaluated: findings.filter((finding) => NOT_EVALUATED.has(finding.code)).length,
 });
 
-/** The admitted root snapshot as `ia-snapshot`: records and membership rows sorted by identity, findings ordered. */
+/** The admitted root snapshot as `snapshot`: records and membership rows sorted by identity, findings ordered. */
 export function buildSnapshot(session: Session): Pick<CaptureView, 'snapshot' | 'status' | 'text' | 'digest'> {
   // The finding set `ia validate` reports (the distribution's one validation service), inert declarations included.
   const admission = session.validation(),

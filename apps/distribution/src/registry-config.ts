@@ -88,16 +88,16 @@ function userBytes(file: string): Buffer | null {
   }
 }
 type Mappings = ReadonlyMap<string, RegistryBase>;
-/** One `ia.registries` file (`formatVersion` 1; the legacy `ia.registries.v1` literal is still read), or null when `content` is (the file is absent). Every entry is checked with the level's rule (`check`), not only the one a lookup picks: §4 forbids credentials and escaping directories anywhere in the file. */
+/** One `registries` file (`formatVersion` 1; the legacy `ia.registries.v1` literal is still read), or null when `content` is (the file is absent). Every entry is checked with the level's rule (`check`), not only the one a lookup picks: §4 forbids credentials and escaping directories anywhere in the file. */
 function mappings(content: Buffer | null, label: string, check: (value: string) => RegistryBase): Mappings | null {
   if (content === null) return null;
   const { row } = relabel(
     () =>
       versionedObject(
         decodeDistributionJson(utf8(content)),
-        { format: 'ia.registries', version: 1, legacy: ['ia.registries.v1'] },
+        { format: 'registries', version: 1, legacy: ['ia.registries.v1'] },
         ['registries'],
-        'format must be ia.registries with formatVersion 1',
+        'format must be registries with formatVersion 1',
       ),
     `Invalid ${label}: `,
   );

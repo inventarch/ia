@@ -61,7 +61,7 @@ export type {
 export const INSTALLED_IMPLEMENTATIONS_ID = 'installed-implementations';
 /** The join receipts each consumer records under its own name, beside the host state files. */
 export const JOINS = '.ia/distributions/hosts/joins.json';
-export const JOINS_FORMAT = 'ia.host-joins';
+export const JOINS_FORMAT = 'host-joins';
 export const JOINS_FORMAT_VERSION = 1;
 /** The literal join files carried before `formatVersion` existed; still read, never written. */
 const LEGACY_JOINS_FORMATS: readonly string[] = ['ia.host-joins.v1'];

@@ -20,8 +20,7 @@ export function publishCache(root: string, graph: Graph, enabled: boolean): Cach
   let temporary: string | undefined;
   try {
     const bytes =
-      JSON.stringify({ format: 'ia-graph', formatVersion: 1, revision: graph.revision, graph: serialize(graph) }) +
-      '\n';
+      JSON.stringify({ format: 'graph', formatVersion: 1, revision: graph.revision, graph: serialize(graph) }) + '\n';
     const target = safePath(root, path);
     try {
       if (readFileSync(target, 'utf8') === bytes)

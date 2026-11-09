@@ -55,8 +55,8 @@ interface FilePin {
   readonly sha256: string;
 }
 interface PublicReceipt {
-  /** `ia.public-package-inputs` with `formatVersion` 2, or the legacy `ia.public-package-inputs.v2` literal. */
-  readonly format: 'ia.public-package-inputs' | 'ia.public-package-inputs.v2';
+  /** `public-package-inputs` with `formatVersion` 2, or the legacy `ia.public-package-inputs.v2` literal. */
+  readonly format: 'public-package-inputs' | 'ia.public-package-inputs.v2';
   readonly formatVersion?: 2;
   readonly source: { readonly repository: string; readonly commit: string; readonly tree: string };
   readonly files: readonly FilePin[];
@@ -275,7 +275,7 @@ export function bundleSystemPackages(
 ): readonly { owner: string; bindingSha256: string; binding: OwnedSystemPackageBinding }[] {
   if (
     policy.format !== 'ia.system-package-policy.v2' ||
-    !(receipt.format === 'ia.public-package-inputs'
+    !(receipt.format === 'public-package-inputs'
       ? receipt.formatVersion === 2
       : receipt.format === 'ia.public-package-inputs.v2') ||
     receipt.source?.repository !== 'https://github.com/inventarch/ia' ||

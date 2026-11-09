@@ -9,7 +9,7 @@ import { publicPackages } from './release-packages.mjs';
 
 /** One file per unreleased change. `pnpm release:version` consumes them into the next coordinated changeset. */
 export const PENDING = 'releases/pending';
-export const NOTE_FORMAT = 'ia.npm-change-note';
+export const NOTE_FORMAT = 'npm-change-note';
 export const NOTE_FORMAT_VERSION = 1;
 /** The literal notes carried before `formatVersion` existed: pending files written earlier are still read as written. */
 export const LEGACY_NOTE_FORMATS = ['ia.npm-change-note.v1'];

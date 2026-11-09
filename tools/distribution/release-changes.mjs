@@ -161,9 +161,9 @@ const scopePrefix = (path) =>
   path.split('/').every((segment) => segment !== '.' && segment !== '..');
 /** Everything except exact file coverage: the part of a changeset a person writes. */
 export function validateChangesetStructure(entry, policy, projects) {
-  // Plain `ia.npm-changeset` declares formatVersion 1; the committed history carries the exact legacy literal.
+  // Plain `npm-changeset` declares formatVersion 1; the committed history carries the exact legacy literal.
   assert.ok(
-    entry.format === 'ia.npm-changeset'
+    entry.format === 'npm-changeset'
       ? entry.formatVersion === 1
       : entry.format === 'ia.npm-changeset.v1' && !Object.hasOwn(entry, 'formatVersion'),
     'Unexpected changeset format',

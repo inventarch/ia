@@ -34,7 +34,7 @@ interface Side {
   readonly state: string | null;
 }
 interface State {
-  /** `ia.lifecycle-registration-state` with formatVersion 2 (twelve segmented hooks), or an older record: formatVersion 1 or the legacy literals. */
+  /** `lifecycle-registration-state` with formatVersion 2 (twelve segmented hooks), or an older record: formatVersion 1 or the legacy literals. */
   readonly format: string;
   readonly formatVersion?: 1 | 2;
   readonly revision: number;
@@ -57,7 +57,7 @@ interface Group {
 }
 type Event = 'SessionStart' | 'UserPromptSubmit';
 export interface LifecycleRegistrationPlan {
-  readonly format: 'ia.lifecycle-registration-plan';
+  readonly format: 'lifecycle-registration-plan';
   readonly formatVersion: 1;
   readonly root: string;
   readonly id: string;
@@ -105,9 +105,9 @@ function plain(value: unknown): Record<string, unknown> {
 const named = (profile: Pick<LifecycleProfile, 'host' | 'version'>): string => `${profile.host} ${profile.version}`;
 /** The first reason an identity row does not serve the binding's own profile, in the order format, profile, slots, characters. */
 function identityMismatch(row: Record<string, unknown>, profile: LifecycleProfile): string | null {
-  // The identity declares `ia.context-hook-identity` with formatVersion 2; a cache built earlier reports the legacy literal.
+  // The identity declares `context-hook-identity` with formatVersion 2; a cache built earlier reports the legacy literal.
   if (
-    row['format'] === 'ia.context-hook-identity'
+    row['format'] === 'context-hook-identity'
       ? row['formatVersion'] !== 2
       : row['format'] !== 'ia.context-hook-identity.v2'
   )
@@ -147,7 +147,7 @@ export function probeContextHookImplementation(
     declaresVersion =
       value !== null &&
       typeof value === 'object' &&
-      (value as Record<string, unknown>)['format'] === 'ia.context-hook-identity',
+      (value as Record<string, unknown>)['format'] === 'context-hook-identity',
     row = object(value, [
       'format',
       ...(declaresVersion ? ['formatVersion'] : []),
@@ -186,7 +186,7 @@ function saved(content: string | null, root: string, id: string): State | null {
     { row, version: stateVersion } = versionedDocument(
       value,
       {
-        format: 'ia.lifecycle-registration-state',
+        format: 'lifecycle-registration-state',
         versions: [1, 2],
         legacy: { 'ia.lifecycle-registration-state.v1': 1, 'ia.lifecycle-registration-state.v2': 2 },
       },
@@ -342,7 +342,7 @@ export function planLifecycleRegistration(
     binding: nextBinding,
     state: cache
       ? json({
-          format: 'ia.lifecycle-registration-state',
+          format: 'lifecycle-registration-state',
           formatVersion: 2,
           revision,
           id,
@@ -364,7 +364,7 @@ export function planLifecycleRegistration(
   if (cache && verifyHostCache(cache.directory).release !== cache.release)
     fail('PLAN-STALE', 'Host cache changed during context planning');
   const body = {
-    format: 'ia.lifecycle-registration-plan' as const,
+    format: 'lifecycle-registration-plan' as const,
     formatVersion: 1 as const,
     root,
     id,
@@ -411,11 +411,7 @@ export function applyLifecycleRegistration(
     'after',
     'digest',
   ]);
-  if (
-    row['format'] !== 'ia.lifecycle-registration-plan' ||
-    row['formatVersion'] !== 1 ||
-    typeof row['root'] !== 'string'
-  )
+  if (row['format'] !== 'lifecycle-registration-plan' || row['formatVersion'] !== 1 || typeof row['root'] !== 'string')
     fail('INPUT-INVALID', 'Invalid lifecycle registration plan');
   const root = workspace(row['root']),
     id = identity(row['id']),
@@ -427,7 +423,7 @@ export function applyLifecycleRegistration(
     write(
       root,
       pendingPath,
-      json({ format: 'ia.lifecycle-registration-pending', formatVersion: 1, id, before, after: plan.after }),
+      json({ format: 'lifecycle-registration-pending', formatVersion: 1, id, before, after: plan.after }),
     );
     checkpoint('pending');
     same(root, id, before);
@@ -468,7 +464,7 @@ export function recoverLifecycleRegistration(rootInput: string): { status: 'life
     if (content === null) return { status: 'current' };
     const { row } = versionedObject(
       decodeDistributionJson(content),
-      { format: 'ia.lifecycle-registration-pending', version: 1, legacy: ['ia.lifecycle-registration-pending.v1'] },
+      { format: 'lifecycle-registration-pending', version: 1, legacy: ['ia.lifecycle-registration-pending.v1'] },
       ['id', 'before', 'after'],
       'Unknown context recovery format',
     );

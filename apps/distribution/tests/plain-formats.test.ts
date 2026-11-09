@@ -39,29 +39,29 @@ function payload(release: Record<string, unknown>, cache: Record<string, unknown
 }
 
 it('reads the plain host release and cache with their formatVersion and the exact legacy literals of version 2', () => {
-  const plain = payload({ format: 'ia.host-release', formatVersion: 2 }, { format: 'ia.host-cache', formatVersion: 2 });
+  const plain = payload({ format: 'host-release', formatVersion: 2 }, { format: 'host-cache', formatVersion: 2 });
   expect(verifyHostCache(plain)).toMatchObject({ format: 2, version: '0.1.0' });
   const legacy = payload({ format: 'ia.host-release.v2' }, { format: 'ia.host-cache.v2' });
   expect(verifyHostCache(legacy)).toMatchObject({ format: 2 });
   // A release and inventory may each be in either form while they agree on the version.
-  const mixed = payload({ format: 'ia.host-release', formatVersion: 2 }, { format: 'ia.host-cache.v2' });
+  const mixed = payload({ format: 'host-release', formatVersion: 2 }, { format: 'ia.host-cache.v2' });
   expect(verifyHostCache(mixed)).toMatchObject({ format: 2 });
 });
 
 it('refuses unknown host release and cache formats, versions and mixed versions', () => {
   const refusals: [Record<string, unknown>, Record<string, unknown>][] = [
-    [{ format: 'ia.host-release' }, { format: 'ia.host-cache', formatVersion: 2 }],
+    [{ format: 'host-release' }, { format: 'host-cache', formatVersion: 2 }],
     [
-      { format: 'ia.host-release', formatVersion: 3 },
-      { format: 'ia.host-cache', formatVersion: 3 },
+      { format: 'host-release', formatVersion: 3 },
+      { format: 'host-cache', formatVersion: 3 },
     ],
     [{ format: 'ia.host-release.v2', formatVersion: 2 }, { format: 'ia.host-cache.v2' }],
     [{ format: 'ia.host-release.v3' }, { format: 'ia.host-cache.v2' }],
     [
-      { format: 'ia.host-release', formatVersion: 2 },
-      { format: 'ia.host-cache', formatVersion: 1 },
+      { format: 'host-release', formatVersion: 2 },
+      { format: 'host-cache', formatVersion: 1 },
     ],
-    [{ format: 'ia.host-release', formatVersion: 2 }, { format: 'ia.host-cache.v1' }],
+    [{ format: 'host-release', formatVersion: 2 }, { format: 'ia.host-cache.v1' }],
   ];
   for (const [release, cache] of refusals)
     expect(() => verifyHostCache(payload(release, cache))).toThrow(code('IA-DIST-INPUT-INVALID'));
@@ -69,13 +69,13 @@ it('refuses unknown host release and cache formats, versions and mixed versions'
 
 it('writes host ownership state and the plan in the plain shape, reads the legacy state, and asks an older plan to be made again', () => {
   const root = temp(),
-    cache = payload({ format: 'ia.host-release', formatVersion: 2 }, { format: 'ia.host-cache', formatVersion: 2 });
+    cache = payload({ format: 'host-release', formatVersion: 2 }, { format: 'host-cache', formatVersion: 2 });
   const plan = planHost(root, 'claude', cache);
-  expect(plan).toMatchObject({ format: 'ia.host-plan', formatVersion: 1 });
+  expect(plan).toMatchObject({ format: 'host-plan', formatVersion: 1 });
   expect(applyHost(plan).status).toBe('host-active');
   const state = resolve(root, '.ia/distributions/hosts/claude-workspace.json');
   const written = JSON.parse(readFileSync(state, 'utf8'));
-  expect(written).toMatchObject({ format: 'ia.host-state', formatVersion: 1 });
+  expect(written).toMatchObject({ format: 'host-state', formatVersion: 1 });
   // The same state under the legacy literal is still owned: removing the registration plans and applies cleanly.
   const { formatVersion: _formatVersion, ...rest } = written;
   writeFileSync(state, json({ ...rest, format: 'ia.host-state.v1' }));

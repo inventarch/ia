@@ -37,8 +37,8 @@ export interface NativeBaseline {
   archives: NativeArchive[];
 }
 export interface NativeNotes {
-  /** `ia.native-release-notes` with `formatVersion` 1, or the legacy `ia.native-release-notes.v1` literal (no `formatVersion`). */
-  format: 'ia.native-release-notes' | 'ia.native-release-notes.v1';
+  /** `native-release-notes` with `formatVersion` 1, or the legacy `ia.native-release-notes.v1` literal (no `formatVersion`). */
+  format: 'native-release-notes' | 'ia.native-release-notes.v1';
   formatVersion?: 1;
   baseline: NativeBaseline['source'];
   changes: { id: string; bump: 'patch' | 'minor' | 'major'; summary: string; compatibility?: 'reviewed-additive' }[];
@@ -167,7 +167,7 @@ export function planNativeVersions(
   if (notes !== undefined) {
     assert.ok(notes && typeof notes === 'object', 'Invalid native release notes');
     assert.ok(
-      notes.format === 'ia.native-release-notes'
+      notes.format === 'native-release-notes'
         ? notes.formatVersion === 1
         : notes.format === 'ia.native-release-notes.v1' && !Object.hasOwn(notes, 'formatVersion'),
       'Unexpected native release notes format',
