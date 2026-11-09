@@ -7,6 +7,7 @@ import { RUNNER_EVIDENCE_DIRECTORY, readWorkspaceBytes, safePath } from './input
 import type { InputSnapshot } from './inputs.js';
 import { parseStrictJson } from './json.js';
 import { discard, staged, syncDirectory } from './retention.js';
+import { WRITE_PLAIN_NAMES } from './written-names.js';
 
 /** Local journal claims, not execution authorization or an attestation by an external observer. */
 export const RUNNER_EVIDENCE_FORMAT = 'runner-evidence';
@@ -247,7 +248,11 @@ export function writeRunnerEvidence(
 ): RunnerEvidenceWrite {
   const clean = row(data(input));
   exact(clean, ['authoredRevision', 'events']);
-  const value = receipt({ format: RUNNER_EVIDENCE_FORMAT, formatVersion: RUNNER_EVIDENCE_FORMAT_VERSION, ...clean }),
+  // The released literal alone until `WRITE_PLAIN_NAMES` is flipped, as the released programs that read it expect.
+  const stamp = WRITE_PLAIN_NAMES
+      ? { format: RUNNER_EVIDENCE_FORMAT, formatVersion: RUNNER_EVIDENCE_FORMAT_VERSION }
+      : { format: LEGACY_RUNNER_EVIDENCE_FORMATS[0]! },
+    value = receipt({ ...stamp, ...clean }),
     path = receiptPath(value),
     bytes = Buffer.from(canonical(value) + '\n'),
     last = value.events.at(-1)!;

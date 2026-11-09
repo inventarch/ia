@@ -4,7 +4,7 @@ import type { LegacyPortable } from './format.js';
 import type { Foundation } from './foundation.js';
 import { validateContent } from './validate.js';
 import { requireFoundation } from './foundation.js';
-import { currentStamp, peekStamp, stampKeys } from './plain-format.js';
+import { peekStamp, stampKeys, writeStamp } from './plain-format.js';
 const caches = new WeakMap<
   Foundation,
   { entries: Map<string, { value: ReturnType<typeof validateContent<LegacyPortable>>; bytes: number }>; bytes: number }
@@ -75,7 +75,7 @@ export function packageFromCommit(request: LegacyPackageRequest): LegacyPortable
     return file;
   });
   const body = {
-    ...currentStamp('kb-portable'),
+    ...writeStamp('kb-portable', 'iakb.portable.v1'),
     provenance: { sourceId: request.sourceId, commit: request.commit, verification: 'unverified' as const },
     files,
   };

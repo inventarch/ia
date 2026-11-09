@@ -144,8 +144,8 @@ export interface PrimaryGuide {
   } | null;
 }
 export interface AuthoringView {
-  readonly format: 'authoring-view';
-  readonly formatVersion: 1;
+  readonly format: 'authoring-view' | 'ia.authoring-view.v1';
+  readonly formatVersion?: 1;
   readonly captureRevision: string;
   readonly resourceDigest: string;
   readonly indexDigest: string;

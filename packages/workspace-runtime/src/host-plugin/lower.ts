@@ -5,7 +5,7 @@ import type { FrontField, FrontValue } from './frontmatter.js';
 import { MANIFESTS, NAME, type PluginEntry, type PluginHost, type PluginInventory } from './inventory.js';
 import { sameJson } from './json.js';
 import { type PluginProduct, pluginManifest } from './manifest.js';
-import { currentStamp } from '../plain-format.js';
+import { writeStamp } from '../plain-format.js';
 
 export type AssetRole = 'asset' | 'documentation' | 'license';
 export type DispositionKind = 'field' | 'resource' | 'asset' | 'derived' | 'retired' | 'unresolved';
@@ -17,8 +17,8 @@ export interface Disposition {
   readonly reason: string | null;
 }
 export interface LoweringMap {
-  readonly format: 'lowering-map';
-  readonly formatVersion: 1;
+  readonly format: 'lowering-map' | 'ia.lowering-map.v1';
+  readonly formatVersion?: 1;
   readonly plugin: string;
   readonly system: string;
   readonly entries: readonly Disposition[];
@@ -464,7 +464,7 @@ export function lowerPlugin(inventory: PluginInventory, system: string): Lowerin
       a.source === b.source ? cmp(a.key ?? '', b.key ?? '') : cmp(a.source, b.source),
     );
     const map: LoweringMap = Object.freeze({
-      ...currentStamp('lowering-map'),
+      ...writeStamp('lowering-map', 'ia.lowering-map.v1'),
       plugin: name ?? '',
       system,
       entries: Object.freeze(sortedEntries),
@@ -488,7 +488,7 @@ export function lowerPlugin(inventory: PluginInventory, system: string): Lowerin
     const owners = new Map<string, { path: string; role: string; delivery: string }[]>();
     for (const r of resources) owners.set(r.owner, [...(owners.get(r.owner) ?? []), r]);
     const manifest = {
-      ...currentStamp('authoring-resources'),
+      ...writeStamp('authoring-resources', 'ia.authoring-resources.v1'),
       files: [...resources]
         .sort((a, b) => cmp(a.path, b.path))
         .map((r) => ({

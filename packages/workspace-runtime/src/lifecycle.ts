@@ -8,7 +8,7 @@ import { LifecycleError, verifyLifecycleProfile } from './lifecycle-profile.js';
 import type { LifecycleEvent, LifecycleProfile } from './lifecycle-profile.js';
 import { fragmentLifecycleContext } from './lifecycle-transport.js';
 import type { LifecycleSegmentOutput } from './lifecycle-transport.js';
-import { currentStamp, peekStamp, stampKeys } from './plain-format.js';
+import { currentStamp, peekStamp, stampKeys, writeStamp } from './plain-format.js';
 export { assembleLifecycleContextSegments, LIFECYCLE_CONTEXT_SLOTS } from './lifecycle-transport.js';
 
 export interface LifecyclePins {
@@ -66,10 +66,14 @@ export type LifecycleOutput =
         readonly additionalContext: string;
       };
     }
-  | { readonly format: 'native-context'; readonly formatVersion: 1; readonly additionalContext: string };
+  | {
+      readonly format: 'native-context' | 'ia.native-context.v1';
+      readonly formatVersion?: 1;
+      readonly additionalContext: string;
+    };
 export interface PreparedContext {
-  readonly format: 'prepared-lifecycle-context';
-  readonly formatVersion: 1;
+  readonly format: 'prepared-lifecycle-context' | 'ia.prepared-lifecycle-context.v1';
+  readonly formatVersion?: 1;
   readonly id: string;
   readonly pins: LifecyclePins;
   readonly payload: string;
@@ -83,8 +87,8 @@ export interface PreparedContext {
   };
 }
 export interface PreparedContextSegments extends Omit<PreparedContext, 'format' | 'formatVersion' | 'output'> {
-  readonly format: 'prepared-lifecycle-context-segments';
-  readonly formatVersion: 1;
+  readonly format: 'prepared-lifecycle-context-segments' | 'ia.prepared-lifecycle-context-segments.v1';
+  readonly formatVersion?: 1;
   readonly outputs: readonly LifecycleSegmentOutput[];
 }
 export interface LifecycleView {
@@ -384,7 +388,7 @@ function selectScopedContext(
       fail('CONTEXT', `Lifecycle context unavailable: ${selected.code}`);
     }
     const body = {
-      ...currentStamp('lifecycle-context'),
+      ...writeStamp('lifecycle-context', 'ia.lifecycle-context.v1'),
       pins,
       event: { kind: event.kind, source: event.source, key: event.key, inputDigest: event.inputDigest },
       required: { proof: required.proof, parts: required.parts },
@@ -396,7 +400,7 @@ function selectScopedContext(
       payload = JSON.stringify({ ...body, id });
     const output: LifecycleOutput =
       event.kind === 'native'
-        ? { ...currentStamp('native-context'), additionalContext: payload }
+        ? { ...writeStamp('native-context', 'ia.native-context.v1'), additionalContext: payload }
         : {
             hookSpecificOutput: {
               hookEventName: event.kind === 'start' ? 'SessionStart' : 'UserPromptSubmit',
@@ -433,8 +437,8 @@ function selectScopedContext(
         },
       };
       return fragments
-        ? frozen({ ...currentStamp('prepared-lifecycle-context-segments'), ...common, outputs: fragments.outputs })
-        : frozen({ ...currentStamp('prepared-lifecycle-context'), ...common, output });
+        ? frozen({ ...writeStamp('prepared-lifecycle-context-segments', 'ia.prepared-lifecycle-context-segments.v1'), ...common, outputs: fragments.outputs })
+        : frozen({ ...writeStamp('prepared-lifecycle-context', 'ia.prepared-lifecycle-context.v1'), ...common, output });
     }
     if (tokenBudget === 0) break;
     const deficit = Math.max(
@@ -459,7 +463,7 @@ export function lifecycleInputIdentity(binding: string, event: LifecycleEvent): 
   return frozen({
     binding,
     key:
-      event.key === null ? null : metadataDigest({ ...currentStamp('bound-lifecycle-input'), binding, key: event.key }),
+      event.key === null ? null : metadataDigest({ ...writeStamp('bound-lifecycle-input', 'ia.bound-lifecycle-input.v1'), binding, key: event.key }),
     inputDigest: event.inputDigest,
   });
 }

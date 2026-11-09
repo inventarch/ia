@@ -268,7 +268,7 @@ for (const source of KERNEL_SOURCES) {
     const result = results[name];
     assert.deepEqual(result.verdicts, verified(kernel), `${name}: the verdicts differ`);
     assert.equal(result.outcome, kernel === 'pass' ? 'pass' : 'fail', `${name}: the report outcome differs`);
-    assert.equal(result.conformance?.profile, 'package', `${name}: the profile differs`);
+    assert.equal(result.conformance?.profile, 'package-v1', `${name}: the profile differs`);
     assert.deepEqual(result.conformance?.outOfProfile, OUT_OF_PROFILE, `${name}: the out-of-profile suites differ`);
     assert.match(result.conformance?.floorDigest ?? '', /^[0-9a-f]{64}$/, `${name}: no floor digest`);
   }

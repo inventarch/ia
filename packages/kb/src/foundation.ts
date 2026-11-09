@@ -7,7 +7,7 @@ import type { InstalledGeneration } from '@inventarch/db/distribution';
 import { KERNEL_SOURCES, LANGUAGE_VERSION } from '@inventarch/language';
 import { digest as nativeDigest } from '@inventarch/session-system';
 import { closed, data, digest, fail, frozen, sha } from './format.js';
-import { currentStamp } from './plain-format.js';
+import { writeStamp } from './plain-format.js';
 
 export interface NativeProfile {
   readonly id: string;
@@ -117,7 +117,7 @@ function installedFoundation(installed: Pick<InstalledGeneration, 'pointer' | 'l
     grammar: LANGUAGE_VERSION,
     engine: installed.lock.engine,
   };
-  return admit(profile, digest({ ...currentStamp('kb-foundation'), ...profile }));
+  return admit(profile, digest({ ...writeStamp('kb-foundation', 'ia.kb.foundation.v1'), ...profile }));
 }
 /** Reconstruct the original v1 pin from retained inputs, never expanded executing dependencies. */
 export function createLegacyFoundation(input: unknown): Foundation {

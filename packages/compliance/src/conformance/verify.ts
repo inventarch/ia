@@ -10,11 +10,11 @@ import type { Assessment, Finding } from '../types.js';
 import { loadCorpus } from './corpus.js';
 import { runEvidenceFixtures } from './evidence-fixtures.js';
 import {
-  CONFORMANCE_PROFILE,
   companionSuffixes,
   fileDigest,
   inventoryDigest,
   isConformanceProfile,
+  writtenConformanceProfile,
 } from './inventory.js';
 import type { ConformanceInventory } from './inventory.js';
 import { runRefusalFixtures } from './refusals.js';
@@ -73,7 +73,7 @@ export function runProfile(inventory: ConformanceInventory, digest: string, dire
   } catch (error) {
     const message = `The package fixture files cannot be read: ${error instanceof Error ? error.message : String(error)}`;
     return Object.freeze({
-      assessment: assess('COMP-FIXTURES', CONFORMANCE_PROFILE, [
+      assessment: assess('COMP-FIXTURES', writtenConformanceProfile(), [
         { code: 'IA-COMP-NOT-EVALUATED', severity: 'warning', path: '', line: 1, message },
       ]),
       observedCodes: Object.freeze([]),
@@ -177,7 +177,7 @@ export function runProfile(inventory: ConformanceInventory, digest: string, dire
     ...(unreadable ? [] : fixtureCoverage(inventory.requiredCodes, results).findings),
   );
   return Object.freeze({
-    assessment: assess('COMP-FIXTURES', CONFORMANCE_PROFILE, findings),
+    assessment: assess('COMP-FIXTURES', writtenConformanceProfile(), findings),
     observedCodes: Object.freeze(
       [...new Set(results.filter((r) => r.assessment.outcome === 'pass').flatMap((r) => r.observedCodes))].sort(
         compare,

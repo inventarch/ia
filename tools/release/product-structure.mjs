@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { isEntry } from '../entry/is-entry.mjs';
+import { WRITE_PLAIN_NAMES } from '../written-names.mjs';
 import { RELEASE_ENGINE_VERSION } from '../../packages/db/src/distribution/index.js';
 
 import { packOptionalDistribution } from './distribution.mjs';
@@ -26,8 +27,9 @@ export function productStructure(root) {
   const system = { ...key(`${own}/system.ia`), identity: 'floor/definition/system/product-system' };
   const resource = (path, role) => ({ key: key(path), role, order: 0, required: true, delivery: 'inline' });
   const selection = {
-    format: 'authoring-resources',
-    formatVersion: 1,
+    ...(WRITE_PLAIN_NAMES
+      ? { format: 'authoring-resources', formatVersion: 1 }
+      : { format: 'ia.authoring-resources.v1' }),
     files: [...assets]
       .filter(([path]) => path.startsWith('.ia/'))
       .map(([path, bytes]) => ({

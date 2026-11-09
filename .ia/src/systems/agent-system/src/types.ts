@@ -8,6 +8,7 @@ import type {
   ReviewContract,
   Owner,
 } from '@inventarch/session-system';
+import { WRITE_PLAIN_NAMES } from './written-names.js';
 
 export const DEFAULT_MODEL_REQUEST_BYTES = 131_072;
 export const MAX_MODEL_REQUEST_BYTES = 262_144;
@@ -45,6 +46,17 @@ export function isOperatorReviewRule(value: unknown): value is OperatorReviewRul
 }
 export function isCompletionEvaluator(value: unknown): value is CompletionEvaluatorId {
   return COMPLETION_EVALUATORS.includes(value);
+}
+/** The names a writer emits: the plain ones once `WRITE_PLAIN_NAMES` is flipped, until then the released literals. */
+export function writtenCompletionEvaluator(): CompletionEvaluatorId {
+  return WRITE_PLAIN_NAMES ? COMPLETION_EVALUATOR : 'ia.completion.v1';
+}
+export function writtenOperatorReviewRule(): OperatorReviewRule {
+  return WRITE_PLAIN_NAMES ? OPERATOR_REVIEW_RULE : 'operator-exact-candidate-v1';
+}
+/** The rule a review under `policyRule` carries: the policy's own literal until the switch flips, then the plain name. */
+export function writtenIndependentReviewRule(policyRule: IndependentReviewRule): IndependentReviewRule {
+  return WRITE_PLAIN_NAMES ? INDEPENDENT_REVIEW_RULE : policyRule;
 }
 export interface IndependentReviewPolicy {
   rule: IndependentReviewRule;

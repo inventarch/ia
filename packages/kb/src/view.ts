@@ -6,7 +6,7 @@ import { requireSnapshot } from './local.js';
 import type { KnowledgeSnapshot } from './local.js';
 import { isValidated } from './validate.js';
 import type { validateContent } from './validate.js';
-import { currentStamp, peekStamp, stampKeys } from './plain-format.js';
+import { peekStamp, stampKeys, writeStamp } from './plain-format.js';
 import type { Stamp } from './plain-format.js';
 export interface KnowledgeCitation {
   readonly format: 'kb-citation' | 'ia.kb.citation.v1';
@@ -55,7 +55,7 @@ export function openKnowledgeView(snapshot: KnowledgeSnapshot | ReturnType<typeo
     locator: string,
     identity: string,
     body: string,
-    stamp: Stamp<'kb-citation', 'ia.kb.citation.v1'> = currentStamp('kb-citation'),
+    stamp: Stamp<'kb-citation', 'ia.kb.citation.v1'> = writeStamp('kb-citation', 'ia.kb.citation.v1'),
   ): KnowledgeCitation =>
     frozen({
       ...stamp,

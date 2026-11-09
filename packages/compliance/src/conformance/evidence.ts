@@ -4,13 +4,13 @@ import { kernelDigest } from '../kernel.js';
 import type { KernelSource } from '../kernel.js';
 import type { Assessment } from '../types.js';
 import { INVENTORY, INVENTORY_DIGEST } from './inventory.generated.js';
-import { CONFORMANCE_PROFILE } from './inventory.js';
+import { writtenConformanceProfile } from './inventory.js';
 import type { ConformanceProfile, OutOfProfileSuite } from './inventory.js';
 import { kernelAssessment } from './verify-kernel.js';
 import { runProfile } from './verify.js';
 
 /** The conformance profile a sandboxed consumer can run itself (C31). */
-export { CONFORMANCE_PROFILE, isConformanceProfile } from './inventory.js';
+export { CONFORMANCE_PROFILE, RELEASED_CONFORMANCE_PROFILE, isConformanceProfile } from './inventory.js';
 export type { ConformanceProfile } from './inventory.js';
 /** The running toolchain an evidence object was produced by. */
 export interface ConformanceToolchain {
@@ -113,7 +113,7 @@ export function verifyKernel(floor: readonly KernelSource[] = KERNEL_SOURCES): K
   const sources = floorOf(floor);
   const evidence = freeze<KernelEvidence>({
     subject: 'COMP-KERNEL',
-    profile: CONFORMANCE_PROFILE,
+    profile: writtenConformanceProfile(),
     toolchain: runningToolchain(),
     floorDigest: kernelDigest(sources),
     assessment: kernelAssessment(sources),
@@ -131,7 +131,7 @@ export function verifyFixtures(): FixtureEvidence {
   const result = runProfile(INVENTORY, INVENTORY_DIGEST, new URL('../../fixtures/language/', import.meta.url));
   const evidence = freeze<FixtureEvidence>({
     subject: 'COMP-FIXTURES',
-    profile: CONFORMANCE_PROFILE,
+    profile: writtenConformanceProfile(),
     toolchain: runningToolchain(),
     inventoryDigest: INVENTORY_DIGEST,
     observedCodes: [...result.observedCodes],

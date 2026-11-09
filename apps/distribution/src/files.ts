@@ -18,6 +18,7 @@ import {
 import type { Stats } from 'node:fs';
 import { dirname, isAbsolute, join, parse, resolve } from 'node:path';
 import { stableSerialize } from '@inventarch/graph';
+import { WRITE_PLAIN_NAMES } from './written-names.js';
 
 /** `path`, when present, is the workspace-relative file the refusal concerns, so a caller can locate it without parsing the message. */
 export class DistributionError extends Error {
@@ -282,4 +283,16 @@ export function versionedObject(
     message,
   );
   return { row, legacy };
+}
+/**
+ * The `format` fields a writer of a shared document emits: the plain name with its integer `formatVersion` once
+ * `WRITE_PLAIN_NAMES` is flipped, until then the released literal alone, as the released programs that read the
+ * document expect.
+ */
+export function stamped<N extends string, L extends string, V extends number = 1>(
+  plain: N,
+  released: L,
+  version: V = 1 as V,
+): { readonly format: N; readonly formatVersion: V } | { readonly format: L; readonly formatVersion?: never } {
+  return WRITE_PLAIN_NAMES ? { format: plain, formatVersion: version } : { format: released };
 }
