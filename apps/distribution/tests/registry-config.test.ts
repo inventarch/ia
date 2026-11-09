@@ -13,7 +13,8 @@ const temp = () => {
 afterEach(() => {
   for (const p of made.splice(0)) rmSync(p, { recursive: true, force: true });
 });
-const cfg = (map: Record<string, unknown>) => JSON.stringify({ format: 'ia.registries', formatVersion: 1, registries: map });
+const cfg = (map: Record<string, unknown>) =>
+  JSON.stringify({ format: 'ia.registries', formatVersion: 1, registries: map });
 const refusal = (code: string, message: RegExp) => ({
   code: `IA-DIST-${code}`,
   message: expect.stringMatching(message),

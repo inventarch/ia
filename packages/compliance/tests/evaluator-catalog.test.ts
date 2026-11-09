@@ -9,6 +9,7 @@ import {
   EVALUATOR_CATALOG_FORMAT_VERSION,
   EVIDENCE_CODES,
   EVIDENCE_RECEIPT_FORMAT,
+  EVIDENCE_RECEIPT_FORMAT_VERSION,
   acceptEvaluatorOutput,
   adaptBuiltinVerdict,
   admitTransition,
@@ -564,6 +565,7 @@ describe('receipts and transition admission (C28)', () => {
   };
   const receipt = (obligation: Obligation, overrides: Partial<EvidenceReceipt> = {}): EvidenceReceipt => ({
     format: EVIDENCE_RECEIPT_FORMAT,
+    formatVersion: EVIDENCE_RECEIPT_FORMAT_VERSION,
     receiptId: `r-${obligation.requirement}`,
     attemptId: 'attempt-2',
     obligationId: obligation.obligationId,
@@ -674,6 +676,9 @@ describe('receipts and transition admission (C28)', () => {
         'IA-COMP-RECEIPT-REVOKED',
       ],
       [{ format: 'ia-evidence-receipt/2' as typeof EVIDENCE_RECEIPT_FORMAT }, 'IA-COMP-RECEIPT-INVALID'],
+      [{ formatVersion: 2 }, 'IA-COMP-RECEIPT-INVALID'],
+      [{ formatVersion: undefined }, 'IA-COMP-RECEIPT-INVALID'],
+      [{ format: 'ia-evidence-receipt/1' }, 'IA-COMP-RECEIPT-INVALID'],
       [{ completedAt: '2026-09-28T11:00:00Z' }, 'IA-COMP-RECEIPT-INVALID'],
       [{ result: 'great' as 'passed' }, 'IA-COMP-RECEIPT-INVALID'],
       [{ trust: 'service-associated', issuer: 'anyone' }, 'IA-COMP-RECEIPT-UNTRUSTED'],
@@ -686,6 +691,9 @@ describe('receipts and transition admission (C28)', () => {
         JSON.stringify(overrides),
       ).toEqual([code]);
     }
+    // A receipt written under the legacy literal (no formatVersion) is still read as written.
+    const { formatVersion: _formatVersion, ...written } = receipt(compiler);
+    expect(validateReceipt({ ...written, format: 'ia-evidence-receipt/1' }, expectation, now).valid).toBe(true);
     expect(validateReceipt({ ...receipt(compiler), extra: 1 }, expectation, now).findings.map((f) => f.code)).toEqual([
       'IA-COMP-RECEIPT-INVALID',
     ]);
@@ -894,6 +902,7 @@ describe('evaluator catalog rules D1-D6 and the redaction and directive fixes', 
   const now = '2026-09-28T10:30:00Z';
   const receipt = (obligation: Obligation, overrides: Partial<EvidenceReceipt> = {}): EvidenceReceipt => ({
     format: EVIDENCE_RECEIPT_FORMAT,
+    formatVersion: EVIDENCE_RECEIPT_FORMAT_VERSION,
     receiptId: `r-${obligation.requirement}`,
     attemptId: 'attempt-2',
     obligationId: obligation.obligationId,

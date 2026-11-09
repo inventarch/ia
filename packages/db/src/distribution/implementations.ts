@@ -189,12 +189,18 @@ export function checkInstalledImplementations(input: unknown): InstalledImplemen
     return refuse('The installed-implementation catalog is not plain, acyclic, bounded data');
   }
   const plain =
-    value !== null && typeof value === 'object' && (value as Record<string, unknown>)['format'] === INSTALLED_IMPLEMENTATIONS_FORMAT;
+    value !== null &&
+    typeof value === 'object' &&
+    (value as Record<string, unknown>)['format'] === INSTALLED_IMPLEMENTATIONS_FORMAT;
   const row = plain
     ? record(value, ['format', 'formatVersion', 'evaluators', 'operations'])
     : record(value, ['format', 'evaluators', 'operations']);
   if (row === null) return refuse('Unexpected installed-implementation catalog fields');
-  if (plain ? row['formatVersion'] !== INSTALLED_IMPLEMENTATIONS_FORMAT_VERSION : !LEGACY_INSTALLED_IMPLEMENTATIONS_FORMATS.includes(row['format'] as string))
+  if (
+    plain
+      ? row['formatVersion'] !== INSTALLED_IMPLEMENTATIONS_FORMAT_VERSION
+      : !LEGACY_INSTALLED_IMPLEMENTATIONS_FORMATS.includes(row['format'] as string)
+  )
     return refuse('Unknown installed-implementation catalog format');
   const section = row['evaluators'],
     evaluators = record(section, ['format', 'entries']) ?? record(section, ['format', 'formatVersion', 'entries']);

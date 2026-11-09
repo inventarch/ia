@@ -84,7 +84,8 @@ function decodeRows(text: string): readonly Row[] {
     !isRecord(value) ||
     (value['format'] === EXTENSION_CHECKS_FORMAT
       ? value['formatVersion'] !== EXTENSION_CHECKS_FORMAT_VERSION
-      : !LEGACY_EXTENSION_CHECKS_FORMATS.includes(value['format'] as string) || Object.hasOwn(value, 'formatVersion')) ||
+      : !LEGACY_EXTENSION_CHECKS_FORMATS.includes(value['format'] as string) ||
+        Object.hasOwn(value, 'formatVersion')) ||
     !Array.isArray(value['checks'])
   )
     throw new Error(`not an ${EXTENSION_CHECKS_FORMAT} file`);

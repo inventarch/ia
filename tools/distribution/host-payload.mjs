@@ -393,7 +393,8 @@ export async function generateHostPayload({ repository, write, implementations =
     throw Error(`Runtime closure of ${runtimeBytes} bytes exceeds the ${PAYLOAD_BYTES}-byte payload ceiling`);
   const version = JSON.parse(readFileSync(resolve(repository, 'apps/cli/package.json'), 'utf8')).version;
   const inventory = json({
-    format: 'ia.host-cache.v2',
+    format: 'ia.host-cache',
+    formatVersion: 2,
     version,
     packages,
     files: [...files]
@@ -404,7 +405,12 @@ export async function generateHostPayload({ repository, write, implementations =
     '__INVENTORY_DIGEST__',
     hash(inventory),
   );
-  const release = json({ format: 'ia.host-release.v2', inventory: hash(inventory), launcher: hash(launcher) });
+  const release = json({
+    format: 'ia.host-release',
+    formatVersion: 2,
+    inventory: hash(inventory),
+    launcher: hash(launcher),
+  });
   const tree = new Map([
     ...files,
     ['inventory.json', Buffer.from(inventory)],

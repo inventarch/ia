@@ -1,7 +1,14 @@
 import { closeSync, constants, lstatSync, openSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
-import { CAPTURE_CURRENT, CAPTURE_FORMAT, CAPTURE_FORMAT_VERSION, open, planCapture, readInputs } from '../src/index.js';
+import {
+  CAPTURE_CURRENT,
+  CAPTURE_FORMAT,
+  CAPTURE_FORMAT_VERSION,
+  open,
+  planCapture,
+  readInputs,
+} from '../src/index.js';
 import type { InputSnapshot } from '../src/index.js';
 import { OPENED_READ_FLAGS, OPENS_THROUGH_LINKS } from '../src/named.js';
 import { otherDevice, outcome, vanishAtRecheck } from './file-races.js';

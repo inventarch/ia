@@ -30,7 +30,9 @@ import type { AuthoringTarget, LifecycleCoordinate } from '@inventarch/workspace
 import { COORDINATE_DOMAINS, isEntry, prepareCoordinate } from '@inventarch/runtime';
 
 export interface ContextHookBindingInput {
-  readonly format: 'ia.context-hook-binding.v1';
+  /** `ia.context-hook-binding` with `formatVersion` 1, or the legacy `ia.context-hook-binding.v1` literal (no `formatVersion`), whose digest verifies as written. */
+  readonly format: 'ia.context-hook-binding' | 'ia.context-hook-binding.v1';
+  readonly formatVersion?: 1;
   readonly root: string;
   readonly owner: string;
   readonly actor: string;
@@ -102,6 +104,9 @@ const fields = [
   'policy',
   'implementation',
 ];
+/** The binding fields its declared format carries: the plain format adds `formatVersion`. */
+const fieldsFor = (input: { readonly format?: unknown }): readonly string[] =>
+  input.format === 'ia.context-hook-binding' ? ['formatVersion', ...fields] : fields;
 /** Paths compare as the volume compares names: case on win32; normalization and full case folding on darwin. */
 const fold = pathKey;
 const hash = (value: string | Uint8Array): string => createHash('sha256').update(value).digest('hex');
@@ -185,8 +190,13 @@ function scopePath(value: unknown): string {
 }
 /** Explicit trusted registration factory. The returned digest covers all root/identity/scope selections. */
 export function createContextHookBinding(input: ContextHookBindingInput): ContextHookBinding {
-  plain(input, fields);
-  if (input.format !== 'ia.context-hook-binding.v1') fail('Unknown context binding format');
+  plain(input, fieldsFor(input));
+  if (
+    input.format === 'ia.context-hook-binding'
+      ? input.formatVersion !== 1
+      : input.format !== 'ia.context-hook-binding.v1'
+  )
+    fail('Unknown context binding format');
   const root = physicalDirectory(text(input.root)),
     profile = verifyLifecycleProfile(input.profile);
   if (profile.host !== 'claude-code') fail('This context hook requires the supported Claude profile');
@@ -251,6 +261,7 @@ export function createContextHookBinding(input: ContextHookBindingInput): Contex
       fail('Context hook budget is outside its finite bound');
   const body: ContextHookBindingInput = {
     format: input.format,
+    ...(input.format === 'ia.context-hook-binding' ? { formatVersion: 1 as const } : {}),
     root,
     owner: text(input.owner, 256),
     actor: text(input.actor, 256),
@@ -275,7 +286,7 @@ export function createContextHookBinding(input: ContextHookBindingInput): Contex
   return freeze({ ...body, digest: hash(canonicalDistributionJson(body)) });
 }
 function verifyBinding(input: ContextHookBinding): ContextHookBinding {
-  plain(input, [...fields, 'digest']);
+  plain(input, [...fieldsFor(input), 'digest']);
   const { digest, ...body } = input,
     expected = createContextHookBinding(body);
   if (expected.digest !== pin(digest) || canonicalDistributionJson(expected) !== canonicalDistributionJson(input))
@@ -445,7 +456,8 @@ export function contextHookImplementationDigest(directory = import.meta.dirname)
   if (source === emitted) fail('Hook implementation is partial or mixed');
   return hash(
     canonicalDistributionJson({
-      format: 'ia.context-hook-implementation.v1',
+      format: 'ia.context-hook-implementation',
+      formatVersion: 1,
       native: installedImplementationDigest(),
       kind: source ? 'source' : 'emitted',
       files,
@@ -650,7 +662,8 @@ export async function runContextHook(argv: readonly string[], input: string): Pr
   if (argv.length === 1 && argv[0] === 'identity') {
     const profile = lifecycleProfile('claude-code', SELECTED_CLAUDE_CODE_VERSION);
     return {
-      format: 'ia.context-hook-identity.v2',
+      format: 'ia.context-hook-identity',
+      formatVersion: 2,
       implementation: contextHookImplementationDigest(),
       profile: profile.digest,
       slots: profile.maxContextParts,

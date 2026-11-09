@@ -26,11 +26,12 @@ The native tasks in `.ia/src/records/npm-release.ia` track two distinct outcomes
 
 Audit and repair validation is retained separately with commands, source revision, outcomes and limitations. A repository-only check can establish the repository architecture boundary without establishing release readiness. Installed binding checks require an actual selected catalog, and kernel conformance evidence must match the evaluated floor revision; missing evidence remains unavailable or inconclusive.
 
-A note is one JSON file under `releases/pending/`. The file name is the change id:
+A note is one JSON file under `releases/pending/`. The file name is the change id. Notes written before `formatVersion` existed carry `"format": "ia.npm-change-note.v1"` and no `formatVersion`; they are still read:
 
 ```json
 {
-  "format": "ia.npm-change-note.v1",
+  "format": "ia.npm-change-note",
+  "formatVersion": 1,
   "bump": "minor",
   "title": "Add selected-context workflows to the CLI",
   "summary": "What changes for package consumers, and any limits that still apply.",

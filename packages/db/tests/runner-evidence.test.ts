@@ -572,7 +572,10 @@ it('refreshes evidence through the normal editor reader and invalidates prior sc
 it('writes the plain format with formatVersion 1, reads the legacy literal as written, and refuses other formats', () => {
   const root = workspace(),
     input = journal(root);
-  append(input.events, { type: 'attempt.prepare', attempt: { id: 'read', kind: 'operation', runId: 'root', target: 'fixture-read' } });
+  append(input.events, {
+    type: 'attempt.prepare',
+    attempt: { id: 'read', kind: 'operation', runId: 'root', target: 'fixture-read' },
+  });
   append(input.events, { type: 'attempt.observe', attemptId: 'read', effect: 'none', error: null });
   const written = writeRunnerEvidence(root, input),
     original = readFileSync(resolve(root, written.path), 'utf8');

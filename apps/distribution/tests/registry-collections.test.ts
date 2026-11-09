@@ -363,7 +363,10 @@ it.each(['dist', 'nested/DiSt', 'node_modules', 'nested/NODE_MODULES', '.git', '
 it('writes collection indexes in the plain shape and still reads the legacy literals', () => {
   const root = temporary();
   registryAddCollection(root, 'kit', kit);
-  const written = JSON.parse(readFileSync(join(root, 'kits/example/kit/index.json'), 'utf8')) as Record<string, unknown>;
+  const written = JSON.parse(readFileSync(join(root, 'kits/example/kit/index.json'), 'utf8')) as Record<
+    string,
+    unknown
+  >;
   expect(written['format']).toBe('ia.registry-kit');
   expect(written['formatVersion']).toBe(1);
   expect(JSON.parse(readFileSync(join(root, 'ia-registry.json'), 'utf8'))).toEqual({

@@ -9,7 +9,10 @@ import { publicPackages } from './release-packages.mjs';
 
 /** One file per unreleased change. `pnpm release:version` consumes them into the next coordinated changeset. */
 export const PENDING = 'releases/pending';
-export const NOTE_FORMAT = 'ia.npm-change-note.v1';
+export const NOTE_FORMAT = 'ia.npm-change-note';
+export const NOTE_FORMAT_VERSION = 1;
+/** The literal notes carried before `formatVersion` existed: pending files written earlier are still read as written. */
+export const LEGACY_NOTE_FORMATS = ['ia.npm-change-note.v1'];
 export const BUMPS = ['patch', 'minor', 'major'];
 /** `none` records a package change with no consumer impact, such as tests; it rides along but never starts a release. */
 export const NOTE_BUMPS = ['none', ...BUMPS];
@@ -19,6 +22,7 @@ export const GENERATED_CHANGES = ['cohort-alignment', 'repository-maintenance'];
 export const RELEASE_MANAGED = ['.ia/public-package-inputs.json', 'CHANGELOG.md', 'releases/'];
 const ID = /^[a-z][a-z0-9-]*$/;
 const NOTE_KEYS = ['bump', 'format', 'packages', 'paths', 'summary', 'title'];
+const PLAIN_NOTE_KEYS = [...NOTE_KEYS, 'formatVersion'].sort();
 const git = (root, ...args) => gitText(root, args);
 
 export function bumpVersion(version, bump) {
@@ -69,8 +73,11 @@ export function validateNote(id, note, names) {
   assert.match(id, ID, `${PENDING}/${id}.json: use a lowercase kebab-case file name`);
   assert.ok(!GENERATED_CHANGES.includes(id), `${PENDING}/${id}.json: that change id is reserved`);
   assert.ok(note && typeof note === 'object' && !Array.isArray(note), `${id}: a release note is a JSON object`);
-  assert.deepEqual(Object.keys(note).sort(), NOTE_KEYS, `${id}: a release note has exactly ${NOTE_KEYS.join(', ')}`);
-  assert.equal(note.format, NOTE_FORMAT, `${id}: unexpected release note format`);
+  const plain = note.format === NOTE_FORMAT,
+    keys = plain ? PLAIN_NOTE_KEYS : NOTE_KEYS;
+  assert.ok(plain || LEGACY_NOTE_FORMATS.includes(note.format), `${id}: unexpected release note format`);
+  assert.deepEqual(Object.keys(note).sort(), keys, `${id}: a release note has exactly ${keys.join(', ')}`);
+  if (plain) assert.equal(note.formatVersion, NOTE_FORMAT_VERSION, `${id}: unexpected release note formatVersion`);
   assert.ok(NOTE_BUMPS.includes(note.bump), `${id}: bump must be none, patch, minor or major`);
   assert.ok(
     typeof note.title === 'string' && note.title.trim() && !note.title.includes('\n'),
@@ -189,6 +196,7 @@ export function draftNote(root, projects, options = {}) {
   assert.ok(summary, 'Pass --summary describing what changes for package consumers, and any limits');
   const note = {
     format: NOTE_FORMAT,
+    formatVersion: NOTE_FORMAT_VERSION,
     bump,
     title: title.trim(),
     summary: summary.trim(),

@@ -65,7 +65,8 @@ export function registryAddCollection<K extends 'kit' | 'workspace'>(
     const next = index.releases.find((release) => release.version === prior.version);
     if (!next || json(next) !== json(prior)) fail('CONFLICT', 'Collection indexes are append-only');
   }
-  if (readInfo(root) === null) create(root, INFO, encode({ format: 'ia.registry', formatVersion: 1, name: basename(root) }));
+  if (readInfo(root) === null)
+    create(root, INFO, encode({ format: 'ia.registry', formatVersion: 1, name: basename(root) }));
   if (previous === null) create(root, path, content);
   else replace(root, path, content, PUBLIC);
 }
@@ -180,7 +181,8 @@ export function registryAdd(request: RegistryAddRequest): {
   const info = readInfo(root);
   if (info !== null && request.name !== undefined && request.name !== info.name)
     fail('CONFLICT', `Registry is already named "${info.name}", not "${request.name}"`);
-  const infoContent = info === null ? encode({ format: 'ia.registry', formatVersion: 1, name: request.name ?? basename(root) }) : null;
+  const infoContent =
+    info === null ? encode({ format: 'ia.registry', formatVersion: 1, name: request.name ?? basename(root) }) : null;
   if (infoContent !== null) relabel(() => decodeRegistryInfo(utf8(infoContent)), 'Invalid registry name: ');
   const id = manifest.id,
     path = packageIndexPath(id),

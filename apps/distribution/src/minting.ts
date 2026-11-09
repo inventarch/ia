@@ -35,7 +35,8 @@ export interface ReleaseMintingRequest {
   readonly policyRevision: string;
 }
 export interface ReleaseMintingAssessment {
-  readonly format: 'ia.release-minting.v1';
+  readonly format: 'ia.release-minting';
+  readonly formatVersion: 1;
   readonly ready: boolean;
   readonly semantic: 'not-evaluated';
   readonly floor: string;
@@ -226,7 +227,8 @@ export function assessReleaseMinting(input: ReleaseMintingRequest): ReleaseMinti
       if (candidate.pin.lock === null) return refused();
       const assessment = assessAuthoringMinting(baseline.view, candidate.view);
       const body = {
-        format: 'ia.release-minting.v1' as const,
+        format: 'ia.release-minting' as const,
+        formatVersion: 1 as const,
         ready: assessment.ready,
         semantic: 'not-evaluated' as const,
         floor: digest(floor),
