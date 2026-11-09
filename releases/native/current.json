@@ -9,8 +9,8 @@
     {
       "id": "inventarch/agent-composition-system",
       "version": "3.2.0",
-      "archive": "8886c1e3d7a56fbc64bce7eecc9fbf1d0793d927408866168d12941401d6b796",
-      "manifest": "775cdaff1f72d1c8955286b9b890c4e331761c53f15225aeab80937ea5b4ccce",
+      "archive": "4e01a6de5b8c90637ad638d531fd0a59f213bb519634967a85717bf210d2be0e",
+      "manifest": "a1c1cb975ca5b7fb5a922bcac38169fe9f9aeedbc233db13c3079f62ddc50431",
       "dependencies": [
         "inventarch/agent-system",
         "inventarch/authoring-system",
