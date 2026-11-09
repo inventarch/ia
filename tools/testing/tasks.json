@@ -555,6 +555,7 @@
       "files": [
         "tests/compatibility.test.ts",
         "tests/compile.test.ts",
+        "tests/contract-version.test.ts",
         "tests/contracts.test.ts",
         "tests/execution.test.ts",
         "tests/installed-catalog.test.ts",
