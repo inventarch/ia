@@ -2,8 +2,8 @@
   "format": "ia.public-package-inputs.v2",
   "source": {
     "repository": "https://github.com/inventarch/ia",
-    "commit": "f5c982f8a0fa8422c6680202545ddfd8832c504a",
-    "tree": "af97d65176580f75cc3ecbdc109c83f4ee27edb6",
+    "commit": "fb72028e6715983b7a7c4679cd5bed8892abb61b",
+    "tree": "b616640f2ef6f42806b5f665ff82da7e99428401",
     "dirty": true
   },
   "membership": {
@@ -2884,11 +2884,11 @@
     },
     {
       "path": "apps/mcp-door/README.md",
-      "sha256": "244348200cced66598a54a6431078e0ca8e567153c5084fde633c793cdaf3aa8"
+      "sha256": "0c4b5b76029c4ebf748e09c32c57aef7c2e472515bde0ed19f59975ef81e1e66"
     },
     {
       "path": "apps/mcp-door/SPEC.md",
-      "sha256": "e91a4ca32515bed3a1638305b98947f17211ab92dd93797681347c3cb4ae47f9"
+      "sha256": "8f9f1307c32a559ade11abe86975e24199085818a1174f394433871c26539426"
     },
     {
       "path": "apps/mcp-door/assets/vocabulary.json",
@@ -6924,7 +6924,7 @@
     },
     {
       "path": "packages/runtime/SPEC.md",
-      "sha256": "c8ea900386e7de92b59c1bc0bac259f4fb61766d42431640d2fec4da11a21827"
+      "sha256": "f19863b1646d37163ead914920bdcdef071234e4d689dffe23d99f1387fcb186"
     },
     {
       "path": "packages/runtime/package.json",
@@ -7036,11 +7036,11 @@
     },
     {
       "path": "packages/runtime/src/method/index.ts",
-      "sha256": "d9a82a39dabfcd64b4dbb513620799cda409a4c7964de11d4bdcf25094dc0758"
+      "sha256": "4fc2f26f11ae58c52d7114f5e3568d3b7eb3f22bd8f7d14c1808f17fc47e667d"
     },
     {
       "path": "packages/runtime/src/method/installed-kits.ts",
-      "sha256": "9a95239baf81168ddebf5fce1ffaafff4898da659ad7fa28c4b721f62f24fc4b"
+      "sha256": "245a193ab8efe0baa62fe52ed680f81e5c18c50edddea0dea2e2b97c2027487a"
     },
     {
       "path": "packages/runtime/src/method/kit-base.ts",
@@ -7048,11 +7048,11 @@
     },
     {
       "path": "packages/runtime/src/method/kit-root.ts",
-      "sha256": "89d32dbacc81940a8cd737ebef2a765616bb65ebff050ebe0e456bf0526152c5"
+      "sha256": "476aa155213ec9bcfb16784e80f92cefab9b401a376ca22d2ef7d7d03542a284"
     },
     {
       "path": "packages/runtime/src/method/kits.ts",
-      "sha256": "aed0ecb84f7e1548db7deccf3c6f391844bfa2d1953cca1cf3c101dda1921c89"
+      "sha256": "bfc311dcb3d49131161a48d12b77fd62ba87fdb585c68c8d9a88c2f252f16f7b"
     },
     {
       "path": "packages/runtime/src/method/packet.ts",
@@ -7060,7 +7060,7 @@
     },
     {
       "path": "packages/runtime/src/method/pin.ts",
-      "sha256": "e99c78dd797916245cfc93ab09adb40641ca4fd5265e9b83fe49bd9a3dc8a575"
+      "sha256": "c3874d5c0b60030130fce940d42af19bf09938e278c77cd67fcc8fb3837a4aa1"
     },
     {
       "path": "packages/runtime/src/method/reader.ts",
@@ -7080,7 +7080,7 @@
     },
     {
       "path": "packages/runtime/src/method/retained.ts",
-      "sha256": "2c4a33b24d9c0496e811d962afac50e7baf96bfacd8311d718a629d645dd013b"
+      "sha256": "6759418a88998457c3979c7b10ce318e2f6ec886725ec4ffbb3989a9b7fcbfa2"
     },
     {
       "path": "packages/runtime/src/method/root.ts",
@@ -7088,7 +7088,7 @@
     },
     {
       "path": "packages/runtime/src/method/session.ts",
-      "sha256": "7c10e40fdcec2c1f1b53bc90b721f345f4b0f5d00edbd5b0d65bcd92ecdb3a09"
+      "sha256": "4cb70cf01cd3c3945756558a7c57259f95c565cc93a1efc9cc698d38d8d008af"
     },
     {
       "path": "packages/runtime/src/next.ts",
@@ -7225,6 +7225,10 @@
     {
       "path": "packages/runtime/tests/golden/write.mjs",
       "sha256": "1bb9d06380571e6f654c727306c33243dedbbfabc022f2439ed5249477b46a58"
+    },
+    {
+      "path": "packages/runtime/tests/home-folders.test.ts",
+      "sha256": "54b5dad346f98b0cc26755eb7ca985a5c7f94b3bd78014c52ee3be623237295c"
     },
     {
       "path": "packages/runtime/tests/install-guard.test.ts",
@@ -7905,6 +7909,10 @@
     {
       "path": "releases/pending/document-the-home-lock-kit-collections-and-kit-i.json",
       "sha256": "fbe79dea30c5637e15ed8d9c9fcba50f5bb669f22b7935fe1b6f0dd1faeaefc2"
+    },
+    {
+      "path": "releases/pending/ia-home-folders-resolve-through-one-authoritativ.json",
+      "sha256": "4aa3625584c319826850fd84298570227940aaf2d5481d264cbe4934b1283096"
     },
     {
       "path": "releases/pending/language-base-compat.json",
@@ -9036,7 +9044,7 @@
     },
     {
       "path": "tools/testing/tasks.json",
-      "sha256": "b2ba3f10b157cdad2f6c190cad68909a86eea2c2b71fdc8f7bdb101535bdbe73"
+      "sha256": "f2437c4049c033068820783975b6cb36626729952f4cc6102cfe25914aaf6292"
     },
     {
       "path": "tools/testing/timeouts.ts",
@@ -9095,5 +9103,5 @@
       "sha256": "b7a2070d0de01d78a2f8dbd4e8c646740a4b9f68810cfda96aafe69ffc7a47f4"
     }
   ],
-  "inputDigest": "18f88d2dfd14f209aafd8a9a5583da4649d2bf783984ebd50276624788edd538"
+  "inputDigest": "89f1832bd155343a5d0e77a7541ea3799d1fa88ecf550da3311d557c8a558e3c"
 }
