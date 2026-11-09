@@ -22,6 +22,7 @@ export {
   CAPTURE_CURRENT,
   CAPTURE_DIRECTORY,
   CAPTURE_FORMAT,
+  CAPTURE_FORMAT_VERSION,
   CAPTURE_PREVIOUS,
   planCapture,
   writeCapture,
@@ -37,7 +38,7 @@ export type { CheckBinding, CheckBindingStatus, CheckCatalog, CheckOutcome } fro
 export { CHECK_EVIDENCE_WORD, evidenceText, readEvidence, reproducesEvidence, writeEvidence } from './evidence.js';
 export type { EvidenceObservation, EvidenceWrite } from './evidence.js';
 export { RUNNER_EVIDENCE_DIRECTORY } from './inputs.js';
-export { RUNNER_EVIDENCE_FORMAT, writeRunnerEvidence } from './runner-evidence.js';
+export { RUNNER_EVIDENCE_FORMAT, RUNNER_EVIDENCE_FORMAT_VERSION, writeRunnerEvidence } from './runner-evidence.js';
 export type { RunnerEvidenceWrite } from './runner-evidence.js';
 export type { ViewOptions } from './view.js';
 export {

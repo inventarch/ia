@@ -3,7 +3,7 @@
  * console as data only: areas that group check ids, offers whose steps are the extension's own commands, and doctor
  * checks it leaves in a state file under the IA home. Nothing here runs an extension or reads a network.
  *
- * The state file is `{"format": "ia-extension-checks-1", "checks": [{id, title, status, detail, remedy, fix?}]}`. Its
+ * The state file is `{"format": "ia-extension-checks", "formatVersion": 1, "checks": [{id, title, status, detail, remedy, fix?}]}`. Its
  * checks join doctor's Environment section after the user rows. Every id must start with `<token>-` and name no core
  * row; a row that does not is dropped and named in one `unknown` row, `<token>-state`, which also stands for a file
  * that cannot be read. A fix must run the extension's own token through `ia`; any other is dropped. A fix takes its flow
@@ -43,7 +43,10 @@ export interface ExtensionConsole {
   readonly state: string;
 }
 
-export const EXTENSION_CHECKS_FORMAT = 'ia-extension-checks-1';
+export const EXTENSION_CHECKS_FORMAT = 'ia-extension-checks';
+export const EXTENSION_CHECKS_FORMAT_VERSION = 1;
+/** The literal state files carried before `formatVersion` existed; still read. */
+const LEGACY_EXTENSION_CHECKS_FORMATS: readonly string[] = ['ia-extension-checks-1'];
 const STATUSES: readonly CheckStatus[] = ['ok', 'warn', 'fail', 'unknown', 'info'];
 const FLOWS: readonly Flow[] = ['preview-apply', 'preview-flag', 'confirm', 'immediate'];
 const WRITES: readonly WritesTo[] = ['none', 'repo', 'user', 'machine'];
@@ -77,7 +80,13 @@ function ownFix(value: unknown, token: string, declared: readonly ConsoleStep[])
 type Row = Omit<Check, 'section' | 'fix'> & { readonly fix: unknown };
 function decodeRows(text: string): readonly Row[] {
   const value: unknown = JSON.parse(text);
-  if (!isRecord(value) || value['format'] !== EXTENSION_CHECKS_FORMAT || !Array.isArray(value['checks']))
+  if (
+    !isRecord(value) ||
+    (value['format'] === EXTENSION_CHECKS_FORMAT
+      ? value['formatVersion'] !== EXTENSION_CHECKS_FORMAT_VERSION
+      : !LEGACY_EXTENSION_CHECKS_FORMATS.includes(value['format'] as string) || Object.hasOwn(value, 'formatVersion')) ||
+    !Array.isArray(value['checks'])
+  )
     throw new Error(`not an ${EXTENSION_CHECKS_FORMAT} file`);
   return value['checks'].map((row): Row => {
     if (

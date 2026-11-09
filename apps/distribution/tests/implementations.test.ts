@@ -878,3 +878,28 @@ it('takes a session open time before it reads any input, so it never prunes what
     now.mockRestore();
   }
 });
+
+it('records joins in the plain ia.host-joins format and still reads the legacy ia.host-joins.v1 file', () => {
+  const root = temp();
+  const row = {
+    consumer: 'claude',
+    implementation: 'installed-implementations',
+    version: '2.0.0',
+    digest: 'e'.repeat(64),
+    release: 'f'.repeat(64),
+    consumerRevision: REVISION,
+  };
+  put(root, JOINS, json({ format: 'ia.host-joins.v1', joins: [row] }));
+  expect(readJoins(root)).toEqual([row]);
+  put(root, JOINS, json({ format: 'ia.host-joins', formatVersion: 1, joins: [row] }));
+  expect(readJoins(root)).toEqual([row]);
+  for (const bad of [
+    { format: 'ia.host-joins', joins: [row] },
+    { format: 'ia.host-joins', formatVersion: 2, joins: [row] },
+    { format: 'ia.host-joins.v1', formatVersion: 1, joins: [row] },
+    { format: 'ia.host-joins.v2', joins: [row] },
+  ]) {
+    put(root, JOINS, json(bad));
+    expect(() => readJoins(root)).toThrow(code('IA-DIST-INPUT-INVALID'));
+  }
+});
