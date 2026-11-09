@@ -2,7 +2,8 @@ import type { Graph, Node } from '@inventarch/graph';
 import type { Severity } from '@inventarch/language';
 import { isBuiltinCheck } from '../check-ids.js';
 import { checkRunner, textField } from '../graph-checks.js';
-import type { Verdict } from '../types.js';
+import { COMP_CODES } from '../types.js';
+import type { Finding, Verdict } from '../types.js';
 
 export type LawState = 'enforced' | 'pending' | 'not-evaluated' | 'suspended';
 export type LawSeverity = 'blocking' | 'advisory' | 'informational';
@@ -106,3 +107,14 @@ export function canonSeverity(nodes: readonly Node[], checkId: string, graph?: G
   if (strongest === 'advisory' || suspended) return 'warning';
   return null;
 }
+
+/** The codes the built-in canon checks report, from records (canonAssessments) or the checkout (`canonFiles`). */
+export const CANON_CODES: ReadonlySet<string> = new Set(COMP_CODES.filter((code) => code.startsWith('IA-COMP-CANON-')));
+
+/**
+ * Whether a finding refuses an installation (`ia install`, `ia update`, `ia restore`, `ia adopt` and the archive and
+ * closure checks they run): every error except a canon finding. A canon law stops work through `ia validate` and
+ * `ia preview` only (dec-006 6b), so a consumer can always install the release it then fails to validate.
+ */
+export const refusesInstallation = (finding: Pick<Finding, 'code' | 'severity'>): boolean =>
+  finding.severity === 'error' && !CANON_CODES.has(finding.code);

@@ -1,4 +1,5 @@
 import { KERNEL_SOURCES, parse } from '@inventarch/language';
+import { refusesInstallation } from '@inventarch/db';
 import { EditorSnapshot } from '@inventarch/db/editor';
 import {
   decodeDistributionJson,
@@ -90,7 +91,7 @@ export function verifyAuthoringAssetClosure(manifest: BundleManifest, files: Rea
     if (
       reader.refused.length ||
       reader.inspect().blockedSystems.length ||
-      reader.report.findings.some((finding) => finding.severity === 'error')
+      reader.report.findings.some(refusesInstallation)
     )
       refuse();
     const captured = captureAuthoringManifestBytes(capture, {
@@ -217,7 +218,7 @@ function verifyAuthoringSelection(
     if (
       reader.refused.length ||
       reader.inspect().blockedSystems.length ||
-      reader.report.findings.some((finding) => finding.severity === 'error')
+      reader.report.findings.some(refusesInstallation)
     )
       refuse();
     const native = resourceOccurrences(capture),

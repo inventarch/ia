@@ -6,6 +6,7 @@ export type { AdoptedBinding, AdoptedSource, FloorSource, InputOptions, InputSna
 export { readWorkspaceBytes } from './inputs.js';
 export { open, Handle } from './handle.js';
 export type { LawStatus } from '@inventarch/compliance';
+export { refusesInstallation } from '@inventarch/compliance';
 export type {
   OpenOptions,
   ReadOptions,

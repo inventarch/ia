@@ -1,3 +1,4 @@
+import { refusesInstallation } from '@inventarch/db';
 import { EditorSnapshot } from '@inventarch/db/editor';
 import {
   decodeActivationPointer,
@@ -132,7 +133,7 @@ export function planInstallationSnapshot(input: NativeInstallationInput): Native
   let shadowed: readonly string[];
   try {
     const view = reader.inspect(),
-      errors = reader.report.findings.filter((finding) => finding.severity === 'error');
+      errors = reader.report.findings.filter(refusesInstallation);
     if (errors.length || reader.refused.length || view.blockedSystems.length)
       fail(
         'ADMISSION-FAILED',

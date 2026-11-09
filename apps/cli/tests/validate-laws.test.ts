@@ -125,3 +125,41 @@ it('json envelope carries laws and counts', async () => {
   ]);
   expect(envelope.counts).toMatchObject({ lawsPending: 1, lawsSuspended: 0 });
 });
+
+it('restore and update install over a blocking canon finding, which validate still reports with exit 1', async () => {
+  const { root, env } = await initialized();
+  put(
+    root,
+    '.ia/src/laws.ia',
+    `#! ia 1.0\n\n${law('placement-law', 'blocking', 'placement-check')}\n${check('placement-check', 'CANON-WORK-PLACEMENT')}`,
+  );
+  put(root, OFFENDING_PATH, `#! ia 1.0\n\n${OFFENDING}`);
+  // A canon finding fails only validate and preview: installing never refuses on one (Task 13e ruling).
+  const restore = await run(['restore', '--root', root, '--offline', '--apply', '--yes', '--json'], { env });
+  expect(restore.exitCode, restore.stderr).toBe(0);
+  expect(JSON.parse(restore.stdout).applied.status).toBe('installed');
+  const update = await run(
+    ['update', 'inventarch/language', '--to', '^3.2.1', '--root', root, '--offline', '--apply', '--yes', '--json'],
+    { env },
+  );
+  expect(update.exitCode, update.stderr).toBe(0);
+  const validated = await json(root, env);
+  expect(validated.exitCode).toBe(1);
+  expect(validated.envelope.findings).toContainEqual(
+    expect.objectContaining({ code: 'IA-COMP-CANON-WORK-PLACEMENT', severity: 'error', path: OFFENDING_PATH }),
+  );
+});
+
+it('restore still refuses a closure with a non-canon admission error', async () => {
+  const { root, env } = await initialized();
+  put(
+    root,
+    '.ia/src/bad.ia',
+    `#! ia 1.0\n\n@law bad-law\n  meaning\n    says "A law whose severity is not one."\n    answers "Which law has a bad severity?"\n  governance\n    severity sideways\n`,
+  );
+  const restore = await run(['restore', '--root', root, '--offline', '--apply', '--yes', '--json'], { env });
+  expect(restore.exitCode).toBe(3);
+  const refusal = JSON.parse(restore.stdout || restore.stderr);
+  expect(refusal).toMatchObject({ ok: false, code: 'IA-DIST-ADMISSION-FAILED' });
+  expect(refusal.message).toContain('IA-GRAPH-DIMENSION-UNKNOWN');
+});
