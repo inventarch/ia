@@ -26,7 +26,7 @@ export interface ProjectionCatalog {
   readonly tools: readonly { readonly id: string; readonly name: string }[];
   readonly inputFields: readonly { readonly name: string; readonly type: 'text' }[];
 }
-export const CLAUDE_PROSE_PROFILE = 'host.claude-prose';
+export const CLAUDE_PROSE_PROFILE = 'claude-prose';
 /** The id this profile shipped under before ids stopped carrying their version; still read, never written. */
 export const LEGACY_CLAUDE_PROSE_PROFILE = 'ia.host.claude-prose.v1';
 export const CLAUDE_PROSE_FEATURES = Object.freeze([

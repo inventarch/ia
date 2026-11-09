@@ -308,8 +308,8 @@ describe('projection descriptors and catalogs', () => {
   it('rebuilds a catalog and a descriptor under the literal each carries, and refuses another', () => {
     const impl = 'a'.repeat(64);
     for (const [make, name] of [
-      [claudeProseCatalog, 'host.claude-prose'],
-      [codexProseCatalog, 'host.codex-prose'],
+      [claudeProseCatalog, 'claude-prose'],
+      [codexProseCatalog, 'codex-prose'],
     ] as const) {
       const catalog = make(impl);
       expect(catalog).toMatchObject({
