@@ -1,5 +1,17 @@
 import { fileURLToPath } from 'node:url';
-import { mkdtempSync, readFileSync, mkdirSync, rmSync, writeFileSync, statSync, utimesSync, linkSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import {
+  existsSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  mkdirSync,
+  rmSync,
+  writeFileSync,
+  statSync,
+  utimesSync,
+  linkSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -14,6 +26,8 @@ import {
   archivePath,
 } from './language-base.js';
 
+import { ledgerArchive, readBaseLedger } from './language-bases.js';
+
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const version = languageVersion(root);
 const base = buildLanguageBase(root);
@@ -25,7 +39,7 @@ it.each(['unchanged', 'foreign-file', 'aliased-pin'])(
   (kind) => {
     const scratch = mkdtempSync(resolve(tmpdir(), 'ia-base-write-'));
     try {
-      writeLanguageBase(scratch, base);
+      writeLanguageBase(scratch, base, root);
       const archive = resolve(scratch, 'apps/cli', archivePath(base.pin.archive));
       const pin = resolve(scratch, 'apps/cli/assets/base.json'),
         before = readFileSync(pin);
@@ -33,13 +47,13 @@ it.each(['unchanged', 'foreign-file', 'aliased-pin'])(
         const date = new Date('2000-01-01T00:00:00Z');
         utimesSync(archive, date, date);
         utimesSync(pin, date, date);
-        writeLanguageBase(scratch, base);
+        writeLanguageBase(scratch, base, root);
         expect(statSync(archive).mtimeMs).toBe(date.getTime());
         expect(statSync(pin).mtimeMs).toBe(date.getTime());
       } else {
         if (kind === 'foreign-file') writeFileSync(resolve(scratch, 'apps/cli/assets/base/retain.txt'), 'foreign');
         else linkSync(pin, resolve(scratch, 'foreign-pin.json'));
-        expect(() => writeLanguageBase(scratch, base)).toThrow();
+        expect(() => writeLanguageBase(scratch, base, root)).toThrow();
         expect(readFileSync(pin)).toEqual(before);
         expect(
           readFileSync(
@@ -54,6 +68,52 @@ it.each(['unchanged', 'foreign-file', 'aliased-pin'])(
     }
   },
 );
+
+it.each(['apps/cli', 'apps/mcp-door'])('writes every ledger base into the carrier %s', (carrier) => {
+  const scratch = mkdtempSync(resolve(tmpdir(), 'ia-base-carry-'));
+  try {
+    writeLanguageBase(scratch, base, root);
+    const ledger = readBaseLedger(root);
+    const pins = JSON.parse(readFileSync(resolve(scratch, carrier, 'assets/bases.json'), 'utf8')) as {
+      version: string;
+      archive: string;
+    }[];
+    expect(pins.map((pin) => pin.version)).toEqual([...ledger.bases.map((row) => row.version), base.pin.version]);
+    expect(pins.at(-1)).toEqual(base.pin);
+    expect(JSON.parse(readFileSync(resolve(scratch, carrier, 'assets/base.json'), 'utf8'))).toEqual(base.pin);
+    expect(readdirSync(resolve(scratch, carrier, 'assets/base')).sort()).toEqual(
+      pins.map((pin) => `${pin.archive}.ia.tgz`).sort(),
+    );
+    for (const row of ledger.bases)
+      expect(readFileSync(resolve(scratch, carrier, archivePath(row.archive)))).toEqual(ledgerArchive(root, row));
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+it('lists the built base once when it is the last ledger row, and retires only archives that no carried base names', () => {
+  const scratch = mkdtempSync(resolve(tmpdir(), 'ia-base-carry-'));
+  try {
+    const ledger = readBaseLedger(root);
+    writeLanguageBase(scratch, base, root);
+    const bytes = Buffer.from('obsolete'),
+      stale = resolve(scratch, 'apps/cli', archivePath(createHash('sha256').update(bytes).digest('hex')));
+    writeFileSync(stale, bytes);
+    writeLanguageBase(scratch, base, root);
+    expect(existsSync(stale)).toBe(false);
+    const last = ledger.bases.at(-1)!;
+    const same = {
+      pin: { ...base.pin, version: last.version, archive: last.archive, manifest: last.manifest },
+      bytes: ledgerArchive(root, last),
+    };
+    writeLanguageBase(scratch, same, root);
+    const pins = JSON.parse(readFileSync(resolve(scratch, 'apps/cli/assets/bases.json'), 'utf8')) as unknown[];
+    expect(pins).toHaveLength(ledger.bases.length);
+    expect(readdirSync(resolve(scratch, 'apps/cli/assets/base'))).toHaveLength(ledger.bases.length);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
 
 // docs/specs/workspace-initialization-apply/README.md §2 “Base artifact” and §8 “Acceptance evidence”.
 describe('bundled language base', () => {

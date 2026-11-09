@@ -6,7 +6,7 @@ import type { WorkspaceRelease } from '@inventarch/distribution/registry';
 import { readBase, PIN_PATH, PACKAGE_ID, DAMAGED } from './bundled-base.js';
 import { canonical } from './plugin-sources.js';
 import type { Base, BasePin } from './bundled-base.js';
-export { readBase, PIN_PATH, baseArchivePath, PACKAGE_ID } from './bundled-base.js';
+export { readBase, readBases, PIN_PATH, baseArchivePath, PACKAGE_ID } from './bundled-base.js';
 export type { Base, BasePin } from './bundled-base.js';
 /**
  * `ia init`: docs/specs/consumer-cli-contract/README.md §2.1, implementing
