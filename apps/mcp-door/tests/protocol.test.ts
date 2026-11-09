@@ -289,12 +289,7 @@ it("serves ia_next through the door: one plan's delivery view inside the scope, 
   expect(JSON.parse(view.content[0]!.text)).toEqual(view.structuredContent);
   expect(view.structuredContent).toMatchObject({
     ok: true,
-    result: {
-      format: 'delivery-view',
-      formatVersion: 1,
-      plan,
-      next: `ia position --seat ${task('guide')} --shape sequence`,
-    },
+    result: { format: 'ia.delivery-view.v1', plan, next: `ia position --seat ${task('guide')} --shape sequence` },
   });
   expect(view.structuredContent.result!.tasks.map((t) => t.identity)).toEqual(
     ['guide', 'schema', 'examples', 'package', 'release-notes'].map(task),

@@ -1,0 +1,38 @@
+{
+  "format": "npm-change-note",
+  "formatVersion": 1,
+  "bump": "minor",
+  "title": "Read plain names, write released names until the follow-up release",
+  "summary": "The plain names and shapes are read, and the released ones are still written, so earlier releases keep reading this release's output (dec-008, A15). One switch per package flips in the follow-up release.",
+  "packages": [
+    "@inventarch/agent-composition-system",
+    "@inventarch/agent-system",
+    "@inventarch/cli",
+    "@inventarch/compliance",
+    "@inventarch/db",
+    "@inventarch/distribution",
+    "@inventarch/kb",
+    "@inventarch/runner",
+    "@inventarch/runtime",
+    "@inventarch/steward-hook",
+    "@inventarch/workspace-runtime"
+  ],
+  "paths": [
+    ".ia/authoring.resources.json",
+    ".ia/src/systems/agent-composition-system/",
+    ".ia/src/systems/agent-system/",
+    "CLAUDE.md",
+    "apps/cli/",
+    "apps/distribution/",
+    "apps/runner/",
+    "apps/steward-hook/",
+    "docs/",
+    "examples/",
+    "packages/compliance/",
+    "packages/db/",
+    "packages/kb/",
+    "packages/runtime/",
+    "packages/workspace-runtime/",
+    "tools/"
+  ]
+}
