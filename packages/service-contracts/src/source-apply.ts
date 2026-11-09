@@ -6,7 +6,9 @@ const counter = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 const bytes = (text: string) => new TextEncoder().encode(text).byteLength;
 export const sourceChangeCandidate = z
   .strictObject({
-    format: z.literal('ia.source-change.v1'),
+    // Plain format name with an integer formatVersion; the pre-versioning literal is still read.
+    format: z.enum(['ia.source-change', 'ia.source-change.v1']),
+    formatVersion: z.literal(1).optional(),
     workspaceId: id,
     base: z.strictObject({ revisionId: digest.nullable(), generation: counter }),
     changes: z
@@ -31,6 +33,10 @@ export const sourceChangeCandidate = z
       .min(1)
       .max(SOURCE_LIMITS.files),
   })
+  .refine(
+    (value) => (value.format === 'ia.source-change.v1' ? value.formatVersion === undefined : value.formatVersion === 1),
+    'The plain format declares formatVersion 1; the legacy literal declares none',
+  )
   .refine(
     (value) =>
       value.changes.every((change, index) => index === 0 || value.changes[index - 1]!.path < change.path) &&

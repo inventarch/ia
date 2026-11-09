@@ -31,7 +31,7 @@ it('derives index paths from ids and refuses unsafe ids', () => {
 });
 it('decodes registry info strictly', () => {
   const info = decodeRegistryInfo(JSON.stringify({ format: 'ia.registry.v1', name: 'Fixture' }));
-  expect(info).toEqual({ format: 'ia.registry.v1', name: 'Fixture' });
+  expect(info).toEqual({ format: 'ia.registry', formatVersion: 1, name: 'Fixture' });
   expect(Object.isFrozen(info)).toBe(true);
   expect(() => decodeRegistryInfo(JSON.stringify({ format: 'ia.registry.v1', name: 'x', extra: 1 }))).toThrow(
     /Unexpected/,
@@ -198,4 +198,31 @@ it('validates expectedId itself with packageId and wraps every db-layer refusal 
   expect(code(() => decodeRegistryInfo('{"format":"ia.registry.v1","name":"a","name":"b"}'))).toBe(
     'IA-DIST-INPUT-INVALID',
   );
+});
+
+it('reads the plain registry formats and the exact legacy literals, and refuses any other format or version', () => {
+  const name = { name: 'Fixture' };
+  expect(decodeRegistryInfo(JSON.stringify({ format: 'ia.registry', formatVersion: 1, ...name }))).toEqual({
+    format: 'ia.registry',
+    formatVersion: 1,
+    ...name,
+  });
+  for (const bad of [
+    { format: 'ia.registry', ...name },
+    { format: 'ia.registry', formatVersion: 2, ...name },
+    { format: 'ia.registry.v1', formatVersion: 1, ...name },
+    { format: 'ia.registry.v2', ...name },
+    { format: 'ia.registry-package', formatVersion: 1, ...name },
+  ])
+    expect(() => decodeRegistryInfo(JSON.stringify(bad))).toThrow();
+  const ok = { id: 'acme/tools', releases: [] };
+  const plain = decodePackageIndex(JSON.stringify({ format: 'ia.registry-package', formatVersion: 1, ...ok }), ok.id);
+  expect(plain).toEqual({ format: 'ia.registry-package', formatVersion: 1, ...ok });
+  expect(decodePackageIndex(JSON.stringify({ format: 'ia.registry-package.v1', ...ok }), ok.id)).toEqual(plain);
+  for (const bad of [
+    { format: 'ia.registry-package', ...ok },
+    { format: 'ia.registry-package', formatVersion: 2, ...ok },
+    { format: 'ia.registry-package.v2', ...ok },
+  ])
+    expect(() => decodePackageIndex(JSON.stringify(bad), ok.id)).toThrow();
 });

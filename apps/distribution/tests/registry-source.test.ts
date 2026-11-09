@@ -59,7 +59,7 @@ function body(chunks: Uint8Array[], after?: () => Promise<void>) {
 it('reads info and indexes from a directory and from HTTPS with the same results', async () => {
   const dir = registryDir();
   const local = await openRegistry(parseRegistryBase(dir, dir));
-  expect(local.info).toEqual({ format: 'ia.registry.v1', name: 'Fixture' });
+  expect(local.info).toEqual({ format: 'ia.registry', formatVersion: 1, name: 'Fixture' });
   expect((await local.index('acme/tools')).id).toBe('acme/tools');
   put(dir, `artifacts/${'a'.repeat(64)}.ia.tgz`, 'bytes');
   expect(local.artifactBytes('a'.repeat(64)).toString()).toBe('bytes');
@@ -89,7 +89,7 @@ it('reads a missing package index as an empty index and never caches indexes', a
   const dir = registryDir(),
     budget = registryBudget(10);
   const local = await openRegistry(parseRegistryBase(dir, dir), { budget });
-  expect(await local.index('acme/none')).toEqual({ format: 'ia.registry-package.v1', id: 'acme/none', releases: [] });
+  expect(await local.index('acme/none')).toEqual({ format: 'ia.registry-package', formatVersion: 1, id: 'acme/none', releases: [] });
   put(
     dir,
     'packages/acme/none.json',
@@ -115,7 +115,8 @@ it('reads a missing package index as an empty index and never caches indexes', a
   const requested = serveDirectory(dir),
     remote = await openRegistry(parseRegistryBase('https://registry.test/base/', dir));
   expect(await remote.index('acme/other')).toEqual({
-    format: 'ia.registry-package.v1',
+    format: 'ia.registry-package',
+    formatVersion: 1,
     id: 'acme/other',
     releases: [],
   });
@@ -239,7 +240,7 @@ it('refuses bases that are not registries and names the base', async () => {
   );
   put(dir, 'ia-registry.json', JSON.stringify({ format: 'ia.registry.v2', name: 'x' }));
   await expect(openRegistry(parseRegistryBase(dir, dir))).rejects.toMatchObject(
-    refusal('INPUT-INVALID', /^Not a registry: .*: Not an ia\.registry\.v1 registry$/),
+    refusal('INPUT-INVALID', /^Not a registry: .*: Not an ia\.registry registry$/),
   );
   put(dir, 'ia-registry.json', info());
   put(dir, 'packages/acme/tools.json', index('acme/other'));
@@ -263,7 +264,7 @@ it('hands only a missing info file to the missing hook, with the base location',
   expect(seen).toEqual([dir]);
   put(dir, 'ia-registry.json', JSON.stringify({ format: 'ia.registry.v2', name: 'x' }));
   await expect(openRegistry(parseRegistryBase(dir, dir), { missing })).rejects.toMatchObject(
-    refusal('INPUT-INVALID', /^Not a registry: .*: Not an ia\.registry\.v1 registry$/),
+    refusal('INPUT-INVALID', /^Not a registry: .*: Not an ia\.registry registry$/),
   );
   await expect(openRegistry(parseRegistryBase('absent', dir), { missing })).rejects.toMatchObject(
     refusal('INPUT-INVALID', /is not a directory$/),

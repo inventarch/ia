@@ -233,3 +233,28 @@ export function object(value: unknown, keys: readonly string[]): Record<string, 
     fail('INPUT-INVALID', 'Unexpected managed object fields');
   return value as Record<string, unknown>;
 }
+/**
+ * A document that declares a plain `format` name and an integer `formatVersion` (decision dec-005), or one of the exact
+ * legacy literals written before that change (no `formatVersion`; an explicit allow-list, never suffix parsing).
+ * `keys` are the fields besides `format`/`formatVersion`. Returns the row and the legacy literal read (null for the
+ * plain shape); a different format, or a plain format with another version, refuses with `message`.
+ */
+export function versionedObject(
+  value: unknown,
+  spec: { readonly format: string; readonly version: number; readonly legacy: readonly string[] },
+  keys: readonly string[],
+  message = 'Unexpected managed object fields',
+): { readonly row: Record<string, unknown>; readonly legacy: string | null } {
+  const declared =
+    value !== null && typeof value === 'object' && !Array.isArray(value)
+      ? (value as Record<string, unknown>)['format']
+      : undefined;
+  if (declared === spec.format) {
+    const row = object(value, ['format', 'formatVersion', ...keys]);
+    if (row['formatVersion'] !== spec.version) fail('INPUT-INVALID', message);
+    return { row, legacy: null };
+  }
+  const legacy = spec.legacy.find((literal) => literal === declared);
+  if (legacy === undefined) fail('INPUT-INVALID', message);
+  return { row: object(value, ['format', ...keys]), legacy };
+}
