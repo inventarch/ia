@@ -498,7 +498,8 @@ it('refreshes the pinned private VS Code extension without accepting identity ch
     // Migration does not copy any obsolete metadata, even when the previous receipt carries it.
     put(PUBLIC_INPUTS, { format: 'ia.public-package-inputs.v1', sourceRevision: 'obsolete', recipe: { old: true } });
     const migrated = refreshPublicPackageInputs(directory);
-    expect(migrated.receipt.format).toBe('ia.public-package-inputs.v2');
+    expect(migrated.receipt.format).toBe('public-package-inputs');
+    expect(migrated.receipt.formatVersion).toBe(2);
     expect(migrated.receipt.npm['apps/runner/package.json']).toBe(extension.version);
     expect(migrated.receipt).not.toHaveProperty('recipe');
     expect(publicPackageInputs(directory).sha256).toBe(migrated.sha256);
