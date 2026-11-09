@@ -1,5 +1,5 @@
 /**
- * The one switch of this package for the names it writes into shared documents (decision dec-008, amendment A15).
+ * The one switch of this package for the names it writes into shared documents (decision dec-008).
  *
  * Older, separately released programs read what this package writes and refuse anything but the exact literals they
  * were released with. While this is `false` every writer emits the released name and shape; the plain names stay
