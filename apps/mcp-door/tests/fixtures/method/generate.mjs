@@ -97,9 +97,29 @@ for (const path of ['.claude-plugin/plugin.json', 'config/qualified-process-tool
 add(join(marketplace, 'kits', 'ia-kb'), 'config/kits/ia-kb/');
 writeFileSync(join(out, 'plugin.json.gz'), gzipSync(Buffer.from(JSON.stringify(files)), { level: 9 }));
 
+/**
+ * The kit's lock pins the language base its release was packed on, and a reader restores a kit only on the base it
+ * carries; the archive does not hold the lock. So the plugin the goldens are resolved with locks the kit on this
+ * checkout's bundled base, exactly as `tests/kit-base.ts` does for the tests. `plugin.json.gz` keeps the published lock.
+ */
+function lockedOn(source, base) {
+  const LOCK = 'config/kits/ia-kb/.ia/distributions.lock.json';
+  const lock = JSON.parse(source[LOCK]);
+  const row = lock.packages.find((pkg) => pkg.id === base.id);
+  if (row.archive === base.archive) return source;
+  Object.assign(row, {
+    archive: base.archive,
+    location: `sha256:${base.archive}`,
+    manifest: base.manifest,
+    version: base.version,
+  });
+  return { ...source, [LOCK]: JSON.stringify(lock) + (source[LOCK].endsWith('\n') ? '\n' : '') };
+}
+const bundled = JSON.parse(readFileSync(resolve(out, '../../../assets/base.json'), 'utf8'));
+
 const root = realpathSync(mkdtempSync(join(tmpdir(), 'ia-method-golden-')));
 try {
-  for (const [path, text] of Object.entries(files)) {
+  for (const [path, text] of Object.entries(lockedOn(files, bundled))) {
     mkdirSync(dirname(join(root, 'plugin', path)), { recursive: true });
     writeFileSync(join(root, 'plugin', path), text);
   }
