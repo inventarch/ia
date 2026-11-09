@@ -19,13 +19,19 @@ const KB_KIT = 'inventarch/ia-kb-kit';
 const slashed = (path: string): string => path.split(String.fromCharCode(92)).join('/');
 const DRIVE = /^[A-Za-z]:(?=\/|$)/;
 const isAbsolutePath = (path: string): boolean => path.startsWith('/') || DRIVE.test(path);
+/** `path` without its trailing `/`s, by a backwards scan: a regex here is quadratic on a crafted run of `/`. */
+function withoutTrailingSlashes(path: string): string {
+  let end = path.length;
+  while (end > 0 && path[end - 1] === '/') end--;
+  return path.slice(0, end);
+}
 /**
  * A path as the rules compare it: `/`-separated, case preserved. An absolute path is made relative to the root when
  * both are absolute (a drive letter is dropped from the two together, never from one), else it is kept as given.
  */
 export function relativeTo(root: string, path: string): string {
   const spelled = posix.normalize(slashed(path)),
-    base = slashed(root).replace(/\/+$/, '');
+    base = withoutTrailingSlashes(slashed(root));
   if (!isAbsolutePath(spelled) || !isAbsolutePath(base)) return spelled.replace(/^\.\//, '');
   const [from, to] = [base.replace(DRIVE, ''), spelled.replace(DRIVE, '')];
   return to === from ? '' : to.startsWith(from + '/') ? to.slice(from.length + 1) : spelled;
