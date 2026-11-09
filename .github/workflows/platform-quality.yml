@@ -99,6 +99,11 @@ jobs:
       # publication is prepared (pnpm release:check --strict).
       - name: Validate cohort versions and pending release notes
         run: pnpm release:check
+      # A base change that could invalidate existing records must be a major, an additive one a minor, a label-only one a
+      # patch. The gate compares the newest published base with the built one and proves the method fixture kit on it
+      # with the built CLI.
+      - name: Gate language base changes by compatibility class
+        run: pnpm language:compat-gate
       - name: Validate the test inventory
         run: pnpm tests:inventory
       # A Windows I/O arm compares executed task times, so a run that may reuse results measures nothing. It runs on a

@@ -4803,6 +4803,31 @@
       "reason": "Published Git tag availability and native archive digests must be checked fresh for each qualification."
     },
     {
+      "id": "language:compat-gate",
+      "kind": "command",
+      "project": ".",
+      "command": "pnpm language:compat-gate",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "repository-inventory",
+      "dependsOn": [],
+      "outputs": [
+        "artifacts/tests/language-compat-gate"
+      ],
+      "cache": false,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "node --conditions=development --import tsx tools/release/language-compat-gate.ts --check"
+      ],
+      "reason": "The gate runs the built CLI against the published fixture kit, so it must run fresh for each qualification."
+    },
+    {
       "id": "tools:test-public-release",
       "kind": "vitest",
       "project": ".",
@@ -4834,7 +4859,8 @@
       "kind": "vitest",
       "project": ".",
       "files": [
-        "tools/release/native-version.test.ts"
+        "tools/release/native-version.test.ts",
+        "tools/release/language-compat-gate.test.ts"
       ],
       "profile": "corpus",
       "platforms": [
