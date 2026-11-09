@@ -1,5 +1,6 @@
 {
-  "format": "ia.native-release-notes.v1",
+  "format": "ia.native-release-notes",
+  "formatVersion": 1,
   "baseline": {
     "tag": "v3.8.1",
     "commit": "d3071c3ecc7c278101231ecc6f2628d28250eeee"
