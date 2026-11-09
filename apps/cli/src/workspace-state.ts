@@ -6,6 +6,7 @@
  */
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { refusesInstallation } from '@inventarch/db';
 import { Refusal } from './consumer.js';
 import type { Session } from './session.js';
 import { openSession } from './session.js';
@@ -19,11 +20,13 @@ export const hasWorkspaceSource = (root: string): boolean => existsSync(resolve(
 export const shipsPackage = (root: string): boolean => existsSync(resolve(root, DESCRIPTOR_PATH));
 
 /**
- * The target must admit, with zero error findings, before anything is rendered or registered. The refusal is the CLI's
- * own classification of the target, so it is IA-CLI-CONFLICT and names the command that shows the findings.
+ * The target must admit, with zero error findings but canon ones, before anything is rendered or registered. A canon
+ * finding never blocks rendering (Task 13e): `ia validate` is its gate, as db `refusesInstallation` says for installs.
+ * The refusal is the CLI's own classification of the target, so it is IA-CLI-CONFLICT and names the command that shows
+ * the findings.
  */
 export function requireAdmitted(session: Session, root: string): void {
-  if (session.admission().status !== 'admitted')
+  if (session.admission().findings.some(refusesInstallation))
     throw new Refusal(
       'IA-CLI-CONFLICT',
       'The workspace does not admit; host registration needs a workspace with zero error findings',

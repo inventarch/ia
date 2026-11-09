@@ -1,0 +1,103 @@
+#! ia 1.0
+
+@law canon-a6-source-roots
+  meaning
+    says "In a knowledge repository or a kit, a repository root holds one .ia/src. Another .ia/src is nested inside it only for a separately released or adopted workspace."
+    answers "How many .ia/src roots may a knowledge repository or a kit hold?"
+  governance
+    severity advisory
+    requires "In a knowledge repository or a kit, keep one .ia/src per repository root, and nest another only for a workspace that is separately released or adopted."
+  subject
+    subject-word workspace
+  relationships
+    cites @agent public-workspace-system-steward
+    enforced-by @check canon-a6
+
+@law canon-c4-kit-words
+  meaning
+    says "A kit's method system mints no words, and requires the systems whose vocabulary it uses."
+    answers "May a kit's method system mint words, and which systems must it require?"
+  governance
+    severity advisory
+    requires "In a kit, give the method system no words of its own, and have it require every system whose words it uses."
+  subject
+    subject-word distribution
+  relationships
+    cites @agent public-workspace-system-steward
+    enforced-by @check canon-c4
+
+@law canon-c5a-kit-workspace
+  meaning
+    says "A kit's shipped workspace has no steward and no sources."
+    answers "May the workspace a kit ships declare a steward or sources?"
+  governance
+    severity advisory
+    requires "Ship a kit's workspace without a steward and without sources."
+  subject
+    subject-word workspace
+  relationships
+    cites @agent public-workspace-system-steward
+    enforced-by @check canon-c5a
+
+@law canon-c6-kit-scripts
+  meaning
+    says "A kit holds no scripts, and acts through an execution-binding."
+    answers "How does a kit act without holding scripts?"
+  governance
+    severity advisory
+    requires "Keep scripts out of every kit, and have the kit act through an execution-binding."
+  subject
+    subject-word distribution
+  relationships
+    cites @agent public-workspace-system-steward
+
+@law canon-c12-teaching-links
+  meaning
+    says "Markdown links in a shipped .ia/src stay inside that .ia/src, or are absolute URLs."
+    answers "Where may a markdown link in a shipped .ia/src point?"
+  governance
+    severity advisory
+    requires "In a shipped .ia/src, write every markdown link as a path that stays inside that .ia/src, or as an absolute URL."
+  subject
+    subject-word distribution
+  relationships
+    cites @agent public-workspace-system-steward
+    enforced-by @check canon-c12
+
+@law canon-d9-no-secrets
+  meaning
+    says "Portable kit archives and generated public plugins hold no secrets."
+    answers "May a portable kit archive or a generated public plugin carry a secret?"
+  governance
+    severity advisory
+    requires "Put no secret in a portable kit archive or in a generated public plugin."
+  subject
+    subject-word distribution
+  relationships
+    cites @agent public-workspace-system-steward
+
+@law canon-e4-local-tighten
+  meaning
+    says "A local rule only tightens the rule it adds to, and cites what it tightens."
+    answers "How may a local rule relate to the canon rule on the same word?"
+  governance
+    severity advisory
+    requires "Make a local rule on a canon rule's word cite the canon rule it tightens, and make it no weaker than that rule."
+  subject
+    subject-word law
+  relationships
+    cites @agent public-governance-system-steward
+    enforced-by @check canon-e4
+
+@law canon-e5-mandate-narrow
+  meaning
+    says "Mandates intersect and never widen: a mandate grants nothing the mandate it narrows does not."
+    answers "May a mandate allow a move or cover a path that the mandate it cites does not?"
+  governance
+    severity advisory
+    requires "Make a mandate that cites another mandate allow no move and cover no path that the cited mandate does not."
+  subject
+    subject-word mandate
+  relationships
+    cites @agent public-agent-system-steward
+    enforced-by @check canon-e5

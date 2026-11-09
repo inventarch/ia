@@ -6,6 +6,7 @@ Compile and validate native corpora, repository architecture/work policy, public
 
 ## Modules
 
+- [canon-cases.test.ts](canon-cases.test.ts) — every canon case evaluator names an existing test file and a test in it with exactly that title.
 - [check.test.ts](check.test.ts) — behavior and refusal coverage.
 - [check.ts](check.ts).
 - [compile.ts](compile.ts).
@@ -28,6 +29,7 @@ Compile and validate native corpora, repository architecture/work policy, public
 - [release-work.ts](release-work.ts).
 - [repository-architecture.test.ts](repository-architecture.test.ts) — behavior and refusal coverage.
 - [repository-architecture.ts](repository-architecture.ts).
+- [stewardship.test.ts](stewardship.test.ts) — behavior and refusal coverage.
 - [work-example.test.ts](work-example.test.ts) — behavior and refusal coverage.
 
 ## Commands

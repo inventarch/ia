@@ -31,8 +31,8 @@
     },
     {
       "path": ".ia/src/systems/agent-composition-system/SPEC.md",
-      "bytes": 2620,
-      "sha256": "4105c6e9d538a47be3cfb4a4752d091c9a412500843ab1b967721aacdd7de35b",
+      "bytes": 2706,
+      "sha256": "7444e91c671c031f7c3c9c38f00f30bd7b77c732e4c3c90d34c4e76930b0ff5c",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -80,8 +80,8 @@
     },
     {
       "path": ".ia/src/systems/agent-system/SPEC.md",
-      "bytes": 249,
-      "sha256": "b938032174da02789a9b8def370b4b2ae5ae79e749aa4bf6e4873de21eb51d13",
+      "bytes": 335,
+      "sha256": "f3824a7ecf945a9cd355eae50d024e21b2f186e85f341a91de9e94cb28c36ab2",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -101,8 +101,8 @@
     },
     {
       "path": ".ia/src/systems/authoring-system/SPEC.md",
-      "bytes": 1703,
-      "sha256": "b302d848e6b6315b59bbf202ac54b0c1986aa219543fdff9809a994857aed577",
+      "bytes": 1789,
+      "sha256": "77fd8600990ce719385b774750dcb9124833249274bea790c044f80f22c89603",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -430,8 +430,8 @@
     },
     {
       "path": ".ia/src/systems/compliance-system/SPEC.md",
-      "bytes": 254,
-      "sha256": "4bef22c4bd82f760ff3b4e520e6c440572a5e25618abccfc051976d78f6ff2da",
+      "bytes": 340,
+      "sha256": "8580cd43a1dff856e1e156f74963bedb2c68f7613ae6d7c97fdb20fae495f8c0",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -451,8 +451,8 @@
     },
     {
       "path": ".ia/src/systems/governance-system/SPEC.md",
-      "bytes": 254,
-      "sha256": "2e9de68ff06ac48335451ecc4d884768b6c12515749a3349f85c0a7a3db285cd",
+      "bytes": 340,
+      "sha256": "7965eb89c90362667eca45ef3dce63fd530a30a6a8eb2396cfecba917adda354",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -472,8 +472,8 @@
     },
     {
       "path": ".ia/src/systems/hook-authoring-system/SPEC.md",
-      "bytes": 258,
-      "sha256": "c8dcd6a754b437bd7a1dfe9b6ea074d4a24dd13c2c6d02030f04eae3d472303d",
+      "bytes": 344,
+      "sha256": "597640038646032f948ae6ea3d2f5863b81b53c4d48b3866e99ccf8b9a33a805",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -493,8 +493,8 @@
     },
     {
       "path": ".ia/src/systems/learning-system/SPEC.md",
-      "bytes": 252,
-      "sha256": "c1322307ce22cd3b11a81a4738caaf17c16a777fbff1ded70cbe653e1df30b8c",
+      "bytes": 338,
+      "sha256": "bd41344ed57407ea2ef0862090b0d3721d900d115c03e0d99460f21ea67ee09f",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -514,8 +514,8 @@
     },
     {
       "path": ".ia/src/systems/session-system/SPEC.md",
-      "bytes": 895,
-      "sha256": "ef6542a9564a3ef0e9e796928eea76caecd740b55b1c361357521ffdccf5ede4",
+      "bytes": 981,
+      "sha256": "e3460acf9934a9097522f5074a422956365f3959794ae0b553ba2818c7978181",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -535,8 +535,8 @@
     },
     {
       "path": ".ia/src/systems/template-system/SPEC.md",
-      "bytes": 1150,
-      "sha256": "de45191b65ec44f25ed694bac4ed451500718180c8a81e516f08c7a1826080cf",
+      "bytes": 1236,
+      "sha256": "1da8c02c7e5e166417ab87633de57a29553455997c400f35293348258b3950b5",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -556,8 +556,8 @@
     },
     {
       "path": ".ia/src/systems/work-system/SPEC.md",
-      "bytes": 248,
-      "sha256": "9f9c07f3de3f0389f998015266382da6c81d41af08e3e4894c5bf4bdf05682c0",
+      "bytes": 334,
+      "sha256": "cd75b2e1279d98979b4c432142cd9b10f47e00ec41c436e541811a1a2aa01498",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -577,8 +577,8 @@
     },
     {
       "path": ".ia/src/systems/workspace-system/SPEC.md",
-      "bytes": 253,
-      "sha256": "6718c0a021e127cef522e0cc0617d397f27db32291148306fedfddced732e112",
+      "bytes": 339,
+      "sha256": "3d72d36705d5eaf5ac1b17c8ba3e79fdcac0c0503df14628fa59ddee5cf37b09",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     }

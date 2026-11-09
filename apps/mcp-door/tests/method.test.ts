@@ -7,6 +7,7 @@ import {
   rmSync,
   writeFileSync,
   copyFileSync,
+  cpSync,
   existsSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -18,6 +19,7 @@ import { packDistribution } from '@inventarch/distribution/pack';
 import { folderKits, packetDigest, projectOf, readReleases, registerWorkspace } from '@inventarch/runtime/method';
 import { MethodTools, restoreKit } from '../src/method.js';
 import { Protocol } from '../src/protocol.js';
+import { KIT_LOCK, lockedOn } from './kit-base.js';
 
 /**
  * The method tools against `fixtures/method`: `plugin.json.gz` holds the public `ia` plugin's scripts and support files
@@ -25,7 +27,8 @@ import { Protocol } from '../src/protocol.js';
  * plugin's `resolve.mjs` printed for the same consumer, bindings, task and subject hash, with the temporary root as
  * `<ROOT>`, its digest taken over that content by the plugin's own `packetDigest`, and the envelope, which no digest
  * covers, left out. `consumer` is a workspace whose lock installs the kit through a real installation; `bare` is the same
- * workspace with no lock, which a bound kit refuses.
+ * workspace with no lock, which a bound kit refuses. The plugin's kit is locked on this door's language base first
+ * (`kit-base.ts`), as `generate.mjs` locks it for the goldens.
  */
 const fixture = new URL('./fixtures/method/', import.meta.url);
 const golden = (name: string): unknown => JSON.parse(readFileSync(new URL(name, fixture), 'utf8'));
@@ -39,10 +42,10 @@ let root: string, consumer: string, bare: string, kits: string, env: NodeJS.Proc
 
 beforeAll(() => {
   root = realpathSync(mkdtempSync(join(tmpdir(), 'ia-door-method-')));
-  const files = JSON.parse(gunzipSync(readFileSync(new URL('plugin.json.gz', fixture))).toString('utf8')) as Record<
-    string,
-    string
-  >;
+  const files = lockedOn(
+    JSON.parse(gunzipSync(readFileSync(new URL('plugin.json.gz', fixture))).toString('utf8')) as Record<string, string>,
+    BASE,
+  );
   for (const [path, text] of Object.entries(files)) {
     mkdirSync(dirname(join(root, 'plugin', path)), { recursive: true });
     writeFileSync(join(root, 'plugin', path), text);
@@ -283,3 +286,21 @@ it('restores a kit read root under the IA home when the host names no cache', ()
   expect(user).toMatch(/^inventarch-core-/);
   expect(readdirSync(join(roots, user!)).filter((name) => name.startsWith('kit-'))).toHaveLength(1);
 }, 120_000);
+
+it('refuses to restore a kit locked on a language base this door does not carry', () => {
+  // A copy of the fixture kit locked on a base archive this door does not carry, as a published kit is after a base release.
+  const source = join(root, 'foreign', 'ia-kb');
+  cpSync(join(root, 'packed', 'ia-kb'), source, { recursive: true });
+  const lock = JSON.parse(readFileSync(join(root, 'packed', KIT_LOCK.slice('config/kits/'.length)), 'utf8')) as {
+    packages: { id: string; archive: string; version: string }[];
+  };
+  for (const row of lock.packages)
+    if (row.id === BASE.id) Object.assign(row, { archive: '0'.repeat(64), version: '0.0.1' });
+  writeFileSync(join(source, '.ia', 'distributions.lock.json'), JSON.stringify(lock));
+  expect(() => restoreKit(source, folderKits(join(root, 'foreign'))[0]!)).toThrow(
+    expect.objectContaining({
+      code: 'IA-CORE-CLI-UNSUPPORTED',
+      message: `kit inventarch/ia-kb-kit 0.9.0 locks inventarch/language 0.0.1, and this door carries ${BASE.version}: use the @inventarch/mcp-door release that ships it`,
+    }),
+  );
+});

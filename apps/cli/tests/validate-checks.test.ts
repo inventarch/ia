@@ -713,6 +713,7 @@ it('prints exactly what it printed before when --verify-conformance is absent', 
     'truncated',
     'bindings',
     'checks',
+    'laws',
     'evidence',
   ]);
   const human = await run(['validate', '--root', root], { env });

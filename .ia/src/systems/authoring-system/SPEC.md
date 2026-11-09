@@ -1,6 +1,6 @@
 # @inventarch/authoring-system
 
-Public language mechanism. The [language reference](LANGUAGE.md) defines vocabulary and evaluation limits. Package exports describe the installed API. Curated agent methods and hosted services are supplied independently.
+Public language mechanism. The [language reference](LANGUAGE.md) defines vocabulary and evaluation limits. Package exports describe the installed API. Curated agent methods and hosted services are [supplied independently](https://github.com/inventarch/ia/blob/main/docs/reference/hosted-service/README.md).
 
 The [draft authoring contract](contracts/draft-authoring.ia) governs the two draft operations. Their native success and malformed-source refusal cases live in [validate-ia](cases/validate-ia.ia) and [format-ia](cases/format-ia.ia); `tools/systems/execute.test.ts` executes those declarations against the real handlers in an isolated fixture workspace. The evaluator and fixture paths are repository-only; installed archives carry the declarations, not the test harness. These cases describe draft validation and formatting, without certifying publication or an installed host.
 

@@ -10,7 +10,7 @@ import {
   reproducesEvidence,
   writeEvidence,
 } from '@inventarch/db';
-import type { CheckBinding, CheckCatalog, EvidenceWrite, Handle } from '@inventarch/db';
+import type { CheckBinding, CheckCatalog, EvidenceWrite, Handle, LawStatus } from '@inventarch/db';
 import {
   decodeDistributionJson,
   decodeDistributionLock,
@@ -487,6 +487,11 @@ export interface WorkspaceSession {
    * same `trust` and the same joined catalog as `bindings`. Reads only; never writes.
    */
   checks(trust: HostTrust | null): ValidationChecks;
+  /**
+   * Every admitted `@law` with its status (`LawStatus`), as a validation reports it: enforcement is resolved on the
+   * graph and judged against the report's verdicts. A pending, not-evaluated or suspended law never refuses anything.
+   */
+  laws(): readonly LawStatus[];
   close(): void;
 }
 const compareText = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
@@ -597,6 +602,7 @@ export function openWorkspaceSession(options: SessionOptions): WorkspaceSession 
           : { status: joined.status, reason: joined.reason };
       return { catalog: source(joined), results: bindChecks(records, report, catalog) };
     },
+    laws: (): readonly LawStatus[] => reader.laws(),
     close: (): void => reader.close(),
   };
 }

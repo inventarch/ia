@@ -20,6 +20,19 @@ export {
   validateConsent,
   validateIdentity,
 } from './graph-checks.js';
+export { CANON_CODES, canonSeverity, lawStatuses, refusesInstallation } from './canon/laws.js';
+export {
+  canonAssessment,
+  canonAssessments,
+  canonKitMethodWords,
+  canonKitWorkspace,
+  canonLocalTightening,
+  canonMandateNarrowing,
+  canonWorkPlacement,
+  executingKitSystems,
+  isKitWorkspace,
+} from './canon/rules.js';
+export type { LawState, LawStatus } from './canon/laws.js';
 export { validateVariants } from './variants.js';
 export { validateAdoption } from './adoption.js';
 export type { AdoptionEvaluators, ClauseContext, ClauseEvaluator, ClauseResult } from './adoption.js';

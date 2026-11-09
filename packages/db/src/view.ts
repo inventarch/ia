@@ -24,6 +24,7 @@ import {
 import type { Assessment, Report, SystemFolder } from '@inventarch/compliance';
 import type { InputSnapshot } from './inputs.js';
 import { EVIDENCE_DIRECTORY, evidenceSource, systemMember } from './inputs.js';
+import { canonFileAssessments } from './canon/files.js';
 import { bindChecks } from './checks.js';
 import { conformanceOf } from './conformance.js';
 import { reproducesEvidence } from './evidence.js';
@@ -734,6 +735,12 @@ function views(
         sourceDiagnostics,
         folders: folders.filter((f) => !blockedFolders.has(f.path)),
         admission: observations,
+        // Canon file rules (C12, A6, C6) read the checkout. Their own channel keeps them unfiltered, so an advisory
+        // law's warnings and its passing verdict reach the report (the admission channel drops passing assessments).
+        canonFiles: canonFileAssessments(input.root, [...graph.nodes.values()], {
+          graph,
+          ...(input.installed ? { installed: input.installed } : {}),
+        }),
         ...(options.checks === 'structural' ? { checks: 'structural' as const } : {}),
       },
       unverified = evaluate(graph, evaluated),

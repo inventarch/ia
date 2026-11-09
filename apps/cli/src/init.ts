@@ -1,6 +1,6 @@
 import { registryWorkspace } from './adopt.js';
 import { HostPluginError, lowerPlugin, readPlugin } from '@inventarch/workspace-runtime/internal/host-plugin';
-import { adoptedBindings } from '@inventarch/db';
+import { adoptedBindings, refusesInstallation } from '@inventarch/db';
 import { adoptionId, OPEN_ATTRIBUTES, planAdoption, applyAdoption } from '@inventarch/distribution/registry';
 import type { WorkspaceRelease } from '@inventarch/distribution/registry';
 import { readBase, PIN_PATH, PACKAGE_ID, DAMAGED } from './bundled-base.js';
@@ -2036,7 +2036,8 @@ export function collectMigration(request: MigrationRequest): MigrationView {
   let records: readonly Compiled[], admitted: boolean;
   try {
     records = session.reader.records();
-    admitted = session.admission().status === 'admitted';
+    // A canon finding never refuses (Task 13e): `ia validate` is its gate.
+    admitted = !session.admission().findings.some(refusesInstallation);
   } finally {
     session.close();
   }
@@ -2348,8 +2349,9 @@ const MIGRATED = 'The workspace is migrated.';
 const MIGRATED_CAPTURED = 'The workspace is migrated and captured.';
 const MIGRATED_UNCAPTURED = 'The workspace is migrated but not captured.';
 /**
- * The admission step `ia init` and `ia init --migrate` share: zero error findings, then each planned starter record as
- * the compiled graph holds it at its path, never string-constructed, with every record the graph holds.
+ * The admission step `ia init` and `ia init --migrate` share: zero error findings but canon ones (Task 13e), then each
+ * planned starter record as the compiled graph holds it at its path, never string-constructed, with every record the
+ * graph holds.
  * `done` opens each refusal's next action with what the command completed before it, if anything.
  */
 function admitStarter(
@@ -2360,7 +2362,7 @@ function admitStarter(
 ): { readonly compiled: readonly Compiled[]; readonly records: readonly Compiled[] } {
   const session = openWorkspaceSession({ root });
   try {
-    const errors = session.admission().findings.filter((finding) => finding.severity === 'error');
+    const errors = session.admission().findings.filter(refusesInstallation);
     if (errors.length > 0)
       throw new Refusal(
         'IA-CLI-FAILED',

@@ -1,8 +1,69 @@
 {
   "format": "ia.native-release-notes.v1",
   "baseline": {
-    "tag": "v3.5.1",
-    "commit": "3832a8061e9a826f8b86f7f52e7f15961ea4da91"
+    "tag": "v3.6.0",
+    "commit": "ec5dec6d8b37ff15e0e5d2fa625d8de4b2838cc2"
   },
-  "changes": []
+  "changes": [
+    {
+      "id": "inventarch/agent-composition-system",
+      "bump": "patch",
+      "summary": "Align exact native dependencies on the changed `governance-system`."
+    },
+    {
+      "id": "inventarch/agent-system",
+      "bump": "patch",
+      "summary": "Link the supplied-independently sentence of the SPEC to the public hosted-service relationship page."
+    },
+    {
+      "id": "inventarch/authoring-system",
+      "bump": "patch",
+      "summary": "Align exact native dependencies on the changed `governance-system`."
+    },
+    {
+      "id": "inventarch/compliance-system",
+      "bump": "patch",
+      "summary": "Link the supplied-independently sentence of the SPEC to the public hosted-service relationship page."
+    },
+    {
+      "id": "inventarch/governance-system",
+      "bump": "minor",
+      "summary": "Add the public IA canon owned by `governance-system` as advisory guidance: the advisory `law` records A6, C4, C5a, C6, C12, D9, E4 and E5, the `principle` records A13 and C5b, and the `contract` ia-canon with one `check` naming the built-in evaluator for each evaluated requirement and its success and refusal `case` records. It also carries the canon's supporting context as advisory `convention` and `principle` records applied by subject word: the boundary-selection order with its provisional rule, its tie-breakers, release and ownership notes and verdict form, and pointer `convention` records that bring the order and the ask-before rule to `distribution` and `system` seats; asking before a boundary record is created on an unknown or provisional answer; storage authority; one `workspace` per source root by default; system split review, including its stated costs; and the steward change path (acceptance, suspension, proposal, judgement, local variation, definition approval and change cadence), with the pending `law` canon-steward-authority on the `mandate` word. E4's `check` and `case` records state its evaluator's scope: it judges only a local `law` or `convention` that cites a canon `law`, which must govern that `law`'s word and be no weaker; whether a tightening rule cites the `law` it tightens is left to review. The `law` records A6, C4, C5a, C12, E4 and E5 are each enforced by their `check` at advisory severity, so their evaluators run in `ia validate` and `ia preview` and report warnings that block nothing; C6 is not enforced by its `check` yet and reports pending, and D9's evaluator is deferred, so it reports pending too."
+    },
+    {
+      "id": "inventarch/hook-authoring-system",
+      "bump": "patch",
+      "summary": "Align exact native dependencies on the changed `governance-system`."
+    },
+    {
+      "id": "inventarch/language",
+      "bump": "patch",
+      "summary": "Align the embedded native system selection with the changed `governance-system`. IA syntax remains 1.0."
+    },
+    {
+      "id": "inventarch/learning-system",
+      "bump": "patch",
+      "summary": "Align exact native dependencies on the changed `governance-system`."
+    },
+    {
+      "id": "inventarch/session-system",
+      "bump": "patch",
+      "summary": "Align exact native dependencies on the changed `governance-system`."
+    },
+    {
+      "id": "inventarch/template-system",
+      "bump": "patch",
+      "summary": "Align exact native dependencies on the changed `governance-system`."
+    },
+    {
+      "id": "inventarch/work-system",
+      "bump": "minor",
+      "summary": "Add the public IA canon `law` A14 (work records never sit inside a vocabulary system's folder) as advisory guidance on the `spec` word, with the `contract` ia-canon-work, a `check` naming its built-in evaluator and its success and refusal `case` records. The `check` enforces the `law` at advisory severity, so its evaluator runs in `ia validate` and `ia preview` and reports warnings that block nothing. Exact native dependencies follow the changed `governance-system`."
+    },
+    {
+      "id": "inventarch/workspace-system",
+      "bump": "patch",
+      "summary": "Link the supplied-independently sentence of the SPEC to the public hosted-service relationship page."
+    }
+  ]
 }

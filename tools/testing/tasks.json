@@ -1255,6 +1255,7 @@
         "tests/refusal-next.test.ts",
         "tests/tracked-concurrency.test.ts",
         "tests/validate-checks.test.ts",
+        "tests/validate-laws.test.ts",
         "tests/workspace-verbs.test.ts",
         "tests/workspaces.test.ts"
       ],
@@ -2273,6 +2274,9 @@
       "kind": "vitest",
       "project": "packages/compliance",
       "files": [
+        "tests/canon-corpus.test.ts",
+        "tests/canon-laws.test.ts",
+        "tests/canon-rules.test.ts",
         "tests/evaluator-catalog.test.ts",
         "tests/field-relations-baseline.test.ts",
         "tests/graph.test.ts",
@@ -2436,6 +2440,8 @@
       "project": "packages/db",
       "files": [
         "tests/acceptance.test.ts",
+        "tests/canon-files.test.ts",
+        "tests/canon-linear.test.ts",
         "tests/check-evidence.test.ts",
         "tests/complete-scope.test.ts",
         "tests/descriptors.test.ts",
@@ -2865,6 +2871,7 @@
       "files": [
         "tests/applies.test.ts",
         "tests/authoring.test.ts",
+        "tests/canon-delivery.test.ts",
         "tests/composition.test.ts",
         "tests/context.test.ts",
         "tests/coordinate.test.ts",
@@ -3635,7 +3642,8 @@
       "project": ".",
       "files": [
         "tools/docs/audit.test.ts",
-        "tools/docs/link-parity.test.ts"
+        "tools/docs/link-parity.test.ts",
+        "tools/docs/teaching-scanner-parity.test.ts"
       ],
       "profile": "unit",
       "platforms": [
@@ -3778,7 +3786,9 @@
         "tools/native/work-example.test.ts",
         "tools/native/check.test.ts",
         "tools/native/language-base.test.ts",
-        "tools/native/public-systems.test.ts"
+        "tools/native/public-systems.test.ts",
+        "tools/native/stewardship.test.ts",
+        "tools/native/canon-cases.test.ts"
       ],
       "profile": "corpus",
       "platforms": [

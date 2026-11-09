@@ -17,13 +17,15 @@ import { packDistribution } from '@inventarch/distribution/pack';
 import { folderKits, readReleases } from '@inventarch/runtime/method';
 import { MethodTools, restoreKit } from '../src/method.js';
 import { Protocol } from '../src/protocol.js';
+import { lockedOn } from './kit-base.js';
 
 /**
  * The door at a workspace whose lock installs kits from an npm package of kits (contract C7b, ia-kb `dec-133`). npm is
  * transport only: the engine installs the package entry's kits as ordinary releases in the workspace store, and the
  * door reads them from there. The kit is the ia-kb kit of `fixtures/method/plugin.json.gz` (marketplace 63f5d75,
  * Apache-2.0; `fixtures/method/PROVENANCE.json`), packed here with this package's language base into exactly the
- * archive its `releases.json` names for 0.9.0, so the entry pins the published release.
+ * archive its `releases.json` names for 0.9.0, so the entry pins the published release. The kit is locked on that base
+ * first (`kit-base.ts`); its archive does not carry the lock.
  */
 const fixtures = new URL('./fixtures/', import.meta.url);
 const BASE = JSON.parse(readFileSync(new URL('../assets/base.json', import.meta.url), 'utf8')) as {
@@ -37,15 +39,19 @@ let kit: { id: string; version: string; archive: string; manifest: string; bytes
 
 beforeAll(() => {
   root = realpathSync(mkdtempSync(join(tmpdir(), 'ia-door-installed-kits-')));
-  const files = JSON.parse(
-    gunzipSync(readFileSync(new URL('method/plugin.json.gz', fixtures))).toString('utf8'),
-  ) as Record<string, string>;
+  const files = lockedOn(
+    JSON.parse(gunzipSync(readFileSync(new URL('method/plugin.json.gz', fixtures))).toString('utf8')) as Record<
+      string,
+      string
+    >,
+    BASE,
+  );
   plugin = join(root, 'plugin');
   for (const [path, text] of Object.entries(files)) {
     mkdirSync(dirname(join(plugin, path)), { recursive: true });
     writeFileSync(join(plugin, path), text);
   }
-  // `ia pack` of the fixture kit, in a copy restored with the language base it locks.
+  // `ia pack` of the fixture kit, in a copy restored with the language base it locks (`kit-base.ts`).
   const source = join(root, 'kits', 'ia-kb');
   for (const [path, text] of Object.entries(files))
     if (path.startsWith('config/kits/ia-kb/')) {

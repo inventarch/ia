@@ -27,7 +27,16 @@
       "genre": "spec",
       "title": "Host registration",
       "status": "implemented",
-      "sourceDigest": "e6f8b0bc4902524bb53bf56305dc78ace3cc91ca8c2f068dcbd26dd11aefa3aa"
+      "sourceDigest": "54a362aac4986f3563e1f25f7dc593ff1d734fb41a4bec8befc0c968a97fe300"
+    },
+    {
+      "id": "spec-kit-runtime",
+      "path": "docs/specs/kit-runtime/README.md",
+      "profile": "lifecycle",
+      "genre": "spec",
+      "title": "Kit runtime",
+      "status": "implemented",
+      "sourceDigest": "717c0c6864b4427e0d260130b75ddb6c1563d49fcb1ee0e53be5bd463683c091"
     },
     {
       "id": "spec-registry",
