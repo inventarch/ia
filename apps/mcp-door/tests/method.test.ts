@@ -18,7 +18,7 @@ import { packDistribution } from '@inventarch/distribution/pack';
 import { folderKits, packetDigest, projectOf, readReleases, registerWorkspace } from '@inventarch/runtime/method';
 import { MethodTools, restoreKit } from '../src/method.js';
 import { Protocol } from '../src/protocol.js';
-import { CARRIED, KIT_LOCK, lockedOn, restoreInPlace } from './kit-base.js';
+import { CARRIED, KIT_LOCK, restoreInPlace } from './kit-base.js';
 
 /**
  * The method tools against `fixtures/method`: `plugin.json.gz` holds the public `ia` plugin's scripts and support files
@@ -26,9 +26,9 @@ import { CARRIED, KIT_LOCK, lockedOn, restoreInPlace } from './kit-base.js';
  * plugin's `resolve.mjs` printed for the same consumer, bindings, task and subject hash, with the temporary root as
  * `<ROOT>`, its digest taken over that content by the plugin's own `packetDigest`, and the envelope, which no digest
  * covers, left out. `consumer` is a workspace whose lock installs the kit through a real installation; `bare` is the same
- * workspace with no lock, which a bound kit refuses. The plugin compared with the goldens holds the kit locked on this
- * door's newest base (`kit-base.ts` `lockedOn`), as `generate.mjs` locks it for the goldens; every other kit here is the
- * published one, its lock as shipped.
+ * workspace with no lock, which a bound kit refuses. Every kit here is the published one, its lock as shipped (it pins
+ * the base the 0.9.0 release was packed on, 3.2.0), never re-locked: this door and the CLI that resolved the goldens
+ * each carry that base and restore the kit on it exactly.
  */
 const fixture = new URL('./fixtures/method/', import.meta.url);
 const golden = (name: string): unknown => JSON.parse(readFileSync(new URL(name, fixture), 'utf8'));
@@ -48,7 +48,7 @@ beforeAll(() => {
     string,
     string
   >;
-  for (const [path, text] of Object.entries(lockedOn(published, BASE))) {
+  for (const [path, text] of Object.entries(published)) {
     mkdirSync(dirname(join(root, 'plugin', path)), { recursive: true });
     writeFileSync(join(root, 'plugin', path), text);
   }
