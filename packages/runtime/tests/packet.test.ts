@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { expect, it } from 'vitest';
-import { CAPTURE_FORMAT, writeCapture } from '@inventarch/db';
+import { CAPTURE_FORMAT, CAPTURE_FORMAT_VERSION, writeCapture } from '@inventarch/db';
 import type { Handle } from '@inventarch/db';
 import { digest } from '@inventarch/graph';
 import type { Node } from '@inventarch/graph';
@@ -412,7 +412,7 @@ it('moves only the host note when a capture is written: the packet and its diges
   });
   writeCapture(
     root,
-    `${JSON.stringify({ format: CAPTURE_FORMAT, revision: db.revision, membership: db.snapshot().membership })}\n`,
+    `${JSON.stringify({ format: CAPTURE_FORMAT, formatVersion: CAPTURE_FORMAT_VERSION, revision: db.revision, membership: db.snapshot().membership })}\n`,
   );
   db.refresh();
   const after = render(db);
@@ -436,7 +436,7 @@ it('keeps the packet, its digest, every rendered file and a current capture acro
       );
   writeCapture(
     root,
-    `${JSON.stringify({ format: CAPTURE_FORMAT, revision: db.revision, authoredRevision: db.authoredRevision, membership: db.snapshot().membership })}\n`,
+    `${JSON.stringify({ format: CAPTURE_FORMAT, formatVersion: CAPTURE_FORMAT_VERSION, revision: db.revision, authoredRevision: db.authoredRevision, membership: db.snapshot().membership })}\n`,
   );
   db.refresh();
   const revision = db.revision,

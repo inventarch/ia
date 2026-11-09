@@ -24,7 +24,10 @@ import { Refusal } from './consumer.js';
 import { quote } from './render.js';
 
 export const TRACKED_FILE = 'tracked-workspaces.json';
-export const TRACKED_FORMAT = 'ia-tracked-workspaces-1';
+export const TRACKED_FORMAT = 'ia-tracked-workspaces';
+export const TRACKED_FORMAT_VERSION = 1;
+/** The literal a list written before `formatVersion` existed carries; still read, rewritten plain on the next save. */
+const LEGACY_TRACKED_FORMATS: readonly string[] = ['ia-tracked-workspaces-1'];
 /** The MCP door's id rule, so a later slice could share ids between the two lists. */
 export const TRACK_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 /** `ia workspaces find`'s default depth below the folder, and the most `--depth` may ask for. */
@@ -132,7 +135,10 @@ function load(home: string): Loaded {
     throw invalid((error as Error).message);
   }
   if (!isObject(parsed)) throw invalid('it is not a JSON object');
-  if (parsed['format'] !== TRACKED_FORMAT)
+  if (parsed['format'] === TRACKED_FORMAT) {
+    if (parsed['formatVersion'] !== TRACKED_FORMAT_VERSION)
+      throw invalid(`its formatVersion is ${JSON.stringify(parsed['formatVersion'])}, not ${TRACKED_FORMAT_VERSION}`);
+  } else if (!LEGACY_TRACKED_FORMATS.includes(parsed['format'] as string) || Object.hasOwn(parsed, 'formatVersion'))
     throw invalid(`its format is ${JSON.stringify(parsed['format'])}, not ${TRACKED_FORMAT}`);
   const listed = parsed['workspaces'];
   if (!Array.isArray(listed)) throw invalid('workspaces is not a list');
@@ -152,7 +158,8 @@ function load(home: string): Loaded {
 }
 /** The document with its rows replaced; every other key, and every key of a kept row, as it was read. */
 function save(home: string, loaded: Loaded, rows: readonly object[]): void {
-  const document = { ...(loaded.document ?? { format: TRACKED_FORMAT }), workspaces: rows };
+  // Every other key stays as it was read; the format itself is always written in the plain shape.
+  const document = { ...loaded.document, format: TRACKED_FORMAT, formatVersion: TRACKED_FORMAT_VERSION, workspaces: rows };
   writeHomeFile(home, TRACKED_FILE, JSON.stringify(document, null, 2) + '\n');
 }
 

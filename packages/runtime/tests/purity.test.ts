@@ -1,6 +1,6 @@
 import { basename, resolve } from 'node:path';
 import { expect, it } from 'vitest';
-import { CAPTURE_FORMAT, writeCapture } from '@inventarch/db';
+import { CAPTURE_FORMAT, CAPTURE_FORMAT_VERSION, writeCapture } from '@inventarch/db';
 import type { Handle } from '@inventarch/db';
 import { digest } from '@inventarch/graph';
 import type { Location } from '@inventarch/language';
@@ -36,7 +36,7 @@ const at = (db: Handle, partial: Partial<ScopeKey>, within = db.resolveScope().t
 const text = (body: PositionBody): string => JSON.stringify(body);
 const captureOf = (db: Handle): string =>
   `${JSON.stringify({
-    format: CAPTURE_FORMAT,
+    format: CAPTURE_FORMAT, formatVersion: CAPTURE_FORMAT_VERSION,
     revision: db.revision,
     authoredRevision: db.authoredRevision,
     membership: db.snapshot().membership,

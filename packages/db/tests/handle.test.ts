@@ -32,6 +32,7 @@ it('verifies an identical cache without rewriting and preserves authored bytes',
   expect(first.cache.state).toBe('written');
   expect(first.cache.observations).toEqual([]);
   const bytes = readFileSync(path, 'utf8');
+  expect(JSON.parse(bytes)).toMatchObject({ format: 'ia-graph', formatVersion: 1 });
   utimesSync(path, new Date(100000), new Date(100000));
   const modified = statSync(path).mtimeMs;
   const second = open(root);

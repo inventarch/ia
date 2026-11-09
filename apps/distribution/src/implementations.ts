@@ -15,7 +15,7 @@ import { verifierOf } from './host-observe.js';
 import type { HostVerifier } from './host-observe.js';
 import type { WorkspaceHost } from './hosts.js';
 import { asWorkspaceHost } from './hosts.js';
-import { bytes, contained, fail, json, locate, object, replace, sha256, utf8, workspace } from './files.js';
+import { bytes, contained, fail, json, locate, object, replace, sha256, utf8, versionedObject, workspace } from './files.js';
 
 /**
  * The installed-implementation catalog a v2 host payload carries at its root. The payload builder
@@ -49,7 +49,10 @@ export type {
 export const INSTALLED_IMPLEMENTATIONS_ID = 'installed-implementations';
 /** The join receipts each consumer records under its own name, beside the host state files. */
 export const JOINS = '.ia/distributions/hosts/joins.json';
-export const JOINS_FORMAT = 'ia.host-joins.v1';
+export const JOINS_FORMAT = 'ia.host-joins';
+export const JOINS_FORMAT_VERSION = 1;
+/** The literal join files carried before `formatVersion` existed; still read, never written. */
+const LEGACY_JOINS_FORMATS: readonly string[] = ['ia.host-joins.v1'];
 
 /** The catalog as `readInstalledImplementations` verified it in one materialized payload. */
 export interface InstalledImplementations extends InstalledImplementationsValue {
@@ -206,8 +209,12 @@ export function readJoins(rootInput: string): readonly ImplementationJoin[] | nu
   return locate(JOINS, () => {
     const content = text(bytes(root, JOINS));
     if (content === null) return null;
-    const row = object(decodeDistributionJson(content), ['format', 'joins']);
-    if (row['format'] !== JOINS_FORMAT || !Array.isArray(row['joins']) || row['joins'].length > ROWS)
+    const { row } = versionedObject(
+      decodeDistributionJson(content),
+      { format: JOINS_FORMAT, version: JOINS_FORMAT_VERSION, legacy: LEGACY_JOINS_FORMATS },
+      ['joins'],
+    );
+    if (!Array.isArray(row['joins']) || row['joins'].length > ROWS)
       fail('INPUT-INVALID', 'Invalid join receipts');
     const joins = row['joins'].map(joinRow);
     if (new Set(joins.map((join) => join.consumer)).size !== joins.length)
@@ -222,7 +229,7 @@ function writeJoin(root: string, consumer: WorkspaceHost, row: ImplementationJoi
   const joins = [...others, ...(row === null ? [] : [row])].sort((a, b) => byText(a.consumer, b.consumer));
   if (current === null && joins.length === 0) return;
   if (current !== null && json(joins) === json(current)) return;
-  replace(root, JOINS, joins.length === 0 ? null : Buffer.from(json({ format: JOINS_FORMAT, joins })));
+  replace(root, JOINS, joins.length === 0 ? null : Buffer.from(json({ format: JOINS_FORMAT, formatVersion: JOINS_FORMAT_VERSION, joins })));
 }
 /**
  * Run `work` under the host lock, as every host write runs. The lock is taken first and a pending host journal is

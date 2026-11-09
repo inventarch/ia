@@ -1,7 +1,7 @@
 import { cpSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
-import { CAPTURE_FORMAT, writeCapture } from '@inventarch/db';
+import { CAPTURE_FORMAT, CAPTURE_FORMAT_VERSION, writeCapture } from '@inventarch/db';
 import type { Handle } from '@inventarch/db';
 import type { Location } from '@inventarch/language';
 import { Door, MACHINE_PROTOCOL, NEXT_CODES, RUNTIME_CODES, deliveryView } from '../src/index.js';
@@ -454,7 +454,7 @@ it('reads an observation at the previous snapshot digest as stale, and never as 
   writeCapture(
     root,
     JSON.stringify({
-      format: CAPTURE_FORMAT,
+      format: CAPTURE_FORMAT, formatVersion: CAPTURE_FORMAT_VERSION,
       revision: 'a'.repeat(64),
       membership: [{ identity: task('guide'), root: '.ia/src', band: 100, digest: '1'.repeat(64) }],
     }),
@@ -902,7 +902,7 @@ it('refuses a require cycle between milestones, naming the milestone rows', () =
 
 it('reads only through the scope it is given, deterministically, and writes nothing', () => {
   const root = delivery('base');
-  writeCapture(root, JSON.stringify({ format: CAPTURE_FORMAT, revision: 'a'.repeat(64), membership: [] }));
+  writeCapture(root, JSON.stringify({ format: CAPTURE_FORMAT, formatVersion: CAPTURE_FORMAT_VERSION, revision: 'a'.repeat(64), membership: [] }));
   const db = database(root, { cache: true }),
     scope = db.resolveScope().token;
   // The handle writes its cache when it opens; the view writes nothing, its reads of the capture pair included.

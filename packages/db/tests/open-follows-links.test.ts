@@ -1,7 +1,7 @@
 import { closeSync, constants, lstatSync, openSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
-import { CAPTURE_CURRENT, CAPTURE_FORMAT, open, planCapture, readInputs } from '../src/index.js';
+import { CAPTURE_CURRENT, CAPTURE_FORMAT, CAPTURE_FORMAT_VERSION, open, planCapture, readInputs } from '../src/index.js';
 import type { InputSnapshot } from '../src/index.js';
 import { OPENED_READ_FLAGS, OPENS_THROUGH_LINKS } from '../src/named.js';
 import { otherDevice, outcome, vanishAtRecheck } from './file-races.js';
@@ -37,7 +37,7 @@ const corpusRoot = (): string => {
 };
 const corpus = (root: string): unknown => outcome(() => readInputs(root));
 const captureText = (letter: string): string =>
-  `${JSON.stringify({ format: CAPTURE_FORMAT, revision: letter.repeat(64), membership: [] })}\n`;
+  `${JSON.stringify({ format: CAPTURE_FORMAT, formatVersion: CAPTURE_FORMAT_VERSION, revision: letter.repeat(64), membership: [] })}\n`;
 const pairRoot = (): string => {
   const root = workspace(false);
   put(root, CAPTURE_CURRENT, captureText('a'));

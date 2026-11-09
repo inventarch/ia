@@ -16,6 +16,7 @@ import {
   CAPTURE_CURRENT,
   CAPTURE_DIRECTORY,
   CAPTURE_FORMAT,
+  CAPTURE_FORMAT_VERSION,
   CAPTURE_PREVIOUS,
   open,
   planCapture,
@@ -74,7 +75,7 @@ const stale = (db: ReturnType<typeof open>, snapshot: Snapshot) =>
 /** The retained part of an `ia-snapshot-1` capture of the handle's root view, as `ia capture` writes it. */
 const captureOf = (db: ReturnType<typeof open>): string =>
   `${JSON.stringify({
-    format: CAPTURE_FORMAT,
+    format: CAPTURE_FORMAT, formatVersion: CAPTURE_FORMAT_VERSION,
     revision: db.revision,
     authoredRevision: db.authoredRevision,
     membership: db.snapshot().membership,
@@ -361,13 +362,16 @@ type Pair = Pick<Snapshot, 'revision' | 'membership'>;
  * one, so a file trusted despite its defect would visibly seed `previousRevision`.
  */
 const seeded = (good: Pair, row: Record<string, unknown> = {}) => ({
-  format: CAPTURE_FORMAT,
+  format: CAPTURE_FORMAT, formatVersion: CAPTURE_FORMAT_VERSION,
   revision: '1'.repeat(64),
   membership: good.membership.map((r) => (r.identity === methodId ? { ...r, ...row } : r)),
 });
 it.each([
   ['broken JSON', () => '{'],
   ['a foreign format', (good: Pair) => JSON.stringify({ ...seeded(good), format: 'ia.compiled.v1' })],
+  ['no formatVersion under the plain format', (good: Pair) => JSON.stringify({ ...seeded(good), formatVersion: undefined })],
+  ['another formatVersion', (good: Pair) => JSON.stringify({ ...seeded(good), formatVersion: 2 })],
+  ['an unlisted version literal', (good: Pair) => JSON.stringify({ ...seeded(good), format: 'ia-snapshot-2', formatVersion: undefined })],
   ['a short revision', (good: Pair) => JSON.stringify({ ...seeded(good), revision: '1'.repeat(63) })],
   ['a short authored revision', (good: Pair) => JSON.stringify({ ...seeded(good), authoredRevision: '1'.repeat(63) })],
   ['a null authored revision', (good: Pair) => JSON.stringify({ ...seeded(good), authoredRevision: null })],
@@ -516,7 +520,7 @@ it('trusts a capture by its authored revision and the rows of its records not at
   probe.close();
   expect(good.authoredRevision).not.toBe(good.revision);
   const captured = (capture: Record<string, unknown>) => {
-    put(root, CAPTURE_CURRENT, JSON.stringify({ format: CAPTURE_FORMAT, ...capture }));
+    put(root, CAPTURE_CURRENT, JSON.stringify({ format: CAPTURE_FORMAT, formatVersion: CAPTURE_FORMAT_VERSION, ...capture }));
     const db = open(root, { cache: false, locations });
     try {
       return [db.capturedRevision, db.capturedAuthoredRevision, db.previousAuthoredRevision];
@@ -759,7 +763,7 @@ it('sorts each identity list of a plan by code unit, whatever order either docum
   /** An `ia-snapshot-1` document whose membership rows are in the order given, each with its digest. */
   const document = (revision: string, rows: readonly (readonly [string, string])[]) =>
     `${JSON.stringify({
-      format: CAPTURE_FORMAT,
+      format: CAPTURE_FORMAT, formatVersion: CAPTURE_FORMAT_VERSION,
       revision: revision.repeat(64),
       membership: rows.map(([identity, digest]) => ({ identity, root: '', band: 100, digest: digest.repeat(64) })),
     })}\n`;
@@ -977,7 +981,7 @@ it('refuses a snapshot directory, or .ia/work, that is not a directory, before a
 
 /** A capture of no records at revision `letter` x 64, as `ia capture` writes one. */
 const captureText = (letter: string): string =>
-  `${JSON.stringify({ format: CAPTURE_FORMAT, revision: letter.repeat(64), membership: [] })}\n`;
+  `${JSON.stringify({ format: CAPTURE_FORMAT, formatVersion: CAPTURE_FORMAT_VERSION, revision: letter.repeat(64), membership: [] })}\n`;
 /** A workspace of no sources whose current.json holds the capture at revision a x 64. */
 const pairRoot = (): string => {
   const root = workspace(false);
@@ -1160,5 +1164,20 @@ it('retains nothing in the cache-free editor reader', () => {
     expect(existsSync(resolve(root, '.ia/.iadb'))).toBe(false);
   } finally {
     editor.close();
+  }
+});
+
+it('still seeds from a capture written under the legacy ia-snapshot-1 literal', () => {
+  const root = workspace(),
+    probe = open(root, { cache: false }),
+    good = probe.snapshot();
+  probe.close();
+  const { formatVersion: _formatVersion, ...legacy } = { ...seeded(good), format: 'ia-snapshot-1', formatVersion: 1 };
+  put(root, CAPTURE_CURRENT, JSON.stringify(legacy));
+  const db = open(root, { cache: false });
+  try {
+    expect(db.capturedRevision).toBe('1'.repeat(64));
+  } finally {
+    db.close();
   }
 });

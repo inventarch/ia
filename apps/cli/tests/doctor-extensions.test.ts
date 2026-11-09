@@ -106,6 +106,9 @@ it('malformed state is one unknown row', () => {
     '{not json',
     { format: 'other', checks: [] },
     { format: 'ia-extension-checks-1', checks: [{ id: 'acme-x' }] },
+    { format: 'ia-extension-checks', checks: [row('acme-account')] },
+    { format: 'ia-extension-checks', formatVersion: 2, checks: [row('acme-account')] },
+    { format: 'ia-extension-checks-1', formatVersion: 1, checks: [row('acme-account')] },
   ])
     expect(extensionChecks([acme(CONSOLE)], home(state))).toEqual([
       expect.objectContaining({
@@ -176,4 +179,14 @@ it('doctor appends extension rows after the user rows, in Environment', () => {
   expect(ids.at(-1)).toBe('acme-account');
   expect(ids.indexOf('acme-account')).toBeGreaterThan(ids.indexOf('workspace-decision'));
   expect(view.counts.warn).toBeGreaterThan(0);
+});
+
+it('reads the plain format with formatVersion 1 beside the legacy ia-extension-checks-1 literal', () => {
+  for (const state of [
+    { format: 'ia-extension-checks', formatVersion: 1, checks: [row('acme-account')] },
+    { format: 'ia-extension-checks-1', checks: [row('acme-account')] },
+  ])
+    expect(extensionChecks([acme(CONSOLE)], home(state))).toEqual([
+      expect.objectContaining({ id: 'acme-account', status: 'warn', detail: 'Not signed in' }),
+    ]);
 });
