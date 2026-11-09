@@ -27,7 +27,7 @@
       "genre": "spec",
       "title": "Host registration",
       "status": "implemented",
-      "sourceDigest": "e6f8b0bc4902524bb53bf56305dc78ace3cc91ca8c2f068dcbd26dd11aefa3aa"
+      "sourceDigest": "54a362aac4986f3563e1f25f7dc593ff1d734fb41a4bec8befc0c968a97fe300"
     },
     {
       "id": "spec-kit-runtime",
