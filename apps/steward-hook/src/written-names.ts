@@ -1,5 +1,5 @@
 /**
- * The one switch of this package for the names it writes into shared documents (decision dec-008, amendment A15).
+ * The one switch of this package for the names it writes into shared documents (decision dec-008).
  *
  * Older, separately released programs probe this hook's identity and compare the implementation digest it reports,
  * and refuse anything but the exact literals they were released with. While this is `false` the identity and the
