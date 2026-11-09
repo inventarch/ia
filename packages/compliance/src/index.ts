@@ -83,6 +83,7 @@ export { EVALUATION_PROFILES, profileOccurrences } from './profiles.js';
 export type { EvaluationProfile, ProfileBinding } from './profiles.js';
 export {
   EVIDENCE_RECEIPT_FORMAT,
+  EVIDENCE_RECEIPT_FORMAT_VERSION,
   EVIDENCE_RESULTS,
   acceptEvaluatorOutput,
   adaptBuiltinVerdict,

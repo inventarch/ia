@@ -454,7 +454,8 @@ it('reads an observation at the previous snapshot digest as stale, and never as 
   writeCapture(
     root,
     JSON.stringify({
-      format: CAPTURE_FORMAT, formatVersion: CAPTURE_FORMAT_VERSION,
+      format: CAPTURE_FORMAT,
+      formatVersion: CAPTURE_FORMAT_VERSION,
       revision: 'a'.repeat(64),
       membership: [{ identity: task('guide'), root: '.ia/src', band: 100, digest: '1'.repeat(64) }],
     }),
@@ -902,7 +903,15 @@ it('refuses a require cycle between milestones, naming the milestone rows', () =
 
 it('reads only through the scope it is given, deterministically, and writes nothing', () => {
   const root = delivery('base');
-  writeCapture(root, JSON.stringify({ format: CAPTURE_FORMAT, formatVersion: CAPTURE_FORMAT_VERSION, revision: 'a'.repeat(64), membership: [] }));
+  writeCapture(
+    root,
+    JSON.stringify({
+      format: CAPTURE_FORMAT,
+      formatVersion: CAPTURE_FORMAT_VERSION,
+      revision: 'a'.repeat(64),
+      membership: [],
+    }),
+  );
   const db = database(root, { cache: true }),
     scope = db.resolveScope().token;
   // The handle writes its cache when it opens; the view writes nothing, its reads of the capture pair included.

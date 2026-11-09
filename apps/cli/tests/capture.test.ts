@@ -431,7 +431,10 @@ it('replaces a current.json that is no capture and retains no previous capture b
   for (const [text, reason] of [
     ['not json\n', 'is not JSON'],
     ['{"format":"ia.compiled.v1"}\n', `is not an ${SNAPSHOT_FORMAT} document`],
-    [`{"format":"${SNAPSHOT_FORMAT}","formatVersion":1,"revision":"r","membership":[]}\n`, 'has no revision or membership rows'],
+    [
+      `{"format":"${SNAPSHOT_FORMAT}","formatVersion":1,"revision":"r","membership":[]}\n`,
+      'has no revision or membership rows',
+    ],
     [
       `{"format":"${SNAPSHOT_FORMAT}","formatVersion":1,"revision":"${'a'.repeat(64)}","membership":[{"identity":"x"}]}\n`,
       'has a malformed membership row',

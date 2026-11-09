@@ -76,7 +76,11 @@ it('creates the layout from one verified archive, copying the release metadata f
     version: '1.0.0',
     archive: release.archive,
   });
-  expect(decodeRegistryInfo(read(dir, 'ia-registry.json'))).toEqual({ format: 'ia.registry', formatVersion: 1, name: basename(dir) });
+  expect(decodeRegistryInfo(read(dir, 'ia-registry.json'))).toEqual({
+    format: 'ia.registry',
+    formatVersion: 1,
+    name: basename(dir),
+  });
   expect(readFileSync(join(dir, 'artifacts', `${release.archive}.ia.tgz`)).equals(release.bytes)).toBe(true);
   expect(index(dir, 'acme/lib')).toEqual({
     format: 'ia.registry-package',

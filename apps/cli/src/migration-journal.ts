@@ -123,7 +123,9 @@ export function readMigrationJournal(root: string, system: boolean, pin: BasePin
   try {
     journal = readWorkspaceJson({ root, path: MIGRATION_JOURNAL }) as MigrationJournal;
     if (
-      !(journal.format === 'ia-migration' ? journal.formatVersion === 1 : journal.format === 'ia-migration-1' && !Object.hasOwn(journal, 'formatVersion')) ||
+      !(journal.format === 'ia-migration'
+        ? journal.formatVersion === 1
+        : journal.format === 'ia-migration-1' && !Object.hasOwn(journal, 'formatVersion')) ||
       journal.view.root !== root ||
       journal.view.system !== system ||
       !/^[a-z][a-z0-9-]*$/.test(journal.view.name) ||

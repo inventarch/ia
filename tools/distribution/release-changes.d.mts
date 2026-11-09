@@ -16,6 +16,7 @@ export interface ChangeEntry {
 }
 export interface Changeset {
   format: string;
+  formatVersion?: number;
   version: string;
   state: string;
   baseline: ReleasePolicy['baseline'];

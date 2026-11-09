@@ -36,7 +36,8 @@ const at = (db: Handle, partial: Partial<ScopeKey>, within = db.resolveScope().t
 const text = (body: PositionBody): string => JSON.stringify(body);
 const captureOf = (db: Handle): string =>
   `${JSON.stringify({
-    format: CAPTURE_FORMAT, formatVersion: CAPTURE_FORMAT_VERSION,
+    format: CAPTURE_FORMAT,
+    formatVersion: CAPTURE_FORMAT_VERSION,
     revision: db.revision,
     authoredRevision: db.authoredRevision,
     membership: db.snapshot().membership,

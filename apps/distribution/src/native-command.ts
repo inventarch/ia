@@ -249,9 +249,10 @@ export async function runNative(argv: readonly string[]): Promise<{ result: unkn
     if (!plan || typeof plan !== 'object' || !('root' in plan) || plan.root !== root)
       fail('INPUT-INVALID', 'Saved plan must match the explicit root');
     result =
-      'format' in plan && plan.format === 'ia.host-plan.v1'
+      'format' in plan && (plan.format === 'ia.host-plan' || plan.format === 'ia.host-plan.v1')
         ? applyHost(plan)
-        : 'format' in plan && plan.format === 'ia.lifecycle-registration-plan.v1'
+        : 'format' in plan &&
+            (plan.format === 'ia.lifecycle-registration-plan' || plan.format === 'ia.lifecycle-registration-plan.v1')
           ? applyLifecycleRegistration(plan)
           : applyInstallation(plan);
   } else if (command === 'plan lifecycle' || command === 'plan lifecycle-remove') {

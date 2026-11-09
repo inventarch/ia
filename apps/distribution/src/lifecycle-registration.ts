@@ -6,7 +6,19 @@ import type { LifecycleProfile } from '@inventarch/workspace-runtime/lifecycle-p
 import { createContextHookBinding } from '@inventarch/steward-hook/context';
 import type { ContextHookBindingInput } from '@inventarch/steward-hook/context';
 import { acquireHostRegistrationLock, assertHostRegistrationIdle, nodeCommand, verifyHostCache } from './host.js';
-import { bytes, digest, fail, json, object, replace, sha256, utf8, workspace } from './files.js';
+import {
+  bytes,
+  digest,
+  fail,
+  json,
+  object,
+  replace,
+  sha256,
+  utf8,
+  versionedDocument,
+  versionedObject,
+  workspace,
+} from './files.js';
 import { editJson, emptyJson, keptPaths, presentJson } from './json-edit.js';
 import type { JsonPath } from './json-edit.js';
 
@@ -22,7 +34,9 @@ interface Side {
   readonly state: string | null;
 }
 interface State {
-  readonly format: 'ia.lifecycle-registration-state.v1' | 'ia.lifecycle-registration-state.v2';
+  /** `ia.lifecycle-registration-state` with formatVersion 2 (twelve segmented hooks), or an older record: formatVersion 1 or the legacy literals. */
+  readonly format: string;
+  readonly formatVersion?: 1 | 2;
   readonly revision: number;
   readonly id: string;
   readonly cache: string;
@@ -43,7 +57,8 @@ interface Group {
 }
 type Event = 'SessionStart' | 'UserPromptSubmit';
 export interface LifecycleRegistrationPlan {
-  readonly format: 'ia.lifecycle-registration-plan.v1';
+  readonly format: 'ia.lifecycle-registration-plan';
+  readonly formatVersion: 1;
   readonly root: string;
   readonly id: string;
   readonly request: LifecycleRegistrationRequest;
@@ -90,7 +105,12 @@ function plain(value: unknown): Record<string, unknown> {
 const named = (profile: Pick<LifecycleProfile, 'host' | 'version'>): string => `${profile.host} ${profile.version}`;
 /** The first reason an identity row does not serve the binding's own profile, in the order format, profile, slots, characters. */
 function identityMismatch(row: Record<string, unknown>, profile: LifecycleProfile): string | null {
-  if (row['format'] !== 'ia.context-hook-identity.v2')
+  // The identity declares `ia.context-hook-identity` with formatVersion 2; a cache built earlier reports the legacy literal.
+  if (
+    row['format'] === 'ia.context-hook-identity'
+      ? row['formatVersion'] !== 2
+      : row['format'] !== 'ia.context-hook-identity.v2'
+  )
     return 'Installed cache reports an unknown context identity format, not ia.context-hook-identity.v2';
   if (row['profile'] !== profile.digest) {
     // A binding must name the row its verified cache reports, so a known row points at the binding's profile, not at the cache.
@@ -123,8 +143,14 @@ export function probeContextHookImplementation(
   });
   if (result.error || result.status !== 0 || result.signal || Buffer.byteLength(result.stdout ?? '') > 4096)
     fail('HOST-UNSUPPORTED', 'Installed context identity probe failed');
-  const row = object(decodeDistributionJson(result.stdout), [
+  const value = decodeDistributionJson(result.stdout),
+    declaresVersion =
+      value !== null &&
+      typeof value === 'object' &&
+      (value as Record<string, unknown>)['format'] === 'ia.context-hook-identity',
+    row = object(value, [
       'format',
+      ...(declaresVersion ? ['formatVersion'] : []),
       'implementation',
       'profile',
       'slots',
@@ -157,19 +183,26 @@ function groups(
 function saved(content: string | null, root: string, id: string): State | null {
   if (content === null) return null;
   const value = plain(decodeDistributionJson(content)),
-    row = object(value, [
-      'format',
-      'revision',
-      'id',
-      'cache',
-      'release',
-      'binding',
-      'created',
-      'groups',
-      ...(Object.hasOwn(value, 'existing') ? ['existing'] : []),
-    ]);
+    { row, version: stateVersion } = versionedDocument(
+      value,
+      {
+        format: 'ia.lifecycle-registration-state',
+        versions: [1, 2],
+        legacy: { 'ia.lifecycle-registration-state.v1': 1, 'ia.lifecycle-registration-state.v2': 2 },
+      },
+      [
+        'revision',
+        'id',
+        'cache',
+        'release',
+        'binding',
+        'created',
+        'groups',
+        ...(Object.hasOwn(value, 'existing') ? ['existing'] : []),
+      ],
+      'Invalid lifecycle ownership state',
+    );
   if (
-    !['ia.lifecycle-registration-state.v1', 'ia.lifecycle-registration-state.v2'].includes(row['format'] as string) ||
     row['id'] !== id ||
     typeof row['cache'] !== 'string' ||
     !isAbsolute(row['cache']) ||
@@ -184,10 +217,7 @@ function saved(content: string | null, root: string, id: string): State | null {
   const owned = object(row['groups'], events);
   for (const event of events) {
     const group = object(owned[event], event === 'SessionStart' ? ['matcher', 'hooks'] : ['hooks']);
-    if (
-      !Array.isArray(group['hooks']) ||
-      group['hooks'].length !== (row['format'] === 'ia.lifecycle-registration-state.v2' ? 12 : 1)
-    )
+    if (!Array.isArray(group['hooks']) || group['hooks'].length !== (stateVersion === 2 ? 12 : 1))
       fail('INPUT-INVALID', 'Invalid owned hook group');
     const handler = object(group['hooks'][0], ['type', 'command', 'args', 'timeout']);
     if (
@@ -203,16 +233,7 @@ function saved(content: string | null, root: string, id: string): State | null {
       typeof command !== 'string' ||
       !isAbsolute(command) ||
       json(group) !==
-        json(
-          groups(
-            root,
-            row['cache'],
-            id,
-            handler['timeout'] as number,
-            row['format'] === 'ia.lifecycle-registration-state.v2',
-            command,
-          )[event],
-        )
+        json(groups(root, row['cache'], id, handler['timeout'] as number, stateVersion === 2, command)[event])
     )
       fail('INPUT-INVALID', 'Owned context command differs from its fixed binding');
   }
@@ -321,7 +342,8 @@ export function planLifecycleRegistration(
     binding: nextBinding,
     state: cache
       ? json({
-          format: 'ia.lifecycle-registration-state.v2',
+          format: 'ia.lifecycle-registration-state',
+          formatVersion: 2,
           revision,
           id,
           cache: cache.directory,
@@ -342,7 +364,8 @@ export function planLifecycleRegistration(
   if (cache && verifyHostCache(cache.directory).release !== cache.release)
     fail('PLAN-STALE', 'Host cache changed during context planning');
   const body = {
-    format: 'ia.lifecycle-registration-plan.v1' as const,
+    format: 'ia.lifecycle-registration-plan' as const,
+    formatVersion: 1 as const,
     root,
     id,
     request,
@@ -370,8 +393,29 @@ export function applyLifecycleRegistration(
   ports: LifecycleRegistrationPorts = defaultPorts,
   checkpoint: (stage: string) => void = () => {},
 ): { status: 'lifecycle-registered' | 'lifecycle-removed'; id: string; delivery: 'unconfirmed' } {
-  const row = object(input, ['format', 'root', 'id', 'request', 'release', 'before', 'after', 'digest']);
-  if (row['format'] !== 'ia.lifecycle-registration-plan.v1' || typeof row['root'] !== 'string')
+  // A saved plan from before formatVersion digests its old body: it is recognised and asked to be made again.
+  if (
+    input !== null &&
+    typeof input === 'object' &&
+    (input as Record<string, unknown>)['format'] === 'ia.lifecycle-registration-plan.v1'
+  )
+    fail('PLAN-STALE', 'Lifecycle plan was made by an earlier version; plan again');
+  const row = object(input, [
+    'format',
+    'formatVersion',
+    'root',
+    'id',
+    'request',
+    'release',
+    'before',
+    'after',
+    'digest',
+  ]);
+  if (
+    row['format'] !== 'ia.lifecycle-registration-plan' ||
+    row['formatVersion'] !== 1 ||
+    typeof row['root'] !== 'string'
+  )
     fail('INPUT-INVALID', 'Invalid lifecycle registration plan');
   const root = workspace(row['root']),
     id = identity(row['id']),
@@ -380,7 +424,11 @@ export function applyLifecycleRegistration(
     const plan = planLifecycleRegistration(root, row['request'] as LifecycleRegistrationRequest, ports);
     if (json(plan) !== json(input)) fail('PLAN-STALE', 'Lifecycle plan no longer matches its current inputs');
     const before = current(root, id);
-    write(root, pendingPath, json({ format: 'ia.lifecycle-registration-pending.v1', id, before, after: plan.after }));
+    write(
+      root,
+      pendingPath,
+      json({ format: 'ia.lifecycle-registration-pending', formatVersion: 1, id, before, after: plan.after }),
+    );
     checkpoint('pending');
     same(root, id, before);
     write(root, bindingPath(id), plan.after.binding);
@@ -418,9 +466,12 @@ export function recoverLifecycleRegistration(rootInput: string): { status: 'life
       fail('RECOVERY-REQUIRED', 'Run recover-guard for the pending guard registration');
     const content = read(root, pendingPath, 8 * 1024 * 1024);
     if (content === null) return { status: 'current' };
-    const row = object(decodeDistributionJson(content), ['format', 'id', 'before', 'after']);
-    if (row['format'] !== 'ia.lifecycle-registration-pending.v1')
-      fail('INPUT-INVALID', 'Unknown context recovery format');
+    const { row } = versionedObject(
+      decodeDistributionJson(content),
+      { format: 'ia.lifecycle-registration-pending', version: 1, legacy: ['ia.lifecycle-registration-pending.v1'] },
+      ['id', 'before', 'after'],
+      'Unknown context recovery format',
+    );
     const id = identity(row['id']);
     const side = (value: unknown): Side => {
       const data = object(value, ['config', 'binding', 'state']);
