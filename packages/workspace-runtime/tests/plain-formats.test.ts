@@ -1,5 +1,21 @@
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+/** The package's one switch, flipped here to prove the plain names come back exactly when the follow-up release flips it. */
+const flip = vi.hoisted(() => ({ plain: false }));
+vi.mock('../src/written-names.js', () => ({
+  get WRITE_PLAIN_NAMES() {
+    return flip.plain;
+  },
+}));
+const withPlain = <T>(run: () => T): T => {
+  flip.plain = true;
+  try {
+    return run();
+  } finally {
+    flip.plain = false;
+  }
+};
 import { captureAuthoringManifestBytes } from '../src/authoring-manifest.js';
 import { createAuthoringIndex, verifyAuthoringIndex } from '../src/authoring.js';
 import { verifyResources } from '../src/resources.js';
@@ -70,49 +86,41 @@ describe('the format stamp', () => {
 });
 
 describe('captured resources and the authoring index', () => {
-  it('writes the plain names, and verifies a legacy envelope and index as written under their own digests', () => {
+  it('writes the released literals, and reads both the plain names and the original ones under their own digests', () => {
     const f = authoringFixture();
     try {
-      expect(f.resources).toMatchObject({
-        format: 'captured-resources',
-        formatVersion: 1,
-      });
-      const oldResources = legacy(f.resources, 'ia.captured-resources.v1'),
-        verified = verifyResources(oldResources, f.capture);
-      expect(verified.format).toBe('ia.captured-resources.v1');
-      expect(Object.hasOwn(verified, 'formatVersion')).toBe(false);
-      expect(verified.digest).toBe(oldResources['digest']);
+      // The fixture is the released form, which keeps its pinned digests.
+      expect(f.resources).toMatchObject({ format: 'ia.captured-resources.v1' });
+      expect(Object.hasOwn(f.resources, 'formatVersion')).toBe(false);
+      const plainResources = plain(f.resources, 'captured-resources') as unknown as typeof f.resources,
+        verified = verifyResources(plainResources, f.capture);
+      expect(verified).toMatchObject({ format: 'captured-resources', formatVersion: 1 });
+      expect(verified.digest).toBe(plainResources.digest);
       expect(verified.digest).not.toBe(f.resources.digest);
+      expect(verifyResources(f.resources, f.capture)).toEqual(f.resources);
       for (const bad of [
-        { ...f.resources, formatVersion: 2 },
-        {
-          ...f.resources,
-          format: 'captured-resources',
-          formatVersion: undefined,
-        },
+        { ...plainResources, formatVersion: 2 },
+        { ...plainResources, formatVersion: undefined },
         { ...f.resources, format: 'ia.captured-resources.v2' },
-        { ...oldResources, formatVersion: 1 },
+        { ...f.resources, formatVersion: 1 },
       ])
         expect(() => verifyResources(bad, f.capture)).toThrow();
 
       const index = createAuthoringIndex(f.capture, f.resources, f.input);
-      expect(index).toMatchObject({
-        format: 'authoring-index',
-        formatVersion: 1,
-      });
-      expect(verifyAuthoringIndex(plain(index, 'authoring-index'), f.capture, f.resources)).toEqual(index);
-      // A retained index written under the original literal re-derives under that literal, so its digest still holds.
-      const oldIndex = legacy(createAuthoringIndex(f.capture, verified, f.input), 'ia.authoring-index.v1'),
-        checked = verifyAuthoringIndex(oldIndex, f.capture, verified);
-      expect(checked.format).toBe('ia.authoring-index.v1');
-      expect(checked.digest).toBe(oldIndex['digest']);
-      expect(checked.digest).not.toBe(index.digest);
+      expect(index).toMatchObject({ format: 'ia.authoring-index.v1' });
+      expect(Object.hasOwn(index, 'formatVersion')).toBe(false);
+      expect(verifyAuthoringIndex(index, f.capture, f.resources)).toEqual(index);
+      // Written once the switch flips, the index is the plain one and verifies under its own digest.
+      const plainIndex = withPlain(() => createAuthoringIndex(f.capture, plainResources, f.input));
+      expect(plainIndex).toMatchObject({ format: 'authoring-index', formatVersion: 1 });
+      expect(verifyAuthoringIndex(plainIndex, f.capture, plainResources)).toEqual(plainIndex);
+      expect(plainIndex.digest).not.toBe(index.digest);
       for (const bad of [
         plain({ ...index, format: 'authoring-index' }, 'authoring-index-two'),
-        { ...index, formatVersion: 2 },
-        { ...oldIndex, formatVersion: 1 },
+        { ...plainIndex, formatVersion: 2 },
+        { ...index, formatVersion: 1 },
       ])
-        expect(() => verifyAuthoringIndex(bad, f.capture, verified)).toThrow();
+        expect(() => verifyAuthoringIndex(bad, f.capture, plainResources)).toThrow();
     } finally {
       f.reader.close();
     }
@@ -161,11 +169,12 @@ describe('captured resources and the authoring index', () => {
           ...body,
         }),
         original = run({ format: 'ia.authoring-resources.v1', ...body });
-      expect(current.resources).toMatchObject({
+      expect(current.resources).toMatchObject({ format: 'ia.captured-resources.v1' });
+      expect(original).toEqual(current);
+      expect(withPlain(() => run({ format: 'ia.authoring-resources.v1', ...body })).resources).toMatchObject({
         format: 'captured-resources',
         formatVersion: 1,
       });
-      expect(original).toEqual(current);
       for (const bad of [
         { format: 'authoring-resources', ...body },
         { format: 'authoring-resources', formatVersion: 2, ...body },
@@ -222,49 +231,48 @@ describe('lifecycle profiles and events', () => {
     profileFromRows(claudeCodeRows, 'claude-code', version, {
       format: 'ia.lifecycle-profile.v1',
     });
-  it('writes the plain profile and still verifies, and names the row of, a profile under the original literal', () => {
+  it('writes the released profile, and still verifies, and names the row of, a profile under either stamp', () => {
     const current = lifecycleProfile('claude-code', SELECTED_CLAUDE_CODE_VERSION),
-      old = original(SELECTED_CLAUDE_CODE_VERSION);
-    expect(current).toMatchObject({
-      format: 'lifecycle-profile',
-      formatVersion: 1,
-    });
-    expect(Object.hasOwn(old, 'formatVersion')).toBe(false);
-    expect(old.digest).toBe('b25a5786a27e21e6b81449739d114d66be7c77ac9339c058919402111c8525b2');
-    expect(current.digest).not.toBe(old.digest);
-    expect(verifyLifecycleProfile(current)).toEqual(current);
+      old = original(SELECTED_CLAUDE_CODE_VERSION),
+      plain = withPlain(() => lifecycleProfile('claude-code', SELECTED_CLAUDE_CODE_VERSION));
+    // By default the profile is the released one, with the digest the released programs pin.
+    expect(current).toMatchObject({ format: 'ia.lifecycle-profile.v1' });
+    expect(Object.hasOwn(current, 'formatVersion')).toBe(false);
+    expect(current.digest).toBe('b25a5786a27e21e6b81449739d114d66be7c77ac9339c058919402111c8525b2');
+    expect(old).toEqual(current);
+    expect(plain).toMatchObject({ format: 'lifecycle-profile', formatVersion: 1 });
+    expect(plain.digest).not.toBe(old.digest);
+    expect(verifyLifecycleProfile(plain)).toEqual(plain);
     expect(verifyLifecycleProfile(old)).toEqual(old);
-    for (const digest of [current.digest, old.digest])
+    for (const digest of [plain.digest, old.digest])
       expect(segmentedLifecycleRow(digest)).toEqual({
         host: 'claude-code',
         version: SELECTED_CLAUDE_CODE_VERSION,
       });
     for (const bad of [
-      { ...current, formatVersion: 2 },
+      { ...plain, formatVersion: 2 },
       { ...old, formatVersion: 1 },
-      { ...current, format: 'ia.lifecycle-profile.v1' },
+      { ...plain, format: 'ia.lifecycle-profile.v1' },
       { ...old, format: 'ia.lifecycle-profile.v2' },
       { ...old, version: '2.1.278' },
     ])
       expect(() => verifyLifecycleProfile(bad as never)).toThrow();
   });
-  it('decodes an event under a legacy profile, stamping it plain and keeping the profile digest', () => {
+  it('decodes an event under a legacy profile, stamping it as written and keeping the profile digest', () => {
     const old = original('2.1.278'),
-      event = decodeLifecycleEvent(
-        verifyLifecycleProfile(old),
-        JSON.stringify({
-          hook_event_name: 'UserPromptSubmit',
-          session_id: 'host-session',
-          cwd: '/fixed/project',
-          prompt: 'Implement the change',
-          prompt_id: 'prompt-1',
-        }),
-      );
-    expect(event).toMatchObject({
-      format: 'lifecycle-event',
-      formatVersion: 1,
-      profile: old.digest,
-    });
+      decode = () =>
+        decodeLifecycleEvent(
+          verifyLifecycleProfile(old),
+          JSON.stringify({
+            hook_event_name: 'UserPromptSubmit',
+            session_id: 'host-session',
+            cwd: '/fixed/project',
+            prompt: 'Implement the change',
+            prompt_id: 'prompt-1',
+          }),
+        );
+    expect(decode()).toMatchObject({ format: 'ia.lifecycle-event.v1', profile: old.digest });
+    expect(withPlain(decode)).toMatchObject({ format: 'lifecycle-event', formatVersion: 1, profile: old.digest });
   });
 });
 
@@ -305,25 +313,25 @@ describe('task capture selections', () => {
 });
 
 describe('projection descriptors and catalogs', () => {
-  it('rebuilds a catalog and a descriptor under the literal each carries, and refuses another', () => {
+  it('rebuilds a catalog under the literal each carries, written released until the switch flips, and refuses another', () => {
     const impl = 'a'.repeat(64);
     for (const [make, name] of [
       [claudeProseCatalog, 'claude-prose'],
       [codexProseCatalog, 'codex-prose'],
     ] as const) {
-      const catalog = make(impl);
+      const old = make(impl),
+        catalog = withPlain(() => make(impl));
+      expect(old).toMatchObject({
+        format: 'ia.projection-catalog.v1',
+        profile: { id: `ia.host.${name}.v1` },
+      });
+      expect(Object.hasOwn(old, 'formatVersion')).toBe(false);
       expect(catalog).toMatchObject({
         format: 'projection-catalog',
         formatVersion: 1,
         profile: { id: name },
       });
       expect(verifyCatalog(catalog)).toEqual(catalog);
-      const { formatVersion: _version, ...rest } = catalog,
-        old = {
-          ...rest,
-          format: 'ia.projection-catalog.v1' as const,
-          profile: { ...catalog.profile, id: `ia.host.${name}.v1` },
-        };
       expect(verifyCatalog(old)).toEqual(old);
       for (const bad of [
         { ...catalog, formatVersion: 2 },
@@ -361,41 +369,44 @@ describe('projection descriptors and catalogs', () => {
 
 describe('handler ids', () => {
   const repository = fileURLToPath(new URL('../../..', import.meta.url));
-  it('answers both the plain and the original handler for the corpus inspection, validation and publication', () => {
+  it('answers both the plain and the original handler, and names the released one until the switch flips', () => {
     const capture = captureWorkspace(repository),
-      corpus = new Corpus(capture);
-    try {
-      expect(corpus.adapter.id).toBe(CORPUS_INSPECT_HANDLER);
-      expect(Object.keys(corpus.adapters).sort()).toEqual(
-        [CORPUS_INSPECT_HANDLER, LEGACY_CORPUS_INSPECT_HANDLER].sort(),
-      );
-      for (const [handler, adapter] of Object.entries(corpus.adapters)) expect(adapter.id).toBe(handler);
-    } finally {
-      corpus.close();
+      code = 'a'.repeat(64);
+    for (const written of [false, true]) {
+      flip.plain = written;
+      try {
+        const corpus = new Corpus(capture);
+        try {
+          expect(corpus.adapter.id).toBe(written ? CORPUS_INSPECT_HANDLER : LEGACY_CORPUS_INSPECT_HANDLER);
+          expect(Object.keys(corpus.adapters).sort()).toEqual(
+            [CORPUS_INSPECT_HANDLER, LEGACY_CORPUS_INSPECT_HANDLER].sort(),
+          );
+          for (const [handler, adapter] of Object.entries(corpus.adapters)) expect(adapter.id).toBe(handler);
+        } finally {
+          corpus.close();
+        }
+        const validation = candidateValidation(
+          capture,
+          { sourceSet: capture.id, revision: capture.revision, composition: [], systems: [], paths: [] },
+          code,
+        );
+        expect(validation.definition.handler).toBe(
+          written ? CANDIDATE_VALIDATE_HANDLER : LEGACY_CANDIDATE_VALIDATE_HANDLER,
+        );
+        expect(Object.keys(validation.adapters).sort()).toEqual(
+          [CANDIDATE_VALIDATE_HANDLER, LEGACY_CANDIDATE_VALIDATE_HANDLER].sort(),
+        );
+        for (const [handler, adapter] of Object.entries(validation.adapters)) expect(adapter.id).toBe(handler);
+        const publication = managedPublication(repository, '.ia/work/generated/reviewed-draft', code);
+        expect(publication.definition.handler).toBe(written ? DRAFT_PUBLISH_HANDLER : LEGACY_DRAFT_PUBLISH_HANDLER);
+        expect(Object.keys(publication.adapters).sort()).toEqual(
+          [DRAFT_PUBLISH_HANDLER, LEGACY_DRAFT_PUBLISH_HANDLER].sort(),
+        );
+        for (const [handler, adapter] of Object.entries(publication.adapters)) expect(adapter.id).toBe(handler);
+      } finally {
+        flip.plain = false;
+      }
     }
-    const code = 'a'.repeat(64),
-      validation = candidateValidation(
-        capture,
-        {
-          sourceSet: capture.id,
-          revision: capture.revision,
-          composition: [],
-          systems: [],
-          paths: [],
-        },
-        code,
-      );
-    expect(validation.definition.handler).toBe(CANDIDATE_VALIDATE_HANDLER);
-    expect(Object.keys(validation.adapters).sort()).toEqual(
-      [CANDIDATE_VALIDATE_HANDLER, LEGACY_CANDIDATE_VALIDATE_HANDLER].sort(),
-    );
-    for (const [handler, adapter] of Object.entries(validation.adapters)) expect(adapter.id).toBe(handler);
-    const publication = managedPublication(repository, '.ia/work/generated/reviewed-draft', code);
-    expect(publication.definition.handler).toBe(DRAFT_PUBLISH_HANDLER);
-    expect(Object.keys(publication.adapters).sort()).toEqual(
-      [DRAFT_PUBLISH_HANDLER, LEGACY_DRAFT_PUBLISH_HANDLER].sort(),
-    );
-    for (const [handler, adapter] of Object.entries(publication.adapters)) expect(adapter.id).toBe(handler);
   });
   it('binds a publication compiled under the original handler to that handler and its own digest', () => {
     const code = 'a'.repeat(64),
@@ -419,5 +430,35 @@ describe('handler ids', () => {
         handler: 'ia.draft.publish.v2',
       }),
     ).toThrow('incompatible');
+  });
+});
+
+// Forward compatibility (dec-008, A15): an older program reads only the exact literals it was released with, so until the
+// switch flips nothing this package writes carries a plain format name, a formatVersion or a plain id.
+describe('the released literals', () => {
+  it('are all that is written by default: no plain format name, formatVersion, profile id or handler', () => {
+    const f = authoringFixture();
+    try {
+      const written = JSON.stringify([
+        lifecycleProfile('claude-code', SELECTED_CLAUDE_CODE_VERSION),
+        claudeProseCatalog('a'.repeat(64)),
+        codexProseCatalog('a'.repeat(64)),
+        createAuthoringIndex(f.capture, f.resources, f.input),
+        f.resources,
+      ]);
+      expect(written).toContain('"format":"ia.lifecycle-profile.v1"');
+      expect(written).toContain('"format":"ia.projection-catalog.v1"');
+      expect(written).toContain('"id":"ia.host.claude-prose.v1"');
+      expect(written).toContain('"format":"ia.authoring-index.v1"');
+      expect(written).not.toMatch(/formatVersion|"format":"[a-z-]+"|"id":"(claude|codex)-prose"/);
+    } finally {
+      f.reader.close();
+    }
+    const corpus = new Corpus(captureWorkspace(fileURLToPath(new URL('../../..', import.meta.url))));
+    try {
+      expect(corpus.adapter.id).toBe(LEGACY_CORPUS_INSPECT_HANDLER);
+    } finally {
+      corpus.close();
+    }
   });
 });

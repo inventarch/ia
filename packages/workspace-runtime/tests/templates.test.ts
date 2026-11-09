@@ -13,6 +13,14 @@ import { renderCapturedTemplate } from '../src/templates.js';
 import { sha256 } from '../src/resource-format.js';
 import type { CapturedTemplateOptions } from '../src/templates.js';
 
+/** The package's one switch, flipped here to prove the plain names come back exactly when the follow-up release flips it. */
+const flip = vi.hoisted(() => ({ plain: false }));
+vi.mock('../src/written-names.js', () => ({
+  get WRITE_PLAIN_NAMES() {
+    return flip.plain;
+  },
+}));
+
 // Cases rebuild adopted native views and captured resources on disk.
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
@@ -33,7 +41,7 @@ let sequence = 0;
 function setup(
   filename = 'docs/design.md',
   resourceText = JSON.stringify(tree),
-  profile = 'structured',
+  profile = 'structured-v1',
   authored = false,
   legacy = '    parameters []\n    lines []\n',
 ) {
@@ -102,7 +110,7 @@ it('renders an exact adopted template/resource through current scope with determ
   const result = renderCapturedTemplate(fixture.capture, fixture.resources, fixture.options);
   expect(result).toMatchObject({
     status: 'rendered',
-    profile: 'structured',
+    profile: 'structured-v1',
     artifact: { path: 'docs/design.md', text: '# Fixture design\n', bytes: 17 },
   });
   expect(
@@ -112,13 +120,25 @@ it('renders an exact adopted template/resource through current scope with determ
     }),
   ).toEqual(result);
 });
-it('renders a template record written with the original structured-v1 profile and reports the plain one', () => {
-  const f = setup('docs/design.md', JSON.stringify(tree), 'structured-v1', false);
-  expect(renderCapturedTemplate(f.capture, f.resources, f.options)).toMatchObject({
-    status: 'rendered',
-    profile: 'structured',
-    artifact: { text: '# Fixture design\n' },
-  });
+// Forward compatibility (dec-008, A15): the rendered result names the released profile until the switch flips; a record
+// written under either spelling is read as the same profile, and an unknown profile is refused.
+it.each([
+  [false, 'structured-v1'],
+  [true, 'structured'],
+])('with the switch at %s reports the profile %s for a record written under either spelling', (plain, reported) => {
+  flip.plain = plain;
+  try {
+    for (const record of ['structured-v1', 'structured']) {
+      const f = setup('docs/design.md', JSON.stringify(tree), record, false);
+      expect(renderCapturedTemplate(f.capture, f.resources, f.options)).toMatchObject({
+        status: 'rendered',
+        profile: reported,
+        artifact: { text: '# Fixture design\n' },
+      });
+    }
+  } finally {
+    flip.plain = false;
+  }
 });
 it.each(['structured-v2', 'unstructured'])('refuses the unknown template profile %s', (profile) => {
   const f = setup('docs/design.md', JSON.stringify(tree), profile, false);
@@ -130,7 +150,7 @@ it.each(['structured-v2', 'unstructured'])('refuses the unknown template profile
 it.each(['', '    parameters []\n', '    lines []\n', '    parameters []\n    lines []\n'])(
   'renders structured resources with omitted or empty legacy fields: %s',
   (legacy) => {
-    const f = setup('docs/design.md', JSON.stringify(tree), 'structured', false, legacy);
+    const f = setup('docs/design.md', JSON.stringify(tree), 'structured-v1', false, legacy);
     expect(renderCapturedTemplate(f.capture, f.resources, f.options)).toMatchObject({
       status: 'rendered',
       artifact: { text: '# Fixture design\n' },
@@ -140,7 +160,7 @@ it.each(['', '    parameters []\n', '    lines []\n', '    parameters []\n    li
 it.each(['    parameters [title]\n', '    lines ["unexpected scalar output"]\n'])(
   'refuses nonempty legacy fields on a structured template: %s',
   (legacy) => {
-    const f = setup('docs/design.md', JSON.stringify(tree), 'structured', false, legacy);
+    const f = setup('docs/design.md', JSON.stringify(tree), 'structured-v1', false, legacy);
     expect(renderCapturedTemplate(f.capture, f.resources, f.options)).toMatchObject({
       status: 'refused',
       code: 'IA-EXEC-TEMPLATE-INVALID',
@@ -253,7 +273,7 @@ it('contextually validates authored IA drafts and refuses narrow-scope probes wi
   const f = setup(
     '.ia/src/systems/fictional-review-system/draft.ia',
     JSON.stringify({ ...tree, nodes }),
-    'structured',
+    'structured-v1',
     true,
   );
   const rendered = renderCapturedTemplate(f.capture, f.resources, f.options);

@@ -437,8 +437,16 @@ function selectScopedContext(
         },
       };
       return fragments
-        ? frozen({ ...writeStamp('prepared-lifecycle-context-segments', 'ia.prepared-lifecycle-context-segments.v1'), ...common, outputs: fragments.outputs })
-        : frozen({ ...writeStamp('prepared-lifecycle-context', 'ia.prepared-lifecycle-context.v1'), ...common, output });
+        ? frozen({
+            ...writeStamp('prepared-lifecycle-context-segments', 'ia.prepared-lifecycle-context-segments.v1'),
+            ...common,
+            outputs: fragments.outputs,
+          })
+        : frozen({
+            ...writeStamp('prepared-lifecycle-context', 'ia.prepared-lifecycle-context.v1'),
+            ...common,
+            output,
+          });
     }
     if (tokenBudget === 0) break;
     const deficit = Math.max(
@@ -463,7 +471,13 @@ export function lifecycleInputIdentity(binding: string, event: LifecycleEvent): 
   return frozen({
     binding,
     key:
-      event.key === null ? null : metadataDigest({ ...writeStamp('bound-lifecycle-input', 'ia.bound-lifecycle-input.v1'), binding, key: event.key }),
+      event.key === null
+        ? null
+        : metadataDigest({
+            ...writeStamp('bound-lifecycle-input', 'ia.bound-lifecycle-input.v1'),
+            binding,
+            key: event.key,
+          }),
     inputDigest: event.inputDigest,
   });
 }

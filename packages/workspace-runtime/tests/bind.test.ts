@@ -14,7 +14,7 @@ import { copyPublicLanguageFixture } from '../../../tools/native/public-fixture.
 const READ = 'authoring-system/binding/operation/read-captured-source',
   TARGET = { reference: '@operation read-captured-source', identity: READ };
 const available: InstalledOperation = {
-  id: 'captured-source-read',
+  id: 'captured-source-read-v1',
   status: 'available',
   version: 1,
   operation: READ,
@@ -29,7 +29,7 @@ const present = (...operations: InstalledOperation[]): BindingCatalog => ({ stat
 const binding = (fields: Partial<ExecutionBinding> = {}): ExecutionBinding => ({
   identity: 'agent-composition-system/binding/execution-binding/probe',
   kind: 'operation',
-  implementation: 'captured-source-read',
+  implementation: 'captured-source-read-v1',
   target: TARGET,
   ...fields,
 });
@@ -37,9 +37,9 @@ const binding = (fields: Partial<ExecutionBinding> = {}): ExecutionBinding => ({
 it('binds an available shipped implementation of the binding’s own operation, and executes nothing', () => {
   expect(bindExecution(binding(), present(available))).toEqual({
     identity: 'agent-composition-system/binding/execution-binding/probe',
-    implementation: 'captured-source-read',
+    implementation: 'captured-source-read-v1',
     status: 'bound',
-    reason: `captured-source-read ships handler ia.captured-source.read.v1 (bytes ${'c'.repeat(12)}); nothing was executed`,
+    reason: `captured-source-read-v1 ships handler ia.captured-source.read.v1 (bytes ${'c'.repeat(12)}); nothing was executed`,
     handler: 'ia.captured-source.read.v1',
     digest: 'c'.repeat(64),
     version: 1,
@@ -55,7 +55,7 @@ it('reports every binding without a bound implementation as unavailable, never a
     [
       binding(),
       present({
-        id: 'captured-source-read',
+        id: 'captured-source-read-v1',
         status: 'unavailable',
         reason: 'its handler module is not in the inventory',
       }),
@@ -90,11 +90,11 @@ it('reports a revoked implementation and a catalog that failed verification as r
   expect(
     bindExecution(
       binding(),
-      present({ id: 'captured-source-read', status: 'revoked', reason: 'withdrawn by its producer' }),
+      present({ id: 'captured-source-read-v1', status: 'revoked', reason: 'withdrawn by its producer' }),
     ),
   ).toMatchObject({
     status: 'revoked',
-    reason: 'the installed catalog revokes captured-source-read: withdrawn by its producer',
+    reason: 'the installed catalog revokes captured-source-read-v1: withdrawn by its producer',
   });
   expect(
     bindExecution(binding(), { status: 'damaged', reason: 'IA-DIST-INTEGRITY-MISMATCH: Shipped handler bytes differ' }),
@@ -115,12 +115,12 @@ it('reads the repository’s execution bindings with their targets resolved, and
     {
       identity: 'agent-composition-system/binding/execution-binding/read-captured-source-binding',
       kind: 'operation',
-      implementation: 'captured-source-read',
+      implementation: 'captured-source-read-v1',
       target: TARGET,
     },
   ]);
   expect(bindings.map((row) => row.identity)).toEqual([...bindings.map((row) => row.identity)].sort());
-  const read = bindings.find((row) => row.implementation === 'captured-source-read')!;
+  const read = bindings.find((row) => row.implementation === 'captured-source-read-v1')!;
   expect(bindExecution(read, present(available)).status).toBe('bound');
   expect(bindExecution(read, present({ ...available, operation: 'acme/binding/operation/other' })).status).toBe(
     'unavailable',
@@ -138,7 +138,7 @@ it('reads the example entry binding from the explicit public fixture', () => {
       expect.objectContaining({
         identity: 'agent-composition-system/binding/execution-binding/example-entry',
         kind: 'entry',
-        implementation: 'example-entry',
+        implementation: 'example-entry-v1',
       }),
     ]);
   } finally {
@@ -158,7 +158,7 @@ it('keeps a stated target that resolves to no admitted record apart from no targ
   expect(read).toEqual({
     identity: canonical.identity,
     kind: 'operation',
-    implementation: 'captured-source-read',
+    implementation: 'captured-source-read-v1',
     target: { reference: '@operation read-captured-source', identity: null },
   });
   expect(bindExecution(read!, present(available))).toMatchObject({

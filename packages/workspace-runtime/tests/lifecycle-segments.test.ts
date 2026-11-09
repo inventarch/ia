@@ -147,7 +147,9 @@ it('assembles frames emitted under the original literal, as written, and refuses
     frames = (stamp: Parameters<typeof fragmentLifecycleContext>[1]) =>
       fragmentLifecycleContext(payload, stamp).outputs.map((item) => item.hookSpecificOutput.additionalContext);
   const original = frames({ format: 'ia.lifecycle-context-segment.v1' }),
-    plain = frames(undefined);
+    plain = frames({ format: 'lifecycle-context-segment', formatVersion: 1 });
+  // By default the frames are emitted under the released literal (dec-008, A15).
+  expect(frames(undefined)).toEqual(original);
   expect(JSON.parse(original[0]!)).toMatchObject({ format: 'ia.lifecycle-context-segment.v1' });
   expect(Object.hasOwn(JSON.parse(original[0]!), 'formatVersion')).toBe(false);
   expect(JSON.parse(plain[0]!)).toMatchObject({ format: 'lifecycle-context-segment', formatVersion: 1 });
