@@ -5,6 +5,7 @@ import { join, resolve, sep } from 'node:path';
 import { open } from '@inventarch/db';
 import type { Handle } from '@inventarch/db';
 import { digest } from '@inventarch/session-system';
+import { metadataDigest } from '../src/resource-format.js';
 import { DEFAULT_TOKENIZER, context } from '@inventarch/runtime';
 import { createNativeLifecycleEvent, decodeLifecycleEvent, lifecycleProfile } from '../src/lifecycle-profile.js';
 import {
@@ -189,6 +190,27 @@ describe('shared scoped lifecycle context', () => {
       prepareScopedContextSegments({ ...input, requiredParts, budgets: { ...budgets, bytes: 1000 } }),
     ).toThrow(/budget|bound/i);
   });
+  it('accepts an event written under the original literal, key included, and refuses a plain event carrying that key', () => {
+    const input = request(),
+      { formatVersion: _version, ...rest } = event,
+      key = metadataDigest({
+        format: 'ia.lifecycle-input-key.v1',
+        profile: profile.digest,
+        session: event.session,
+        agent: event.agent,
+        promptId: event.promptId,
+        event: 'UserPromptSubmit',
+      });
+    expect(event).toMatchObject({ format: 'lifecycle-event', formatVersion: 1 });
+    expect(event.key).not.toBe(key);
+    const original = { ...rest, format: 'ia.lifecycle-event.v1' as const, key };
+    expect(JSON.parse(prepareScopedContext({ ...input, event: original }).payload).event.key).toBe(key);
+    expect(() => prepareScopedContext({ ...input, event: { ...event, key } })).toThrow(/identity/);
+    expect(() =>
+      prepareScopedContext({ ...input, event: { ...original, format: 'ia.lifecycle-event.v2' as never } }),
+    ).toThrow();
+    expect(() => prepareScopedContext({ ...input, event: { ...original, formatVersion: 1 } as never })).toThrow();
+  });
   it('uses an explicit retained native profile and measures its own payload wrapper', () => {
     const native = lifecycleProfile('ia-native', '1'),
       input = request();
@@ -204,7 +226,11 @@ describe('shared scoped lifecycle context', () => {
       event,
       pins: { ...input.pins, profile: native.digest },
     });
-    expect(prepared.output).toMatchObject({ format: 'ia.native-context.v1', additionalContext: expect.any(String) });
+    expect(prepared.output).toMatchObject({
+      format: 'native-context',
+      formatVersion: 1,
+      additionalContext: expect.any(String),
+    });
     expect(prepared.output).not.toHaveProperty('hookSpecificOutput');
     expect(prepared.usage.bytes).toBe(Buffer.byteLength(JSON.stringify(prepared.output)));
     expect(() => decodeLifecycleEvent(native, '{}')).toThrow(/native.*factory/i);

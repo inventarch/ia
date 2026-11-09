@@ -57,6 +57,7 @@ import {
 } from './projection-host.js';
 import type { ProjectionCatalog } from './projection-host.js';
 import { resourceVerifier } from './projection-routine.js';
+import { currentStamp } from './plain-format.js';
 
 export { PROJECTION_LIMITS, ProjectionError, verifyProjectionDescriptor } from './projection-format.js';
 export type {
@@ -601,7 +602,7 @@ export function compileProjection(
     )
       inputFailure('Generated product exceeds its file/byte ceiling');
     const manifestBody = {
-      format: 'ia.projection-manifest.v1' as const,
+      ...currentStamp('projection-manifest'),
       product: description.product,
       sourceRevisions: description.sourceRevisions,
       descriptorDigest: description.digest,
@@ -631,14 +632,14 @@ export function compileProjection(
     if (Buffer.byteLength(JSON.stringify(manifestBody)) > PROJECTION_LIMITS.metadataBytes)
       inputFailure('Projection manifest exceeds its metadata ceiling');
     return frozen({
-      format: 'ia.projection-result.v1',
+      ...currentStamp('projection-result'),
       status: 'compiled',
       manifest: { ...manifestBody, digest: metadataDigest(manifestBody) },
       files: ordered([...files.values()], (f) => f.path),
       diagnostics: [],
     });
   } catch (error) {
-    return frozen({ format: 'ia.projection-result.v1', status: 'refused', diagnostics: [diagnostic(error)] });
+    return frozen({ ...currentStamp('projection-result'), status: 'refused', diagnostics: [diagnostic(error)] });
   }
 }
 

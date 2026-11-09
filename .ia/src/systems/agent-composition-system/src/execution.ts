@@ -4,8 +4,14 @@ import { copy, digest } from '@inventarch/session-system';
 import type { Json } from '@inventarch/session-system';
 import type { CatalogAliases, CompositionCatalog } from './catalog.js';
 import { CompositionError } from './compiled.js';
+import type { CompiledStamp } from './compile.js';
+import { peekStamp } from './plain-format.js';
 import type { CompiledHarness } from './compiled.js';
 
+/** The stamp a compiled harness carries, to pass back to `compileHarness` when rebuilding it from its capture. */
+export function compiledStamp(compiled: CompiledHarness): CompiledStamp | undefined {
+  return peekStamp(compiled, 'compiled-harness', ['ia.compiled-harness.v1']);
+}
 /** The aliases a compilation used, as the table that reproduces it: recompile with these to rebuild the same harness. */
 export function compiledAliases(compiled: CompiledHarness): CatalogAliases {
   const table: Record<string, Record<string, string>> = {};
@@ -19,8 +25,7 @@ export function executionManifest(compiled: CompiledHarness, catalog: Compositio
   const refuse = (message: string): never => {
     throw new CompositionError({ code: 'IA-COMPOSITION-UNAVAILABLE', message });
   };
-  if (compiled.format !== 'ia.compiled-harness.v1' || digest(body) !== expected)
-    refuse('Compiled harness digest mismatch');
+  if (compiledStamp(compiled) === undefined || digest(body) !== expected) refuse('Compiled harness digest mismatch');
   for (const pin of compiled.provenance.installed) {
     const entry = (
       catalog[pin.group as keyof CompositionCatalog] as

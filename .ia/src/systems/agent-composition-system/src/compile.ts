@@ -23,6 +23,8 @@ import { CompositionError } from './compiled.js';
 import type { Compilation, CompiledCapability, CompiledHarness, CompiledProfile, ComponentPin } from './compiled.js';
 import { closedFields, fail, field, LIMIT_KEYS, limits, list, minimum, strings, unique, value } from './fields.js';
 import { compatibleInputs } from './inputs.js';
+import { currentStamp } from './plain-format.js';
+import type { Stamp } from './plain-format.js';
 
 const sha = (text: string): string => createHash('sha256').update(text).digest('hex');
 const effects: EffectClass[] = ['read', 'local-write', 'external-write'];
@@ -48,7 +50,10 @@ export interface CompileOptions {
   aliases?: CatalogAliases;
   /** Service-owned executable definitions may differ from the captured task corpus. */
   definitions?: Capture;
+  /** The stamp a retained compilation carries, so rebuilding it reproduces its digest; new compilations omit it. */
+  stamp?: CompiledStamp;
 }
+export type CompiledStamp = Stamp<'compiled-harness', 'ia.compiled-harness.v1'>;
 
 class Compiler {
   readonly reader: EditorSnapshot;
@@ -868,7 +873,7 @@ class Compiler {
       ...(aliases.length ? { aliases } : {}),
     };
     const body = {
-      format: 'ia.compiled-harness.v1' as const,
+      ...(this.options.stamp ?? currentStamp('compiled-harness')),
       id: this.harness.identity,
       workspace: workspace.identity,
       sourceDigest: this.task.revision,

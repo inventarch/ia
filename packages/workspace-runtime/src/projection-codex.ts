@@ -1,7 +1,9 @@
 import type { ProjectionExport, ProjectionOutput } from './projection-format.js';
 import type { ProjectionCatalog } from './projection-host.js';
 
-export const CODEX_PROSE_PROFILE = 'ia.host.codex-prose.v1';
+export const CODEX_PROSE_PROFILE = 'host.codex-prose';
+/** The id this profile shipped under before ids stopped carrying their version; still read, never written. */
+export const LEGACY_CODEX_PROSE_PROFILE = 'ia.host.codex-prose.v1';
 export const CODEX_PROSE_FEATURES = Object.freeze([
   'agents',
   'skills',

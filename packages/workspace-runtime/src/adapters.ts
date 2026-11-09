@@ -1,6 +1,7 @@
 import type { OperationDefinition } from '@inventarch/agent-system';
 import type { Json } from '@inventarch/session-system';
 import { decodeJson, frozen, hash, integer, list, metadataDigest, object, text } from './resource-format.js';
+import { peekStamp, stampKeys } from './plain-format.js';
 export { metadataDigest as adapterMetadataDigest } from './resource-format.js';
 
 export const ADAPTER_LIMITS = Object.freeze({
@@ -83,7 +84,8 @@ export interface InstalledAdapterEffect {
   readonly telemetry: string;
 }
 export interface InstalledAdapterDescriptor {
-  readonly format: 'ia.installed-adapter.v1';
+  readonly format: 'installed-adapter' | 'ia.installed-adapter.v1';
+  readonly formatVersion?: 1;
   readonly id: string;
   readonly version: string;
   readonly implementation:
@@ -120,8 +122,10 @@ export interface InstalledAdapterCatalog {
 }
 /** Decode and hash only; installed qualification additionally requires verifyInstalledAdapter. */
 export function decodeInstalledAdapter(input: unknown): InstalledAdapterDescriptor {
-  const row = object(typeof input === 'string' ? decodeJson(input) : input, [
-    'format',
+  const value = typeof input === 'string' ? decodeJson(input) : input,
+    stamp = peekStamp(value, 'installed-adapter', ['ia.installed-adapter.v1']);
+  const row = object(value, [
+    ...stampKeys(stamp),
     'id',
     'version',
     'implementation',
@@ -131,7 +135,7 @@ export function decodeInstalledAdapter(input: unknown): InstalledAdapterDescript
     'recovery',
     'digest',
   ]);
-  one(row['format'], ['ia.installed-adapter.v1']);
+  if (stamp === undefined) return adapterInvalid('Unsupported installed adapter format');
   const limitsRow = object(row['limits'], ['durationMs', 'inputBytes', 'outputBytes', 'concurrency']);
   const limits = {
     durationMs: integer(limitsRow['durationMs'], ADAPTER_LIMITS.durationMs, 1),
@@ -235,7 +239,7 @@ export function decodeInstalledAdapter(input: unknown): InstalledAdapterDescript
   }
   const recoveryRow = object(row['recovery'], ['id', 'contractDigest']);
   const body = {
-    format: 'ia.installed-adapter.v1' as const,
+    ...stamp,
     id: adapterKey(row['id']),
     version: boundedText(row['version']),
     implementation,

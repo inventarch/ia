@@ -80,7 +80,8 @@ export interface ResourceResolution {
 }
 export type ResourceFilePin = Omit<ResourceFile, 'content'>;
 export interface CapturedResources {
-  readonly format: 'ia.captured-resources.v1';
+  readonly format: 'captured-resources' | 'ia.captured-resources.v1';
+  readonly formatVersion?: 1;
   readonly sourceRevisions: readonly SourceRevision[];
   readonly nativeCaptureRevision: string;
   readonly files: readonly ResourceFile[];

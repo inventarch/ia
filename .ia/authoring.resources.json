@@ -1,5 +1,6 @@
 {
-  "format": "ia.authoring-resources.v1",
+  "format": "authoring-resources",
+  "formatVersion": 1,
   "files": [
     {
       "path": ".ia/src/floor/README.md",

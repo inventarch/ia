@@ -6,8 +6,11 @@ import { requireSnapshot } from './local.js';
 import type { KnowledgeSnapshot } from './local.js';
 import { isValidated } from './validate.js';
 import type { validateContent } from './validate.js';
+import { currentStamp, peekStamp, stampKeys } from './plain-format.js';
+import type { Stamp } from './plain-format.js';
 export interface KnowledgeCitation {
-  readonly format: 'ia.kb.citation.v1';
+  readonly format: 'kb-citation' | 'ia.kb.citation.v1';
+  readonly formatVersion?: 1;
   readonly kind: 'working-tree' | 'commit';
   readonly sourceId: string;
   readonly snapshot: string;
@@ -48,9 +51,14 @@ export function openKnowledgeView(snapshot: KnowledgeSnapshot | ReturnType<typeo
   const available = () => {
     if (!active) fail('Knowledge view is closed', 'IA-KB-SNAPSHOT-UNAVAILABLE');
   };
-  const citation = (locator: string, identity: string, body: string): KnowledgeCitation =>
+  const citation = (
+    locator: string,
+    identity: string,
+    body: string,
+    stamp: Stamp<'kb-citation', 'ia.kb.citation.v1'> = currentStamp('kb-citation'),
+  ): KnowledgeCitation =>
     frozen({
-      format: 'ia.kb.citation.v1',
+      ...stamp,
       kind: packaged ? 'commit' : 'working-tree',
       sourceId,
       snapshot: pin,
@@ -59,7 +67,7 @@ export function openKnowledgeView(snapshot: KnowledgeSnapshot | ReturnType<typeo
       body,
       ...(commit === undefined ? {} : { commit }),
     });
-  const read = (locator: string) => {
+  const read = (locator: string, stamp?: Stamp<'kb-citation', 'ia.kb.citation.v1'>) => {
     available();
     const parsed = typeof locator === 'string' ? parseLocator(locator) : undefined;
     if (!parsed || parsed.form === 'line' || !identities.has(parsed.identity))
@@ -84,7 +92,7 @@ export function openKnowledgeView(snapshot: KnowledgeSnapshot | ReturnType<typeo
       bodyPath: 'fragment' in parsed ? null : record.bodyPath,
       certified: false,
       authority: 'inert',
-      citation: citation(locator, record.identity, bodyPin),
+      citation: citation(locator, record.identity, bodyPin, stamp),
     });
   };
   return {
@@ -104,21 +112,23 @@ export function openKnowledgeView(snapshot: KnowledgeSnapshot | ReturnType<typeo
     resolveCitation(input: unknown) {
       available();
       const c = data<KnowledgeCitation>(input, 16 * 1024);
+      // A citation issued before formats stopped carrying a version is checked as written, under its own literal.
+      const stamp = peekStamp(c, 'kb-citation', ['ia.kb.citation.v1']);
       closed(
         c,
         commit === undefined
-          ? ['format', 'kind', 'sourceId', 'snapshot', 'locator', 'identity', 'body']
-          : ['format', 'kind', 'sourceId', 'snapshot', 'locator', 'identity', 'body', 'commit'],
+          ? [...stampKeys(stamp), 'kind', 'sourceId', 'snapshot', 'locator', 'identity', 'body']
+          : [...stampKeys(stamp), 'kind', 'sourceId', 'snapshot', 'locator', 'identity', 'body', 'commit'],
       );
       if (
-        c.format !== 'ia.kb.citation.v1' ||
+        stamp === undefined ||
         c.snapshot !== pin ||
         c.sourceId !== sourceId ||
         c.kind !== (packaged ? 'commit' : 'working-tree') ||
         c.commit !== commit
       )
         return fail('Pinned knowledge snapshot unavailable', 'IA-KB-SNAPSHOT-UNAVAILABLE');
-      const result = read(c.locator);
+      const result = read(c.locator, stamp);
       if (digest(c) !== digest(result.citation))
         return fail('Pinned knowledge snapshot unavailable', 'IA-KB-SNAPSHOT-UNAVAILABLE');
       return result;

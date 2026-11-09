@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { digest } from '@inventarch/session-system';
 import { EditorSnapshot } from '@inventarch/db/editor';
-import { compileHarness, installed, executionManifest } from '../src/index.js';
+import { compileHarness, compiledStamp, installed, executionManifest } from '../src/index.js';
 import type { Capture, CompiledHarness } from '../src/index.js';
 import { admitSourceCapture } from '@inventarch/workspace-runtime/sources';
 
@@ -55,7 +55,7 @@ it('compiles the admitted native author/architect without execution and retains 
     'utf8',
   );
   const m = good();
-  expect(m.format).toBe('ia.compiled-harness.v1');
+  expect(m).toMatchObject({ format: 'compiled-harness', formatVersion: 1 });
   expect(m.profiles[name('author')]).toMatchObject({
     role: 'author',
     delegates: [name('architect')],
@@ -496,3 +496,35 @@ it('writes the plain completion evaluator and accepts the original independent r
 });
 
 import './sdk-runtime/onboarding-case.js';
+
+it('stamps a compiled harness plainly, and reproduces and executes one compiled under the original literal', () => {
+  const current = good(),
+    catalog = sampleCatalog('ide'),
+    result = compileHarness(captured, { ...options(), stamp: { format: 'ia.compiled-harness.v1' } });
+  if (!result.ok) throw new Error(JSON.stringify(result));
+  const original = result.manifest;
+  expect(current).toMatchObject({ format: 'compiled-harness', formatVersion: 1 });
+  expect(original.format).toBe('ia.compiled-harness.v1');
+  expect(Object.hasOwn(original, 'formatVersion')).toBe(false);
+  expect(original.digest).not.toBe(current.digest);
+  expect(compiledStamp(current)).toEqual({ format: 'compiled-harness', formatVersion: 1 });
+  expect(compiledStamp(original)).toEqual({ format: 'ia.compiled-harness.v1' });
+  // Either harness bridges to an executable manifest, the original one digested as it was written.
+  expect(() => executionManifest(current, catalog)).not.toThrow();
+  expect(() => executionManifest(original, catalog)).not.toThrow();
+  expect(executionManifest(original, catalog).provenance).toMatchObject({ compiled: { digest: original.digest } });
+  const { digest: _digest, ...body } = original;
+  expect(original.digest).toBe(digest(body));
+  const forged = (change: object) => {
+    const { digest: _d, ...rest } = { ...original, ...change };
+    return { ...rest, digest: digest(rest) } as CompiledHarness;
+  };
+  for (const bad of [
+    forged({ formatVersion: 1 }),
+    forged({ format: 'compiled-harness' }),
+    forged({ format: 'ia.compiled-harness.v2' }),
+    { ...current, formatVersion: 2 as never },
+    { ...original, format: 'compiled-harness' as const },
+  ])
+    expect(() => executionManifest(bad, catalog)).toThrow('Compiled harness digest mismatch');
+});

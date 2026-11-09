@@ -110,7 +110,7 @@ it('matches the golden packet of a fresh init and pins its entry count, the revi
   expect(packet.provenance.revision).toBe(db.revision);
   expect(packet.body).toBe(k0.digest);
   expect(packetDigest).toBe(digest(packet));
-  const file = resolve(import.meta.dirname, 'golden', 'packet-fresh-init.json'),
+  const file = resolve(import.meta.dirname, 'golden', 'plain', 'packet-fresh-init.json'),
     text = `${JSON.stringify(
       {
         ...packet,
@@ -123,6 +123,20 @@ it('matches the golden packet of a fresh init and pins its entry count, the revi
     )}\n`;
   if (process.env['IA_POSITION_GOLDEN'] === 'write') writeFileSync(file, text);
   else expect(text).toBe(readFileSync(file, 'utf8'));
+  // The golden written before formats stopped carrying a version is kept as it was; it differs only in the stamp.
+  const { format: _format, formatVersion: _version, ...rest } = packet,
+    original = `${JSON.stringify(
+      {
+        format: 'ia.position-packet.v1',
+        ...rest,
+        revision: '<revision>',
+        body: '<body digest>',
+        provenance: { ...packet.provenance, revision: '<revision>' },
+      },
+      null,
+      2,
+    )}\n`;
+  expect(original).toBe(readFileSync(resolve(import.meta.dirname, 'golden', 'packet-fresh-init.json'), 'utf8'));
   // P = M = 1, N = 11, T = 3 (workspace, agent, mandate) and C = 9, `ia preview` and `ia author` among them: 28 + N.
   expect([packet.participants.length, packet.mandates.length, packet.systems.length, packet.tallies.length]).toEqual([
     1, 1, 11, 3,

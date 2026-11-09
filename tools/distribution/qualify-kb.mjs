@@ -96,7 +96,8 @@ try {
   writeFileSync(
     join(workspace, '.ia/knowledge.json'),
     JSON.stringify({
-      format: 'ia.kb.selection.v1',
+      format: 'kb-selection',
+      formatVersion: 1,
       sourceId: 'example',
       records: [id],
       resources: ['docs/architecture.md'],
@@ -217,7 +218,8 @@ try {
   writeFileSync(
     join(workspace, '.ia/knowledge.json'),
     JSON.stringify({
-      format: 'ia.kb.selection.v1',
+      format: 'kb-selection',
+      formatVersion: 1,
       sourceId: 'example',
       records: Array.from({ length: wideCount }, (_, i) => wideId(i)),
       resources: Array.from({ length: wideFiles }, (_, i) => 'docs/wide/' + i + '.md'),

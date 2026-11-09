@@ -8,6 +8,7 @@ import { createSourcePolicy, mountSourceCapture } from '@inventarch/workspace-ru
 import { verifyCapture } from '@inventarch/workspace-runtime/corpus';
 import { openLocalAuthoringView } from '@inventarch/workspace-runtime/authoring-manifest';
 import { prepareTaskCapture, verifyTaskCapture, TASK_CAPTURE_BYTES, TaskCaptureError } from '../src/task-capture.js';
+import { taskContextDeclaration } from '../src/task-context-declaration.js';
 import type { TaskCaptureRequest, TaskContextDeclaration } from '../src/task-capture.js';
 import { resourceOccurrences } from '@inventarch/workspace-runtime/resources';
 import { sha256 } from '@inventarch/workspace-runtime/resource-format';
@@ -894,6 +895,47 @@ it('distinguishes implementation skew before recomputing and preserves exact rel
       code: 'IA-TASK-CAPTURE-IMPLEMENTATION',
       evidence: { preparedImplementation: implementation, requiredImplementation },
     });
+  } finally {
+    full.close();
+  }
+});
+
+it('reads a task selection and a declaration under the plain stamp or the original literal, and refuses another', () => {
+  const f = setup(),
+    full = f.open();
+  try {
+    const prepared = prepareTaskCapture(full, request, options),
+      { revision: _revision, selection, ...body } = prepared.capture;
+    expect(selection).toMatchObject({ format: 'task-capture-selection', formatVersion: 1 });
+    expect(verifyTaskCapture(prepared.capture, full, options)).toEqual(prepared);
+    // A selection written under the original literal verifies as written: its digest covers that literal.
+    const { formatVersion: _version, ...bare } = selection!,
+      originalBody = { ...body, selection: { ...bare, format: 'ia.task-capture-selection.v1' as const } },
+      original = { ...originalBody, revision: digest(originalBody) };
+    expect(verifyCapture(original)).toEqual(original);
+    expect(original.revision).not.toBe(prepared.capture.revision);
+    for (const stamp of [
+      { format: 'task-capture-selection' },
+      { format: 'task-capture-selection', formatVersion: 2 },
+      { format: 'ia.task-capture-selection.v1', formatVersion: 1 },
+      { format: 'ia.task-capture-selection.v2' },
+    ]) {
+      const { format: _format, ...rest } = bare,
+        invalidBody = { ...body, selection: { ...stamp, ...rest } };
+      expect(() => verifyCapture({ ...invalidBody, revision: digest(invalidBody) } as never)).toThrow();
+    }
+    const written = declaration(full),
+      { format: _declared, ...declared } = written,
+      plain = { ...declared, format: 'task-context-declaration' as const, formatVersion: 1 as const };
+    expect(taskContextDeclaration(plain)).toEqual(plain);
+    expect(taskContextDeclaration(written)).toEqual(written);
+    for (const stamp of [
+      { format: 'task-context-declaration' },
+      { format: 'task-context-declaration', formatVersion: 2 },
+      { format: 'ia.task-context-declaration.v1', formatVersion: 1 },
+      { format: 'ia.task-context-declaration.v2' },
+    ])
+      expect(() => taskContextDeclaration({ ...declared, ...stamp })).toThrow();
   } finally {
     full.close();
   }

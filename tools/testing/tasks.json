@@ -786,6 +786,7 @@
       "kind": "vitest",
       "project": ".ia/src/systems/template-system",
       "files": [
+        "tests/plain-format.test.ts",
         "tests/scalar.test.ts",
         "tests/structured.test.ts"
       ],
@@ -2924,6 +2925,7 @@
         "tests/next.test.ts",
         "tests/packet-host.test.ts",
         "tests/packet.test.ts",
+        "tests/plain-formats.test.ts",
         "tests/position.test.ts",
         "tests/publication.test.ts",
         "tests/purity.test.ts",
@@ -3191,6 +3193,7 @@
         "tests/lifecycle-segments.test.ts",
         "tests/lifecycle.test.ts",
         "tests/local-store.test.ts",
+        "tests/plain-formats.test.ts",
         "tests/projections.test.ts",
         "tests/public-spec.test.ts",
         "tests/publication.test.ts",

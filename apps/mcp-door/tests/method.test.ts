@@ -126,6 +126,33 @@ const normalized = (value: unknown): unknown => {
     return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, normalized(item)]));
   return value;
 };
+/**
+ * The retained digest names the retained manifest's bytes. The goldens are what the published plugin printed, whose
+ * manifest carries the original `inventarch.method-bytes/1` literal, and the door retains under the plain format, so each
+ * side's retained digest is masked here and the door's is checked against its own stored manifest.
+ */
+const masked = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(masked);
+  if (value !== null && typeof value === 'object')
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, key === 'retained' ? '<retained>' : masked(item)]),
+    );
+  return value;
+};
+const retainedDigests = (value: unknown, found: string[] = []): string[] => {
+  if (Array.isArray(value)) for (const item of value) retainedDigests(item, found);
+  else if (value !== null && typeof value === 'object')
+    for (const [key, item] of Object.entries(value)) {
+      if (key === 'retained' && typeof item === 'string') found.push(item);
+      else retainedDigests(item, found);
+    }
+  return found;
+};
+const storedManifest = (digest: string): Record<string, unknown> =>
+  JSON.parse(readFileSync(join(root, 'home', 'method-closures-v1', digest, 'manifest.json'), 'utf8')) as Record<
+    string,
+    unknown
+  >;
 const tools = (at: string = consumer): MethodTools =>
   new MethodTools({ root: at, kits, env, cache: join(root, 'cache') });
 
@@ -171,13 +198,22 @@ it('resolves the packet resolve.mjs prints, field for field, and writes the same
     expect(packet['digest']).toBe(packetDigest(packet));
     // The digest covers the workspace root, so each side's is compared over the same `<ROOT>` content.
     const same = normalized(packet) as Record<string, unknown>;
-    expect({ ...same, digest: packetDigest(same) }).toEqual(golden(`golden-${activity}.json`));
+    const { digest: _expected, ...expected } = golden(`golden-${activity}.json`) as Record<string, unknown>;
+    const mine = masked(same) as Record<string, unknown>,
+      theirs = masked(expected) as Record<string, unknown>;
+    expect({ ...mine, digest: packetDigest(mine) }).toEqual({ ...theirs, digest: packetDigest(theirs) });
+    for (const retained of retainedDigests(same)) {
+      expect(retained).toMatch(/^[a-f0-9]{64}$/);
+      expect(storedManifest(retained)).toMatchObject({ format: 'method-bytes', formatVersion: 1 });
+    }
   }
   const { createdAt, ...pin } = JSON.parse(
     readFileSync(join(root, 'home', 'work-v1', 'consumer', 'golden', 'binding.json'), 'utf8'),
   ) as Record<string, unknown>;
   expect(typeof createdAt).toBe('string');
-  expect(normalized(pin)).toEqual(golden('golden-pin.json'));
+  expect(masked(normalized(pin))).toEqual(masked(golden('golden-pin.json')));
+  for (const retained of retainedDigests(pin))
+    expect(storedManifest(retained)).toMatchObject({ format: 'method-bytes', formatVersion: 1 });
 }, 120_000);
 
 it('refuses an unbound key with the resolver payload and the kits that recommend it', () => {

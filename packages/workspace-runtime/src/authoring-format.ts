@@ -24,6 +24,7 @@ import type {
   LifecycleModel,
   SystemReferenceInput,
 } from './authoring-types.js';
+import { peekStamp, stampKeys } from './plain-format.js';
 
 export const AUTHORING_LIMITS = Object.freeze({
   artifacts: 2000,
@@ -275,13 +276,14 @@ export function decodeAuthoring(value: unknown, retained: boolean): AuthoringInd
         invalidAuthoring('Authoring metadata exceeds its ceiling');
       value = decodeJson(value);
     }
+    const stamp = retained ? peekStamp(value, 'authoring-index', ['ia.authoring-index.v1']) : undefined;
     const row = object(value, [
       'systems',
       'artifacts',
       'profiles',
       'documents',
       'lifecycles',
-      ...(retained ? ['format', 'nativeCaptureRevision', 'resourceDigest', 'digest'] : []),
+      ...(retained ? [...stampKeys(stamp), 'nativeCaptureRevision', 'resourceDigest', 'digest'] : []),
     ]);
     const body = {
       systems: list(row['systems'], AUTHORING_LIMITS.systems).map(system),
@@ -302,16 +304,13 @@ export function decodeAuthoring(value: unknown, retained: boolean): AuthoringInd
     const result = retained
       ? {
           ...body,
-          format: row['format'],
+          ...stamp,
           nativeCaptureRevision: hash(row['nativeCaptureRevision']),
           resourceDigest: hash(row['resourceDigest']),
           digest: hash(row['digest']),
         }
       : body;
-    if (
-      (retained && row['format'] !== 'ia.authoring-index.v1') ||
-      Buffer.byteLength(JSON.stringify(result)) > AUTHORING_LIMITS.metadataBytes
-    )
+    if ((retained && stamp === undefined) || Buffer.byteLength(JSON.stringify(result)) > AUTHORING_LIMITS.metadataBytes)
       invalidAuthoring('Invalid authoring format or metadata ceiling');
     return result as AuthoringIndexInput | CapturedAuthoringIndex;
   } catch (error) {

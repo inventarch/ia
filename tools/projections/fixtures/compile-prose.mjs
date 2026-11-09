@@ -87,7 +87,8 @@ const common = {
   requirements: [],
 };
 const body = {
-  format: 'ia.projection-descriptor.v1',
+  format: 'projection-descriptor',
+  formatVersion: 1,
   sourceRevisions: inventory.sourceRevisions,
   product: 'plugin',
   profiles: [catalog.profile],

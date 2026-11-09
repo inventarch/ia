@@ -14,10 +14,12 @@ import {
   text,
 } from '@inventarch/workspace-runtime/resource-format';
 import type { ResourceKey, ResourceOccurrence } from '@inventarch/workspace-runtime/resource-format';
+import { peekStamp, stampKeys } from './plain-format.js';
 
 /** Supplied only by the trusted host's reviewed task resolver, never by a remote request. */
 export interface TaskContextDeclaration {
-  readonly format: 'ia.task-context-declaration.v1';
+  readonly format: 'task-context-declaration' | 'ia.task-context-declaration.v1';
+  readonly formatVersion?: 1;
   readonly task: ResourceOccurrence;
   readonly basis: ResourceOccurrence;
   readonly coordinate: Coordinate;
@@ -27,8 +29,9 @@ export interface TaskContextDeclaration {
 }
 /** Closed decoding is not an authority check. The owning host selects the current approved declaration. */
 export function taskContextDeclaration(value: unknown): TaskContextDeclaration {
+  const stamp = peekStamp(value, 'task-context-declaration', ['ia.task-context-declaration.v1']);
   const row = object(value, [
-    'format',
+    ...stampKeys(stamp),
     'task',
     'basis',
     'coordinate',
@@ -36,7 +39,7 @@ export function taskContextDeclaration(value: unknown): TaskContextDeclaration {
     'authoring',
     'requiredResources',
   ]);
-  if (row['format'] !== 'ia.task-context-declaration.v1') throw new Error('Unsupported task context declaration');
+  if (stamp === undefined) throw new Error('Unsupported task context declaration');
   const coordinateInput = row['coordinate'];
   if (!coordinateInput || typeof coordinateInput !== 'object' || Array.isArray(coordinateInput))
     throw new Error('Invalid task context coordinate');
@@ -54,7 +57,7 @@ export function taskContextDeclaration(value: unknown): TaskContextDeclaration {
   const authoring = unique(list(row['authoring'], 2000).map(authoringRequest), (v) => JSON.stringify(v));
   if (!authoring.length) throw new Error('Explicit complete authoring coverage is required');
   const declaration: TaskContextDeclaration = {
-    format: row['format'],
+    ...stamp,
     task: occurrence(row['task']),
     basis: occurrence(row['basis']),
     coordinate,

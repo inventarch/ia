@@ -1538,7 +1538,7 @@ describe('HOST-01 emitted projection baseline', () => {
         {
           feature: 'prose-projection',
           level: 'guidance',
-          evidence: `generated:ia.host.${host}-prose.v1; installed/live-host qualification not established`,
+          evidence: `generated:host.${host}-prose; installed/live-host qualification not established`,
         },
         host === 'claude'
           ? CLAUDE_AGENT_PRESENTATION

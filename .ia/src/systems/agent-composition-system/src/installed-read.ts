@@ -8,7 +8,7 @@ import type { CompiledHarness } from './compiled.js';
 import { compileHarness } from './compile.js';
 import { Corpus, verifyCapture } from '@inventarch/workspace-runtime/corpus';
 import type { Capture } from '@inventarch/workspace-runtime/corpus';
-import { compiledAliases, executionManifest } from './execution.js';
+import { compiledAliases, compiledStamp, executionManifest } from './execution.js';
 import { installedImplementationDigest } from './installed-catalog.js';
 
 /** Fixed first-party identities. Native/model inputs never select a module or handler. */
@@ -133,6 +133,7 @@ export function installedReadAdapters(
     entry: compiled.entry.binding,
     catalog,
     aliases: compiledAliases(compiled),
+    ...(compiledStamp(compiled) ? { stamp: compiledStamp(compiled)! } : {}),
   });
   if (!rebuilt.ok || rebuilt.manifest.digest !== compiled.digest)
     denied('Compiled closure differs from the retained native capture');
