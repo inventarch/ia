@@ -103,7 +103,7 @@ function setup() {
     signal: new AbortController().signal,
     assertCurrent: vi.fn(async () => {}),
   };
-  return { ...fixture, bound, context, currentCapture, adapter: bound.operations[SDK.INSTALLED_READ.handler]! };
+  return { ...fixture, bound, context, currentCapture, adapter: bound.operations[SDK.INSTALLED_READ_LEGACY.handler]! };
 }
 
 it('describes and binds a fixed first-party read without invoking source or grant callbacks', () => {
@@ -118,7 +118,7 @@ it('describes and binds a fixed first-party read without invoking source or gran
   expect(f.manifest.operations[SDK.INSTALLED_READ.operation]).toMatchObject({
     effects: ['read'],
     recovery: 'repeatable',
-    handler: SDK.INSTALLED_READ.handler,
+    handler: SDK.INSTALLED_READ_LEGACY.handler,
     maxOutputBytes: 65536,
   });
 });
@@ -218,7 +218,8 @@ it.each(['adopted', 'open', 'native-store'])(
       assertCurrent: async () => {},
     };
     expect(
-      (await bound.operations[SDK.INSTALLED_READ.handler]!.execute({ path: readPath, limit: 1 }, context)).effect,
+      (await bound.operations[SDK.INSTALLED_READ_LEGACY.handler]!.execute({ path: readPath, limit: 1 }, context))
+        .effect,
     ).toBe('none');
   },
 );
@@ -395,9 +396,9 @@ it('refuses changed capture bytes before reading and before returning the result
       signal: new AbortController().signal,
       assertCurrent: async () => {},
     };
-    await expect(bound.operations[SDK.INSTALLED_READ.handler]!.execute({ path: readPath }, context)).rejects.toThrow(
-      'source selection changed',
-    );
+    await expect(
+      bound.operations[SDK.INSTALLED_READ_LEGACY.handler]!.execute({ path: readPath }, context),
+    ).rejects.toThrow('source selection changed');
   }
 });
 it('refuses forged full manifests, compiled pins and changed installed catalogue contracts at binding', () => {
@@ -411,9 +412,9 @@ it('refuses forged full manifests, compiled pins and changed installed catalogue
   expect(() => SDK.installedReadAdapters(f.capture, { ...f.options, compiled })).toThrow('digest mismatch');
   for (const field of ['handler', 'implementationDigest', 'recovery', 'timeoutMs', 'maxOutputBytes']) {
     const catalog = copy(f.catalog),
-      entry = catalog.operations[SDK.INSTALLED_READ.implementation]!;
+      entry = catalog.operations[SDK.INSTALLED_READ_LEGACY.implementation]!;
     const previous = (entry.value as unknown as Record<string, unknown>)[field];
-    catalog.operations[SDK.INSTALLED_READ.implementation] = SDK.installed({
+    catalog.operations[SDK.INSTALLED_READ_LEGACY.implementation] = SDK.installed({
       ...entry.value,
       [field]: typeof previous === 'number' ? 1 : 'changed',
     });
@@ -423,8 +424,8 @@ it('refuses forged full manifests, compiled pins and changed installed catalogue
 it('refuses an internally coherent recompiled catalogue with a forged implementation byte pin', () => {
   const f = readFixture(SDK, root),
     catalog = copy(f.catalog);
-  catalog.operations[SDK.INSTALLED_READ.implementation] = SDK.installed({
-    ...catalog.operations[SDK.INSTALLED_READ.implementation]!.value,
+  catalog.operations[SDK.INSTALLED_READ_LEGACY.implementation] = SDK.installed({
+    ...catalog.operations[SDK.INSTALLED_READ_LEGACY.implementation]!.value,
     implementationDigest: '0'.repeat(64),
   });
   const compilation = SDK.compileHarness(f.capture, {
@@ -471,7 +472,7 @@ it('snapshots selected input and bound catalogue rather than following later cal
     args = { path: readPath, limit: 1 };
   f.context.assertCurrent = async () => {
     args.path = '.ia/src/outside.ia';
-    f.options.catalog.operations[SDK.INSTALLED_READ.implementation]!.value.handler = 'other';
+    f.options.catalog.operations[SDK.INSTALLED_READ_LEGACY.implementation]!.value.handler = 'other';
   };
   expect((await f.adapter.execute(args, f.context)).effect).toBe('none');
 });
@@ -510,9 +511,9 @@ it('refuses cancellation, closed consumers and overlarge retained output', async
     manifest,
     assertCurrent: async () => {},
   };
-  await expect(bound.operations[SDK.INSTALLED_READ.handler]!.execute({ path: readPath }, context)).rejects.toThrow(
-    'Result exceeds limit',
-  );
+  await expect(
+    bound.operations[SDK.INSTALLED_READ_LEGACY.handler]!.execute({ path: readPath }, context),
+  ).rejects.toThrow('Result exceeds limit');
 });
 it('runs real Engine read receipts and repeatable recovery with revoked retry and retained accounting', async () => {
   const store = memoryStore();
@@ -717,7 +718,10 @@ it('compiles the shipped records to the original read entry and handler by defau
   expect(f.manifest.operations[SDK.INSTALLED_READ.operation]!.handler).toBe('ia.captured-source.read.v1');
   expect(f.compiled).toMatchObject({ format: 'ia.compiled-harness.v1' });
   expect(Object.hasOwn(f.compiled, 'formatVersion')).toBe(false);
-  expect(f.manifest.profiles && Object.values(f.manifest.profiles).every((p) => p.contract!.completionEvaluator === 'ia.completion.v1')).toBe(true);
+  expect(
+    f.manifest.profiles &&
+      Object.values(f.manifest.profiles).every((p) => p.contract!.completionEvaluator === 'ia.completion.v1'),
+  ).toBe(true);
 });
 it('refuses records that name the original ids when no aliases are passed and the originals are gone', () => {
   const f = readFixture(SDK, root, 'legacy'),

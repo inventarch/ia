@@ -266,7 +266,7 @@ export async function qualifyInstalledRead(SDK, root, store, retryFault) {
   const f = readFixture(SDK, root);
   let current = f.capture;
   const read = SDK.installedReadAdapters(f.capture, { ...f.options, currentCapture: () => current }),
-    adapter = read.operations[SDK.INSTALLED_READ.handler];
+    adapter = read.operations[SDK.INSTALLED_READ_LEGACY.handler];
   let calls = 0,
     reads = 0,
     failOnce = true,
@@ -309,7 +309,7 @@ export async function qualifyInstalledRead(SDK, root, store, retryFault) {
       digest(manifest) === digest(f.manifest) &&
       current.revision === f.capture.revision &&
       SDK.installedImplementationDigest() ===
-        f.catalog.operations[SDK.INSTALLED_READ.implementation].value.implementationDigest,
+        f.catalog.operations[SDK.INSTALLED_READ_LEGACY.implementation].value.implementationDigest,
     context: async () => ({ capture: f.capture.revision }),
     evaluate: async () => {
       checks++;
@@ -392,7 +392,7 @@ export async function qualifyInstalledRead(SDK, root, store, retryFault) {
     return {
       capture: f.capture.revision,
       compiled: f.compiled.digest,
-      installedCode: f.catalog.operations[SDK.INSTALLED_READ.implementation].value.implementationDigest,
+      installedCode: f.catalog.operations[SDK.INSTALLED_READ_LEGACY.implementation].value.implementationDigest,
       calls,
       reads,
       checks,
@@ -420,7 +420,7 @@ export async function qualifyAdmission(SDK, root, directory) {
   const f = readFixture(SDK, root),
     sentinel = 'A supplied public read label.',
     read = SDK.installedReadAdapters(f.capture, f.options),
-    adapter = read.operations[SDK.INSTALLED_READ.handler];
+    adapter = read.operations[SDK.INSTALLED_READ_LEGACY.handler];
   let revoked = false,
     returnChecks = 0,
     nativeReads = 0,
@@ -599,7 +599,7 @@ if (isEntry(process.argv[1], import.meta.url)) {
       };
       try {
         await assert.rejects(
-          bound.operations[installedSDK.INSTALLED_READ.handler].execute({ path: readPath }, context),
+          bound.operations[installedSDK.INSTALLED_READ_LEGACY.handler].execute({ path: readPath }, context),
           /implementation bytes changed/,
         );
         byteMutationRefused = true;

@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { digest } from '@inventarch/session-system';
@@ -8,6 +8,23 @@ import type { Capture, CompiledHarness } from '../src/index.js';
 import { admitSourceCapture } from '@inventarch/workspace-runtime/sources';
 
 import { compilerCapture, compilerCatalog as catalogWithDigest } from './compiler-fixture.js';
+
+/** The package's one switch, flipped here to prove the plain names come back exactly when the follow-up release flips it. */
+const flip = vi.hoisted(() => ({ plain: false }));
+vi.mock('../src/written-names.js', () => ({
+  get WRITE_PLAIN_NAMES() {
+    return flip.plain;
+  },
+}));
+/** Run `body` with the switch flipped, and put it back. */
+function flipped<T>(body: () => T): T {
+  flip.plain = true;
+  try {
+    return body();
+  } finally {
+    flip.plain = false;
+  }
+}
 
 const root = fileURLToPath(new URL('../../../../..', import.meta.url));
 const captured = compilerCapture(root);
@@ -55,7 +72,8 @@ it('compiles the admitted native author/architect without execution and retains 
     'utf8',
   );
   const m = good();
-  expect(m).toMatchObject({ format: 'compiled-harness', formatVersion: 1 });
+  expect(m.format).toBe('ia.compiled-harness.v1');
+  expect(Object.hasOwn(m, 'formatVersion')).toBe(false);
   expect(m.profiles[name('author')]).toMatchObject({
     role: 'author',
     delegates: [name('architect')],
@@ -205,7 +223,7 @@ it('refuses missing handlers, digest mismatches, physical-owner drift and legacy
     owner: 'authoring-system',
   });
   refused(captured, 'IA-COMPOSITION-CONFLICT', wrong);
-  refused(modified('operations/sample-read.ia', '    profile governed\n', ''), 'IA-COMPOSITION-UNAVAILABLE');
+  refused(modified('operations/sample-read.ia', '    profile governed-v1\n', ''), 'IA-COMPOSITION-UNAVAILABLE');
   const unpinned = sampleCatalog('ide');
   unpinned.operations['fixture-read-v1'] = installed({
     ...unpinned.operations['fixture-read-v1']!.value,
@@ -449,7 +467,7 @@ it('pins explicit independent reviewer policy through mandate composition into t
   const catalog = sampleCatalog('ide'),
     base = catalog.mandates['sample-task-v1']!.value;
   const review = {
-    rule: 'independent-exact-candidate' as const,
+    rule: 'independent-exact-candidate-v1' as const,
     reviewer: 'reviewer-bob',
     mandate: 'separate-review-mandate',
     policyRevision: 'policy-1',
@@ -467,7 +485,7 @@ it('pins explicit independent reviewer policy through mandate composition into t
 
 it('accepts the plain governed profile and its original governed-v1 spelling, and refuses any other profile', () => {
   const sample = (profile: string) =>
-    compileHarness(modified('operations/sample-read.ia', '    profile governed\n', `    profile ${profile}\n`), {
+    compileHarness(modified('operations/sample-read.ia', '    profile governed-v1\n', `    profile ${profile}\n`), {
       ...options(),
       catalog: sampleCatalog('ide'),
       entry: 'sample-entry',
@@ -477,17 +495,23 @@ it('accepts the plain governed profile and its original governed-v1 spelling, an
   expect(sample('governed-v2')).toMatchObject({ ok: false, diagnostics: [{ code: 'IA-COMPOSITION-UNAVAILABLE' }] });
 });
 
-it('writes the plain completion evaluator and accepts the original independent review rule in an installed mandate', () => {
+it('writes the released completion evaluator until the switch flips, and accepts either independent review rule', () => {
   const catalog = sampleCatalog('ide'),
     base = catalog.mandates['sample-task-v1']!.value,
     review = { reviewer: 'reviewer-bob', mandate: 'separate-review-mandate', policyRevision: 'policy-1' };
-  for (const profile of Object.values(executionManifest(good(captured, catalog), catalog).profiles))
-    expect(profile.contract!.completionEvaluator).toBe('completion');
-  const old = { ...review, rule: 'independent-exact-candidate-v1' as const };
-  catalog.mandates['sample-task-v1'] = installed({ ...base, review: old });
-  const compiled = good(captured, catalog);
-  for (const profile of Object.values(executionManifest(compiled, catalog).profiles))
-    expect(profile.contract!.review).toEqual(old);
+  const evaluators = () =>
+    Object.values(executionManifest(good(captured, catalog), catalog).profiles).map(
+      (profile) => profile.contract!.completionEvaluator,
+    );
+  expect(new Set(evaluators())).toEqual(new Set(['ia.completion.v1']));
+  expect(new Set(flipped(evaluators))).toEqual(new Set(['completion']));
+  for (const rule of ['independent-exact-candidate-v1', 'independent-exact-candidate'] as const) {
+    const policy = { ...review, rule };
+    catalog.mandates['sample-task-v1'] = installed({ ...base, review: policy });
+    const compiled = good(captured, catalog);
+    for (const profile of Object.values(executionManifest(compiled, catalog).profiles))
+      expect(profile.contract!.review).toEqual(policy);
+  }
   catalog.mandates['sample-task-v1'] = installed({
     ...base,
     review: { ...review, rule: 'independent-exact-candidate-v2' as 'independent-exact-candidate' },
@@ -497,12 +521,12 @@ it('writes the plain completion evaluator and accepts the original independent r
 
 import './sdk-runtime/onboarding-case.js';
 
-it('stamps a compiled harness plainly, and reproduces and executes one compiled under the original literal', () => {
-  const current = good(),
+it('stamps a compiled harness with the released literal, plainly once the switch flips, and executes either', () => {
+  const original = good(),
     catalog = sampleCatalog('ide'),
-    result = compileHarness(captured, { ...options(), stamp: { format: 'ia.compiled-harness.v1' } });
+    result = flipped(() => compileHarness(captured, options()));
   if (!result.ok) throw new Error(JSON.stringify(result));
-  const original = result.manifest;
+  const current = result.manifest;
   expect(current).toMatchObject({ format: 'compiled-harness', formatVersion: 1 });
   expect(original.format).toBe('ia.compiled-harness.v1');
   expect(Object.hasOwn(original, 'formatVersion')).toBe(false);
@@ -527,4 +551,21 @@ it('stamps a compiled harness plainly, and reproduces and executes one compiled 
     { ...original, format: 'compiled-harness' as const },
   ])
     expect(() => executionManifest(bad, catalog)).toThrow('Compiled harness digest mismatch');
+});
+
+it('forward compatibility: the default output carries exactly the released literals', () => {
+  const catalog = sampleCatalog('ide'),
+    compiled = good(captured, catalog),
+    manifest = executionManifest(compiled, catalog);
+  expect(compiled.format).toBe('ia.compiled-harness.v1');
+  expect(Object.keys(compiled).includes('formatVersion')).toBe(false);
+  for (const profile of Object.values(manifest.profiles)) {
+    expect(profile.contract!.completionEvaluator).toBe('ia.completion.v1');
+    // The review rule a mandate installs is carried through untouched.
+    expect(profile.contract!.review).toBeUndefined();
+  }
+  // The names the compiled output pins are the catalog's own: nothing is renamed on the way out.
+  const pinned = compiled.provenance.installed.map((pin) => pin.id);
+  expect(pinned).toContain('sample-task-v1');
+  expect(Object.hasOwn(compiled.provenance, 'aliases')).toBe(false);
 });

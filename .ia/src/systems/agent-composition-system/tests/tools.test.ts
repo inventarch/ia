@@ -17,6 +17,14 @@ import type { DraftToolOptions } from '../src/tools.js';
 // Cases rebuild captured native views for several tool setups; under full-suite load one case nears the 5 s default.
 vi.setConfig({ testTimeout: 30_000 });
 
+/** The package's one switch, flipped here to prove the plain names come back exactly when the follow-up release flips it. */
+const flip = vi.hoisted(() => ({ plain: false }));
+vi.mock('../src/written-names.js', () => ({
+  get WRITE_PLAIN_NAMES() {
+    return flip.plain;
+  },
+}));
+
 import { compilerCapture, compilerToolCatalog as draftToolCatalog } from './compiler-fixture.js';
 
 const root = resolve(import.meta.dirname, '../../../../..'),
@@ -36,7 +44,7 @@ mkdirSync(resolve(temp, 'templates'));
 writeFileSync(resolve(temp, 'templates/tool.json'), tree);
 const { revision: _revision, ...body } = base;
 const native =
-  '#! ia 1.0\n@template tool-note\n  meaning\n    says "Render the original engine fixture."\n    answers "What is rendered?"\n  template\n    filename "docs/tool-note.md"\n    parameters []\n    lines []\n    profile structured\n    resource "templates/tool.json"\n';
+  '#! ia 1.0\n@template tool-note\n  meaning\n    says "Render the original engine fixture."\n    answers "What is rendered?"\n  template\n    filename "docs/tool-note.md"\n    parameters []\n    lines []\n    profile structured-v1\n    resource "templates/tool.json"\n';
 const source = {
   ...base.sources.find((s) => s.path === '.ia/src/systems/template-system/system.ia')!,
   path: '.ia/src/systems/template-system/records/tool-note.ia',
@@ -313,7 +321,7 @@ it('refuses forged model root/actor/binding fields at the engine schema before d
 });
 it('refuses wrong principal, manifest, grant, cancellation and missing engine authority', async () => {
   const f = setup(),
-    adapter = f.tools.operations['draft-format']!;
+    adapter = f.tools.operations['ia.draft.format.v1']!;
   const changed = copy(f.manifest);
   changed.workspace = 'forged';
   changed.digest = manifestDigest(changed);
@@ -337,21 +345,21 @@ it('refuses wrong principal, manifest, grant, cancellation and missing engine au
 it('rechecks source and refreshed grants before returning any artifact', async () => {
   let checks = 0;
   const f = setup('draft', { current: () => ++checks === 1 }),
-    adapter = f.tools.operations['draft-format']!;
+    adapter = f.tools.operations['ia.draft.format.v1']!;
   await expect(adapter.execute({ path, text }, f.context)).rejects.toThrow('selection changed');
   const next = setup();
   next.context.assertCurrent = async () => {
     next.context.grant = { ...next.grant, sources: [] };
   };
-  await expect(next.tools.operations['draft-format']!.execute({ path, text }, next.context)).rejects.toThrow(
+  await expect(next.tools.operations['ia.draft.format.v1']!.execute({ path, text }, next.context)).rejects.toThrow(
     'authority',
   );
 });
 it('refuses narrow contextual previews and independently excluded template resources', async () => {
   const f = setup('draft', { identities: [owner.identity] });
   for (const [operation, handler] of [
-    ['validate-draft', 'draft-validate'],
-    ['format-draft', 'draft-format'],
+    ['validate-draft', 'ia.draft.validate.v1'],
+    ['format-draft', 'ia.draft.format.v1'],
   ] as const) {
     const result = await f.tools.operations[handler]!.execute({ path, text }, f.context);
     expect(result.output).toMatchObject({
@@ -369,7 +377,7 @@ it('refuses narrow contextual previews and independently excluded template resou
     { resources: resourceSelection(), identities: [] },
   ]) {
     const scoped = setup('template', options);
-    const result = await scoped.tools.operations['captured-template-render']!.execute(
+    const result = await scoped.tools.operations['ia.template.render.v1']!.execute(
       { template: owner.identity, values: '{"title":"Private"}' },
       scoped.context,
     );
@@ -379,7 +387,7 @@ it('refuses narrow contextual previews and independently excluded template resou
 });
 it('refuses unavailable catalogs, changed implementation/resource pins and forged operation contracts', () => {
   const catalog = draftToolCatalog('test', code);
-  delete catalog.operations['draft-format'];
+  delete catalog.operations['draft-format-v1'];
   expect(compileHarness(capture, { harness: 'native-draft-tools', entry: 'draft-tools-entry', catalog })).toMatchObject(
     { ok: false },
   );
@@ -413,8 +421,10 @@ it('refuses unavailable catalogs, changed implementation/resource pins and forge
   ).toThrow('installed descriptor');
 });
 
-// A contract's version is its entry's `version`, so the draft tools have plain names. The original entries stay, byte
-// for byte, for harnesses pinned before that; records that still name them compile to the plain entries by the aliases.
+// A contract's version is its entry's `version`, so the draft tools have plain names. The released records and the
+// original entries are what this release compiles and writes (dec-008, A15): the shipped records name the original
+// tools, and `draftToolAliases()` is empty until the package's switch flips. The plain entries stay installed, and a
+// record that names one compiles to it.
 const originalPaths = [
   '.ia/src/systems/agent-composition-system/records/validate-draft-binding.ia',
   '.ia/src/systems/agent-composition-system/records/format-draft-binding.ia',
@@ -423,42 +433,42 @@ const originalPaths = [
   '.ia/src/systems/authoring-system/operations/format-draft.ia',
   '.ia/src/systems/template-system/operations/render-captured-template.ia',
 ];
-const withVersions = (text: string) =>
-  text.replace(
-    /^(\s+(?:handler|input|output|implementation) (?:draft-validate|draft-format|captured-template-render|draft-text|captured-template-input|draft-result))$/gm,
-    '$1-v1',
-  );
-const { revision: _plainRevision, ...plainBody } = capture;
-const originalBody = {
-    ...plainBody,
+const withoutVersions = (text: string) =>
+  text
+    .replace(
+      /^(\s+(?:handler|input|output|implementation) (?:draft-validate|draft-format|captured-template-render|draft-text|captured-template-input|draft-result))-v1$/gm,
+      '$1',
+    )
+    .replace(/^(\s+profile governed)-v1$/gm, '$1');
+const { revision: _releasedRevision, ...releasedBody } = capture;
+const plainBody = {
+    ...releasedBody,
     sources: capture.sources.map((row) =>
-      originalPaths.includes(row.path) ? { ...row, text: withVersions(row.text) } : row,
+      originalPaths.includes(row.path) ? { ...row, text: withoutVersions(row.text) } : row,
     ),
   },
-  originalCapture: Capture = { ...originalBody, revision: digest(originalBody) };
-// Resource envelopes are bound to the capture revision and its physical sources, so the original-name capture has its
+  plainCapture: Capture = { ...plainBody, revision: digest(plainBody) };
+// Resource envelopes are bound to the capture revision and its physical sources, so the plain-name capture has its
 // own directory and envelope.
-const tempOriginal = mkdtempSync(resolve(tmpdir(), 'ia-engine-tools-'));
-mkdirSync(resolve(tempOriginal, 'templates'));
-writeFileSync(resolve(tempOriginal, 'templates/tool.json'), tree);
-for (const item of originalCapture.sources.filter(
+const tempPlain = mkdtempSync(resolve(tmpdir(), 'ia-engine-tools-'));
+mkdirSync(resolve(tempPlain, 'templates'));
+writeFileSync(resolve(tempPlain, 'templates/tool.json'), tree);
+for (const item of plainCapture.sources.filter(
   (row) =>
-    row.path.startsWith('.ia/src/') &&
-    (originalCapture.floorOrigin === 'local' || !row.path.startsWith('.ia/src/floor/')),
+    row.path.startsWith('.ia/src/') && (plainCapture.floorOrigin === 'local' || !row.path.startsWith('.ia/src/floor/')),
 )) {
-  const target = resolve(tempOriginal, item.path);
+  const target = resolve(tempPlain, item.path);
   mkdirSync(dirname(target), { recursive: true });
   writeFileSync(target, item.text);
 }
-afterAll(() => rmSync(tempOriginal, { recursive: true, force: true }));
-// Resource envelopes are bound to the capture revision, so the original-name capture needs its own.
-const originalOwner = resourceOccurrences(originalCapture).occurrences.find((o) => o.identity.endsWith('/tool-note'))!;
-const originalKey = { source: originalOwner.source, revision: originalOwner.revision, path: 'templates/tool.json' };
-const originalResources = captureResources(originalCapture, {
-  roots: [{ source: originalOwner.source, revision: originalOwner.revision, root: tempOriginal }],
+afterAll(() => rmSync(tempPlain, { recursive: true, force: true }));
+const plainOwner = resourceOccurrences(plainCapture).occurrences.find((o) => o.identity.endsWith('/tool-note'))!;
+const plainKey = { source: plainOwner.source, revision: plainOwner.revision, path: 'templates/tool.json' };
+const plainResources = captureResources(plainCapture, {
+  roots: [{ source: plainOwner.source, revision: plainOwner.revision, root: tempPlain }],
   files: [
     {
-      key: originalKey,
+      key: plainKey,
       bytes: Buffer.byteLength(tree),
       sha256: createHash('sha256').update(tree).digest('hex'),
       mediaType: 'application/json',
@@ -467,8 +477,8 @@ const originalResources = captureResources(originalCapture, {
   ],
   associations: [
     {
-      owner: originalOwner,
-      resources: [{ key: originalKey, role: 'template', required: true, order: 0, delivery: 'installed-reference' }],
+      owner: plainOwner,
+      resources: [{ key: plainKey, role: 'template', required: true, order: 0, delivery: 'installed-reference' }],
     },
   ],
 });
@@ -479,10 +489,10 @@ const pinned = (kind: string, shape: Shape = {}) =>
       ? {
           resources: shape.capture
             ? {
-                envelope: originalResources,
-                digest: originalResources.digest,
-                allowed: [originalKey],
-                templates: [originalOwner.identity],
+                envelope: plainResources,
+                digest: plainResources.digest,
+                allowed: [plainKey],
+                templates: [plainOwner.identity],
               }
             : resourceSelection(),
         }
@@ -533,7 +543,9 @@ it('keeps the original draft tool entries byte for byte beside the plain ones', 
   }
   for (const name of ['draft-text', 'captured-template-input', 'draft-result'])
     expect(catalog.validators[name + '-v1']).toEqual(catalog.validators[name]);
-  expect(draftToolAliases()).toEqual({
+});
+it('sends a record that names an original tool to the plain entry only once the switch flips', () => {
+  const table = {
     operations: {
       'draft-validate-v1': 'draft-validate',
       'draft-format-v1': 'draft-format',
@@ -544,14 +556,47 @@ it('keeps the original draft tool entries byte for byte beside the plain ones', 
       'captured-template-input-v1': 'captured-template-input',
       'draft-result-v1': 'draft-result',
     },
-  });
+  };
+  expect(draftToolAliases()).toEqual({});
+  flip.plain = true;
+  try {
+    expect(draftToolAliases()).toEqual(table);
+    for (const kind of ['draft', 'template']) {
+      const f = pinned(kind, { aliases: draftToolAliases() }),
+        plain = pinned(kind, { capture: plainCapture });
+      expect(toolPins(f)).toEqual(toolPins(plain));
+      const compiled = (f.manifest.provenance as { compiled: { provenance: { aliases?: { group: string }[] } } })
+        .compiled;
+      expect(compiled.provenance.aliases?.some((row) => row.group === 'operations')).toBe(true);
+      expect(compiled.provenance.aliases?.some((row) => row.group === 'validators')).toBe(true);
+      for (const op of toolOperations(f)) expect(op.handler).not.toContain('.');
+    }
+  } finally {
+    flip.plain = false;
+  }
+});
+it('compiles the released records to the original entries and handlers by default, whatever the alias table', async () => {
+  for (const kind of ['draft', 'template']) {
+    const f = pinned(kind, { aliases: draftToolAliases() }),
+      g = pinned(kind);
+    expect(toolPins(f)).toEqual(toolPins(g));
+    expect(toolPins(f).every((id) => id.endsWith('-v1'))).toBe(true);
+    for (const op of toolOperations(f)) expect(op.handler).toMatch(/^ia\./);
+  }
+  const f = pinned('draft');
+  expect([f.manifest.operations['ia.draft.format.v1'], f.manifest.operations['draft-format']]).toEqual([
+    undefined,
+    undefined,
+  ]);
+  const result = await f.tools.operations['ia.draft.format.v1']!.execute({ path, text }, f.context);
+  expect(result.output).toMatchObject({ status: 'draft' });
 });
 it('compiles records with the plain names, pinning the plain entries and handlers', () => {
   for (const [kind, plain] of [
     ['draft', ['draft-format', 'draft-validate']],
     ['template', ['captured-template-render']],
   ] as const) {
-    const f = pinned(kind);
+    const f = pinned(kind, { capture: plainCapture });
     expect(toolPins(f)).toEqual(plain);
     for (const op of toolOperations(f)) expect(plain).toContain(op.handler);
     for (const [, name, handler] of toolIds)
@@ -559,29 +604,40 @@ it('compiles records with the plain names, pinning the plain entries and handler
         expect([f.tools.operations[name]?.id, f.tools.operations[handler]?.id]).toEqual([name, handler]);
   }
 });
-it('compiles records that still name the original ids through the aliases to the plain entries', () => {
-  for (const kind of ['draft', 'template']) {
-    const f = pinned(kind, { capture: originalCapture, aliases: draftToolAliases() }),
-      plain = pinned(kind);
-    expect(toolPins(f)).toEqual(toolPins(plain));
-    const compiled = (f.manifest.provenance as { compiled: { provenance: { aliases?: { group: string }[] } } })
-      .compiled;
-    expect(compiled.provenance.aliases?.some((row) => row.group === 'operations')).toBe(true);
-    expect(compiled.provenance.aliases?.some((row) => row.group === 'validators')).toBe(true);
-    for (const op of toolOperations(f)) expect(op.handler).not.toContain('.');
-  }
-});
 it('keeps a harness pinned to the original entries valid and dispatching by the original handlers', async () => {
   for (const kind of ['draft', 'template']) {
-    const f = pinned(kind, { capture: originalCapture, originalOnly: true });
+    const f = pinned(kind, { originalOnly: true });
     expect(toolPins(f).every((id) => id.endsWith('-v1'))).toBe(true);
     for (const op of toolOperations(f)) expect(op.handler).toMatch(/^ia\./);
   }
-  const f = pinned('draft', { capture: originalCapture, originalOnly: true });
+  const f = pinned('draft', { originalOnly: true });
   const result = await f.tools.operations['ia.draft.format.v1']!.execute({ path, text }, f.context);
   expect(result.effect).toBe('none');
   expect(result.output).toMatchObject({ status: 'draft' });
   expect(f.tools.operations['ia.draft.format.v1']!.id).toBe('ia.draft.format.v1');
-  const renderer = pinned('template', { capture: originalCapture, originalOnly: true });
+  const renderer = pinned('template', { originalOnly: true });
   expect(renderer.tools.operations['ia.template.render.v1']).toBeDefined();
+});
+it('forward compatibility: the default compiled output names exactly the released literals', () => {
+  const draft = pinned('draft'),
+    template = pinned('template');
+  const compiled = (f: ReturnType<typeof setup>) =>
+    (f.manifest.provenance as { compiled: { format: string; formatVersion?: number } }).compiled;
+  for (const f of [draft, template]) {
+    expect(compiled(f).format).toBe('ia.compiled-harness.v1');
+    expect(Object.hasOwn(compiled(f), 'formatVersion')).toBe(false);
+  }
+  expect(toolPins(draft)).toEqual(['draft-format-v1', 'draft-validate-v1']);
+  expect(toolPins(template)).toEqual(['captured-template-render-v1']);
+  expect([...toolOperations(draft), ...toolOperations(template)].map((op) => op.handler).sort()).toEqual([
+    'ia.draft.format.v1',
+    'ia.draft.validate.v1',
+    'ia.template.render.v1',
+  ]);
+  const pins = (
+    draft.manifest.provenance as { compiled: { provenance: { installed: { group: string; id: string }[] } } }
+  ).compiled.provenance.installed;
+  expect(pins.filter((pin) => pin.group === 'validators').map((pin) => pin.id)).toEqual(
+    expect.arrayContaining(['draft-text-v1', 'draft-result-v1']),
+  );
 });

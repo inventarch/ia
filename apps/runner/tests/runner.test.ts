@@ -1,9 +1,14 @@
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import { adoptWorkspace } from '@inventarch/workspace-runtime';
-import { executionManifest, INSTALLED_READ, installed } from '@inventarch/agent-composition-system';
+import {
+  executionManifest,
+  INSTALLED_READ,
+  INSTALLED_READ_LEGACY,
+  installed,
+} from '@inventarch/agent-composition-system';
 import type { CompiledHarness, CompositionCatalog } from '@inventarch/agent-composition-system';
 import { open } from '@inventarch/db';
 import type { EngineHost, Grant, ModelAction, ModelRequest } from '@inventarch/agent-system';
@@ -11,6 +16,22 @@ import { digest, replay } from '@inventarch/session-system';
 import { openRunner, runnerAliases, runnerCatalog } from '../src/index.js';
 import { normalizeScopeKey } from '@inventarch/runtime';
 import { RunnerContext } from '../src/context.js';
+
+/**
+ * The switches of this package and of the composition package it compiles through, flipped together here to prove the
+ * plain names come back exactly when the follow-up release flips them (dec-008, A15).
+ */
+const flip = vi.hoisted(() => ({ plain: false }));
+vi.mock('../src/written-names.js', () => ({
+  get WRITE_PLAIN_NAMES() {
+    return flip.plain;
+  },
+}));
+vi.mock('../../../.ia/src/systems/agent-composition-system/src/written-names.js', () => ({
+  get WRITE_PLAIN_NAMES() {
+    return flip.plain;
+  },
+}));
 
 const repository = resolve(import.meta.dirname, '../../..');
 const cleanups: (() => Promise<void> | void)[] = [];
@@ -153,8 +174,8 @@ it('uses the installed context primitive for real model turns', async () => {
   const options = fixture(),
     seen: ModelRequest[] = [],
     catalog = runnerCatalog();
-  const context = catalog.contexts['runner-context']!.value;
-  catalog.contexts['runner-context'] = installed({
+  const context = catalog.contexts['runner-context-v1']!.value;
+  catalog.contexts['runner-context-v1'] = installed({
     ...context,
     coordinate: { ...context.coordinate, primitive: 'Escalation' },
   });
@@ -282,7 +303,7 @@ it('exposes no unbound or unaccounted direct read or navigation API', async () =
 it('rejects a forged installed implementation description without loading code', () => {
   const options = fixture(),
     catalog = runnerCatalog();
-  catalog.operations[INSTALLED_READ.implementation]!.value.implementationDigest = '0'.repeat(64);
+  catalog.operations[INSTALLED_READ_LEGACY.implementation]!.value.implementationDigest = '0'.repeat(64);
   expect(() => openRunner({ ...options, catalog })).toThrow();
 });
 
@@ -556,8 +577,10 @@ it('preserves the durable run when evidence publication fails and retries projec
   evidence.close();
 });
 
-// A contract's version is its entry's `version`, so the runner contracts have plain names. The original entries stay,
-// byte for byte, for harnesses pinned before that; records that still name them compile to the plain entries.
+// A contract's version is its entry's `version`, so the runner contracts have plain names. The released records and the
+// original entries are what this release compiles (dec-008, A15): the shipped records name the original contracts, and
+// `runnerAliases()` is empty until the switch flips. The plain entries stay installed, and a record that names one
+// compiles to it.
 const RUNNER_PLAIN = [
   'runner-local',
   'runner-external',
@@ -569,16 +592,18 @@ const RUNNER_PLAIN = [
   'runner-identity',
 ];
 const READ_PLAIN = ['captured-source-read', 'captured-source-read-input', 'captured-source-read-output'];
-const namesWithVersions = (text: string) =>
-  text.replace(new RegExp(`\\b(${RUNNER_PLAIN.join('|')})\\b(?![-\\w])`, 'g'), '$1-v1');
-const readNamesWithVersions = (text: string) =>
-  text.replace(/^(\s+(?:handler|input|output|implementation) captured-source-read(?:-input|-output)?)$/gm, '$1-v1');
-/** The fixture as it was written before names stopped carrying their version, runner records and adopted read both. */
-function originalFixture() {
+const namesWithoutVersions = (text: string) =>
+  text.replace(new RegExp(`\\b(${RUNNER_PLAIN.join('|')})-v1\\b`, 'g'), '$1');
+const readNamesWithoutVersions = (text: string) =>
+  text
+    .replace(/^(\s+(?:handler|input|output|implementation) captured-source-read(?:-input|-output)?)-v1$/gm, '$1')
+    .replace(/^(\s+profile governed)-v1$/gm, '$1');
+/** The fixture as it would be written once names stop carrying their version, runner records and adopted read both. */
+function plainFixture() {
   const options = fixture(),
     file = resolve(options.root, '.ia/src/systems/agent-composition-system/records/runner.ia');
-  writeFileSync(file, namesWithVersions(readFileSync(file, 'utf8')));
-  // Adoption verifies the exact bytes, so re-adopt a copy of the public sources whose read records use the old names.
+  writeFileSync(file, namesWithoutVersions(readFileSync(file, 'utf8')));
+  // Adoption verifies the exact bytes, so re-adopt a copy of the public sources whose read records use the plain names.
   const copy = mkdtempSync(resolve(tmpdir(), 'ia-runner-adopt-'));
   cleanups.push(() => rmSync(copy, { recursive: true, force: true }));
   cpSync(resolve(repository, '.ia/src'), resolve(copy, '.ia/src'), {
@@ -587,22 +612,32 @@ function originalFixture() {
   });
   for (const name of ['operations/read-captured-source.ia', 'records/read-captured-source-binding.ia']) {
     const target = resolve(copy, '.ia/src/systems/agent-composition-system', name);
-    writeFileSync(target, readNamesWithVersions(readFileSync(target, 'utf8')));
+    writeFileSync(target, readNamesWithoutVersions(readFileSync(target, 'utf8')));
   }
   const adopted = [adoptWorkspace(copy, 'public-language')];
   return { ...options, inputs: { adopted } };
+}
+/** Run `body` with both switches flipped, and put them back. */
+async function flipped<T>(body: () => Promise<T> | T): Promise<T> {
+  flip.plain = true;
+  try {
+    return await body();
+  } finally {
+    flip.plain = false;
+  }
 }
 const installedPins = (runner: ReturnType<typeof openRunner>) =>
   (
     runner.manifest.provenance as {
       compiled: {
+        format: string;
         provenance: {
           installed: { group: string; id: string }[];
           aliases?: { group: string; from: string; to: string }[];
         };
       };
     }
-  ).compiled.provenance;
+  ).compiled;
 const onlyOriginals = (catalog: CompositionCatalog): CompositionCatalog => {
   const plain = new Set([...RUNNER_PLAIN, ...READ_PLAIN]);
   const keep = <T>(table: Record<string, T>) =>
@@ -621,7 +656,7 @@ const onlyOriginals = (catalog: CompositionCatalog): CompositionCatalog => {
   };
 };
 
-it('names the runner contracts plainly and keeps the originals byte for byte', () => {
+it('names the runner contracts plainly and keeps the originals byte for byte', async () => {
   const catalog = runnerCatalog();
   for (const name of RUNNER_PLAIN) {
     const group = Object.values(catalog).find((table) => Object.hasOwn(table, name + '-v1')) as Record<
@@ -664,53 +699,77 @@ it('names the runner contracts plainly and keeps the originals byte for byte', (
       mapping: 'runner-identity',
     },
   });
-  const aliases = runnerAliases();
-  expect(aliases.hosts).toEqual({ 'runner-local-v1': 'runner-local' });
-  expect(aliases.operations).toEqual({ 'captured-source-read-v1': 'captured-source-read' });
-  expect(Object.keys(aliases.validators ?? {}).sort()).toEqual([
-    'captured-source-read-input-v1',
-    'captured-source-read-output-v1',
-    'runner-task-v1',
-  ]);
+  // Until the switch flips there is no alias table: a record that names an original contract compiles to the original.
+  expect(runnerAliases()).toEqual({});
+  await flipped(() => {
+    const aliases = runnerAliases();
+    expect(aliases.hosts).toEqual({ 'runner-local-v1': 'runner-local' });
+    expect(aliases.operations).toEqual({ 'captured-source-read-v1': 'captured-source-read' });
+    expect(Object.keys(aliases.validators ?? {}).sort()).toEqual([
+      'captured-source-read-input-v1',
+      'captured-source-read-output-v1',
+      'runner-task-v1',
+    ]);
+  });
 });
-it('compiles the plain records and pins the plain entries without aliases', () => {
+it('compiles the released records to the original entries and handler by default', () => {
   const runner = openRunner(fixture());
   cleanups.push(() => runner.close());
-  const provenance = installedPins(runner);
+  const compiled = installedPins(runner),
+    ids = compiled.provenance.installed.map((pin) => pin.id);
+  // Forward compatibility: exactly what the released programs read, name for name.
+  expect(compiled.format).toBe('ia.compiled-harness.v1');
+  expect(Object.hasOwn(compiled, 'formatVersion')).toBe(false);
+  expect(compiled.provenance.aliases).toBeUndefined();
+  expect(ids).toEqual(
+    expect.arrayContaining(['runner-local-v1', 'runner-read-v1', 'runner-entry-v1', 'captured-source-read-v1']),
+  );
+  expect(ids.some((id) => RUNNER_PLAIN.includes(id) || READ_PLAIN.includes(id))).toBe(false);
+  expect(runner.manifest.operations[INSTALLED_READ.operation]!.handler).toBe('ia.captured-source.read.v1');
+  for (const profile of Object.values(runner.manifest.profiles))
+    expect(profile.contract!.completionEvaluator).toBe('ia.completion.v1');
+});
+it('compiles the plain records and pins the plain entries without aliases', () => {
+  const runner = openRunner(plainFixture());
+  cleanups.push(() => runner.close());
+  const provenance = installedPins(runner).provenance;
   expect(provenance.aliases).toBeUndefined();
   const ids = provenance.installed.map((pin) => pin.id);
   expect(ids).toEqual(expect.arrayContaining(['runner-local', 'runner-read', 'runner-entry', 'captured-source-read']));
   expect(ids.some((id) => id.endsWith('-v1'))).toBe(false);
   expect(runner.manifest.operations[INSTALLED_READ.operation]!.handler).toBe('captured-source-read');
 });
-it('compiles records that still name the original ids through the aliases and reads', async () => {
-  const options = originalFixture(),
-    actions: ModelAction[] = [],
-    seen: ModelRequest[] = [];
-  const runner = openRunner({ ...options, model: scripted(actions, seen) });
-  cleanups.push(() => runner.close());
-  const provenance = installedPins(runner);
-  expect(provenance.installed.some((pin) => pin.id.endsWith('-v1'))).toBe(false);
-  expect(provenance.aliases?.map((row) => row.from)).toEqual(
-    expect.arrayContaining(['runner-local-v1', 'runner-read-v1', 'runner-entry-v1', 'captured-source-read-v1']),
-  );
-  expect(runner.manifest.operations[INSTALLED_READ.operation]!.handler).toBe('captured-source-read');
-  actions.push(read(runner), done);
-  await runner.start('Read through aliases', 'aliased-read');
-  const state = await runner.run();
-  expect(state.runs['root']?.status).toBe('completed');
-  expect(state.budget.operations).toBe(1);
+it('compiles records that still name the original ids through the aliases once the switch flips, and reads', async () => {
+  await flipped(async () => {
+    const options = fixture(),
+      actions: ModelAction[] = [],
+      seen: ModelRequest[] = [];
+    const runner = openRunner({ ...options, model: scripted(actions, seen) });
+    cleanups.push(() => runner.close());
+    const compiled = installedPins(runner);
+    expect(compiled.format).toBe('compiled-harness');
+    expect(compiled.provenance.installed.some((pin) => pin.id.endsWith('-v1'))).toBe(false);
+    expect(compiled.provenance.aliases?.map((row) => row.from)).toEqual(
+      expect.arrayContaining(['runner-local-v1', 'runner-read-v1', 'runner-entry-v1', 'captured-source-read-v1']),
+    );
+    expect(runner.manifest.operations[INSTALLED_READ.operation]!.handler).toBe('captured-source-read');
+    actions.push(read(runner), done);
+    await runner.start('Read through aliases', 'aliased-read');
+    const state = await runner.run();
+    expect(state.runs['root']?.status).toBe('completed');
+    expect(state.budget.operations).toBe(1);
+  });
 });
 it('keeps a harness pinned to the original catalog valid and dispatching by the original handler', async () => {
-  const options = originalFixture(),
+  const options = fixture(),
     actions: ModelAction[] = [],
     seen: ModelRequest[] = [];
-  // Compile against only the original entries, as the previous release's runner did.
+  // Compile against only the original entries, as the previous release runner did.
   const old = openRunner({ ...options, catalog: onlyOriginals(runnerCatalog()), model: scripted([], []) });
   cleanups.push(() => old.close());
   const pinned = installedPins(old);
-  expect(pinned.aliases).toBeUndefined();
-  expect(pinned.installed.every((pin) => pin.group === 'evaluators' || pin.id.endsWith('-v1'))).toBe(true);
+  expect(pinned.provenance.aliases).toBeUndefined();
+  expect(pinned.provenance.installed.every((pin) => pin.group === 'evaluators' || pin.id.endsWith('-v1'))).toBe(true);
   expect(old.manifest.operations[INSTALLED_READ.operation]!.handler).toBe('ia.captured-source.read.v1');
   // The harness it pinned still passes the bridge against the catalog that now also installs the plain entries.
   const compiled = (old.manifest.provenance as unknown as { compiled: CompiledHarness }).compiled;

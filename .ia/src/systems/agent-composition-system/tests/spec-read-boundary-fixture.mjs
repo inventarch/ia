@@ -72,7 +72,7 @@ export async function qualifySpecReadBoundary(SDK, nativeRoot, output) {
     modelSawBodyProse = false,
     selectedPath = anchorPath,
     nativeBodyFailure = null;
-  const nativeAdapter = installedRead.operations[SDK.INSTALLED_READ.handler];
+  const nativeAdapter = installedRead.operations[SDK.INSTALLED_READ_LEGACY.handler];
   const host = {
     store,
     operations: {
@@ -117,7 +117,7 @@ export async function qualifySpecReadBoundary(SDK, nativeRoot, output) {
       digest(value) === digest(manifest) &&
       SDK.captureWorkspace(out).revision === capture.revision &&
       SDK.installedImplementationDigest() ===
-        seed.catalog.operations[SDK.INSTALLED_READ.implementation].value.implementationDigest,
+        seed.catalog.operations[SDK.INSTALLED_READ_LEGACY.implementation].value.implementationDigest,
     context: async () => ({ capture: capture.revision }),
     evaluate: async () => ({
       status: 'pass',
@@ -210,7 +210,7 @@ export async function qualifySpecReadBoundary(SDK, nativeRoot, output) {
       passed: true,
       capture: capture.revision,
       compiled: compiled.digest,
-      installedCode: seed.catalog.operations[SDK.INSTALLED_READ.implementation].value.implementationDigest,
+      installedCode: seed.catalog.operations[SDK.INSTALLED_READ_LEGACY.implementation].value.implementationDigest,
       resources: resources.digest,
       body: pin,
       modelCalls,
