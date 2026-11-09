@@ -1,0 +1,26 @@
+{
+  "format": "ia.npm-change-note",
+  "formatVersion": 1,
+  "bump": "major",
+  "title": "Plain format names with formatVersion for registry, host, registration, projection, capture and local state",
+  "summary": "No identifier carries its version in its name. Registry files (ia.registry, ia.registry-package, ia.registries and the kit and workspace collection indexes), host release and cache, host state and pending, guard, hook and lifecycle registration state and pending, host projection state, projection publication, release minting, installed implementations, host joins, runner evidence, the capture snapshot (ia-snapshot), the graph cache, the migration journal, the tracked-workspaces list, the kit-collections record, evidence receipts and the context-hook identity are now written with a plain format name and an integer formatVersion. Everything written earlier is still read from an explicit allow-list of the exact legacy literals, which keeps its digests; unknown formats and versions are refused. Plans saved before this change are recognised and must be made again. ia capture --json now reports format ia-snapshot with formatVersion 1.",
+  "packages": [
+    "@inventarch/cli",
+    "@inventarch/compliance",
+    "@inventarch/db",
+    "@inventarch/distribution",
+    "@inventarch/steward-hook"
+  ],
+  "paths": [
+    ".ia/authoring.resources.json",
+    "CLAUDE.md",
+    "apps/cli/",
+    "apps/distribution/",
+    "apps/steward-hook/",
+    "docs/",
+    "examples/",
+    "packages/compliance/",
+    "packages/db/",
+    "tools/"
+  ]
+}
