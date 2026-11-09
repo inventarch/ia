@@ -8,6 +8,7 @@
  *
  * `--check` runs the gate against this checkout.
  */
+import '../temp/physical-temp.mjs';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';

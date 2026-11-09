@@ -8,6 +8,7 @@
  * the digest matches the seed table (or, for a version not yet in it, the pin the tarball itself carries and the manifest
  * the archive verifies to). Nothing is written before that.
  */
+import '../temp/physical-temp.mjs';
 import { createHash, randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import {
