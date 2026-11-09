@@ -95,9 +95,9 @@ it('ships the installed read handler as a payload root and pins the catalog to t
     input: 'captured-source-read-input-v1',
     output: 'captured-source-read-output-v1',
     module: HANDLER,
-    digest: operation.digest,
   });
   if (operation.status !== 'available') throw Error(`Expected the read handler to ship: ${operation.reason}`);
+  expect(original.digest).toBe(operation.digest);
   expect(operation).toMatchObject({
     id: 'captured-source-read',
     operation: 'authoring-system/binding/operation/read-captured-source',
