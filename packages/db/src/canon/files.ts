@@ -248,17 +248,19 @@ function declaredAssets(root: string): readonly string[] {
 }
 
 /**
- * The files a kit ships: everything under `<root>/.ia/src/` (the walk skips `node_modules`, `dist`, `.git`, runtime
- * state at any depth and separate checkouts) plus the assets `.ia/release.json` declares. Tests, fixtures and scripts
- * the descriptor does not declare stay home.
+ * The files a kit ships, as marketplace `lib/kit.mjs` packs and digests them: everything under `<root>/.ia/` (the walk
+ * skips `node_modules`, `dist`, `.git`, runtime state such as `.ia/distributions` and `.ia/work` at any depth, and
+ * separate checkouts) plus the assets `.ia/release.json` declares. Tests, fixtures and scripts the descriptor does not
+ * declare stay home.
  */
 function shippedFiles(root: string): readonly string[] {
-  return [...new Set([...walkFiles(root, SOURCE, true), ...declaredAssets(root)])].sort();
+  return [...new Set([...walkFiles(root, '.ia', true), ...declaredAssets(root)])].sort();
 }
 
 /**
- * C6: a kit ships no scripts. A shipped file (`shippedFiles`) with a script extension is reported unless it sits under
- * `.ia/src/systems/<allowed>/` (the folders of the executing systems, dec-040 A). Nothing outside a kit.
+ * C6: a kit ships no scripts. A shipped file (`shippedFiles`: anything under `.ia/` but runtime state, plus the declared
+ * assets) with a script extension is reported unless it sits under `.ia/src/systems/<allowed>/` (the folders of the
+ * executing systems, dec-040 A). Nothing outside a kit.
  */
 export function canonKitScripts(
   root: string,

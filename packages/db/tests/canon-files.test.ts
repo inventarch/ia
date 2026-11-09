@@ -51,7 +51,8 @@ describe('C12 teaching links', () => {
   it('C12 reports a root-relative link, which leaves .ia/src (H8)', () => {
     const root = tree({ '.ia/src/doc.md': '[c](/abs)\n\n[d]: /.ia/src/doc.md\n', abs: '' });
     const found = canonTeachingLinks(root, ['.ia/src/doc.md'], new Set());
-    expect(found.map((f) => [f.code, f.line, f.message])).toEqual([
+    const rows = found.map((f) => [f.code, f.line, f.message] as const);
+    expect([...rows].sort((x, y) => (x[2] < y[2] ? -1 : x[2] > y[2] ? 1 : 0))).toEqual([
       [CODE_LINKS, 3, '.ia/src/doc.md: target outside installed teaching closure: /.ia/src/doc.md'],
       [CODE_LINKS, 1, '.ia/src/doc.md: target outside installed teaching closure: /abs'],
     ]);
@@ -369,6 +370,7 @@ describe('C6 kit scripts', () => {
     expect(canonKitScripts(root, true)).toEqual([]);
   });
   it('C6 ignores runtime state and separate checkouts', () => {
+    // The kit ships all of .ia/, so the root's .ia/distributions and .ia/work are inside the walk and must be skipped.
     const root = tree({
       '.ia/distributions/x/i.js': '',
       '.ia/work/w.py': '',
@@ -394,6 +396,10 @@ describe('C6 kit scripts', () => {
 });
 
 describe('C6 checks only shipped files (H6)', () => {
+  it('C6 reports a script anywhere under .ia/, which the kit ships, not only under .ia/src', () => {
+    const root = tree({ '.ia/tools/x.mjs': '', '.ia/release.json': '{}', '.ia/distributions.lock.json': '{}' });
+    expect(canonKitScripts(root, true)).toMatchObject([{ code: CODE_SCRIPTS, path: '.ia/tools/x.mjs' }]);
+  });
   it('C6 does not report tests, fixtures or scripts the kit does not declare as assets', () => {
     const root = tree({
       'tests/x.mjs': '',
