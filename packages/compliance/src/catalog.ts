@@ -1,6 +1,7 @@
 import { CHECK_IDS } from './check-ids.js';
 import { compareText, deepFreeze, exactKeys, record, sanitized, sha256 } from './shape.js';
 import { assess } from './types.js';
+import { WRITE_PLAIN_NAMES } from './written-names.js';
 import type { Assessment, EvidenceCode, Finding } from './types.js';
 
 /**
@@ -418,19 +419,23 @@ export function createEvaluatorCatalog(input: CatalogInput, options: CatalogOpti
     (a, b) => compareText(a.id, b.id) || compareVersions(a.implementationVersion, b.implementationVersion),
   );
   // A legacy catalog keeps the digest over the entries as declared (`name@major` codec ids), so receipts and joins
-  // that recorded it still match; a current catalog's digest covers its format version and `{id, version}` codecs.
-  const digested = legacy
-    ? sha256({
-        format: input.format,
-        entries: sorted.map(({ inputCodec, outputCodec, ...rest }) => ({
-          ...rest,
-          inputSchemaId: legacyCodecId(inputCodec),
-          outputSchemaId: legacyCodecId(outputCodec),
-        })),
-        builtins,
-        reserved,
-      })
-    : sha256({ format: input.format, formatVersion: input.formatVersion, entries: sorted, builtins, reserved });
+  // that recorded it still match. Receipts and policies pin the catalog digest and older programs compute it over the
+  // released shape, so until `WRITE_PLAIN_NAMES` is flipped a current catalog is digested over that shape too: format
+  // `ia-evaluator-catalog/1.0` and `name@major` codec ids, the same entries giving the same digest whichever shape
+  // declared them. Once flipped, a current catalog's digest covers its format version and `{id, version}` codecs.
+  const digested =
+    legacy || !WRITE_PLAIN_NAMES
+      ? sha256({
+          format: legacy ? input.format : LEGACY_EVALUATOR_CATALOG_FORMAT,
+          entries: sorted.map(({ inputCodec, outputCodec, ...rest }) => ({
+            ...rest,
+            inputSchemaId: legacyCodecId(inputCodec),
+            outputSchemaId: legacyCodecId(outputCodec),
+          })),
+          builtins,
+          reserved,
+        })
+      : sha256({ format: input.format, formatVersion: input.formatVersion, entries: sorted, builtins, reserved });
   const catalog: EvaluatorCatalog = deepFreeze({
     format: input.format,
     formatVersion: legacy ? 1 : (input.formatVersion as number),

@@ -131,8 +131,7 @@ it('plans without writing, then registers a server that answers initialize', asy
   const receipt = JSON.parse(read(root, RECEIPT)),
     version = (JSON.parse(readFileSync(resolve(cli, 'package.json'), 'utf8')) as { version: string }).version;
   expect(receipt).toMatchObject({
-    format: 'packet-receipt',
-    formatVersion: 1,
+    format: 'ia.packet-receipt.v1',
     host: 'claude',
     cli: `@inventarch/cli@${version}`,
     slug: 'demo',

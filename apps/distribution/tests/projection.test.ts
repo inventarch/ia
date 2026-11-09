@@ -10,7 +10,15 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
+
+/** The package's one switch, flipped here to prove the plain names come back exactly when the follow-up release flips it. */
+const flip = vi.hoisted(() => ({ plain: false }));
+vi.mock('../src/written-names.js', () => ({
+  get WRITE_PLAIN_NAMES() {
+    return flip.plain;
+  },
+}));
 import { json, sha256 } from '../src/files.js';
 import {
   applyProjection,
@@ -34,6 +42,7 @@ const temp = () => {
   return p;
 };
 afterEach(() => {
+  flip.plain = false;
   for (const p of made.splice(0)) rmSync(p, { recursive: true, force: true });
 });
 const put = (root: string, path: string, text: string) => {
@@ -169,53 +178,56 @@ it('refuses a tampered ownership state naming an unallowlisted path or a malform
 });
 
 // --- A 1.x projection upgrades in place. ---
-it("upgrades a 1.x claude projection: legacy-marked owned files are replaced and the state's steward files deleted", () => {
-  const root = temp(),
-    rules = `${HOST_MARK}\n\n# IA workspace\n`,
-    skill = `---\nname: ia-authoring\n---\n\n${HOST_MARK}\n`;
-  legacy(root, {
-    '.claude/rules/ia-workspace.md': rules,
-    '.claude/skills/ia-authoring/SKILL.md': skill,
-    [STEWARD]: steward(HOST_MARK),
-    // This repository's own 1.x marker is owned too.
-    '.claude/agents/repo-steward.md': steward(REPO_MARK),
-  });
-  const plan = planProjection({ root, host: 'claude', artifacts: artifacts(), marker: MARK });
-  expect(plan.actions).toEqual([
-    { path: STEWARD, action: 'remove' },
-    { path: '.claude/agents/repo-steward.md', action: 'remove' },
-    { path: '.claude/rules/ia-workspace.md', action: 'update' },
-    { path: '.claude/skills/ia-authoring/SKILL.md', action: 'update' },
-  ]);
-  expect(applyProjection(plan)).toEqual({ status: 'projected', written: 2, removed: 2 });
-  expect(existsSync(resolve(root, STEWARD))).toBe(false);
-  expect(existsSync(resolve(root, '.claude/agents/repo-steward.md'))).toBe(false);
-  for (const artifact of artifacts()) expect(read(root, artifact.path)).toBe(artifact.text);
-  // The state is written in the plain format; it now lists only what the packet renders.
-  expect(JSON.parse(read(root, STATE))).toEqual({
-    format: 'host-projection-state',
-    formatVersion: 1,
-    host: 'claude',
-    files: Object.fromEntries(artifacts().map((artifact) => [artifact.path, sha256(artifact.text)])),
-  });
-  expect(observeProjection({ root, host: 'claude', artifacts: artifacts(), marker: MARK })).toEqual([]);
-  // A codex projection's legacy-marked AGENTS.md is replaced the same way.
-  const codex = temp(),
-    agents = { path: 'AGENTS.md', text: `${MARK}\n\n# IA position packet\n` };
-  put(codex, 'AGENTS.md', `${HOST_MARK}\n\n# IA workspace\n`);
-  put(
-    codex,
-    '.ia/distributions/hosts/codex-projection.json',
-    json({
-      format: 'ia.host-projection-state.v1',
-      host: 'codex',
-      files: { 'AGENTS.md': sha256(read(codex, 'AGENTS.md')) },
-    }),
-  );
-  expect(planProjection({ root: codex, host: 'codex', artifacts: [agents], marker: MARK }).actions).toEqual([
-    { path: 'AGENTS.md', action: 'update' },
-  ]);
-});
+it.each([false, true])(
+  "upgrades a 1.x claude projection: legacy-marked owned files are replaced and the state's steward files deleted (plain names: %s)",
+  (plain) => {
+    flip.plain = plain;
+    const root = temp(),
+      rules = `${HOST_MARK}\n\n# IA workspace\n`,
+      skill = `---\nname: ia-authoring\n---\n\n${HOST_MARK}\n`;
+    legacy(root, {
+      '.claude/rules/ia-workspace.md': rules,
+      '.claude/skills/ia-authoring/SKILL.md': skill,
+      [STEWARD]: steward(HOST_MARK),
+      // This repository's own 1.x marker is owned too.
+      '.claude/agents/repo-steward.md': steward(REPO_MARK),
+    });
+    const plan = planProjection({ root, host: 'claude', artifacts: artifacts(), marker: MARK });
+    expect(plan.actions).toEqual([
+      { path: STEWARD, action: 'remove' },
+      { path: '.claude/agents/repo-steward.md', action: 'remove' },
+      { path: '.claude/rules/ia-workspace.md', action: 'update' },
+      { path: '.claude/skills/ia-authoring/SKILL.md', action: 'update' },
+    ]);
+    expect(applyProjection(plan)).toEqual({ status: 'projected', written: 2, removed: 2 });
+    expect(existsSync(resolve(root, STEWARD))).toBe(false);
+    expect(existsSync(resolve(root, '.claude/agents/repo-steward.md'))).toBe(false);
+    for (const artifact of artifacts()) expect(read(root, artifact.path)).toBe(artifact.text);
+    // The state keeps the released literal until the switch flips; it now lists only what the packet renders.
+    expect(JSON.parse(read(root, STATE))).toEqual({
+      ...(plain ? { format: 'host-projection-state', formatVersion: 1 } : { format: 'ia.host-projection-state.v1' }),
+      host: 'claude',
+      files: Object.fromEntries(artifacts().map((artifact) => [artifact.path, sha256(artifact.text)])),
+    });
+    expect(observeProjection({ root, host: 'claude', artifacts: artifacts(), marker: MARK })).toEqual([]);
+    // A codex projection's legacy-marked AGENTS.md is replaced the same way.
+    const codex = temp(),
+      agents = { path: 'AGENTS.md', text: `${MARK}\n\n# IA position packet\n` };
+    put(codex, 'AGENTS.md', `${HOST_MARK}\n\n# IA workspace\n`);
+    put(
+      codex,
+      '.ia/distributions/hosts/codex-projection.json',
+      json({
+        format: 'ia.host-projection-state.v1',
+        host: 'codex',
+        files: { 'AGENTS.md': sha256(read(codex, 'AGENTS.md')) },
+      }),
+    );
+    expect(planProjection({ root: codex, host: 'codex', artifacts: [agents], marker: MARK }).actions).toEqual([
+      { path: 'AGENTS.md', action: 'update' },
+    ]);
+  },
+);
 it('lists every steward file it does not own as foreign and never touches it', () => {
   const root = temp(),
     unmarked = 'my own reviewer\n';

@@ -13,6 +13,14 @@ import {
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
+
+/** The package's one switch, flipped here to prove the plain names come back exactly when the follow-up release flips it. */
+const flip = vi.hoisted(() => ({ plain: false }));
+vi.mock('../src/written-names.js', () => ({
+  get WRITE_PLAIN_NAMES() {
+    return flip.plain;
+  },
+}));
 import type { DistributionLock } from '@inventarch/db/distribution';
 import { verifyArchive } from '../src/archive.js';
 import { json } from '../src/files.js';
@@ -28,6 +36,7 @@ import type { FixtureRelease, FixtureReleaseSpec } from './registry-fixture.js';
 
 const made: string[] = [];
 afterEach(() => {
+  flip.plain = false;
   vi.unstubAllGlobals();
   for (const p of made.splice(0)) rmSync(p, { recursive: true, force: true });
 });
@@ -65,6 +74,22 @@ const read = (dir: string, path: string): string => readFileSync(join(dir, path)
 /** Canonical registry JSON: sorted keys, 2-space indentation, trailing newline. */
 const canonical = (value: unknown): string => JSON.stringify(JSON.parse(json(value)), null, 2) + '\n';
 const index = (dir: string, id: string) => decodePackageIndex(read(dir, `packages/${id}.json`), id);
+
+it('writes the plain registry and index formats with formatVersion 1 once the switch flips', () => {
+  flip.plain = true;
+  const dir = temp(),
+    { file } = archive({ id: 'acme/lib', version: '1.0.0' });
+  registryAdd({ dir, archive: file });
+  expect(JSON.parse(read(dir, 'ia-registry.json'))).toEqual({
+    format: 'registry',
+    formatVersion: 1,
+    name: basename(dir),
+  });
+  expect(JSON.parse(read(dir, 'packages/acme/lib.json'))).toMatchObject({
+    format: 'registry-package',
+    formatVersion: 1,
+  });
+});
 
 it('creates the layout from one verified archive, copying the release metadata from its manifest', () => {
   const dir = temp(),
@@ -105,6 +130,10 @@ it('creates the layout from one verified archive, copying the release metadata f
     expect(text).toBe(canonical(JSON.parse(text)));
     expect(text).toMatch(/^\{\n {2}"/);
   }
+  // Older programs read these files and refuse anything but the released literals, with no formatVersion (dec-008, A15).
+  expect(JSON.parse(read(dir, 'ia-registry.json'))).toEqual({ format: 'ia.registry.v1', name: basename(dir) });
+  expect(JSON.parse(read(dir, 'packages/acme/lib.json'))).toMatchObject({ format: 'ia.registry-package.v1' });
+  expect(JSON.parse(read(dir, 'packages/acme/lib.json'))).not.toHaveProperty('formatVersion');
   expect([...tree(dir).keys()].sort()).toEqual([
     `artifacts/${release.archive}.ia.tgz`,
     'ia-registry.json',

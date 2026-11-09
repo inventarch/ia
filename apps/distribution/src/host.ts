@@ -549,7 +549,13 @@ export function applyHost(
     const plan = planHost(root, host, input['cache'], name);
     if (json(plan) !== json(value)) fail('PLAN-STALE', 'Host plan no longer matches selected inputs');
     const before = { config: read(root, configFile(host)), state: read(root, stateFile(host, name)) },
-      pending: Pending = { ...stamped('host-pending', 'ia.host-pending.v1'), host, id: name, before, after: plan.after };
+      pending: Pending = {
+        ...stamped('host-pending', 'ia.host-pending.v1'),
+        host,
+        id: name,
+        before,
+        after: plan.after,
+      };
     replace(root, pendingFile, Buffer.from(json(pending)));
     checkpoint('pending');
     same(root, configFile(host), before.config);

@@ -1,4 +1,15 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+/** The package's one switch, flipped here to prove the plain names come back exactly when the follow-up release flips it. */
+const flip = vi.hoisted(() => ({ plain: false }));
+vi.mock('../src/written-names.js', () => ({
+  get WRITE_PLAIN_NAMES() {
+    return flip.plain;
+  },
+}));
+afterEach(() => {
+  flip.plain = false;
+});
 import {
   EVALUATOR_CATALOG_FORMAT,
   EVALUATOR_CATALOG_FORMAT_VERSION,
@@ -136,5 +147,30 @@ describe('versioned codecs (T1.6)', () => {
       [codecs[0]!, codecs[0]!],
     ])
       expect(() => make({ format: 'x', entries: [] }, list as never)).toThrow(TypeError);
+  });
+});
+
+describe('released catalog digest (dec-008, A15)', () => {
+  /** The digest origin/main computes for `legacy`: the entries as declared, `name@major` codec ids, format 1.0. */
+  const RELEASED = 'sha256:c211233d54a0409932518c058e591a960ee21b09d2911824fc358650bfb2d73e';
+  it('by default digests the released shape, whichever shape declared the entries', () => {
+    const fromLegacy = old([legacy]),
+      fromCurrent = now([current]);
+    if (!fromLegacy.ok || !fromCurrent.ok) throw new Error('catalogs');
+    expect(fromLegacy.catalog.digest).toBe(RELEASED);
+    // Receipts and policies pin this digest, and older programs compute it over the released shape.
+    expect(fromCurrent.catalog.digest).toBe(RELEASED);
+    // The reader view is unchanged: codec references stay {id, version}.
+    expect(fromCurrent.catalog.formatVersion).toBe(2);
+    expect(fromCurrent.catalog.entries[0]!.inputCodec).toEqual({ id: 'acme-typing-input', version: 1 });
+  });
+  it('digests the current shape once the switch flips, and a legacy catalog keeps its own digest', () => {
+    flip.plain = true;
+    const fromLegacy = old([legacy]),
+      fromCurrent = now([current]);
+    if (!fromLegacy.ok || !fromCurrent.ok) throw new Error('catalogs');
+    expect(fromLegacy.catalog.digest).toBe(RELEASED);
+    expect(fromCurrent.catalog.digest).not.toBe(RELEASED);
+    expect(fromCurrent.catalog.digest).toMatch(/^sha256:[0-9a-f]{64}$/);
   });
 });

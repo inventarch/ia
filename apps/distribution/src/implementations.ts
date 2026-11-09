@@ -244,7 +244,9 @@ function writeJoin(root: string, consumer: WorkspaceHost, row: ImplementationJoi
   replace(
     root,
     JOINS,
-    joins.length === 0 ? null : Buffer.from(json({ ...stamped(JOINS_FORMAT, LEGACY_JOINS_FORMATS[0]!, JOINS_FORMAT_VERSION), joins })),
+    joins.length === 0
+      ? null
+      : Buffer.from(json({ ...stamped(JOINS_FORMAT, LEGACY_JOINS_FORMATS[0]!, JOINS_FORMAT_VERSION), joins })),
   );
 }
 /**

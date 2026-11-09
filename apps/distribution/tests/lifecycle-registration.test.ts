@@ -22,10 +22,19 @@ import { runNative } from '../src/native-command.js';
 
 // spy: true keeps the composition's real row lookup for every case; only the case that stubs a row diverts it, and it is put back after each case.
 vi.mock('@inventarch/workspace-runtime/lifecycle-profile', { spy: true });
+/** The package's one switch, flipped here to prove the plain names come back exactly when the follow-up release flips it. */
+const flip = vi.hoisted(() => ({ plain: false }));
+vi.mock('../src/written-names.js', () => ({
+  get WRITE_PLAIN_NAMES() {
+    return flip.plain;
+  },
+}));
+
 const composition = await vi.importActual<typeof import('@inventarch/workspace-runtime/lifecycle-profile')>(
   '@inventarch/workspace-runtime/lifecycle-profile',
 );
 afterEach(() => {
+  flip.plain = false;
   vi.mocked(segmentedLifecycleRow).mockImplementation(composition.segmentedLifecycleRow);
 });
 const roots: string[] = [],
@@ -340,7 +349,12 @@ it('snapshots the reviewed binding before invoking a trusted emitted identity pr
 });
 
 it('upgrades or removes exact retained v1 single-handler ownership without decoding its old profile', () => {
-  for (const upgrade of [true, false]) {
+  for (const [upgrade, plain] of [
+    [true, false],
+    [false, false],
+    [true, true],
+  ] as const) {
+    flip.plain = plain;
     const root = temp(),
       input = request(root);
     applyLifecycleRegistration(planLifecycleRegistration(root, input, ports), ports);
@@ -375,10 +389,12 @@ it('upgrades or removes exact retained v1 single-handler ownership without decod
     );
     expect(result.status).toBe(upgrade ? 'lifecycle-registered' : 'lifecycle-removed');
     if (upgrade) {
-      expect(JSON.parse(readFileSync(join(root, path), 'utf8'))).toMatchObject({
-        format: 'lifecycle-registration-state',
-        formatVersion: 2,
-      });
+      // The released literal until the switch flips, then the plain name with its formatVersion.
+      expect(JSON.parse(readFileSync(join(root, path), 'utf8'))).toMatchObject(
+        plain
+          ? { format: 'lifecycle-registration-state', formatVersion: 2 }
+          : { format: 'ia.lifecycle-registration-state.v2' },
+      );
       expect(JSON.parse(readFileSync(join(root, settings), 'utf8')).hooks.SessionStart[0].hooks).toHaveLength(12);
     }
   }

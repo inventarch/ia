@@ -56,10 +56,10 @@ for (const verdict of verified.verdicts.filter((v) => ['COMP-KERNEL', 'COMP-FIXT
   console.log(verdict.check, verdict.outcome, verdict.basis);
 // COMP-FIXTURES pass verified
 // COMP-KERNEL pass verified
-console.log(verified.conformance.profile); // package
+console.log(verified.conformance.profile); // package-v1 (the released name, written until the follow-up release; `package` is read too)
 ```
 
-`verifyKernel()` regenerates the kernel from the floor and compares it with the running `@inventarch/language`; `verifyFixtures()` runs the `package` profile of the fixtures this package ships. `verified.conformance.fixtures.outOfProfile` names the suites that profile does not run: hooks, the runtime, escalation, execution and publication.
+`verifyKernel()` regenerates the kernel from the floor and compares it with the running `@inventarch/language`; `verifyFixtures()` runs the `package` profile of the fixtures this package ships (the profile id is read as `package` or `package-v1`; the released `package-v1` is written until the switch flips in the follow-up release, dec-008, A15). `verified.conformance.fixtures.outOfProfile` names the suites that profile does not run: hooks, the runtime, escalation, execution and publication.
 
 ## 🧭 What it does
 

@@ -5,7 +5,15 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
+
+/** The package's one switch, flipped here to prove the plain names come back exactly when the follow-up release flips it. */
+const flip = vi.hoisted(() => ({ plain: false }));
+vi.mock('../src/written-names.js', () => ({
+  get WRITE_PLAIN_NAMES() {
+    return flip.plain;
+  },
+}));
 import { canonicalDistributionJson, decodeDistributionLock } from '@inventarch/db/distribution';
 import type { DistributionLock } from '@inventarch/db/distribution';
 import { sha256 } from '../src/files.js';
@@ -25,6 +33,7 @@ import {
 
 const made: string[] = [];
 afterEach(() => {
+  flip.plain = false;
   for (const path of made.splice(0)) rmSync(path, { recursive: true, force: true });
 });
 const workspace = (): string => {
@@ -70,8 +79,7 @@ it('round-trips the record', () => {
   const record = recordFor(lockOf(X1, Y1), K1);
   expect(decodeKitCollections(serializeKitCollections(record))).toEqual(record);
   expect(record).toEqual({
-    format: 'kit-collections',
-    formatVersion: 1,
+    format: 'ia-kit-collections-1',
     lock: sha256(lockText(lockOf(X1, Y1))),
     collections: [
       {
@@ -87,15 +95,26 @@ it('round-trips the record', () => {
     unknown: [],
   });
 });
-it('reads the legacy ia-kit-collections-1 record, writes the plain format, and refuses other formats and versions', () => {
-  const record = recordFor(lockOf(X1, Y1), K1),
-    written = JSON.parse(serializeKitCollections(record)) as Record<string, unknown>;
-  expect(written).toMatchObject({ format: 'kit-collections', formatVersion: 1 });
-  const { formatVersion: _formatVersion, ...rest } = written;
-  expect(decodeKitCollections(JSON.stringify({ ...rest, format: 'ia-kit-collections-1' }))).toEqual(record);
+it('writes the released literal by default and the plain format once the switch flips, reads both, and refuses other formats and versions', () => {
+  const released = recordFor(lockOf(X1, Y1), K1),
+    legacyText = serializeKitCollections(released),
+    legacy = JSON.parse(legacyText) as Record<string, unknown>;
+  expect(legacy['format']).toBe('ia-kit-collections-1');
+  expect(legacy).not.toHaveProperty('formatVersion');
+  flip.plain = true;
+  const plainText = serializeKitCollections(recordFor(lockOf(X1, Y1), K1)),
+    plain = JSON.parse(plainText) as Record<string, unknown>;
+  expect(plain).toMatchObject({ format: 'kit-collections', formatVersion: 1 });
+  // Either spelling reads under either setting, and means the same collections.
+  for (const setting of [false, true]) {
+    flip.plain = setting;
+    for (const text of [legacyText, plainText])
+      expect(decodeKitCollections(text)).toMatchObject({ lock: released.lock, collections: released.collections });
+  }
+  const { formatVersion: _formatVersion, ...rest } = plain;
   for (const bad of [
     { ...rest },
-    { ...written, formatVersion: 2 },
+    { ...plain, formatVersion: 2 },
     { ...rest, format: 'ia-kit-collections-1', formatVersion: 1 },
     { ...rest, format: 'ia-kit-collections-2' },
   ])

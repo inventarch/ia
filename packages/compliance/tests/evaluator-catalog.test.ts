@@ -10,6 +10,7 @@ import {
   EVIDENCE_CODES,
   EVIDENCE_RECEIPT_FORMAT,
   EVIDENCE_RECEIPT_FORMAT_VERSION,
+  RELEASED_EVIDENCE_RECEIPT_FORMAT,
   acceptEvaluatorOutput,
   adaptBuiltinVerdict,
   admitTransition,
@@ -678,7 +679,7 @@ describe('receipts and transition admission (C28)', () => {
       [{ format: 'evidence-receipt/2' as typeof EVIDENCE_RECEIPT_FORMAT }, 'IA-COMP-RECEIPT-INVALID'],
       [{ formatVersion: 2 }, 'IA-COMP-RECEIPT-INVALID'],
       [{ formatVersion: undefined as unknown as number }, 'IA-COMP-RECEIPT-INVALID'],
-      [{ format: 'evidence-receipt/1' }, 'IA-COMP-RECEIPT-INVALID'],
+      [{ format: 'ia-evidence-receipt/1' }, 'IA-COMP-RECEIPT-INVALID'],
       [{ completedAt: '2026-09-28T11:00:00Z' }, 'IA-COMP-RECEIPT-INVALID'],
       [{ result: 'great' as 'passed' }, 'IA-COMP-RECEIPT-INVALID'],
       [{ trust: 'service-associated', issuer: 'anyone' }, 'IA-COMP-RECEIPT-UNTRUSTED'],
@@ -691,9 +692,13 @@ describe('receipts and transition admission (C28)', () => {
         JSON.stringify(overrides),
       ).toEqual([code]);
     }
-    // A receipt written under the legacy literal (no formatVersion) is still read as written.
+    // A receipt written under the released literal (no formatVersion) is still read as written, and the never-released
+    // `evidence-receipt/1` is not a literal anyone wrote.
     const { formatVersion: _formatVersion, ...written } = receipt(compiler);
-    expect(validateReceipt({ ...written, format: 'evidence-receipt/1' }, expectation, now).valid).toBe(true);
+    expect(validateReceipt({ ...written, format: RELEASED_EVIDENCE_RECEIPT_FORMAT }, expectation, now).valid).toBe(
+      true,
+    );
+    expect(validateReceipt({ ...written, format: 'evidence-receipt/1' }, expectation, now).valid).toBe(false);
     expect(validateReceipt({ ...receipt(compiler), extra: 1 }, expectation, now).findings.map((f) => f.code)).toEqual([
       'IA-COMP-RECEIPT-INVALID',
     ]);
