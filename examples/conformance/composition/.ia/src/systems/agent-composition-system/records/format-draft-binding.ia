@@ -7,4 +7,4 @@
   binding
     kind operation
     target @operation format-draft
-    implementation draft-format
+    implementation draft-format-v1

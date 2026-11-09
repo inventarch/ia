@@ -9,5 +9,5 @@
     effects read-only
     input corpus-input-v1
     output corpus-output-v1
-    profile governed
+    profile governed-v1
     recovery repeatable

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { stableSerialize } from '@inventarch/graph';
+import { WRITE_PLAIN_NAMES } from '../written-names.js';
 
 /** The companions a fixture of this clause and mode may have, besides its `.ia` source. */
 export function companionSuffixes(clause: string, mode: 'pass' | 'fail'): readonly string[] {
@@ -24,8 +25,13 @@ export interface OutOfProfileSuite {
 /** The conformance profile id carries no version. `package-v1` is the original spelling, accepted for compatibility. */
 export const CONFORMANCE_PROFILE = 'package' as const;
 export type ConformanceProfile = typeof CONFORMANCE_PROFILE | 'package-v1';
+export const RELEASED_CONFORMANCE_PROFILE = 'package-v1' as const;
 export function isConformanceProfile(value: unknown): value is ConformanceProfile {
-  return value === CONFORMANCE_PROFILE || value === 'package-v1';
+  return value === CONFORMANCE_PROFILE || value === RELEASED_CONFORMANCE_PROFILE;
+}
+/** The profile id a writer emits: the original until `WRITE_PLAIN_NAMES` is flipped, as released programs expect. */
+export function writtenConformanceProfile(): ConformanceProfile {
+  return WRITE_PLAIN_NAMES ? CONFORMANCE_PROFILE : RELEASED_CONFORMANCE_PROFILE;
 }
 export interface ConformanceInventory {
   readonly profile: ConformanceProfile;

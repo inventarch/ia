@@ -59,12 +59,20 @@ import type { SessionGate } from './profile.js';
 import { codeOf, openSession } from './session.js';
 import type { Session } from './session.js';
 import { NOT_EVALUATED } from './validate.js';
+import { WRITE_PLAIN_NAMES } from './written-names.js';
 
 type Admission = ReturnType<Session['admission']>;
 type Finding = Admission['findings'][number];
 
 export const SNAPSHOT_FORMAT = CAPTURE_FORMAT;
 export const SNAPSHOT_FORMAT_VERSION = CAPTURE_FORMAT_VERSION;
+/** The literal captures were released with, and written under until `WRITE_PLAIN_NAMES` is flipped. */
+export const RELEASED_SNAPSHOT_FORMAT = 'ia-snapshot-1';
+/** The `format` fields a capture and its machine output carry: the released literal alone, or once flipped the plain name with its version. */
+const writtenFormat = () =>
+  WRITE_PLAIN_NAMES
+    ? ({ format: SNAPSHOT_FORMAT, formatVersion: SNAPSHOT_FORMAT_VERSION } as const)
+    : ({ format: RELEASED_SNAPSHOT_FORMAT } as const);
 export const SNAPSHOT_DIRECTORY = CAPTURE_DIRECTORY;
 export const CURRENT = CAPTURE_CURRENT;
 export const PREVIOUS = CAPTURE_PREVIOUS;
@@ -77,8 +85,8 @@ export interface SnapshotCounts {
 }
 /** The `snapshot` document a capture writes to `current.json`. */
 export interface SnapshotDocument {
-  readonly format: typeof SNAPSHOT_FORMAT;
-  readonly formatVersion: typeof SNAPSHOT_FORMAT_VERSION;
+  readonly format: typeof SNAPSHOT_FORMAT | typeof RELEASED_SNAPSHOT_FORMAT;
+  readonly formatVersion?: typeof SNAPSHOT_FORMAT_VERSION;
   readonly language: string;
   readonly kernelDigest: string;
   readonly revision: string;
@@ -134,8 +142,7 @@ export function buildSnapshot(session: Session): Pick<CaptureView, 'snapshot' | 
   const membership = [...admitted.membership].sort((a, b) => compare(a.identity, b.identity));
   const diagnostics = orderFindings(admission.findings);
   const snapshot: SnapshotDocument = {
-    format: SNAPSHOT_FORMAT,
-    formatVersion: SNAPSHOT_FORMAT_VERSION,
+    ...writtenFormat(),
     language: LANGUAGE_IDENTITY.language,
     kernelDigest: LANGUAGE_IDENTITY.kernelDigest,
     revision: admitted.revision,
@@ -284,8 +291,7 @@ export function captureEnvelope(view: CaptureView | CapturePreview): unknown {
     version: 1,
     ...('preview' in view ? { preview: true } : {}),
     snapshot: resolve(view.root, CURRENT),
-    format: SNAPSHOT_FORMAT,
-    formatVersion: SNAPSHOT_FORMAT_VERSION,
+    ...writtenFormat(),
     revision,
     digest: view.digest,
     records: counts.records,
@@ -403,10 +409,10 @@ export function renderCapture(view: CaptureView | CapturePreview, caps: Capabili
   return document(
     [
       preview === null
-        ? headerLine('Capture', SNAPSHOT_FORMAT, [{ text: `revision ${digest(revision)}`, column: 50 }], caps)
+        ? headerLine('Capture', writtenFormat().format, [{ text: `revision ${digest(revision)}`, column: 50 }], caps)
         : headerLine(
             'Plan',
-            `capture ${SNAPSHOT_FORMAT}`,
+            `capture ${writtenFormat().format}`,
             [{ text: `revision ${digest(revision)}`, column: 50 }],
             caps,
           ),

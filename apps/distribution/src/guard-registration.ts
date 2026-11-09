@@ -27,6 +27,7 @@ import {
   replace,
   sha256,
   utf8,
+  stamped,
   versionedObject,
   workspace,
 } from './files.js';
@@ -333,7 +334,11 @@ function publish(
       fail('LOCAL-MODIFICATION', `${what} configuration or ownership changed during publication`);
   };
   const before = now();
-  write(root, pendingPath, json({ format: pendingFormat, formatVersion: 1, id: plan.id, before, after: plan.after }));
+  write(
+    root,
+    pendingPath,
+    json({ ...stamped(pendingFormat, `ia.${pendingFormat}.v1`), id: plan.id, before, after: plan.after }),
+  );
   checkpoint('pending');
   unchanged(before);
   write(root, configPath, plan.after.config);
@@ -380,8 +385,7 @@ function planGuardWith(root: string, cache: HostCacheTarget | null, removeId: st
     state:
       cache && group
         ? json({
-            format: 'guard-registration-state',
-            formatVersion: 1,
+            ...stamped('guard-registration-state', 'ia.guard-registration-state.v1'),
             id,
             cache: cache.directory,
             release: cache.release,
@@ -743,8 +747,7 @@ function planHooksWith(
       wanted.size === 0
         ? null
         : json({
-            format: 'hook-registration-state',
-            formatVersion: 1,
+            ...stamped('hook-registration-state', 'ia.hook-registration-state.v1'),
             id,
             cache: cache!.directory,
             release: cache!.release,

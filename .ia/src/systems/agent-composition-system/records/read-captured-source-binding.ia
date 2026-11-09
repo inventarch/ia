@@ -7,4 +7,4 @@
   binding
     kind operation
     target @operation read-captured-source
-    implementation captured-source-read
+    implementation captured-source-read-v1

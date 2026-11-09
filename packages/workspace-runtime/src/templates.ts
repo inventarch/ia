@@ -6,6 +6,7 @@ import type { Capture } from './corpus.js';
 import { resourceOccurrences, resolveResources } from './resources.js';
 import type { ResourceKey, ResourceOccurrence } from './resources.js';
 import { nativeResourcePath } from './resource-sources.js';
+import { written } from './plain-format.js';
 import {
   decodeJson,
   frozen,
@@ -34,7 +35,7 @@ export type CapturedTemplateResult =
         readonly bytes: number;
         readonly sha256: string;
       };
-      readonly profile: 'structured';
+      readonly profile: 'structured' | 'structured-v1';
       readonly owner: ResourceOccurrence;
       readonly captureRevision: string;
       readonly viewRevision: string;
@@ -150,7 +151,8 @@ export function renderCapturedTemplate(
     const body = {
       status: 'rendered' as const,
       artifact: { path: filename, text: rendered.text, bytes: rendered.bytes, sha256: rendered.sha256 },
-      profile: 'structured' as const,
+      // The profile is reported under its original name until `WRITE_PLAIN_NAMES` is flipped.
+      profile: written('structured' as const, 'structured-v1' as const),
       owner,
       captureRevision: capture.revision,
       viewRevision: options.reader.revision,

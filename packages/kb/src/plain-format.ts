@@ -3,6 +3,7 @@
  * its name. A document written before that carries exactly one of its recorded legacy literals and no `formatVersion`;
  * each reader lists those literals explicitly, and nothing here parses a suffix.
  */
+import { WRITE_PLAIN_NAMES } from './written-names.js';
 export type Stamp<N extends string = string, L extends string = string> =
   | { readonly format: N; readonly formatVersion: 1 }
   | { readonly format: L; readonly formatVersion?: never };
@@ -31,3 +32,14 @@ export function peekStamp<N extends string, L extends string>(
 /** The keys a stamp occupies in a closed document. */
 export const stampKeys = (stamp: Stamp | undefined): readonly string[] =>
   stamp?.formatVersion === undefined ? ['format'] : ['format', 'formatVersion'];
+/**
+ * The stamp a writer of a shared document emits: the plain name with `formatVersion` once `WRITE_PLAIN_NAMES` is
+ * flipped, until then the released literal alone, as the released programs that read the document expect.
+ */
+export function writeStamp<N extends string, L extends string>(name: N, released: L): Stamp<N, L> {
+  return WRITE_PLAIN_NAMES ? currentStamp(name) : { format: released };
+}
+/** A name or value a writer emits into a shared document: `plain` once the switch is flipped, else the `released` one. */
+export function written<P, R>(plain: P, released: R): P | R {
+  return WRITE_PLAIN_NAMES ? plain : released;
+}

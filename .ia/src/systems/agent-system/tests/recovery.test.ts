@@ -44,7 +44,7 @@ function fixture(actions: ModelAction[] = [answer]) {
       limits: {},
       delegation: id === 'root' ? [{ profile: 'child', limits: {} }] : [],
       checks: [],
-      completionEvaluator: 'completion',
+      completionEvaluator: 'ia.completion.v1',
       repairAttempts: 1,
       maxAttempts: 2,
     },

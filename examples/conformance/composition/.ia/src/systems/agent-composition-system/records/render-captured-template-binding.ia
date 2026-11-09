@@ -7,4 +7,4 @@
   binding
     kind operation
     target @operation render-captured-template
-    implementation captured-template-render
+    implementation captured-template-render-v1

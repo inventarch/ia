@@ -13,6 +13,7 @@ import type { Capture } from '@inventarch/workspace-runtime/corpus';
 import { resourceOccurrences, verifyResources } from '@inventarch/workspace-runtime/resources';
 import type { ResourceKey } from '@inventarch/workspace-runtime/resources';
 import { renderCapturedTemplate } from '@inventarch/workspace-runtime/templates';
+import { WRITE_PLAIN_NAMES } from './written-names.js';
 
 const prefix = 'authoring-system/binding/operation/';
 export const DRAFT_TOOL_IDS = Object.freeze({
@@ -71,6 +72,8 @@ const profiles = [
  * table to `compileHarness` so records that still name them compile to the plain entries.
  */
 export function draftToolAliases(): CatalogAliases {
+  // Until `WRITE_PLAIN_NAMES` is flipped a record that names an original tool compiles to the original entry.
+  if (!WRITE_PLAIN_NAMES) return {};
   const operations: Record<string, string> = {},
     validators: Record<string, string> = {};
   for (const profile of profiles) {

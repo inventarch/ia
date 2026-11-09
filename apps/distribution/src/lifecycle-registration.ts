@@ -14,6 +14,7 @@ import {
   object,
   replace,
   sha256,
+  stamped,
   utf8,
   versionedDocument,
   versionedObject,
@@ -342,8 +343,7 @@ export function planLifecycleRegistration(
     binding: nextBinding,
     state: cache
       ? json({
-          format: 'lifecycle-registration-state',
-          formatVersion: 2,
+          ...stamped('lifecycle-registration-state', 'ia.lifecycle-registration-state.v2', 2),
           revision,
           id,
           cache: cache.directory,
@@ -423,7 +423,12 @@ export function applyLifecycleRegistration(
     write(
       root,
       pendingPath,
-      json({ format: 'lifecycle-registration-pending', formatVersion: 1, id, before, after: plan.after }),
+      json({
+        ...stamped('lifecycle-registration-pending', 'ia.lifecycle-registration-pending.v1'),
+        id,
+        before,
+        after: plan.after,
+      }),
     );
     checkpoint('pending');
     same(root, id, before);

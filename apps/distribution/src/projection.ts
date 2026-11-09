@@ -11,6 +11,7 @@ import {
   portable,
   replace,
   sha256,
+  stamped,
   utf8,
   versionedObject,
   workspace,
@@ -372,7 +373,7 @@ export function applyProjection(
       replace(
         root,
         statePath(host),
-        Buffer.from(json({ format: 'host-projection-state', formatVersion: 1, host, files: pending })),
+        Buffer.from(json({ ...stamped('host-projection-state', 'ia.host-projection-state.v1'), host, files: pending })),
       );
       checkpoint('pending');
       for (const action of mutating) {
@@ -397,7 +398,7 @@ export function applyProjection(
       root,
       statePath(host),
       plan.artifacts.length
-        ? Buffer.from(json({ format: 'host-projection-state', formatVersion: 1, host, files }))
+        ? Buffer.from(json({ ...stamped('host-projection-state', 'ia.host-projection-state.v1'), host, files }))
         : null,
     );
     checkpoint('complete');
