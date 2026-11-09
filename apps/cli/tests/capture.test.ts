@@ -104,6 +104,7 @@ interface Finding {
 }
 interface SnapshotFile {
   readonly format: string;
+  readonly formatVersion: number;
   readonly language: string;
   readonly kernelDigest: string;
   readonly revision: string;
