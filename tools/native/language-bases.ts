@@ -73,6 +73,10 @@ export const SEED: Readonly<Record<string, { readonly archive: string; readonly 
     archive: '7b36e4b4959a7bead1c57906cd346b419f32570dac0ac764af805ad20cd63b16',
     source: '@inventarch/cli@3.3.0',
   },
+  '3.2.1': {
+    archive: 'ee6e65018df2ebef705913d9da1947f040edf44c2e7ade6c9750c6fa0185985e',
+    source: '@inventarch/cli@3.7.0',
+  },
 };
 
 const sha256 = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex');
@@ -170,8 +174,29 @@ export function tarMember(tarball: Uint8Array, path: string): Buffer {
   throw new Error(`Tarball has no ${path}`);
 }
 
-/** Fetches one published base from npm, verifies it, and records it; returns the ledger entry. */
-export function fetchBase(root: string, version: string, spec: string): LedgerBase {
+/** The tarball `npm pack <spec>` writes into `scratch`, read back. */
+export function npmPack(spec: string, scratch: string): Buffer {
+  // The caller validates the spec, so the Windows npm shim (a .cmd file, which needs a shell) receives only safe text.
+  const out = execFileSync(
+    process.platform === 'win32' ? 'npm.cmd' : 'npm',
+    ['pack', spec, '--silent', '--pack-destination', scratch],
+    { cwd: scratch, encoding: 'utf8', shell: process.platform === 'win32' },
+  );
+  const name = out.trim().split(/\r?\n/).pop() ?? '';
+  if (!/^[\w.@-]+\.tgz$/.test(name)) throw new Error(`Unexpected npm pack output: ${name}`);
+  return readFileSync(resolve(scratch, name));
+}
+
+/**
+ * Fetches one published base from npm, verifies it, and records it; returns the ledger entry. `pack` obtains the
+ * tarball: `npmPack` unless a test hands one in.
+ */
+export function fetchBase(
+  root: string,
+  version: string,
+  spec: string,
+  pack: (spec: string, scratch: string) => Buffer = npmPack,
+): LedgerBase {
   if (!VERSION.test(version)) throw new Error(`Not a 3.x.y version: ${version}`);
   if (!NPM_SPEC.test(spec)) throw new Error(`Not an @inventarch/cli@x.y.z spec: ${spec}`);
   const ledger = readBaseLedger(root);
@@ -181,15 +206,7 @@ export function fetchBase(root: string, version: string, spec: string): LedgerBa
     throw new Error(`Version ${version} does not follow ${last.version}`);
   const scratch = mkdtempSync(resolve(tmpdir(), 'ia-base-fetch-'));
   try {
-    // The spec is validated above, so the Windows npm shim (a .cmd file, which needs a shell) receives only safe text.
-    const out = execFileSync(
-      process.platform === 'win32' ? 'npm.cmd' : 'npm',
-      ['pack', spec, '--silent', '--pack-destination', scratch],
-      { cwd: scratch, encoding: 'utf8', shell: process.platform === 'win32' },
-    );
-    const name = out.trim().split(/\r?\n/).pop() ?? '';
-    if (!/^[\w.@-]+\.tgz$/.test(name)) throw new Error(`Unexpected npm pack output: ${name}`);
-    const tarball = readFileSync(resolve(scratch, name));
+    const tarball = pack(spec, scratch);
     const pin = JSON.parse(tarMember(tarball, 'package/assets/base.json').toString('utf8')) as {
       id: string;
       version: string;
