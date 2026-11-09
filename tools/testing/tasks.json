@@ -4815,7 +4815,9 @@
       ],
       "mode": "source",
       "inputProfile": "repository-inventory",
-      "dependsOn": [],
+      "dependsOn": [
+        "cli:build"
+      ],
       "outputs": [
         "artifacts/tests/language-compat-gate"
       ],
