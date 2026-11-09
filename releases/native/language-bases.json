@@ -1,0 +1,37 @@
+{
+  "format": "ia.language-bases.v1",
+  "id": "inventarch/language",
+  "major": 3,
+  "bases": [
+    {
+      "version": "3.0.0",
+      "archive": "08eaab3e1a6215d78283b82a94a0228367ac7bd78d0a746c56db79c8d7546c3a",
+      "manifest": "2acb3aa7ec7d2265e6471520e8cc4f891deb2e4d0f169803e171f4a260de413a",
+      "source": "@inventarch/cli@3.0.0"
+    },
+    {
+      "version": "3.1.0",
+      "archive": "7db20e0dbbc2b88701ea24991886b4a8e08d419dda469cce5caff66911f81e4c",
+      "manifest": "43373c8bedbf9e817807f246d0886914e4cce02882d811742a2508a1f875293e",
+      "source": "@inventarch/cli@3.1.0"
+    },
+    {
+      "version": "3.1.1",
+      "archive": "df626d1dc4949649ba7203842b29b4f064e0552e8db8c2c41ff74b6462b81b75",
+      "manifest": "7b83fb727ab8706f7e4e9be2d61deceaa4161753b3634c38aa31ab13e4aff1f6",
+      "source": "@inventarch/cli@3.1.1"
+    },
+    {
+      "version": "3.1.2",
+      "archive": "62ecd5092f364b40e335e9e509ef512ac8030eb5689e72a5d0ff1e073cb13cfb",
+      "manifest": "3692c75c7b51852351560fa09dc831eb5854e33e2fb6e37cdf0b6bfc8bdb02f2",
+      "source": "@inventarch/cli@3.2.0"
+    },
+    {
+      "version": "3.2.0",
+      "archive": "7b36e4b4959a7bead1c57906cd346b419f32570dac0ac764af805ad20cd63b16",
+      "manifest": "03a226569c510efaea971dbc41c353998319c33b77ab636d192b549e50f4e732",
+      "source": "@inventarch/cli@3.3.0"
+    }
+  ]
+}

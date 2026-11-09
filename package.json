@@ -23,6 +23,7 @@
     "vocabulary:check": "node --conditions=development --import tsx tools/native/public-vocabulary.ts --check",
     "vocabulary:generate": "node --conditions=development --import tsx tools/native/public-vocabulary.ts --write",
     "language-base:generate": "node --conditions=development --import tsx tools/native/language-base.ts --write",
+    "language-bases:fetch": "node --conditions=development --import tsx tools/native/language-bases.ts",
     "host-payload:generate": "node tools/distribution/host-payload.mjs --write",
     "dependencies:check": "node --import tsx tools/dependencies/check.ts",
     "docs:audit": "pnpm docs:structure && pnpm docs:links && node --import tsx tools/docs/audit.ts",
