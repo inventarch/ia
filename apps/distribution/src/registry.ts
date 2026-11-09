@@ -11,7 +11,7 @@ export {
   resolveFromRegistries,
   unpublishedPins,
 } from './registry-resolve.js';
-export type { Acquirer, RegistryResolution, RegistryResolveRequest } from './registry-resolve.js';
+export type { Acquirer, CandidateRelease, RegistryResolution, RegistryResolveRequest } from './registry-resolve.js';
 export {
   collectionIndexPath,
   decodeCollectionIndex,

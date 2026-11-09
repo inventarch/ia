@@ -39,19 +39,28 @@
  * with the service's code, message and file, and its next action opens "The installation is applied." before the
  * repair, so a script sees the failure and a reader sees what did happen. `ia doctor` reports the drift until then.
  */
-import { readBase } from './bundled-base.js';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import type { Base } from './bundled-base.js';
+import { readBases, readCompatIndex } from './bundled-base.js';
 import {
   canonicalDistributionJson,
+  compareVersions,
   decodeDistributionRequests,
   DISTRIBUTION_ENGINE_VERSION,
   INSTALL_PATHS,
+  languageFloor,
   lockedReleases,
+  satisfies,
+  usageOf,
+  version as exactVersion,
 } from '@inventarch/db/distribution';
-import type { Dependency, DistributionLock } from '@inventarch/db/distribution';
+import type { Dependency, DistributionLock, Gap } from '@inventarch/db/distribution';
 import {
   ARCHIVE_CACHE,
   applyInstallation,
   cacheArchive,
+  cachePath,
   collectionsWouldChange,
   planInstallation,
 } from '@inventarch/distribution/install';
@@ -279,6 +288,11 @@ export interface Reruns {
   readonly inspect: string;
   /** `install`'s: this install with `extra` ids added, so collections that share a member are expanded together. */
   readonly together?: (extra: readonly string[]) => string;
+  /**
+   * The update of one id from this command's source, its range repinned to `to` when given: restore's move off a
+   * language base the CLI does not carry, and update's rerun with a range that admits what the records need.
+   */
+  readonly update?: (id: string, to?: string) => string;
 }
 const RETRY = (reruns: Reruns): string => `Retry "${reruns.again}" when the host is reachable.`;
 const REGISTRY_RETRY = (reruns: Reruns): string =>
@@ -626,14 +640,220 @@ function refreshed(view: PlanView, host: HostName): Refusal | 'retired' | 'none'
  * (apps/distribution/src/install.ts `planInstallation`). Every other operation, and every other state, still refuses.
  */
 const RESTORABLE = new Set(['restore-required', 'lock-drift']);
-function installedLock(root: string, operation: Operation): DistributionLock | undefined {
+/**
+ * `update` of the language base is let through those two states as well (`moving`): a fresh clone locked on one base
+ * moves to another without a restore first. Its previous state is then the committed lock, and the move is planned as a
+ * restore of the new lock, the one operation the installer plans over a partial installation; `partial` says so.
+ */
+function installedLock(
+  root: string,
+  operation: Operation,
+  moving: boolean,
+): { readonly previous: DistributionLock | undefined; readonly partial: boolean } {
   try {
-    return readInstalledState({ root }).lock;
+    return { previous: readInstalledState({ root }).lock, partial: false };
   } catch (error) {
     const reason = error !== null && typeof error === 'object' && 'reason' in error ? error.reason : undefined;
-    if (operation === 'restore' && typeof reason === 'string' && RESTORABLE.has(reason)) return undefined;
+    if (typeof reason === 'string' && RESTORABLE.has(reason)) {
+      if (operation === 'restore') return { previous: undefined, partial: true };
+      if (moving) return { previous: readWorkspaceLock({ root }), partial: true };
+    }
     throw error;
   }
+}
+
+/**
+ * The language bases this CLI carries (`readBases`, ascending): none for a caller that names no package root (a 1.x
+ * `collectPlan` request), and none for a workspace with no committed lock, which locks no base to move from or restore.
+ */
+function carriedBases(request: PlanRequest): readonly Base[] {
+  if (request.packageRoot === undefined || !existsSync(join(request.root, INSTALL_PATHS.lock))) return [];
+  return readBases(request.packageRoot);
+}
+/** The value, or undefined when the codec refuses it (not canonical SemVer, not a range). */
+function attempt<T>(run: () => T): T | undefined {
+  try {
+    return run();
+  } catch {
+    return undefined;
+  }
+}
+const majorOf = (value: string): number => Number(value.split('.')[0]);
+/** Whether version `a` is at or above `b` (`compareVersions` orders the highest first). */
+const atLeast = (a: string, b: string): boolean => compareVersions(a, b) <= 0;
+
+/**
+ * The workspace's authored record trees as `languageFloor` reads them: every `.ia` file under `.ia/src`, by its
+ * workspace-relative path. Only record trees count (a kit's other assets would say nothing true about its minimum), and
+ * links are not followed.
+ */
+function recordSources(root: string): { path: string; text: string }[] {
+  const sources: { path: string; text: string }[] = [];
+  const walk = (directory: string, at: string): void => {
+    for (const entry of readdirSync(directory, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))) {
+      const path = `${at}/${entry.name}`;
+      if (entry.isDirectory()) walk(join(directory, entry.name), path);
+      else if (entry.isFile() && entry.name.endsWith('.ia'))
+        sources.push({ path, text: readFileSync(join(directory, entry.name), 'utf8') });
+    }
+  };
+  const top = join(root, '.ia/src');
+  if (existsSync(top)) walk(top, '.ia/src');
+  return sources;
+}
+/** One gap, said as what the record does and what the base it fails on makes of that. */
+function gapText(gap: Gap): string {
+  const owner = gap.record === '' ? '' : ` (@${gap.word} ${gap.record})`;
+  const said: Readonly<Record<Gap['kind'], string>> = {
+    word: `uses the word ${gap.key}, which ${gap.base} does not register`,
+    section: `uses the section ${gap.key}, which ${gap.base} does not declare`,
+    field: `uses the field ${gap.key}, which ${gap.base} does not declare`,
+    value: `uses the value ${gap.key}, which ${gap.base} does not admit`,
+    type: `gives ${gap.key} a value ${gap.base} does not admit`,
+    'required-section': `lacks the section ${gap.key}, which ${gap.base} requires`,
+    'required-field': `lacks the field ${gap.key}, which ${gap.base} requires`,
+    parse: `does not parse (${gap.key})`,
+  };
+  return `${gap.source}${owner} ${said[gap.kind]}`;
+}
+
+/**
+ * The carried bases a plan may offer for the workspace's locked language row (`offered`), by one rule: the same major
+ * as the newest carried base, never below the locked version (no downgrade), admitted by the workspace's language
+ * request (`^<locked version>` when it has none), and, for any base but the locked archive itself, at or above the
+ * minimum the workspace's `.ia/src` records need (`languageFloor` over the shipped index). The minimum is computed only
+ * when a move is possible or `naming` (an update of the base) asks for it. Undefined when the lock holds no row for the
+ * carried id.
+ */
+interface CarriedOffer {
+  readonly id: string;
+  readonly locked: { readonly version: string; readonly archive: string };
+  readonly range: string;
+  readonly offered: readonly Base[];
+  /** The bases within the range and not below the lock, before the minimum applies. */
+  readonly eligible: readonly Base[];
+  readonly minimum: { readonly floor: string | null; readonly gap: Gap | undefined } | undefined;
+}
+function carriedOffer(
+  root: string,
+  packageRoot: string | undefined,
+  bases: readonly Base[],
+  lock: DistributionLock | undefined,
+  requests: readonly Dependency[],
+  naming: boolean,
+): CarriedOffer | undefined {
+  const newest = bases.at(-1);
+  if (newest === undefined || packageRoot === undefined) return undefined;
+  const id = newest.pin.id,
+    row = lock?.packages.find((pkg) => pkg.id === id);
+  if (row === undefined) return undefined;
+  // Identity is the archive: a carried archive is the version it carries, whatever the row's label says.
+  const at =
+    bases.find((base) => base.pin.archive === row.archive)?.pin.version ?? attempt(() => exactVersion(row.version));
+  const range = requests.find((request) => request.id === id)?.range ?? `^${at ?? row.version}`;
+  const eligible =
+    at === undefined || majorOf(at) !== majorOf(newest.pin.version)
+      ? []
+      : bases.filter(
+          (base) =>
+            majorOf(base.pin.version) === majorOf(at) &&
+            atLeast(base.pin.version, at) &&
+            attempt(() => satisfies(base.pin.version, range)) === true,
+        );
+  let minimum: CarriedOffer['minimum'];
+  if (naming || eligible.some((base) => base.pin.archive !== row.archive)) {
+    const { floor, gaps } = languageFloor(usageOf(recordSources(root)), readCompatIndex(packageRoot));
+    minimum = { floor, gap: gaps[0] };
+  }
+  const offered = eligible.filter(
+    (base) =>
+      base.pin.archive === row.archive ||
+      (minimum !== undefined && minimum.floor !== null && atLeast(base.pin.version, minimum.floor)),
+  );
+  return { id, locked: { version: at ?? row.version, archive: row.archive }, range, offered, eligible, minimum };
+}
+/**
+ * `update` of the base refuses before resolving when the workspace's records need a base above every candidate the
+ * CLI carries for it: none reads them at all, or none at or above their minimum is within the range and not below the
+ * lock. A lock above or outside the carried bases is left to resolution, which a registry may still answer.
+ */
+function requireMinimum(offer: CarriedOffer, newest: string, reruns: Reruns, update: (to: string) => string): void {
+  const { id, locked, range, eligible, minimum } = offer;
+  const carriedMajor =
+    attempt(() => exactVersion(locked.version)) !== undefined && majorOf(locked.version) === majorOf(newest);
+  if (minimum === undefined || !carriedMajor || !atLeast(newest, locked.version)) return;
+  const { floor, gap } = minimum;
+  const why = gap === undefined ? '' : `: ${gapText(gap)}`;
+  if (floor === null)
+    throw new Refusal(
+      'IA-DIST-CONFLICT',
+      `No ${id} base this CLI carries reads the workspace's records${why}`,
+      3,
+      gap === undefined ? null : { path: gap.source },
+      `Fix the record the message names, then run "${reruns.again}".`,
+    );
+  if (eligible.some((base) => atLeast(base.pin.version, floor))) return;
+  const lowest = atLeast(floor, locked.version) ? floor : locked.version;
+  throw new Refusal(
+    'IA-DIST-CONFLICT',
+    `The workspace's records need ${id} ${floor} or later${why}; no base this CLI carries (up to ${newest}) at or above ${lowest} satisfies ${range}`,
+    3,
+    null,
+    `Run "${update(`^${lowest}`)}" to move the workspace to a base its records can use.`,
+  );
+}
+/** The offered bases as resolution candidates beside `candidates`, except one whose id and version they already hold. */
+function carriedCandidates(
+  offer: CarriedOffer | undefined,
+  candidates: readonly ReleaseCandidate<BundleMetadata>[],
+): readonly ReleaseCandidate<BundleMetadata>[] {
+  const extra = (offer?.offered ?? []).filter(
+    (base) =>
+      !candidates.some(
+        ({ release }) =>
+          release.manifest.id === base.pin.id &&
+          (release.manifest.version === base.pin.version || release.archiveDigest === base.pin.archive),
+      ),
+  );
+  return [
+    ...candidates,
+    ...extra.map((base) => ({
+      release: { manifest: base.manifest, archiveDigest: base.pin.archive, manifestDigest: base.pin.manifest },
+      location: `sha256:${base.pin.archive}`,
+      withdrawn: false,
+    })),
+  ];
+}
+/**
+ * Restore stays exact (it never rewrites the lock), so a lock on a base this CLI does not carry, that the workspace
+ * cache does not hold and that the source cannot supply, refuses as the service refused it. Its next action is the
+ * update that moves the workspace to a carried base, when one can be (same major, not below the lock), and otherwise a
+ * CLI that carries the locked base. Any other refusal passes through unchanged.
+ */
+function stranded(
+  error: unknown,
+  row: DistributionLock['packages'][number],
+  newest: string,
+  reruns: Reruns,
+  update: (id: string) => string,
+): unknown {
+  const code = codeOf(error, ''),
+    message = error instanceof Error ? error.message : String(error);
+  const unavailable =
+    (code === 'IA-DIST-CONFLICT' && message.endsWith(`: ${row.id}@${row.version}`)) ||
+    (code === 'IA-DIST-RESTORE-REQUIRED' && (message.includes(row.archive) || message.includes(`locked ${row.id}`)));
+  if (!unavailable) return error;
+  const at = attempt(() => exactVersion(row.version));
+  const movable = at !== undefined && majorOf(at) === majorOf(newest) && atLeast(newest, at);
+  return new Refusal(
+    code,
+    message,
+    3,
+    null,
+    movable
+      ? `This CLI does not carry ${row.id} ${row.version}, and restore never changes the lock. Run "${update(row.id)}" to preview the move to a base it carries.`
+      : `This CLI carries ${row.id} up to ${newest}. Install an @inventarch/cli release that carries ${row.id} ${row.version}, then run "${reruns.again}".`,
+  );
 }
 
 /**
@@ -646,17 +866,24 @@ function requestReruns(request: PlanRequest): Reruns {
   const apply = operation === 'restore' ? ' --apply --yes' : '';
   const spell = (
     named: Operation,
-    variant: { readonly ids?: readonly string[]; readonly source?: readonly string[]; readonly online?: boolean } = {},
+    variant: {
+      readonly ids?: readonly string[];
+      readonly source?: readonly string[];
+      readonly online?: boolean;
+      readonly to?: string;
+    } = {},
   ): string => {
     const parts = [`ia ${named}`, ...(variant.ids ?? request.ids).map(quote)];
     if (named === 'install' && request.package !== undefined) parts.push('--package', quote(request.package));
-    if (named === 'update' && to !== undefined) parts.push('--to', quote(to));
-    if (request.requestsFile !== undefined) parts.push('--requests', quote(request.requestsFile));
+    const range = variant.to ?? (operation === 'update' ? to : undefined);
+    if (named === 'update' && range !== undefined) parts.push('--to', quote(range));
+    if (request.requestsFile !== undefined && named !== 'update') parts.push('--requests', quote(request.requestsFile));
     if (variant.source !== undefined) parts.push(...variant.source);
     else if (request.catalog !== undefined) parts.push('--catalog', quote(request.catalog));
     if (request.planOut !== undefined) parts.push('--plan-out', quote(request.planOut));
     if (variant.source === undefined && variant.online !== true && request.offline) parts.push('--offline');
-    if (request.allowWithdrawn) parts.push('--allow-withdrawn');
+    // `update` takes no --allow-withdrawn, so restore's move to a carried base names none.
+    if (request.allowWithdrawn && named !== 'update') parts.push('--allow-withdrawn');
     if (request.rooted === true) parts.push('--root', quote(root));
     return parts.join(' ');
   };
@@ -669,6 +896,7 @@ function requestReruns(request: PlanRequest): Reruns {
     install: spell('install', { ids: request.ids.map((id) => (to === undefined ? id : `${id}@${to}`)) }),
     inspect: `ia inspect${request.rooted === true ? ` --root ${quote(root)}` : ''}`,
     together: (extra) => spell('install', { ids: joined(request.ids, extra) }),
+    update: (id, range) => spell('update', { ids: [id], ...(range === undefined ? {} : { to: range }) }),
   };
 }
 
@@ -736,7 +964,15 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
       );
     }
   };
-  const previous = installedLock(root, operation);
+  const bases = operation === 'remove' || request.package !== undefined ? [] : carriedBases(request);
+  const newest = bases.at(-1)?.pin;
+  // The update of one id from this command's source; a 1.x request's is spelled from its own fields.
+  const update = reruns.update ?? requestReruns(request).update!;
+  const { previous, partial } = installedLock(
+    root,
+    operation,
+    operation === 'update' && newest !== undefined && request.ids[0] === newest.id,
+  );
   let plan: InstallationPlan;
   let withdrawn: readonly string[] = [];
   let registries: readonly RegistrySource[] = [];
@@ -756,67 +992,76 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
         offline: request.offline,
         again: reruns.again,
       });
-    if (request.packageRoot !== undefined) {
-      const base = readBase(request.packageRoot);
-      const locked = lock.packages.find((row) => row.id === base.pin.id);
-      if (locked?.archive === base.pin.archive) {
-        if (locked.manifest !== base.pin.manifest || locked.version !== base.pin.version)
-          throw new Refusal(
-            'IA-DIST-INPUT-INVALID',
-            'The locked bundled base manifest or version differs from its verified archive',
-            3,
-            { path: INSTALL_PATHS.lock },
-            `Restore the exact portable lock from source control, then run "${reruns.again}".`,
-          );
-        cacheArchive(root, base.bytes, base.pin.archive);
-      }
+    // Every published base this CLI carries restores exactly: the locked archive, when carried, is cached from the CLI's
+    // own verified bytes, so no registry or catalog has to supply it.
+    const locked = newest === undefined ? undefined : lock.packages.find((row) => row.id === newest.id);
+    const base = locked === undefined ? undefined : bases.find((carried) => carried.pin.archive === locked.archive);
+    if (locked !== undefined && base !== undefined) {
+      if (locked.manifest !== base.pin.manifest || locked.version !== base.pin.version)
+        throw new Refusal(
+          'IA-DIST-INPUT-INVALID',
+          'The locked bundled base manifest or version differs from its verified archive',
+          3,
+          { path: INSTALL_PATHS.lock },
+          `Restore the exact portable lock from source control, then run "${reruns.again}".`,
+        );
+      cacheArchive(root, base.bytes, base.pin.archive);
     }
-    if (request.catalog === undefined && !request.offline) {
-      const choose = chooserOf(request);
-      const restored = await acquiring(
-        async () => {
-          const pins = await registryWithdrawals(root, lock, choose, request.signal);
-          return planRestore({
-            root,
-            signal: request.signal,
-            lock,
-            offline: false,
-            allowWithdrawn: request.allowWithdrawn,
-            withdrawnRefusalPrefix,
-            withdrawn: pins,
-          });
-        },
-        null,
-        'registry',
-        reruns,
-      );
-      plan = restored.plan;
-      withdrawn = restored.withdrawn;
-      // The registries asked: every locked package's except an unpublished cached pin, which no registry lists (§6.3).
-      const unpublished = unpublishedPins(root, lock);
-      registries = registrySources(
-        lock.packages.filter((pkg) => !unpublished.has(pkg.id)).map((pkg) => choose(pkg.id)),
-      );
-    } else {
-      const entries = request.offline ? undefined : supplied(request.catalog!, 'catalog');
-      await warm(root, entries, request.offline, reruns, request.signal);
-      const restored = await acquiring(
-        () =>
-          planRestore({
-            root,
-            signal: request.signal,
-            lock,
-            offline: request.offline,
-            allowWithdrawn: request.allowWithdrawn,
-            withdrawnRefusalPrefix,
-            ...(request.offline ? {} : { catalog: entries }),
-          }),
-        request.catalog ?? null,
-        'catalog',
-        reruns,
-      );
-      plan = restored.plan;
-      withdrawn = restored.withdrawn;
+    // A locked base the CLI does not carry and the cache does not hold can come only from the source.
+    const uncarried =
+      locked !== undefined && base === undefined && !existsSync(join(root, cachePath(locked.archive)))
+        ? locked
+        : undefined;
+    try {
+      if (request.catalog === undefined && !request.offline) {
+        const choose = chooserOf(request);
+        const restored = await acquiring(
+          async () => {
+            const pins = await registryWithdrawals(root, lock, choose, request.signal);
+            return planRestore({
+              root,
+              signal: request.signal,
+              lock,
+              offline: false,
+              allowWithdrawn: request.allowWithdrawn,
+              withdrawnRefusalPrefix,
+              withdrawn: pins,
+            });
+          },
+          null,
+          'registry',
+          reruns,
+        );
+        plan = restored.plan;
+        withdrawn = restored.withdrawn;
+        // The registries asked: every locked package's except an unpublished cached pin, which no registry lists (§6.3).
+        const unpublished = unpublishedPins(root, lock);
+        registries = registrySources(
+          lock.packages.filter((pkg) => !unpublished.has(pkg.id)).map((pkg) => choose(pkg.id)),
+        );
+      } else {
+        const entries = request.offline ? undefined : supplied(request.catalog!, 'catalog');
+        await warm(root, entries, request.offline, reruns, request.signal);
+        const restored = await acquiring(
+          () =>
+            planRestore({
+              root,
+              signal: request.signal,
+              lock,
+              offline: request.offline,
+              allowWithdrawn: request.allowWithdrawn,
+              withdrawnRefusalPrefix,
+              ...(request.offline ? {} : { catalog: entries }),
+            }),
+          request.catalog ?? null,
+          'catalog',
+          reruns,
+        );
+        plan = restored.plan;
+        withdrawn = restored.withdrawn;
+      }
+    } catch (error) {
+      throw uncarried === undefined ? error : stranded(error, uncarried, newest!.version, reruns, update);
     }
   } else if (request.package !== undefined) {
     plan = planPackage(request, previous, reruns.again);
@@ -849,21 +1094,32 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
               .map((dependency) => dependency.id);
     // A range the user typed is theirs: an update names one only with --to.
     direct = updated !== undefined && request.to === undefined ? [] : named;
+    // The carried bases this plan may offer beside its source's releases, so a workspace locked on a base moves to a
+    // newer carried one when a kit's range or an update of the base asks for it, cold or warm, offline or online.
+    const naming = newest !== undefined && updated === newest.id;
+    const offer = carriedOffer(root, request.packageRoot, bases, previous, requests, naming);
+    if (naming && offer !== undefined) requireMinimum(offer, newest.version, reruns, (to) => update(offer.id, to));
     let choices: readonly ReleaseCandidate<BundleMetadata>[];
     if (request.catalog !== undefined) {
       const entries = supplied(request.catalog, 'catalog');
       await warm(root, entries, request.offline, reruns, request.signal);
-      choices = await acquiring(
-        () => resolveCatalog({ root, entries, offline: request.offline, signal: request.signal }),
-        request.catalog,
-        'catalog',
-        reruns,
+      choices = carriedCandidates(
+        offer,
+        await acquiring(
+          () => resolveCatalog({ root, entries, offline: request.offline, signal: request.signal }),
+          request.catalog,
+          'catalog',
+          reruns,
+        ),
       );
     } else if (request.offline) {
-      choices = cached(
-        root,
-        [...requests.map((dependency) => dependency.id), ...(previous?.packages ?? []).map((pkg) => pkg.id)],
-        reruns,
+      choices = carriedCandidates(
+        offer,
+        cached(
+          root,
+          [...requests.map((dependency) => dependency.id), ...(previous?.packages ?? []).map((pkg) => pkg.id)],
+          reruns,
+        ),
       );
     } else {
       // Registry spec §5: metadata selection, then only the selected archives are fetched and verified. Only the ids the
@@ -898,6 +1154,10 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
             named,
             choose,
             signal: request.signal,
+            extra: (offer?.offered ?? []).map((base) => ({
+              release: { manifest: base.manifest, archiveDigest: base.pin.archive, manifestDigest: base.pin.manifest },
+              bytes: base.bytes,
+            })),
           }),
         null,
         'registry',
@@ -931,11 +1191,13 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
         ? { ...previous, packages: previous.packages.filter((pkg) => pkg.id !== updated) }
         : previous;
     request.signal?.throwIfAborted();
-    plan = planInstallation(
-      root,
-      resolveReleases(requests, choices, DISTRIBUTION_ENGINE_VERSION, preference).lock,
-      operation,
-    );
+    const { lock } = resolveReleases(requests, choices, DISTRIBUTION_ENGINE_VERSION, preference);
+    // A selected carried base is cached from the CLI's verified bytes, as a selected registry archive is, so the plan
+    // reads it where every installation reads its archives.
+    const chosen = lock.packages.find((pkg) => pkg.id === offer?.id);
+    const carried = offer?.offered.find((base) => base.pin.archive === chosen?.archive);
+    if (carried !== undefined) cacheArchive(root, carried.bytes, carried.pin.archive);
+    plan = planInstallation(root, lock, partial ? 'restore' : operation);
   }
   request.signal?.throwIfAborted();
   const planOut =
@@ -1256,7 +1518,12 @@ export const renderDeclined = (view: PlanView, caps: Capabilities, supplied?: st
 function invocationOf(
   context: Context,
   operation: Operation,
-  variant: { readonly ids?: readonly string[]; readonly source?: readonly string[]; readonly online?: boolean } = {},
+  variant: {
+    readonly ids?: readonly string[];
+    readonly source?: readonly string[];
+    readonly online?: boolean;
+    readonly to?: string;
+  } = {},
 ): string {
   const { args } = context;
   const parts = [`ia ${operation}`, ...(variant.ids ?? args.positionals).map(quote)];
@@ -1264,16 +1531,18 @@ function invocationOf(
     const given = args.value(name);
     if (given !== undefined) parts.push(`--${name}`, quote(given));
   };
-  if (operation === 'update') value('to');
+  if (operation === 'update' && variant.to !== undefined) parts.push('--to', quote(variant.to));
+  else if (operation === 'update') value('to');
   if (operation === 'install') value('package');
-  value('requests');
+  if (operation !== 'update') value('requests');
   if (variant.source === undefined) {
     value('registry');
     value('catalog');
   } else parts.push(...variant.source);
   value('plan-out');
   if (variant.source === undefined && variant.online !== true && args.flag('offline')) parts.push('--offline');
-  if (args.flag('allow-withdrawn')) parts.push('--allow-withdrawn');
+  // `update` takes no --allow-withdrawn, so restore's move to a carried base names none.
+  if (args.flag('allow-withdrawn') && operation !== 'update') parts.push('--allow-withdrawn');
   value('root');
   return parts.join(' ');
 }
@@ -1295,6 +1564,8 @@ function rerunsOf(context: Context, operation: Operation): Reruns {
     }),
     inspect: `ia inspect${root === undefined ? '' : ` --root ${quote(root)}`}`,
     together: (extra) => invocationOf(context, 'install', { ids: joined(args.positionals, extra) }),
+    update: (id, range) =>
+      invocationOf(context, 'update', { ids: [id], ...(range === undefined ? {} : { to: range }) }),
   };
 }
 /** The ids a command named, then each of `extra` whose id none of them names (`acme/b` is named by `acme/b@1`). */

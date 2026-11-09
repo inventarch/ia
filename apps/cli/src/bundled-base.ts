@@ -2,11 +2,12 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { verifyArchive } from '@inventarch/distribution/archive';
-import type { BundleManifest } from '@inventarch/db/distribution';
+import type { BundleManifest, CompatIndex } from '@inventarch/db/distribution';
 import { Refusal } from './consumer.js';
 import { codeOf } from './session.js';
 export const PIN_PATH = 'assets/base.json';
 export const BASES_PATH = 'assets/bases.json';
+export const COMPAT_PATH = 'assets/language-compat.json';
 export const baseArchivePath = (digest: string): string => `assets/base/${digest}.ia.tgz`;
 export const PACKAGE_ID = /^[a-z][a-z0-9.-]*\/[a-z][a-z0-9-]*$/;
 export const DAMAGED =
@@ -79,6 +80,31 @@ export function readBase(packageRoot: string): Base {
     );
   }
   return verifiedBase(packageRoot, pin);
+}
+
+/**
+ * The language compatibility index the package ships (`assets/language-compat.json`): one schema catalogue per published
+ * base of its major, which `languageFloor` trusts. So it is checked here: its format, the language id, and every base in
+ * the index's own major; anything else is a damaged installation.
+ */
+export function readCompatIndex(packageRoot: string): CompatIndex {
+  const path = resolve(packageRoot, COMPAT_PATH);
+  try {
+    const index = JSON.parse(readFileSync(path, 'utf8')) as Partial<CompatIndex>;
+    if (index.format !== 'ia.language-compat.v1' || index.id !== 'inventarch/language')
+      throw new Error('not an inventarch/language compatibility index');
+    const { major, bases } = index;
+    if (typeof major !== 'number' || !Array.isArray(bases) || bases.length === 0)
+      throw new Error('expected a major and a non-empty list of bases');
+    if (!bases.every((base) => typeof base?.version === 'string' && Number(base.version.split('.')[0]) === major))
+      throw new Error(`a base outside major ${major}`);
+    return index as CompatIndex;
+  } catch (error) {
+    throw damaged(
+      `The language compatibility index cannot be read: ${error instanceof Error ? error.message : String(error)}`,
+      path,
+    );
+  }
 }
 
 /** Every base the package carries, ascending, the last being the newest (the one `readBase` returns); each is verified. */

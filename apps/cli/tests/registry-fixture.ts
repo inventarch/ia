@@ -21,7 +21,8 @@ import { registryAdd } from '@inventarch/distribution/registry-build';
 import { resolveReleases } from '@inventarch/distribution/resolve';
 import { distributionSnapshot, packSnapshot } from '@inventarch/distribution/snapshot';
 import type { DistributionSnapshot } from '@inventarch/distribution/snapshot';
-import { repository } from './workspace-fixture.js';
+import { readBases } from '../src/bundled-base.js';
+import { cli, repository } from './workspace-fixture.js';
 
 /** The descriptor apps/distribution/tests/snapshot-fixture.ts packs; each release overrides its id, version and dependencies. */
 const DESCRIPTOR = {
@@ -177,6 +178,71 @@ export function baseCompanionArchive(spec: FixtureReleaseSpec, baseArchive: Uint
     manifest: packed.manifestDigest,
     bytes: Buffer.from(packed.bytes),
   };
+}
+/**
+ * A published language base the CLI carries (apps/cli/assets, which the build fills from the bases ledger): its pin and
+ * exact archive bytes. A workspace locked on it is one an earlier CLI that bundled this base initialized.
+ */
+export function baseArchiveAt(version: string): FixtureRelease {
+  const base = readBases(cli).find((carried) => carried.pin.version === version);
+  if (base === undefined) throw new Error(`The CLI carries no language base ${version}`);
+  const { id, archive, manifest } = base.pin;
+  return { id, version, archive, manifest, bytes: base.bytes };
+}
+/**
+ * A kit that depends on the language at `range`: the product-structure release of `sourcedClosure`, cut again with its
+ * language dependency at `range` and published provenance. It was packed against the carried newest base, so it
+ * installs on it.
+ */
+export async function languageKit(range: string): Promise<SourcedRelease> {
+  const tool = pathToFileURL(join(repository, 'tools/release/product-structure.mjs')).href;
+  const { productStructure } = (await import(tool)) as { readonly productStructure: ProductStructure };
+  const { product } = productStructure(repository);
+  const manifest = {
+    ...product.manifest,
+    dependencies: product.manifest.dependencies.map((dependency) =>
+      dependency.id === 'inventarch/language' ? { ...dependency, range } : dependency,
+    ),
+    source: { ...product.manifest.source, repository: 'https://fixture.example/kit', commit: 'a'.repeat(40) },
+  };
+  const bytes = buildArchive(manifest, product.files);
+  return {
+    manifest,
+    files: product.files,
+    bytes,
+    archiveDigest: sha256(bytes),
+    manifestDigest: sha256(canonicalDistributionJson(manifest)),
+  };
+}
+/** A directory registry listing exactly `releases`, each index entry copied from the manifest its archive carries (§3). */
+export function sourcedRegistry(releases: readonly SourcedRelease[]): string {
+  const dir = mkdtempSync(join(tmpdir(), 'ia-cli-registry-'));
+  const put = (path: string, content: string | Buffer): void => {
+    mkdirSync(dirname(join(dir, path)), { recursive: true });
+    writeFileSync(join(dir, path), content);
+  };
+  put('ia-registry.json', JSON.stringify({ format: 'ia.registry.v1', name: 'Fixture' }));
+  for (const { manifest, bytes, archiveDigest, manifestDigest } of releases) {
+    put(`artifacts/${archiveDigest}.ia.tgz`, bytes);
+    const entry = {
+      version: manifest.version,
+      archive: archiveDigest,
+      manifest: manifestDigest,
+      engine: manifest.engine,
+      language: manifest.language,
+      dependencies: manifest.dependencies
+        .map(({ id, range }) => ({ id, range }))
+        .sort((a, b) => (a.id < b.id ? -1 : 1)),
+      withdrawn: false,
+      access: 'public',
+      artifact: `artifacts/${archiveDigest}.ia.tgz`,
+    };
+    put(
+      `packages/${manifest.id}.json`,
+      JSON.stringify({ format: 'ia.registry-package.v1', id: manifest.id, releases: [entry] }),
+    );
+  }
+  return dir;
 }
 /** A registry directory holding the given releases exactly, in the `ia.registry.v1` layout. */
 export function registryOf(releases: readonly (readonly [FixtureReleaseSpec, FixtureRelease])[]): string {
