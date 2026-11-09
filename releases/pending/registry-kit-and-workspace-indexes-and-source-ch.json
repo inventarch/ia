@@ -1,0 +1,18 @@
+{
+  "format": "ia.npm-change-note",
+  "formatVersion": 1,
+  "bump": "minor",
+  "title": "Registry kit and workspace indexes and source-change candidates accept the plain format with formatVersion",
+  "summary": "registryKitIndex, registryWorkspaceIndex and sourceChangeCandidate accept the plain format names (ia.registry-kit, ia.registry-workspace, ia.source-change) with formatVersion 1 as well as the original ia.registry-kit.v1, ia.registry-workspace.v1 and ia.source-change.v1 literals; the schemas stay strict objects whose shape and extend remain usable.",
+  "packages": [
+    "@inventarch/service-contracts"
+  ],
+  "paths": [
+    ".ia/authoring.resources.json",
+    "CLAUDE.md",
+    "docs/",
+    "examples/",
+    "packages/service-contracts/",
+    "tools/"
+  ]
+}
