@@ -15,7 +15,7 @@ export interface ReadFixture {
   profile: string;
   options: InstalledReadOptions;
 }
-export function readFixture(SDK: SDK, root: string): ReadFixture;
+export function readFixture(SDK: SDK, root: string, mode?: 'plain' | 'legacy' | 'aliased'): ReadFixture;
 export function qualifyInstalledRead(
   SDK: SDK,
   root: string,

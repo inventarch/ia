@@ -104,7 +104,9 @@ it('describes and binds a fixed first-party read without invoking source or gran
   const bound = SDK.installedReadAdapters(f.capture, { ...f.options, currentCapture });
   close.push(bound.close);
   expect(currentCapture).not.toHaveBeenCalled();
-  expect(Object.keys(bound.operations)).toEqual([SDK.INSTALLED_READ.handler]);
+  expect(Object.keys(bound.operations).sort()).toEqual(
+    [SDK.INSTALLED_READ.handler, SDK.INSTALLED_READ_LEGACY.handler].sort(),
+  );
   expect(f.manifest.operations[SDK.INSTALLED_READ.operation]).toMatchObject({
     effects: ['read'],
     recovery: 'repeatable',
@@ -587,5 +589,148 @@ it('keeps exact receipts, recovery and replay through a gated SQLite store under
   } finally {
     await store.close();
     rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+// A contract's version is its entry's `version`, so the read has plain names. The original entries stay, byte for byte,
+// for harnesses pinned before that; records that still name them compile to the plain entries through the aliases.
+const oldValue = (implementationDigest: string) => ({
+  identity: 'authoring-system/binding/operation/read-captured-source',
+  owner: 'agent-composition-system',
+  handler: 'ia.captured-source.read.v1',
+  implementationDigest,
+  input: 'captured-source-read-input-v1',
+  output: 'captured-source-read-output-v1',
+  effects: ['read'],
+  recovery: 'repeatable',
+  timeoutMs: 10000,
+  maxOutputBytes: 65536,
+  preflight: 'captured-workspace',
+});
+function modeContext(mode: 'plain' | 'legacy' | 'aliased') {
+  const f = readFixture(SDK, root, mode),
+    bound = SDK.installedReadAdapters(f.capture, { ...f.options, currentCapture: () => f.capture });
+  close.push(bound.close);
+  const context: OperationContext = {
+    sessionId: 's',
+    runId: 'root',
+    attemptId: 'a',
+    invocationId: 'i',
+    principal: f.principal,
+    grant: f.grant,
+    manifest: f.manifest,
+    signal: new AbortController().signal,
+    assertCurrent: async () => {},
+  };
+  return { ...f, bound, context };
+}
+const operationPins = (compiled: SDK.CompiledHarness) =>
+  compiled.provenance.installed.filter((pin) => pin.group === 'operations').map((pin) => pin.id);
+
+it('names the read plainly and keeps the original ids as legacy', () => {
+  expect(SDK.INSTALLED_READ).toMatchObject({
+    implementation: 'captured-source-read',
+    handler: 'captured-source-read',
+    input: 'captured-source-read-input',
+    output: 'captured-source-read-output',
+  });
+  expect(SDK.INSTALLED_READ_LEGACY).toMatchObject({
+    implementation: 'captured-source-read-v1',
+    handler: 'ia.captured-source.read.v1',
+    input: 'captured-source-read-input-v1',
+    output: 'captured-source-read-output-v1',
+  });
+  expect(SDK.installedReadAliases()).toEqual({
+    operations: { 'captured-source-read-v1': 'captured-source-read' },
+    validators: {
+      'captured-source-read-input-v1': 'captured-source-read-input',
+      'captured-source-read-output-v1': 'captured-source-read-output',
+    },
+  });
+});
+it('retains the original read entries byte for byte beside the plain ones', () => {
+  const catalog = SDK.installedReadCatalog(),
+    implementationDigest = code.installedImplementationDigest();
+  const original = catalog.operations['captured-source-read-v1']!;
+  expect(original.version).toBe(1);
+  expect(original.value).toEqual(oldValue(implementationDigest));
+  expect(original.digest).toBe(digest({ version: 1, value: oldValue(implementationDigest) }));
+  const plain = catalog.operations['captured-source-read']!;
+  expect(plain.value).toEqual({
+    ...oldValue(implementationDigest),
+    handler: 'captured-source-read',
+    input: 'captured-source-read-input',
+    output: 'captured-source-read-output',
+  });
+  for (const kind of ['input', 'output'] as const)
+    expect(catalog.validators[`captured-source-read-${kind}-v1`]).toEqual(
+      catalog.validators[`captured-source-read-${kind}`],
+    );
+});
+it('compiles records that use the plain names and pins the plain entry', () => {
+  const f = modeContext('plain');
+  expect(operationPins(f.compiled)).toEqual(['captured-source-read']);
+  expect(f.compiled.provenance.aliases).toBeUndefined();
+  expect(f.manifest.operations[SDK.INSTALLED_READ.operation]!.handler).toBe('captured-source-read');
+});
+it('compiles records that still name the original ids through the aliases to the plain entry', () => {
+  const f = modeContext('aliased');
+  expect(operationPins(f.compiled)).toEqual(['captured-source-read']);
+  expect(f.compiled.provenance.aliases).toEqual([
+    { group: 'operations', from: 'captured-source-read-v1', to: 'captured-source-read' },
+    { group: 'validators', from: 'captured-source-read-input-v1', to: 'captured-source-read-input' },
+    { group: 'validators', from: 'captured-source-read-output-v1', to: 'captured-source-read-output' },
+  ]);
+  expect(f.manifest.operations[SDK.INSTALLED_READ.operation]!.handler).toBe('captured-source-read');
+  expect(SDK.compiledAliases(f.compiled)).toEqual(SDK.installedReadAliases());
+});
+it('refuses records that name the original ids when no aliases are passed and the originals are gone', () => {
+  const f = readFixture(SDK, root, 'legacy'),
+    { operations, validators } = f.catalog,
+    trimmed = { ...f.catalog, operations: { ...operations }, validators: { ...validators } };
+  delete trimmed.operations['captured-source-read-v1'];
+  expect(
+    SDK.compileHarness(f.capture, {
+      harness: 'installed-read-example-harness',
+      entry: 'installed-read-example-entry',
+      catalog: trimmed,
+    }).ok,
+  ).toBe(false);
+});
+it('keeps a harness pinned to the original read valid and dispatching by the original handler', async () => {
+  const f = modeContext('legacy');
+  expect(operationPins(f.compiled)).toEqual(['captured-source-read-v1']);
+  expect(f.compiled.provenance.aliases).toBeUndefined();
+  expect(f.manifest.operations[SDK.INSTALLED_READ.operation]!.handler).toBe('ia.captured-source.read.v1');
+  // A harness compiled against a catalog that has only the original entries still passes the bridge against the
+  // catalog that now installs the plain entries as well.
+  const originalOnly = {
+    ...f.catalog,
+    operations: Object.fromEntries(
+      Object.entries(f.catalog.operations).filter(([name]) => name !== 'captured-source-read'),
+    ),
+    validators: Object.fromEntries(
+      Object.entries(f.catalog.validators).filter(([name]) => !/^captured-source-read-(input|output)$/.test(name)),
+    ),
+  };
+  const pinned = SDK.compileHarness(f.capture, {
+    harness: 'installed-read-example-harness',
+    entry: 'installed-read-example-entry',
+    catalog: originalOnly,
+  });
+  if (!pinned.ok) throw new Error(JSON.stringify(pinned.diagnostics));
+  expect(pinned.manifest.digest).toBe(f.compiled.digest);
+  expect(SDK.executionManifest(pinned.manifest, f.catalog).digest).toBe(f.manifest.digest);
+  const adapter = f.bound.operations['ia.captured-source.read.v1']!;
+  expect(adapter.id).toBe('ia.captured-source.read.v1');
+  const result = await adapter.execute({ path: readPath, limit: 1 }, f.context);
+  expect(result.effect).toBe('none');
+  expect(result.output).toMatchObject({ revision: f.capture.revision });
+});
+it('dispatches an aliased and a plain harness by the plain handler', async () => {
+  for (const mode of ['plain', 'aliased'] as const) {
+    const f = modeContext(mode),
+      result = await f.bound.operations['captured-source-read']!.execute({ path: readPath, limit: 1 }, f.context);
+    expect(result.effect).toBe('none');
   }
 });

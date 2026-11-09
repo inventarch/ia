@@ -2,9 +2,16 @@ import { manifestDigest } from '@inventarch/agent-system';
 import type { Manifest, Profile } from '@inventarch/agent-system';
 import { copy, digest } from '@inventarch/session-system';
 import type { Json } from '@inventarch/session-system';
-import type { CompositionCatalog } from './catalog.js';
+import type { CatalogAliases, CompositionCatalog } from './catalog.js';
 import { CompositionError } from './compiled.js';
 import type { CompiledHarness } from './compiled.js';
+
+/** The aliases a compilation used, as the table that reproduces it: recompile with these to rebuild the same harness. */
+export function compiledAliases(compiled: CompiledHarness): CatalogAliases {
+  const table: Record<string, Record<string, string>> = {};
+  for (const alias of compiled.provenance.aliases ?? []) (table[alias.group] ??= {})[alias.from] = alias.to;
+  return table as CatalogAliases;
+}
 
 /** Explicit P2 bridge. Hosts still verify current executable pins and issue current grants. */
 export function executionManifest(compiled: CompiledHarness, catalog: CompositionCatalog): Manifest {

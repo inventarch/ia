@@ -3,11 +3,12 @@ import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
 import { adoptWorkspace } from '@inventarch/workspace-runtime';
-import { INSTALLED_READ, installed } from '@inventarch/agent-composition-system';
+import { executionManifest, INSTALLED_READ, installed } from '@inventarch/agent-composition-system';
+import type { CompiledHarness, CompositionCatalog } from '@inventarch/agent-composition-system';
 import { open } from '@inventarch/db';
 import type { EngineHost, Grant, ModelAction, ModelRequest } from '@inventarch/agent-system';
-import { replay } from '@inventarch/session-system';
-import { openRunner, runnerCatalog } from '../src/index.js';
+import { digest, replay } from '@inventarch/session-system';
+import { openRunner, runnerAliases, runnerCatalog } from '../src/index.js';
 import { normalizeScopeKey } from '@inventarch/runtime';
 import { RunnerContext } from '../src/context.js';
 
@@ -152,8 +153,8 @@ it('uses the installed context primitive for real model turns', async () => {
   const options = fixture(),
     seen: ModelRequest[] = [],
     catalog = runnerCatalog();
-  const context = catalog.contexts['runner-context-v1']!.value;
-  catalog.contexts['runner-context-v1'] = installed({
+  const context = catalog.contexts['runner-context']!.value;
+  catalog.contexts['runner-context'] = installed({
     ...context,
     coordinate: { ...context.coordinate, primitive: 'Escalation' },
   });
@@ -553,4 +554,174 @@ it('preserves the durable run when evidence publication fails and retries projec
   const evidence = open(options.root, { ...options.inputs, evidence: true, cache: false });
   expect(evidence.records().filter((row) => row.band === 0 && row.discriminator === 'run')).toHaveLength(1);
   evidence.close();
+});
+
+// A contract's version is its entry's `version`, so the runner contracts have plain names. The original entries stay,
+// byte for byte, for harnesses pinned before that; records that still name them compile to the plain entries.
+const RUNNER_PLAIN = [
+  'runner-local',
+  'runner-external',
+  'runner-task',
+  'runner-outcomes',
+  'runner-read',
+  'runner-context',
+  'runner-entry',
+  'runner-identity',
+];
+const READ_PLAIN = ['captured-source-read', 'captured-source-read-input', 'captured-source-read-output'];
+const namesWithVersions = (text: string) =>
+  text.replace(new RegExp(`\\b(${RUNNER_PLAIN.join('|')})\\b(?![-\\w])`, 'g'), '$1-v1');
+const readNamesWithVersions = (text: string) =>
+  text.replace(/^(\s+(?:handler|input|output|implementation) captured-source-read(?:-input|-output)?)$/gm, '$1-v1');
+/** The fixture as it was written before names stopped carrying their version, runner records and adopted read both. */
+function originalFixture() {
+  const options = fixture(),
+    file = resolve(options.root, '.ia/src/systems/agent-composition-system/records/runner.ia');
+  writeFileSync(file, namesWithVersions(readFileSync(file, 'utf8')));
+  // Adoption verifies the exact bytes, so re-adopt a copy of the public sources whose read records use the old names.
+  const copy = mkdtempSync(resolve(tmpdir(), 'ia-runner-adopt-'));
+  cleanups.push(() => rmSync(copy, { recursive: true, force: true }));
+  cpSync(resolve(repository, '.ia/src'), resolve(copy, '.ia/src'), {
+    recursive: true,
+    filter: (source) => !/(^|[\\/])(node_modules|dist)$/.test(source),
+  });
+  for (const name of ['operations/read-captured-source.ia', 'records/read-captured-source-binding.ia']) {
+    const target = resolve(copy, '.ia/src/systems/agent-composition-system', name);
+    writeFileSync(target, readNamesWithVersions(readFileSync(target, 'utf8')));
+  }
+  const adopted = [adoptWorkspace(copy, 'public-language')];
+  return { ...options, inputs: { adopted } };
+}
+const installedPins = (runner: ReturnType<typeof openRunner>) =>
+  (
+    runner.manifest.provenance as {
+      compiled: {
+        provenance: {
+          installed: { group: string; id: string }[];
+          aliases?: { group: string; from: string; to: string }[];
+        };
+      };
+    }
+  ).compiled.provenance;
+const onlyOriginals = (catalog: CompositionCatalog): CompositionCatalog => {
+  const plain = new Set([...RUNNER_PLAIN, ...READ_PLAIN]);
+  const keep = <T>(table: Record<string, T>) =>
+    Object.fromEntries(Object.entries(table).filter(([name]) => !plain.has(name)));
+  return {
+    hosts: keep(catalog.hosts),
+    models: keep(catalog.models),
+    validators: keep(catalog.validators),
+    outcomes: keep(catalog.outcomes),
+    mandates: keep(catalog.mandates),
+    contexts: keep(catalog.contexts),
+    operations: keep(catalog.operations),
+    evaluators: catalog.evaluators,
+    entries: keep(catalog.entries),
+    mappings: keep(catalog.mappings),
+  };
+};
+
+it('names the runner contracts plainly and keeps the originals byte for byte', () => {
+  const catalog = runnerCatalog();
+  for (const name of RUNNER_PLAIN) {
+    const group = Object.values(catalog).find((table) => Object.hasOwn(table, name + '-v1')) as Record<
+      string,
+      ReturnType<typeof installed>
+    >;
+    expect(group, name).toBeDefined();
+    const original = group[name + '-v1']!;
+    expect(original.version).toBe(1);
+    expect(original.digest).toBe(digest({ version: 1, value: original.value }));
+    expect(Object.hasOwn(group, name), name).toBe(true);
+  }
+  // Values the previous release installed, written out: host, mandate, context and entry name their dependencies.
+  expect(catalog.hosts['runner-local-v1']!.value).toMatchObject({
+    models: ['runner-external-v1'],
+    defaults: {
+      model: 'runner-external-v1',
+      input: 'runner-task-v1',
+      outcomes: 'runner-outcomes-v1',
+      context: 'runner-context-v1',
+      mapping: 'runner-identity-v1',
+    },
+  });
+  expect(catalog.hosts['runner-local-v1']!.digest).toBe(
+    digest({ version: 1, value: catalog.hosts['runner-local-v1']!.value }),
+  );
+  expect(catalog.mandates['runner-read-v1']!.value).toMatchObject({
+    input: 'runner-task-v1',
+    outcomes: 'runner-outcomes-v1',
+    context: 'runner-context-v1',
+  });
+  expect(catalog.entries['runner-entry-v1']!.value).toEqual({ target: 'agent-profile', mapping: 'runner-identity-v1' });
+  expect(catalog.hosts['runner-local']!.value).toMatchObject({
+    models: ['runner-external'],
+    defaults: {
+      model: 'runner-external',
+      input: 'runner-task',
+      outcomes: 'runner-outcomes',
+      context: 'runner-context',
+      mapping: 'runner-identity',
+    },
+  });
+  const aliases = runnerAliases();
+  expect(aliases.hosts).toEqual({ 'runner-local-v1': 'runner-local' });
+  expect(aliases.operations).toEqual({ 'captured-source-read-v1': 'captured-source-read' });
+  expect(Object.keys(aliases.validators ?? {}).sort()).toEqual([
+    'captured-source-read-input-v1',
+    'captured-source-read-output-v1',
+    'runner-task-v1',
+  ]);
+});
+it('compiles the plain records and pins the plain entries without aliases', () => {
+  const runner = openRunner(fixture());
+  cleanups.push(() => runner.close());
+  const provenance = installedPins(runner);
+  expect(provenance.aliases).toBeUndefined();
+  const ids = provenance.installed.map((pin) => pin.id);
+  expect(ids).toEqual(expect.arrayContaining(['runner-local', 'runner-read', 'runner-entry', 'captured-source-read']));
+  expect(ids.some((id) => id.endsWith('-v1'))).toBe(false);
+  expect(runner.manifest.operations[INSTALLED_READ.operation]!.handler).toBe('captured-source-read');
+});
+it('compiles records that still name the original ids through the aliases and reads', async () => {
+  const options = originalFixture(),
+    actions: ModelAction[] = [],
+    seen: ModelRequest[] = [];
+  const runner = openRunner({ ...options, model: scripted(actions, seen) });
+  cleanups.push(() => runner.close());
+  const provenance = installedPins(runner);
+  expect(provenance.installed.some((pin) => pin.id.endsWith('-v1'))).toBe(false);
+  expect(provenance.aliases?.map((row) => row.from)).toEqual(
+    expect.arrayContaining(['runner-local-v1', 'runner-read-v1', 'runner-entry-v1', 'captured-source-read-v1']),
+  );
+  expect(runner.manifest.operations[INSTALLED_READ.operation]!.handler).toBe('captured-source-read');
+  actions.push(read(runner), done);
+  await runner.start('Read through aliases', 'aliased-read');
+  const state = await runner.run();
+  expect(state.runs['root']?.status).toBe('completed');
+  expect(state.budget.operations).toBe(1);
+});
+it('keeps a harness pinned to the original catalog valid and dispatching by the original handler', async () => {
+  const options = originalFixture(),
+    actions: ModelAction[] = [],
+    seen: ModelRequest[] = [];
+  // Compile against only the original entries, as the previous release's runner did.
+  const old = openRunner({ ...options, catalog: onlyOriginals(runnerCatalog()), model: scripted([], []) });
+  cleanups.push(() => old.close());
+  const pinned = installedPins(old);
+  expect(pinned.aliases).toBeUndefined();
+  expect(pinned.installed.every((pin) => pin.group === 'evaluators' || pin.id.endsWith('-v1'))).toBe(true);
+  expect(old.manifest.operations[INSTALLED_READ.operation]!.handler).toBe('ia.captured-source.read.v1');
+  // The harness it pinned still passes the bridge against the catalog that now also installs the plain entries.
+  const compiled = (old.manifest.provenance as unknown as { compiled: CompiledHarness }).compiled;
+  expect(executionManifest(compiled, runnerCatalog()).digest).toBe(old.manifest.digest);
+  // The current catalog, given the original records and no aliases, binds the retained entries and dispatches the read.
+  const runner = openRunner({ ...options, catalog: runnerCatalog(), model: scripted(actions, seen) });
+  cleanups.push(() => runner.close());
+  expect(runner.manifest.digest).toBe(old.manifest.digest);
+  actions.push(read(runner), done);
+  await runner.start('Read through the original handler', 'original-read');
+  const state = await runner.run();
+  expect(state.runs['root']?.status).toBe('completed');
+  expect(state.budget.operations).toBe(1);
 });

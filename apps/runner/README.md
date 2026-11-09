@@ -12,7 +12,9 @@
 npm install --global @inventarch/runner
 ```
 
-Before you start, the workspace must select the installed `runner-local-v1` host contract, the `runner-read-v1` mandate contract and the `runner-entry-v1` entry mapping, and must admit `agent-composition-system`'s own `@operation read-captured-source`; a copy authored outside that system refuses with `IA-COMPOSITION-CONFLICT`. A workspace created by `ia init` alone provides none of these. The conformance composition's [`runner.ia`](../../examples/conformance/composition/.ia/src/systems/agent-composition-system/records/runner.ia) shows the `@agent`, `@mandate`, `@capability`, `@agent-profile`, entry `@execution-binding` and `@harness` declarations; the runner tests run it with this repository's public systems adopted.
+Before you start, the workspace must select the installed `runner-local` host contract, the `runner-read` mandate contract and the `runner-entry` entry mapping, and must admit `agent-composition-system`'s own `@operation read-captured-source`; a copy authored outside that system refuses with `IA-COMPOSITION-CONFLICT`. A workspace created by `ia init` alone provides none of these. The conformance composition's [`runner.ia`](../../examples/conformance/composition/.ia/src/systems/agent-composition-system/records/runner.ia) shows the `@agent`, `@mandate`, `@capability`, `@agent-profile`, entry `@execution-binding` and `@harness` declarations; the runner tests run it with this repository's public systems adopted.
+
+The contracts were previously named with a trailing `-v1` (`runner-local-v1`, `runner-read-v1`, `runner-entry-v1`, and likewise for the task, external model, outcomes, context and identity entries). The runner still installs those entries unchanged, so a workspace or session pinned to them keeps working, and `runnerAliases()` (applied by default when you supply no `catalog`) sends records that still name them to the plain entries. A contract's version is the `version` of its installed entry, not part of its name.
 
 Run a profile, answer its pending model request, then step it to the end:
 
@@ -41,7 +43,7 @@ Repeat `step`, which advances one scheduler action, until `run.status` is `compl
 | `runnerCatalog()` | The installed contracts above and their defaults. |
 | `RunnerError` | A refusal with a stable `code` and a `next` command. |
 
-- **Bounded.** The `runner-local-v1` ceiling is 64 steps, 16 model calls, 16 operations, 200,000 tokens, 8 MB, one hour and no child runs. A governing `@mandate`'s `execution` limits narrow it, as `limit-operations 1` does in the conformance mandate.
+- **Bounded.** The `runner-local` ceiling is 64 steps, 16 model calls, 16 operations, 200,000 tokens, 8 MB, one hour and no child runs. A governing `@mandate`'s `execution` limits narrow it, as `limit-operations 1` does in the conformance mandate.
 - **Positioned.** Every model turn gets a phase-specific position through the Door, and the request journal keeps its key, body and host note.
 - **Durable.** Journals live under `.ia/work/runs/` with hash-chain replay. Resume requires the original principal, manifest and source capture, and keeps the original deadline.
 - **Evidence.** Receipts under `.ia/work/runner-evidence/` can be admitted as runtime-placed `@run` and `@observation` records. They never move the authored revision or change mandate authority.

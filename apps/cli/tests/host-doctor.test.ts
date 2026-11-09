@@ -620,9 +620,7 @@ it('doctor lists the installed-implementation catalog and the join ia host recor
   expect(row(report.checks, 'implementations')).toMatchObject({
     status: 'ok',
     remedy: null,
-    detail: expect.stringContaining(
-      'captured-source-read-v1 available (handler ia.captured-source.read.v1, shipped bytes ',
-    ),
+    detail: expect.stringContaining('captured-source-read available (handler captured-source-read, shipped bytes '),
   });
   expect(report.checks.filter((check) => check.id.startsWith('join'))).toEqual([
     expect.objectContaining({

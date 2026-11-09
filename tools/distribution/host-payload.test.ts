@@ -82,15 +82,28 @@ it('ships the installed read handler as a payload root and pins the catalog to t
     digest: sha(bytes),
     evaluators: { format: 'ia-evaluator-catalog/1.0', entries: [] },
   });
-  expect(catalog.operations).toHaveLength(1);
+  // The plain id, then the id this handler shipped under before names stopped carrying their version.
+  expect(catalog.operations.map((row: { id: string }) => row.id)).toEqual([
+    'captured-source-read',
+    'captured-source-read-v1',
+  ]);
   const operation = catalog.operations[0]!;
-  if (operation.status !== 'available') throw Error(`Expected the read handler to ship: ${operation.reason}`);
-  expect(operation).toMatchObject({
-    id: 'captured-source-read-v1',
-    operation: 'authoring-system/binding/operation/read-captured-source',
+  const original = catalog.operations[1]!;
+  if (original.status !== 'available') throw Error(`Expected the original read id to ship: ${original.reason}`);
+  expect(original).toMatchObject({
     handler: 'ia.captured-source.read.v1',
     input: 'captured-source-read-input-v1',
     output: 'captured-source-read-output-v1',
+    module: HANDLER,
+    digest: operation.digest,
+  });
+  if (operation.status !== 'available') throw Error(`Expected the read handler to ship: ${operation.reason}`);
+  expect(operation).toMatchObject({
+    id: 'captured-source-read',
+    operation: 'authoring-system/binding/operation/read-captured-source',
+    handler: 'captured-source-read',
+    input: 'captured-source-read-input',
+    output: 'captured-source-read-output',
     module: HANDLER,
   });
   // The handler bytes are the installed adapter's built module, shipped in the payload and pinned by their SHA-256.
@@ -271,13 +284,13 @@ it('lists the read handler unavailable for a staged candidate whose dependencies
   for (const app of ['cli', 'distribution', 'mcp-door', 'steward-hook'])
     symlinkSync(join(repository, 'apps', app), join(candidate, 'apps', app), 'junction');
   const payload = await generateHostPayload({ repository: candidate, write: false });
-  expect(payload.catalog.operations).toEqual([
-    {
-      id: 'captured-source-read-v1',
+  expect(payload.catalog.operations).toEqual(
+    ['captured-source-read', 'captured-source-read-v1'].map((id) => ({
+      id,
       status: 'unavailable',
       reason: '@inventarch/agent-composition-system is not installed in this repository',
-    },
-  ]);
+    })),
+  );
   const root = extract(payload.archive);
   expect(verifyHostCache(root).release).toBe(payload.pin.release);
   expect(present(root, payload.pin.release).operations[0]).toMatchObject({ status: 'unavailable' });

@@ -4,10 +4,10 @@
     says "Read one exact captured native source through the first-party adapter."
     answers "Which captured bytes are selected?"
   execution
-    handler captured-source-read-v1
+    handler captured-source-read
     effects read-only
-    input captured-source-read-input-v1
-    output captured-source-read-output-v1
+    input captured-source-read-input
+    output captured-source-read-output
     profile governed-v1
     recovery repeatable
   relationships

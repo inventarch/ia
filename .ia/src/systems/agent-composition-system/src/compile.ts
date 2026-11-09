@@ -172,7 +172,8 @@ class Compiler {
       fail('IA-COMPOSITION-CONFLICT', 'Duplicate component reference', node, `${section}.${key}`);
     return found;
   }
-  use<G extends CatalogGroup>(group: G, id: string, node: CompiledRecord, path: string): CatalogValue<G> {
+  /** The installed name a record's written name resolves to. An alias used is recorded in the provenance. */
+  named(group: CatalogGroup, id: string, node: CompiledRecord, path: string): string {
     const table = this.options.aliases?.[group];
     const alias = table && Object.hasOwn(table, id) ? table[id] : undefined;
     if (
@@ -180,7 +181,11 @@ class Compiler {
       (typeof alias !== 'string' || alias === id || (table !== undefined && Object.hasOwn(table, alias)))
     )
       fail('IA-COMPOSITION-CONFLICT', `Invalid ${group} alias: ${id}`, node, path);
-    const target = alias ?? id;
+    if (alias !== undefined) this.aliases.set(`${group}:${id}`, { group, from: id, to: alias });
+    return alias ?? id;
+  }
+  use<G extends CatalogGroup>(group: G, id: string, node: CompiledRecord, path: string): CatalogValue<G> {
+    const target = this.named(group, id, node, path);
     const entries = this.options.catalog[group];
     const descriptor = entries && Object.hasOwn(entries, target) ? entries[target] : undefined;
     if (!descriptor)
@@ -198,7 +203,6 @@ class Compiler {
       fail('IA-COMPOSITION-CONFLICT', `Installed ${group} contract digest/version mismatch: ${id}`, node, path);
     const address = `${group}:${target}`;
     this.implementations.set(address, { group, id: target, digest: descriptor.digest });
-    if (alias !== undefined) this.aliases.set(`${group}:${id}`, { group, from: id, to: target });
     this.provenance[`${node.identity}:${path}`] = unique([
       ...(this.provenance[`${node.identity}:${path}`] ?? []),
       address,
@@ -329,8 +333,8 @@ class Compiler {
       fail('IA-COMPOSITION-CONFLICT', 'Candidate validation must use a read-only installed contract', node);
     if (
       canonical(nativeEffects) !== canonical(contractEffects) ||
-      field(node, 'execution', 'input') !== descriptor.input ||
-      field(node, 'execution', 'output') !== descriptor.output ||
+      this.named('validators', field(node, 'execution', 'input'), node, 'execution.input') !== descriptor.input ||
+      this.named('validators', field(node, 'execution', 'output'), node, 'execution.output') !== descriptor.output ||
       field(node, 'execution', 'recovery') !== descriptor.recovery
     )
       fail('IA-COMPOSITION-CONFLICT', 'Native operation contract differs from its installed descriptor', node);
@@ -816,7 +820,7 @@ class Compiler {
       fail('IA-COMPOSITION-UNAVAILABLE', 'Entry target contract is unsupported', entry);
     const mapping = field(entry, 'binding', 'mapping', entryContract.mapping);
     this.mapping(mapping, entry);
-    if (mapping !== entryContract.mapping)
+    if (this.named('mappings', mapping, entry, 'binding.mapping') !== entryContract.mapping)
       fail('IA-COMPOSITION-CONFLICT', 'Entry mapping differs from the installed transport', entry);
     const target = this.reference(value(entry, 'binding', 'target', true), entry, 'binding.target', 'agent-profile');
     if (!this.profileNodes.has(target.identity))

@@ -4,7 +4,7 @@ export { captureWorkspace, adoptWorkspace, verifyCapture, Corpus } from '@invent
 /** @deprecated Import from @inventarch/workspace-runtime. */
 export type { Capture } from '@inventarch/workspace-runtime';
 export { compileHarness } from './compile.js';
-export { executionManifest } from './execution.js';
+export { executionManifest, compiledAliases } from './execution.js';
 /** @deprecated Import from @inventarch/workspace-runtime. */
 export { candidateValidation } from '@inventarch/workspace-runtime';
 /** @deprecated Import from @inventarch/workspace-runtime. */
@@ -25,7 +25,13 @@ export type {
   EffectClass,
   OutcomeContract,
 } from './catalog.js';
-export { INSTALLED_READ, installedReadCatalog, installedReadAdapters } from './installed-read.js';
+export {
+  INSTALLED_READ,
+  INSTALLED_READ_LEGACY,
+  installedReadAliases,
+  installedReadCatalog,
+  installedReadAdapters,
+} from './installed-read.js';
 export type { InstalledReadCatalog, InstalledReadOptions } from './installed-read.js';
 export { CompositionError } from './compiled.js';
 export type {
