@@ -1,0 +1,21 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "none",
+  "title": "Runner byte budget test measures its journal",
+  "summary": "The path byte budget test measures the journal a run retains before its first read instead of assuming it fits in 64 KiB; no consumer-facing change.",
+  "packages": [
+    "@inventarch/runner"
+  ],
+  "paths": [
+    ".ia/authoring.resources.json",
+    ".ia/src/records/canon-interim.ia",
+    ".ia/src/records/stewardship.ia",
+    ".ia/src/workspace.ia",
+    "CLAUDE.md",
+    "apps/runner/",
+    "apps/vscode/SPEC.md",
+    "docs/",
+    "examples/",
+    "tools/"
+  ]
+}
