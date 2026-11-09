@@ -160,27 +160,27 @@
 
 @case canon-c5a-success
   meaning
-    says "A kit workspace with no steward and no sources is not reported."
+    says "A clean kit, whose workspace declares no steward and no sources, is not reported."
     answers "Which positive case admits a kit workspace without a steward or sources?"
   scenario
     kind success
     given "A lowered kit whose workspace declares no steward and no sources."
     request "Run the CANON-KIT-WORKSPACE rule."
     expected "No IA-COMP-CANON-KIT-WORKSPACE finding."
-    evaluator "packages/compliance/tests/canon-rules.test.ts | C5a reports a kit workspace with a steward or sources"
+    evaluator "packages/compliance/tests/canon-rules.test.ts | C5a reports nothing for a clean kit"
   relationships
     implements @contract ia-canon#REQ-CANON-C5A
 
 @case canon-c5a-refusal
   meaning
-    says "A kit workspace with a steward and sources is reported once for each."
+    says "A workspace shipped in a kit system folder that declares a steward is reported."
     answers "Which negative case reports a kit workspace with a steward or sources?"
   scenario
     kind refusal
-    given "A native kit whose workspace declares a steward and sources."
+    given "A kit whose distribution ships a workspace from its system folder, and that workspace declares a steward."
     request "Run the CANON-KIT-WORKSPACE rule."
-    expected "IA-COMP-CANON-KIT-WORKSPACE is reported twice."
-    evaluator "packages/compliance/tests/canon-rules.test.ts | C5a reports a kit workspace with a steward or sources"
+    expected "IA-COMP-CANON-KIT-WORKSPACE is reported for the shipped workspace."
+    evaluator "packages/compliance/tests/canon-rules.test.ts | C5a reports a shipped workspace in a kit system folder with a steward or sources"
   relationships
     implements @contract ia-canon#REQ-CANON-C5A
 
@@ -199,14 +199,14 @@
 
 @case canon-c6-refusal
   meaning
-    says "A script in a kit is reported."
+    says "A script the kit ships is reported."
     answers "Which negative case reports a script held by a kit?"
   scenario
     kind refusal
-    given "A kit holding a script outside any executing system's folder."
+    given "A kit shipping scripts under .ia/src, outside any executing system's folder."
     request "Run the CANON-KIT-SCRIPTS rule."
-    expected "IA-COMP-CANON-KIT-SCRIPTS is reported."
-    evaluator "packages/db/tests/canon-files.test.ts | C6 reports a script in a kit"
+    expected "IA-COMP-CANON-KIT-SCRIPTS is reported once for each script."
+    evaluator "packages/db/tests/canon-files.test.ts | C6 reports a script the kit ships"
   relationships
     implements @contract ia-canon#REQ-CANON-C6
 

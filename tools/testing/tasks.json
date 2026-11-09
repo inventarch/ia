@@ -3786,7 +3786,8 @@
         "tools/native/check.test.ts",
         "tools/native/language-base.test.ts",
         "tools/native/public-systems.test.ts",
-        "tools/native/stewardship.test.ts"
+        "tools/native/stewardship.test.ts",
+        "tools/native/canon-cases.test.ts"
       ],
       "profile": "corpus",
       "platforms": [

@@ -60,8 +60,8 @@
     {
       "id": "inventarch/governance-system",
       "version": "3.2.0",
-      "archive": "277874cd30abb76c78ee9f6730ee26d8efb769fede8c74b5391d353c586dacb5",
-      "manifest": "88e71bd5348c8bb6471dabc99b851f630251838b9251e6c3795f30f2ff4b64b9",
+      "archive": "6f7b476523e3df265da99dca8d21448ce783aa5b4e9eb95e717187d8e0f92a0f",
+      "manifest": "2ec5c0f84f8a5bccaa2e8db1fea5f811bf381776e6d487dcbd86a07921486e10",
       "dependencies": [
         "inventarch/agent-system",
         "inventarch/compliance-system",
