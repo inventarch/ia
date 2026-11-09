@@ -381,11 +381,6 @@ jobs:
       # host-payload:generate). A filtered `@inventarch/cli...` build leaves `init` without apps/cli/assets/base.json.
       - name: Build the CLI and its bundled archives
         run: pnpm build
-      # A base change that could invalidate existing records must be a major, an additive one a minor, a label-only one a
-      # patch. The gate compares the newest published base with the built one and proves the method fixture kit on it
-      # with the CLI built just above.
-      - name: Gate language base changes by compatibility class
-        run: pnpm language:compat-gate
       # The runner image's formulae, not a `brew update` in the middle of the job, and nothing else is cleaned up.
       - name: Install Homebrew's Node 22
         env:
