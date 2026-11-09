@@ -2,8 +2,8 @@
   "format": "ia.public-package-inputs.v2",
   "source": {
     "repository": "https://github.com/inventarch/ia",
-    "commit": "671f470cec3b0deab9cc91f4f984cbae167ca7e7",
-    "tree": "db5270ce8821fe9da0813b84865be5a174b63a92",
+    "commit": "b0e35cd6e3994fd8e466db936c5b75e2b727279f",
+    "tree": "90928f72a4a6913890b7476efdfd3a42ef417820",
     "dirty": true
   },
   "membership": {
@@ -4012,7 +4012,7 @@
     },
     {
       "path": "packages/compliance/SPEC.md",
-      "sha256": "04dbe36dc1ba35549d557a657c65f2abea097be4345f8efe865d5872f3d593fb"
+      "sha256": "41eb70180e6884210ee425ba42413cf277e0e423fb986bc5182689d9497bde9c"
     },
     {
       "path": "packages/compliance/fixtures/language/cases/fail/duplicate-given.diagnostics.json",
@@ -5720,7 +5720,7 @@
     },
     {
       "path": "packages/compliance/src/catalog.ts",
-      "sha256": "8342c474dfd39bc3a54b2f544aa2c7c7f7cc10ee5c45601f6ec92ffbfb2cbfb3"
+      "sha256": "22ae4cf20942ca953bfe33883693e3e1fb1f05fc37073de9bfac2bc9e9aa4a2f"
     },
     {
       "path": "packages/compliance/src/check-ids.ts",
@@ -5844,7 +5844,7 @@
     },
     {
       "path": "packages/compliance/tests/catalog-codecs.test.ts",
-      "sha256": "27c9763b77d47ce289438bcf0be741619af3f22976d7b56fe78a7dfaec00f9c4"
+      "sha256": "2952f45925b93a0a5aac669f8e5f1acc024278e83e63083c767fc73ba13dea7c"
     },
     {
       "path": "packages/compliance/tests/evaluator-catalog.test.ts",
@@ -5912,7 +5912,7 @@
     },
     {
       "path": "packages/db/SPEC.md",
-      "sha256": "dcd2d8833954b663bbef13760b8eff2e178558e2a2ca35d47f1c45d134934715"
+      "sha256": "7550b3088d143c35183bd80bf673644b0fbde6603d032c8d20eb5678643542ab"
     },
     {
       "path": "packages/db/fixtures/descriptors/consumer.mjs",
@@ -6064,7 +6064,7 @@
     },
     {
       "path": "packages/db/src/distribution/implementations.ts",
-      "sha256": "fe4102e03e6ee561068f9a9a9faa441395867c728bdba37a80667c87cfa12f8c"
+      "sha256": "3d41ae4e6b72ff6ef56bca195efc8db10f28f6fac8d3e538f4bd50c7c4d3fb28"
     },
     {
       "path": "packages/db/src/distribution/index.ts",
@@ -6160,7 +6160,7 @@
     },
     {
       "path": "packages/db/tests/check-evidence.test.ts",
-      "sha256": "725205fa4367bae238df63d6e6c4b1e7cc58af22e16802e3311bedc25d59f09c"
+      "sha256": "91580e053a29c21a0329dc7b19e08541e252ea06c5f67724d4d238dbab1e236f"
     },
     {
       "path": "packages/db/tests/complete-scope.test.ts",
@@ -6172,7 +6172,7 @@
     },
     {
       "path": "packages/db/tests/distribution-contracts.test.ts",
-      "sha256": "878d075fccd2b24371147fa3ddf54d0d1dbe10b1a22ad8dc23a2dfd1a1f0cbcd"
+      "sha256": "fa428a5279215db63bf159e301b3a5208f042827c67db144b94abd160ef386c4"
     },
     {
       "path": "packages/db/tests/editor.test.ts",
@@ -7912,7 +7912,7 @@
     },
     {
       "path": "releases/pending/db-reads-both-evaluator-catalog-shapes.json",
-      "sha256": "7eec5c60af349b2d565016f65b58a18009d56918334a3d92e4a41bc7c0aeabb5"
+      "sha256": "3a800f43c23a59253344366488589b67dabf7d18879b717df93e82216f1c4e6b"
     },
     {
       "path": "releases/pending/document-the-home-lock-kit-collections-and-kit-i.json",
@@ -7952,7 +7952,7 @@
     },
     {
       "path": "releases/pending/versioned-codecs-for-evaluator-catalogs.json",
-      "sha256": "98953c0ce43cef1294b168827582c467e0d94837b275748c485c26a5e5f54708"
+      "sha256": "1b88648258e4bdb764566e03d0e2bc7205c9f3037fa6211d252b6921189cc50a"
     },
     {
       "path": "tools/compliance/SPEC.md",
@@ -9115,5 +9115,5 @@
       "sha256": "b7a2070d0de01d78a2f8dbd4e8c646740a4b9f68810cfda96aafe69ffc7a47f4"
     }
   ],
-  "inputDigest": "1a3103947e1c4d1e812eb32ee3886de906b77889d9e599b658687bb912b23cb3"
+  "inputDigest": "f7706d60b9fd74e79be4379a5f3fbabde94882e83c06680efff975ee169fca83"
 }

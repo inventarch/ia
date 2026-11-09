@@ -247,7 +247,7 @@ it('admits an unknown evaluator only structurally, and binds it unavailable, rev
     const modern: CheckCatalog = {
       status: 'present',
       evaluators: {
-        format: 'ia-evaluator-catalog',
+        format: 'evaluator-catalog',
         formatVersion: 2,
         entries: [
           {

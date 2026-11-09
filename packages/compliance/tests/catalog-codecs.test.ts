@@ -51,7 +51,7 @@ describe('versioned codecs (T1.6)', () => {
   it('registers codecs as {id, version} and references them by the pair', () => {
     const r = now([current]);
     if (!r.ok) throw new Error(JSON.stringify(r.assessment.findings));
-    expect(r.catalog.format).toBe('ia-evaluator-catalog');
+    expect(r.catalog.format).toBe('evaluator-catalog');
     expect(r.catalog.formatVersion).toBe(2);
     expect(r.catalog.entries[0]!.inputCodec).toEqual({ id: 'acme-typing-input', version: 1 });
     expect(r.catalog.entries[0]).not.toHaveProperty('inputSchemaId');

@@ -71,7 +71,7 @@ const TOKEN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/,
   PACKAGE = /^(?:@[a-z0-9-]+\/)?[a-z0-9][a-z0-9._-]*$/,
   HEX = /^[a-f0-9]{64}$/,
   EVALUATOR_FORMAT = /^ia-evaluator-catalog\/1\.(?:0|[1-9][0-9]*)$/,
-  EVALUATOR_FORMAT_NAME = 'ia-evaluator-catalog';
+  EVALUATOR_FORMAT_NAME = 'evaluator-catalog';
 const AVAILABLE_KEYS = [
     'id',
     'status',
@@ -167,7 +167,7 @@ function operationProblem(item: unknown): string | null {
 }
 
 /**
- * Whether `value` is a catalog: exactly `format`, `evaluators` (an `ia-evaluator-catalog` format with an integer
+ * Whether `value` is a catalog: exactly `format`, `evaluators` (an `evaluator-catalog` format with an integer
  * `formatVersion`, or the legacy `ia-evaluator-catalog/1.x` format without one, and an entry list, whose entries
  * compliance validates when it binds) and `operations`, one row per operation sorted by id and unique,
  * each as the module comment describes. `value` is first copied once as plain data, as the descriptor codec copies
@@ -198,7 +198,7 @@ export function checkInstalledImplementations(input: unknown): InstalledImplemen
         (evaluators['formatVersion'] as number) > 0
       : EVALUATOR_FORMAT.test(evaluators['format']));
   if (evaluators === null || !shaped || !Array.isArray(evaluators['entries']) || evaluators['entries'].length > ROWS)
-    return refuse('The evaluators section is not an ia-evaluator-catalog value (format and formatVersion, or 1.x)');
+    return refuse('The evaluators section is not an evaluator catalog value (format and formatVersion, or 1.x)');
   const operations = row['operations'];
   if (!Array.isArray(operations) || operations.length > ROWS) return refuse('Invalid installed operation list');
   let previous = '';

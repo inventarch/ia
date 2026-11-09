@@ -501,7 +501,7 @@ it('shapes an installed-implementation catalog once for its reader and its binde
   expect(
     checkInstalledImplementations({
       ...catalog([]),
-      evaluators: { format: 'ia-evaluator-catalog', formatVersion: 2, entries: [] },
+      evaluators: { format: 'evaluator-catalog', formatVersion: 2, entries: [] },
     }).ok,
   ).toBe(true);
   expect(checked.ok && checked.value.operations.map((row) => row.status)).toEqual([
@@ -530,20 +530,17 @@ it('shapes an installed-implementation catalog once for its reader and its binde
     [{ ...catalog([]), format: 'ia.installed-implementations.v2' }, 'Unknown installed-implementation catalog format'],
     [
       { ...catalog([]), evaluators: { format: 'ia-evaluator-catalog/2.0', entries: [] } },
-      'not an ia-evaluator-catalog value',
+      'not an evaluator catalog value',
     ],
     [
       { ...catalog([]), evaluators: { format: 'ia-evaluator-catalog/1.0', formatVersion: 2, entries: [] } },
-      'not an ia-evaluator-catalog value',
+      'not an evaluator catalog value',
     ],
     [
-      { ...catalog([]), evaluators: { format: 'ia-evaluator-catalog', formatVersion: 0, entries: [] } },
-      'not an ia-evaluator-catalog value',
+      { ...catalog([]), evaluators: { format: 'evaluator-catalog', formatVersion: 0, entries: [] } },
+      'not an evaluator catalog value',
     ],
-    [
-      { ...catalog([]), evaluators: { format: 'ia-evaluator-catalog', entries: [] } },
-      'not an ia-evaluator-catalog value',
-    ],
+    [{ ...catalog([]), evaluators: { format: 'evaluator-catalog', entries: [] } }, 'not an evaluator catalog value'],
   ] as const)
     expect(checkInstalledImplementations(bad)).toEqual({ ok: false, reason: expect.stringContaining(reason) });
   // The checked value is a frozen plain-data copy, so a later change to the input, or an accessor that answers

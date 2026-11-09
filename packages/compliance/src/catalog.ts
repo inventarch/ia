@@ -4,10 +4,10 @@ import { assess } from './types.js';
 import type { Assessment, EvidenceCode, Finding } from './types.js';
 
 /**
- * Current catalog format (C25): `{format: 'ia-evaluator-catalog', formatVersion: 2, entries}`. The version is an
+ * Current catalog format (C25): `{format: 'evaluator-catalog', formatVersion: 2, entries}`. The version is an
  * integer field, never part of the name; an unsupported version is refused, and it is part of the catalog digest.
  */
-export const EVALUATOR_CATALOG_FORMAT = 'ia-evaluator-catalog';
+export const EVALUATOR_CATALOG_FORMAT = 'evaluator-catalog';
 /** The catalog format versions this package reads in the current shape. */
 export const EVALUATOR_CATALOG_FORMAT_VERSIONS = Object.freeze([2] as const);
 /** The catalog format version new catalogs declare. */

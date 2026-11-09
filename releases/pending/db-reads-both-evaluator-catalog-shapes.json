@@ -2,7 +2,7 @@
   "format": "ia.npm-change-note.v1",
   "bump": "minor",
   "title": "db reads both evaluator catalog shapes",
-  "summary": "The installed-implementation catalog admits evaluator sections in the current shape (format ia-evaluator-catalog with an integer formatVersion and codec references by id and version) as well as the legacy ia-evaluator-catalog/1.x shape, and collects codec references from both.",
+  "summary": "The installed-implementation catalog admits evaluator sections in the current shape (format evaluator-catalog with an integer formatVersion and codec references by id and version) as well as the legacy ia-evaluator-catalog/1.x shape, and collects codec references from both.",
   "packages": [
     "@inventarch/db"
   ],
