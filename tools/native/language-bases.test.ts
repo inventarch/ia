@@ -12,7 +12,7 @@ const ledger = readBaseLedger(root);
 
 const compare = (a: string, b: string): number => {
   const [x, y] = [a, b].map((v) => v.split('.').map(Number));
-  return (x![0]! - y![0]!) || (x![1]! - y![1]!) || (x![2]! - y![2]!);
+  return x![0]! - y![0]! || x![1]! - y![1]! || x![2]! - y![2]!;
 };
 
 describe('language base ledger', () => {
@@ -44,7 +44,7 @@ describe('language base ledger', () => {
       const target = ledger.bases[0]!;
       const file = resolve(scratch, 'releases/native/bases', `${target.archive}.ia.tgz`);
       const bytes = readFileSync(file);
-      bytes[bytes.length >> 1] ^= 0xff;
+      bytes[bytes.length >> 1]! ^= 0xff;
       writeFileSync(file, bytes);
       const findings = ledgerFindings(scratch);
       expect(findings.some((f) => f.includes(target.archive))).toBe(true);

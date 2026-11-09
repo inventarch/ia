@@ -9,7 +9,7 @@
  * the head is open, `cognition` and `activation` are floor grammar, `relationships`/`cognition`/`activation` fields are
  * never ordinary fields, `governance` fields are variants or the `severity` dimension, a contract's `REQ-*` clauses are
  * requirements, and the two floor dialect words (`schema`, `system`) carry no ordinary fields. Relationship edges are
- * not compared. A source that does not parse is a gap on every base.
+ * not compared. A source that does not parse is a `parse` gap on every base.
  */
 import { matchesType } from '@inventarch/compliance';
 import { REQUIREMENT_KINDS, isRequirementId, parse } from '@inventarch/language';
@@ -42,7 +42,8 @@ export interface Gap {
   source: string;
   record: string;
   word: string;
-  kind: 'word' | 'section' | 'field' | 'value' | 'type' | 'required-section' | 'required-field';
+  /** `parse`: the source does not parse; `key` is `<diagnostic code> at line <n>`, and `record`/`word` are '' when no record owns the line. */
+  kind: 'word' | 'section' | 'field' | 'value' | 'type' | 'required-section' | 'required-field' | 'parse';
   key: string;
 }
 
@@ -246,7 +247,7 @@ export function gapsOn(usage: Usage, base: BaseCatalogue, index: CompatIndex): G
       source: fault.source,
       record: fault.record,
       word: fault.word,
-      kind: 'word',
+      kind: 'parse',
       key: fault.key,
     });
   for (const record of records) {

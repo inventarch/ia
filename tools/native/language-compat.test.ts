@@ -4,9 +4,17 @@ import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { CatalogueWord } from '../../packages/db/src/distribution/index.js';
-import { buildLanguageBase } from './language-base.js';
+import { distributionSnapshot, packSnapshot } from '../../apps/distribution/src/snapshot.js';
+import { buildLanguageBase, languageBaseDescriptor } from './language-base.js';
 import { ledgerArchive, readBaseLedger } from './language-bases.js';
-import { baseCatalogue, compatIndex, languageCompatOutputs, settleLanguageCompat } from './language-compat.js';
+import {
+  baseCatalogue,
+  compatIndex,
+  compatIndexOf,
+  languageCompatOutputs,
+  settleLanguageCompat,
+} from './language-compat.js';
+import { languagePackageInputs } from './public-language.js';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const ledger = readBaseLedger(root);
@@ -68,6 +76,34 @@ describe('language compatibility index', () => {
     expect(() => baseCatalogue(built.bytes, '0'.repeat(64))).toThrow();
   });
 
+  it('refuses an archive of another package', () => {
+    const { inputs, folders } = languagePackageInputs(root);
+    const packed = packSnapshot(
+      distributionSnapshot({ sources: inputs, folders, floorOrigin: 'local' }),
+      { ...languageBaseDescriptor('3.2.1'), id: 'inventarch/other' },
+      new Map(['LICENSE', 'NOTICE'].map((path) => [path, readFileSync(resolve(root, path))])),
+    );
+    expect(packed.manifest.id).toBe('inventarch/other');
+    expect(() => baseCatalogue(packed.bytes, packed.archiveDigest)).toThrow(
+      `Archive ${packed.archiveDigest} carries inventarch/other, not inventarch/language`,
+    );
+  });
+
+  it('refuses a base of another major', () => {
+    const four = buildLanguageBase(root, { version: '4.0.0' });
+    const catalogue = baseCatalogue(four.bytes, four.pin.archive);
+    expect(catalogue.version).toBe('4.0.0');
+    expect(() => compatIndexOf(3, [{ version: '4.0.0', catalogue }])).toThrow('Base 4.0.0 is not of major 3');
+  });
+
+  it('refuses a ledger row whose archive carries another version', () => {
+    const catalogue = baseCatalogue(built.bytes, built.pin.archive);
+    expect(() => compatIndexOf(3, [{ version: '3.2.0', catalogue }])).toThrow(
+      `Base 3.2.0 names archive ${built.pin.archive}, which carries 3.2.1`,
+    );
+    expect(compatIndexOf(3, [{ version: '3.2.1', catalogue }]).bases).toEqual([catalogue]);
+  });
+
   it('covers every ledger base, then the built base when it is newer', () => {
     const index = compatIndex(root);
     expect([index.format, index.id, index.major]).toEqual(['ia.language-compat.v1', 'inventarch/language', 3]);
@@ -82,8 +118,10 @@ describe('language compatibility index', () => {
       second = languageCompatOutputs(root);
     expect([...first.keys()]).toEqual(['releases/native/language-compat.json', 'apps/cli/assets/language-compat.json']);
     expect([...second]).toEqual([...first]);
-    const [releases, shipped] = [...first.values()];
-    expect(shipped).toBe(releases);
+    const [releases, shipped] = [...first.values()] as [string, string];
+    // Pretty in releases/ for readable diffs; compact in the CLI's shipped asset; the same index in both.
+    expect(releases).toBe(JSON.stringify(JSON.parse(releases), null, 2) + '\n');
+    expect(shipped).toBe(JSON.stringify(JSON.parse(releases)) + '\n');
   });
 
   it('check mode fails on a stale committed index', () => {
@@ -97,12 +135,21 @@ describe('language compatibility index', () => {
       expect(settleLanguageCompat(target, outputs, 'check')).toEqual([]);
       const stale = JSON.parse(outputs.get('apps/cli/assets/language-compat.json')!);
       stale.bases.pop();
-      writeFileSync(resolve(target, 'apps/cli/assets/language-compat.json'), JSON.stringify(stale, null, 2) + '\n');
+      writeFileSync(resolve(target, 'apps/cli/assets/language-compat.json'), JSON.stringify(stale) + '\n');
       expect(() => settleLanguageCompat(target, outputs, 'check')).toThrow(
         'Language compatibility index drift: apps/cli/assets/language-compat.json',
       );
       expect(settleLanguageCompat(target, outputs, 'write')).toEqual(['apps/cli/assets/language-compat.json']);
       expect(settleLanguageCompat(target, outputs, 'check')).toEqual([]);
+      // The same index pretty-printed is still drift for the compact asset; a stale pretty copy is drift in releases/.
+      writeFileSync(
+        resolve(target, 'apps/cli/assets/language-compat.json'),
+        outputs.get('releases/native/language-compat.json')!,
+      );
+      writeFileSync(resolve(target, 'releases/native/language-compat.json'), JSON.stringify(stale, null, 2) + '\n');
+      expect(() => settleLanguageCompat(target, outputs, 'check')).toThrow(
+        'Language compatibility index drift: releases/native/language-compat.json, apps/cli/assets/language-compat.json',
+      );
     } finally {
       rmSync(target, { recursive: true, force: true });
     }

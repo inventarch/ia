@@ -199,9 +199,30 @@ describe('languageFloor', () => {
     expect(result.floor).toBeNull();
     expect(result.gaps.length).toBeGreaterThan(0);
     expect(result.gaps[0]).toEqual(
-      expect.objectContaining({ base: '3.2.0', source: 'kit/records/sample.ia', record: 'sample', kind: 'word' }),
+      expect.objectContaining({
+        base: '3.2.0',
+        source: 'kit/records/sample.ia',
+        record: 'sample',
+        word: 'observation',
+        kind: 'parse',
+      }),
     );
     expect(result.gaps[0]!.key).toMatch(/^IA-LANG-[A-Z-]+ at line \d+$/);
+    const unowned = languageFloor(usageOf(source('@observation sample\n')), index);
+    expect(unowned).toEqual({
+      floor: null,
+      newest: '3.2.0',
+      gaps: [
+        {
+          base: '3.2.0',
+          source: 'kit/records/sample.ia',
+          record: '',
+          word: '',
+          kind: 'parse',
+          key: 'IA-LANG-PRAGMA-MISSING at line 1',
+        },
+      ],
+    });
   });
 
   it('usage is independent of source order', () => {

@@ -9,13 +9,16 @@
  * reads each archive with this tree's kernel floor, which is what a current carrier reads it with; the floor words
  * (`schema`, `system`) and the taxonomy words come out the same for every base, and every other word is the archive's.
  *
- * `--write` writes the index to `releases/native/language-compat.json` and, for the CLI that ships it,
+ * Only `inventarch/language` archives of the ledger's major enter the index, each under the version its archive carries.
+ *
+ * `--write` writes the index to `releases/native/language-compat.json` (pretty) and, compact, to the CLI that ships it at
  * `apps/cli/assets/language-compat.json`; `--check` fails when either differs.
  */
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { verifyArchive } from '../../apps/distribution/src/archive.js';
 import { KERNEL_SOURCES } from '../../packages/language/src/index.js';
+import { version as exactVersion } from '../../packages/db/src/distribution/index.js';
 import type { BaseCatalogue, CatalogueWord, CompatIndex } from '../../packages/db/src/distribution/index.js';
 import { isEntry } from '../entry/is-entry.mjs';
 import { checkWrite } from '../shared/check-write.mjs';
@@ -37,6 +40,7 @@ const byCodeUnit = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0
 /** One base's catalogue from its archive bytes, refused unless they verify against `digest` and compile cleanly. */
 export function baseCatalogue(bytes: Buffer, digest: string): BaseCatalogue {
   const { manifest, files, archiveDigest } = verifyArchive(bytes, digest);
+  if (manifest.id !== BASE_ID) throw new Error(`Archive ${archiveDigest} carries ${manifest.id}, not ${BASE_ID}`);
   const floor: NativeInput[] = KERNEL_SOURCES.map(({ path, text }) => ({
     path,
     text,
@@ -88,23 +92,46 @@ export function baseCatalogue(bytes: Buffer, digest: string): BaseCatalogue {
   };
 }
 
+/**
+ * The index of `major` from its bases in order, each with the version its ledger row (or the build's pin) names. A
+ * catalogue whose archive carries another version, or a version of another major, is refused.
+ */
+export function compatIndexOf(
+  major: number,
+  entries: readonly { readonly version: string; readonly catalogue: BaseCatalogue }[],
+): CompatIndex {
+  for (const { version, catalogue } of entries) {
+    if (catalogue.version !== version)
+      throw new Error(`Base ${version} names archive ${catalogue.archive}, which carries ${catalogue.version}`);
+    if (Number(exactVersion(catalogue.version).split('.')[0]) !== major)
+      throw new Error(`Base ${catalogue.version} is not of major ${major}`);
+  }
+  return { format: 'ia.language-compat.v1', id: BASE_ID, major, bases: entries.map(({ catalogue }) => catalogue) };
+}
+
 /** Every ledger base in ascending order, then the built base when it is newer than all of them. */
 export function compatIndex(root: string): CompatIndex {
   const ledger = readBaseLedger(root);
-  const bases = ledger.bases.map((base) => baseCatalogue(ledgerArchive(root, base), base.archive));
+  const entries = ledger.bases.map((base) => ({
+    version: base.version,
+    catalogue: baseCatalogue(ledgerArchive(root, base), base.archive),
+  }));
   const built = buildLanguageBase(root);
   const newest = ledger.bases[ledger.bases.length - 1];
   if (newest === undefined || compareVersions(built.pin.version, newest.version) > 0)
-    bases.push(baseCatalogue(built.bytes, built.pin.archive));
-  return { format: 'ia.language-compat.v1', id: BASE_ID, major: ledger.major, bases };
+    entries.push({ version: built.pin.version, catalogue: baseCatalogue(built.bytes, built.pin.archive) });
+  return compatIndexOf(ledger.major, entries);
 }
 
-/** The index text at each path it is written to, in write order. */
+/**
+ * The index text at each path it is written to, in write order: pretty in `releases/` so base changes diff readably,
+ * compact in the CLI's assets because it ships in every install.
+ */
 export function languageCompatOutputs(root: string): Map<string, string> {
-  const text = JSON.stringify(compatIndex(root), null, 2) + '\n';
+  const index = compatIndex(root);
   return new Map([
-    [COMPAT_PATH, text],
-    [SHIPPED_COMPAT, text],
+    [COMPAT_PATH, JSON.stringify(index, null, 2) + '\n'],
+    [SHIPPED_COMPAT, JSON.stringify(index) + '\n'],
   ]);
 }
 
