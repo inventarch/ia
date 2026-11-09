@@ -40,18 +40,31 @@ const FENCE = /^ {0,3}(`{3,}|~{3,})/;
 const DEFINITION = /^ {0,3}\[(?:[^\]\\]|\\.)+\]:\s*(<[^>\n]*>|\S+)/;
 const ATTRIBUTE = /\b(href|src|id|name)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'<>=`]+))/gi;
 const SETEXT = /^ {0,3}(?:=+|-+)[ \t]*$/;
-const SPACE = /\s/;
 
-/** A character `\s` matches. */
-const isSpace = (char: string | undefined): boolean => char !== undefined && SPACE.test(char);
+/**
+ * A UTF-16 code unit `\s` matches: ECMAScript's WhiteSpace and LineTerminator, that is \t, \n, \v, \f, \r, the space
+ * separators of Unicode category Zs, U+FEFF, and the line and paragraph separators U+2028 and U+2029.
+ */
+function isSpaceCode(code: number): boolean {
+  if (code <= 0x20) return code === 0x20 || (code >= 0x09 && code <= 0x0d);
+  if (code < 0xa0) return false;
+  return (
+    code === 0xa0 ||
+    code === 0x1680 ||
+    (code >= 0x2000 && code <= 0x200a) ||
+    code === 0x2028 ||
+    code === 0x2029 ||
+    code === 0x202f ||
+    code === 0x205f ||
+    code === 0x3000 ||
+    code === 0xfeff
+  );
+}
+/** A UTF-16 code unit `.` does not match. */
+const isTerminatorCode = (code: number): boolean =>
+  code === 0x0a || code === 0x0d || code === 0x2028 || code === 0x2029;
 /** A space or a tab, the blanks around an ATX heading's marks. */
 const isBlank = (char: string | undefined): boolean => char === ' ' || char === '\t';
-/** A character `.` does not match. */
-const isTerminator = (char: string | undefined): boolean =>
-  char === '\n' || char === '\r' || char === '\u2028' || char === '\u2029';
-/** `\\.` matches at `at`: a backslash and a character `.` matches. */
-const isEscape = (text: string, at: number): boolean =>
-  text[at] === '\\' && at + 1 < text.length && !isTerminator(text[at + 1]);
 
 const unescape = (text: string): string => text.replace(/\\([!-/:-@[-`{-~])/g, '$1');
 const destination = (raw: string): string => unescape(raw.startsWith('<') ? raw.slice(1, -1) : raw);
@@ -60,45 +73,56 @@ const destination = (raw: string): string => unescape(raw.startsWith('<') ? raw.
  * Code spans hold no links: each is blanked, keeping the columns. The matches of
  * `` /(`+)(?!`)[\s\S]*?(?<!`)\1(?!`)/g ``: an opening run (a whole backtick run, or failing that each shorter tail of it)
  * closes at the next whole run of the same length. Each run is visited once and each length's runs are consumed in
- * order, so the scan is linear.
+ * order, so the scan is linear. A line of a few runs, the usual case, looks for the closing run directly: at most
+ * `FEW` runs are read for each length tried, which is still linear.
  */
+const FEW = 8;
 function withoutCodeSpans(line: string): string {
-  const runs: { start: number; length: number }[] = [];
-  for (let at = 0; at < line.length; ) {
-    if (line[at] !== '`') {
-      at++;
-      continue;
-    }
-    const start = at;
-    while (line[at] === '`') at++;
-    runs.push({ start, length: at - start });
+  const opening = line.indexOf('`');
+  if (opening < 0) return line;
+  const starts: number[] = [],
+    lengths: number[] = [];
+  for (let at = opening; at >= 0; at = line.indexOf('`', at)) {
+    starts.push(at);
+    while (line.charCodeAt(at) === 0x60) at++;
+    lengths.push(at - starts[starts.length - 1]!);
   }
-  if (runs.length < 2) return line;
-  const byLength = new Map<number, number[]>(),
-    cursor = new Map<number, number>();
-  runs.forEach((run, index) => {
-    const same = byLength.get(run.length);
-    if (same === undefined) byLength.set(run.length, [index]);
-    else same.push(index);
-  });
-  /** The first run of `length` after run `after`; `after` never decreases, so each cursor only moves forward. */
-  const following = (length: number, after: number): number | undefined => {
-    const same = byLength.get(length);
-    if (same === undefined) return undefined;
-    let at = cursor.get(length) ?? 0;
-    while (at < same.length && same[at]! <= after) at++;
-    cursor.set(length, at);
-    return same[at];
-  };
+  const count = starts.length;
+  if (count < 2) return line;
+  let following: (length: number, after: number) => number | undefined;
+  if (count <= FEW)
+    following = (length, after) => {
+      for (let at = after + 1; at < count; at++) if (lengths[at] === length) return at;
+      return undefined;
+    };
+  else {
+    const byLength = new Map<number, number[]>(),
+      cursor = new Map<number, number>();
+    lengths.forEach((length, index) => {
+      const same = byLength.get(length);
+      if (same === undefined) byLength.set(length, [index]);
+      else same.push(index);
+    });
+    /** The first run of `length` after run `after`; `after` never decreases, so each cursor only moves forward. */
+    following = (length, after) => {
+      const same = byLength.get(length);
+      if (same === undefined) return undefined;
+      let at = cursor.get(length) ?? 0;
+      while (at < same.length && same[at]! <= after) at++;
+      cursor.set(length, at);
+      return same[at];
+    };
+  }
   let blanked = '',
     copied = 0;
-  for (let index = 0; index < runs.length; index++) {
-    const run = runs[index]!;
-    for (let length = run.length; length > 0; length--) {
+  for (let index = 0; index < count; index++) {
+    const start = starts[index]!,
+      run = lengths[index]!;
+    for (let length = run; length > 0; length--) {
       const closing = following(length, index);
       if (closing === undefined) continue;
-      const from = run.start + run.length - length,
-        to = runs[closing]!.start + length;
+      const from = start + run - length,
+        to = starts[closing]! + length;
       blanked += line.slice(copied, from) + ' '.repeat(to - from);
       copied = to;
       index = closing;
@@ -188,7 +212,7 @@ function atxContent(line: string): string | null {
   if (at === marks || at - marks > 6) return null;
   if (at === line.length) return '';
   if (!isBlank(line[at])) return null;
-  for (let index = at; index < line.length; index++) if (isTerminator(line[index])) return null;
+  for (let index = at; index < line.length; index++) if (isTerminatorCode(line.charCodeAt(index))) return null;
   while (isBlank(line[at])) at++;
   let end = line.length;
   while (end > at && isBlank(line[end - 1])) end--;
@@ -201,11 +225,30 @@ function atxContent(line: string): string | null {
   return line.slice(at, end);
 }
 
-/** For each index of `text` and its end, the first index at or after it holding `char`, else -1. */
-function nextIndex(text: string, char: string): Int32Array {
-  const next = new Int32Array(text.length + 1).fill(-1);
-  for (let at = text.length - 1; at >= 0; at--) next[at] = text[at] === char ? at : next[at + 1]!;
-  return next;
+/**
+ * The tables `inlineLinks` fills, kept between lines so that a document of many short lines allocates them once. A
+ * line longer than `REUSED` gets tables of its own, so one huge line does not hold its memory after the scan.
+ */
+const REUSED = 1 << 16;
+let tables: Int32Array[] = [];
+function tablesFor(size: number): Int32Array[] {
+  const length = size + 1;
+  if (length > REUSED) return Array.from({ length: 8 }, () => new Int32Array(length));
+  if (tables.length === 0 || tables[0]!.length < length) {
+    const capacity = Math.min(REUSED, Math.max(256, length, 2 * (tables[0]?.length ?? 0)));
+    tables = Array.from({ length: 8 }, () => new Int32Array(capacity));
+  }
+  return tables;
+}
+
+/** Fills `next` from `from` to `text`'s end: each index's first index at or after it holding `char`, else -1. */
+function fillNext(next: Int32Array, text: string, char: string, from: number): void {
+  let filled = from;
+  for (let at = text.indexOf(char, from); at >= 0; at = text.indexOf(char, at + 1)) {
+    next.fill(at, filled, at + 1);
+    filled = at + 1;
+  }
+  next.fill(-1, filled, text.length + 1);
 }
 
 /**
@@ -213,43 +256,71 @@ function nextIndex(text: string, char: string): Int32Array {
  * `/(!?)\[((?:[^[\]\\]|\\.|\[[^\]]*\])*)\]\(\s*(<[^>\n]*>|(?:[^\s()\\]|\\.|\((?:[^\s()\\]|\\.)*\))*)(?:\s+(?:"[^"]*"|'[^']*'|\([^)]*\)))?\s*\)/g`
  * matches them, with its destination (group 3) as written. Each repeated part of that regex is deterministic, so where a
  * scan of it stops from each index is computed once, right to left; each `[` is then tried in constant time.
+ *
+ * Only the span from the first `[` through the last `)` is scanned. Every match starts at a `[` and ends at a `)`, and
+ * the regex has no lookaround, so a match consumes only characters of that span, and whether it matches, and how,
+ * depends on nothing outside it.
  */
-function inlineLinks(line: string): { raw: string; image: boolean }[] {
+function inlineLinks(whole: string): { raw: string; image: boolean }[] {
   const found: { raw: string; image: boolean }[] = [];
-  if (!line.includes('](')) return found;
-  const size = line.length,
-    space = new Int32Array(size + 1),
-    label = new Int32Array(size + 1),
-    inner = new Int32Array(size + 1),
-    plain = new Int32Array(size + 1),
-    bracket = nextIndex(line, ']'),
-    quote = nextIndex(line, '"'),
-    apostrophe = nextIndex(line, "'"),
-    paren = nextIndex(line, ')'),
-    angle = nextIndex(line, '>');
+  const first = whole.indexOf('['),
+    last = whole.lastIndexOf(')');
+  if (first < 0 || last < first || !whole.includes('](', first)) return found;
+  const line = whole.slice(0, last + 1),
+    size = line.length,
+    [space, label, inner, plain, quote, apostrophe, paren, angle] = tablesFor(size) as [
+      Int32Array,
+      Int32Array,
+      Int32Array,
+      Int32Array,
+      Int32Array,
+      Int32Array,
+      Int32Array,
+      Int32Array,
+    ];
   /** Where a title that opens with `opener` looks for its close. */
   const closes = (opener: string | undefined): Int32Array | undefined =>
     opener === '"' ? quote : opener === "'" ? apostrophe : opener === '(' ? paren : undefined;
+  fillNext(quote, line, '"', first);
+  fillNext(apostrophe, line, "'", first);
+  fillNext(paren, line, ')', first);
+  fillNext(angle, line, '>', first);
   space[size] = label[size] = inner[size] = plain[size] = size;
-  for (let at = size - 1; at >= 0; at--) {
-    const char = line[at]!,
-      escape = isEscape(line, at);
+  // The first `]` after `at`, else -1; and the code unit after `at`, else -1.
+  let bracket = -1,
+    next = -1;
+  for (let at = size - 1; at >= first; at--) {
+    const code = line.charCodeAt(at),
+      blank = code <= 0x20 ? code === 0x20 || (code >= 0x09 && code <= 0x0d) : code >= 0xa0 && isSpaceCode(code);
+    if (!blank && code !== 0x5b && code !== 0x5c && code !== 0x5d && code !== 0x28 && code !== 0x29) {
+      // A code unit none of the parts below stops at.
+      space[at] = at;
+      label[at] = label[at + 1]!;
+      inner[at] = inner[at + 1]!;
+      plain[at] = plain[at + 1]!;
+      next = code;
+      continue;
+    }
+    // `\\.` matches at `at`.
+    const escape = code === 0x5c && next >= 0 && !isTerminatorCode(next);
     // `\s*`: the first index that is not a space.
-    space[at] = isSpace(char) ? space[at + 1]! : at;
+    space[at] = blank ? space[at + 1]! : at;
     // The label, `(?:[^[\]\\]|\\.|\[[^\]]*\])*`.
-    if (char === ']') label[at] = at;
-    else if (char === '\\') label[at] = escape ? label[at + 2]! : at;
-    else if (char === '[') label[at] = bracket[at + 1]! < 0 ? at : label[bracket[at + 1]! + 1]!;
+    if (code === 0x5d) label[at] = at;
+    else if (code === 0x5c) label[at] = escape ? label[at + 2]! : at;
+    else if (code === 0x5b) label[at] = bracket < 0 ? at : label[bracket + 1]!;
     else label[at] = label[at + 1]!;
     // Inside a bracketed destination part, `(?:[^\s()\\]|\\.)*`.
-    if (isSpace(char) || char === '(' || char === ')') inner[at] = at;
-    else if (char === '\\') inner[at] = escape ? inner[at + 2]! : at;
+    if (blank || code === 0x28 || code === 0x29) inner[at] = at;
+    else if (code === 0x5c) inner[at] = escape ? inner[at + 2]! : at;
     else inner[at] = inner[at + 1]!;
     // A plain destination, `(?:[^\s()\\]|\\.|\((?:[^\s()\\]|\\.)*\))*`.
-    if (isSpace(char) || char === ')') plain[at] = at;
-    else if (char === '\\') plain[at] = escape ? plain[at + 2]! : at;
-    else if (char === '(') plain[at] = line[inner[at + 1]!] === ')' ? plain[inner[at + 1]! + 1]! : at;
+    if (blank || code === 0x29) plain[at] = at;
+    else if (code === 0x5c) plain[at] = escape ? plain[at + 2]! : at;
+    else if (code === 0x28) plain[at] = line[inner[at + 1]!] === ')' ? plain[inner[at + 1]! + 1]! : at;
     else plain[at] = plain[at + 1]!;
+    if (code === 0x5d) bracket = at;
+    next = code;
   }
   /** Where `(?:\s+(?:"[^"]*"|'[^']*'|\([^)]*\)))?\s*\)` ends when it starts at `from`, else -1. */
   const tail = (from: number): number => {
@@ -263,7 +334,7 @@ function inlineLinks(line: string): { raw: string; image: boolean }[] {
     return opener === ')' ? after + 1 : -1;
   };
   let from = 0,
-    at = line.indexOf('[');
+    at = first;
   while (at >= 0) {
     const end = label[at + 1]!;
     let stop = -1,
