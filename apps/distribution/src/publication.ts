@@ -31,7 +31,7 @@ interface Owned {
   config: string | null;
 }
 interface State {
-  format: 'ia.projection-publication';
+  format: 'projection-publication';
   formatVersion: 1;
   id: string;
   manifest: ProjectionManifest;
@@ -43,7 +43,7 @@ interface Change {
   after: string | null;
 }
 interface Pending {
-  format: 'ia.projection-pending';
+  format: 'projection-pending';
   formatVersion: 1;
   id: string;
   before: string | null;
@@ -89,7 +89,7 @@ function state(content: Buffer | null, id: string): State | null {
   if (content === null) return null;
   const { row } = versionedObject(
     canonicalJson(content),
-    { format: 'ia.projection-publication', version: 1, legacy: ['ia.projection-publication.v1'] },
+    { format: 'projection-publication', version: 1, legacy: ['ia.projection-publication.v1'] },
     ['id', 'manifest', 'files'],
     'Malformed projection publication state',
   );
@@ -223,7 +223,7 @@ function prepare(
   }
   const manifest = result?.manifest ?? previous.value!.manifest;
   const after = Buffer.from(
-    json({ format: 'ia.projection-publication', formatVersion: 1, id, manifest, files } satisfies State),
+    json({ format: 'projection-publication', formatVersion: 1, id, manifest, files } satisfies State),
   );
   state(after, id);
   return { before: previous.content, after, changes };
@@ -246,7 +246,7 @@ function transact(root: string, id: string, result: Compiled | null, options: Pu
     const plan = prepare(root, id, result);
     options.fresh?.();
     const pending: Pending = {
-      format: 'ia.projection-pending',
+      format: 'projection-pending',
       formatVersion: 1,
       id,
       before: encoded(plan.before),
@@ -302,7 +302,7 @@ export function recoverProjection(outputRoot: string, options: PublicationOption
     if (content === null) return { status: 'current', id: '', paths: [] };
     const { row } = versionedObject(
       canonicalJson(content),
-      { format: 'ia.projection-pending', version: 1, legacy: ['ia.projection-pending.v1'] },
+      { format: 'projection-pending', version: 1, legacy: ['ia.projection-pending.v1'] },
       ['id', 'before', 'after', 'changes'],
       'Malformed pending publication',
     );

@@ -318,7 +318,7 @@ it('routes reviewable lifecycle removal and recovery through the public CLI', as
     '--out',
     '.ia/work/context-remove.json',
   ]);
-  expect(result?.result).toMatchObject({ format: 'ia.lifecycle-registration-plan', formatVersion: 1 });
+  expect(result?.result).toMatchObject({ format: 'lifecycle-registration-plan', formatVersion: 1 });
   expect((await runNative(['apply', '--root', root, '--plan', '.ia/work/context-remove.json']))?.result).toMatchObject({
     status: 'lifecycle-removed',
   });
@@ -376,7 +376,7 @@ it('upgrades or removes exact retained v1 single-handler ownership without decod
     expect(result.status).toBe(upgrade ? 'lifecycle-registered' : 'lifecycle-removed');
     if (upgrade) {
       expect(JSON.parse(readFileSync(join(root, path), 'utf8'))).toMatchObject({
-        format: 'ia.lifecycle-registration-state',
+        format: 'lifecycle-registration-state',
         formatVersion: 2,
       });
       expect(JSON.parse(readFileSync(join(root, settings), 'utf8')).hooks.SessionStart[0].hooks).toHaveLength(12);

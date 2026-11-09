@@ -24,7 +24,7 @@ import { Refusal } from './consumer.js';
 import { quote } from './render.js';
 
 export const TRACKED_FILE = 'tracked-workspaces.json';
-export const TRACKED_FORMAT = 'ia-tracked-workspaces';
+export const TRACKED_FORMAT = 'tracked-workspaces';
 export const TRACKED_FORMAT_VERSION = 1;
 /** The literal a list written before `formatVersion` existed carries; still read, rewritten plain on the next save. */
 const LEGACY_TRACKED_FORMATS: readonly string[] = ['ia-tracked-workspaces-1'];

@@ -22,8 +22,8 @@ interface Operation {
   readonly step: string;
 }
 export interface MigrationJournal {
-  /** `ia-migration` with `formatVersion` 1, or the legacy `ia-migration-1` literal an interrupted older migration left. */
-  readonly format: 'ia-migration' | 'ia-migration-1';
+  /** `migration` with `formatVersion` 1, or the legacy `ia-migration-1` literal an interrupted older migration left. */
+  readonly format: 'migration' | 'ia-migration-1';
   readonly formatVersion?: 1;
   readonly view: MigrationView;
   readonly operations: readonly Operation[];
@@ -123,7 +123,7 @@ export function readMigrationJournal(root: string, system: boolean, pin: BasePin
   try {
     journal = readWorkspaceJson({ root, path: MIGRATION_JOURNAL }) as MigrationJournal;
     if (
-      !(journal.format === 'ia-migration'
+      !(journal.format === 'migration'
         ? journal.formatVersion === 1
         : journal.format === 'ia-migration-1' && !Object.hasOwn(journal, 'formatVersion')) ||
       journal.view.root !== root ||
@@ -226,7 +226,7 @@ export function beginMigrationJournal(input: MigrationView, ignore: string): Mig
     ]),
   );
   const journal: MigrationJournal = {
-    format: 'ia-migration',
+    format: 'migration',
     formatVersion: 1,
     view,
     operations,

@@ -1083,7 +1083,7 @@ it('carries a native ledger unchanged since the published tag onto it and resets
       expect(result).toMatchObject({ action: 'version', version: '3.0.1', nativeLedgerCarried: true });
       const notes = readFileSync(resolve(root, 'releases/native/notes.json'));
       expect(JSON.parse(notes.toString('utf8'))).toEqual({
-        format: 'ia.native-release-notes',
+        format: 'native-release-notes',
         formatVersion: 1,
         baseline: source,
         changes: [],
@@ -1786,7 +1786,7 @@ it.each([false, true])(
 it('reads release notes and changesets in the plain shape and the legacy literals, and refuses other shapes', () => {
   const legacy = note('minor', ['@inventarch/a'], 'Legacy note');
   expect(validateNote('legacy-note', legacy, names)).toEqual(legacy);
-  const plain = { ...legacy, format: 'ia.npm-change-note', formatVersion: 1 };
+  const plain = { ...legacy, format: 'npm-change-note', formatVersion: 1 };
   expect(validateNote('plain-note', plain, names)).toEqual(plain);
   for (const bad of [
     { ...plain, formatVersion: 2 },
@@ -1808,10 +1808,10 @@ it('reads release notes and changesets in the plain shape and the legacy literal
   const structured = (value: Record<string, unknown>) =>
     validateChangesetStructure(value as unknown as Changeset, policy, projects as never);
   expect(() => structured({ ...entry })).not.toThrow();
-  expect(() => structured({ ...entry, format: 'ia.npm-changeset', formatVersion: 1 })).not.toThrow();
+  expect(() => structured({ ...entry, format: 'npm-changeset', formatVersion: 1 })).not.toThrow();
   for (const bad of [
-    { ...entry, format: 'ia.npm-changeset' },
-    { ...entry, format: 'ia.npm-changeset', formatVersion: 2 },
+    { ...entry, format: 'npm-changeset' },
+    { ...entry, format: 'npm-changeset', formatVersion: 2 },
     { ...entry, formatVersion: 1 },
     { ...entry, format: 'ia.npm-changeset.v2' },
   ])

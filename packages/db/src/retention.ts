@@ -74,7 +74,7 @@ export function rotate(prior: Retained | undefined, current: RetainedSnapshot): 
  * D08a: the capture pair, the one retained pair that persists between processes. `ia capture` writes it through
  * `writeCapture`, and every handle reads it, whatever its cache setting, to seed its previous snapshot.
  */
-export const CAPTURE_FORMAT = 'ia-snapshot';
+export const CAPTURE_FORMAT = 'snapshot';
 export const CAPTURE_FORMAT_VERSION = 1;
 /** The literal captures carried before `formatVersion` existed; read as written (nothing digests the format), never produced. */
 const LEGACY_CAPTURE_FORMATS: readonly string[] = ['ia-snapshot-1'];
@@ -91,7 +91,7 @@ const plain = (value: unknown): value is Record<string, unknown> =>
 const exactly = (value: Record<string, unknown>, keys: readonly string[]): boolean =>
   JSON.stringify(Object.keys(value).sort()) === JSON.stringify(keys);
 /**
- * The retained part of an `ia-snapshot` document (`formatVersion` 1, or the legacy `ia-snapshot-1` literal), or why the bytes are none. A document without `authoredRevision`
+ * The retained part of an `snapshot` document (`formatVersion` 1, or the legacy `ia-snapshot-1` literal), or why the bytes are none. A document without `authoredRevision`
  * (one written before the authored revision) names its `revision` as its authored revision, which it was while no
  * source sat at runtime placement.
  */
@@ -397,7 +397,7 @@ export const discard = (root: string, path: string | undefined): void => {
   }
 };
 /**
- * D08a: write `text`, an `ia-snapshot` document, as the current capture and keep the pair D08 retains. Its counts
+ * D08a: write `text`, an `snapshot` document, as the current capture and keep the pair D08 retains. Its counts
  * follow `stalenessOf` against the prior capture at current.json: an equal digest is unchanged, another changed, a row
  * the prior lacks new, a prior row with none now removed. Its rotation is `rotate`'s, by authored revision: a capture at
  * a new authored revision makes the prior current.json previous.json, renamed, so byte for byte; one at an unchanged

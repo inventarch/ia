@@ -136,7 +136,7 @@ export interface ObligationExplanation {
 }
 
 export const PREDICATE_ID = /^[a-z][a-z0-9]*(-[a-z0-9]+)*@[1-9][0-9]*$/;
-export const RESOLUTION_FORMAT = 'ia-obligation-resolution';
+export const RESOLUTION_FORMAT = 'obligation-resolution';
 export const RESOLUTION_FORMAT_VERSION = 1;
 const REFUSING: readonly Finding['code'][] = ['IA-COMP-OBLIGATION-UNRESOLVED', 'IA-COMP-OBLIGATION-CONFLICT'];
 const WORDS = ['law', 'contract', 'check'];

@@ -37,7 +37,7 @@ export type ProjectionDrift = {
   readonly drift: 'changed' | 'missing' | 'outdated' | 'unmanaged' | 'unowned';
 };
 export interface ProjectionPlan {
-  readonly format: 'ia.host-projection-plan';
+  readonly format: 'host-projection-plan';
   readonly formatVersion: 1;
   readonly root: string;
   readonly host: Host;
@@ -117,7 +117,7 @@ function owned(root: string, host: Host): Record<string, Accepted> {
   if (text === null) return {};
   const { row } = versionedObject(
       decodeDistributionJson(text),
-      { format: 'ia.host-projection-state', version: 1, legacy: ['ia.host-projection-state.v1'] },
+      { format: 'host-projection-state', version: 1, legacy: ['ia.host-projection-state.v1'] },
       ['host', 'files'],
       'Invalid projection ownership state',
     ),
@@ -333,7 +333,7 @@ export function planProjection(input: {
       });
   actions.push(...agentActions(root, host, files, input.marker, seen));
   const body = {
-    format: 'ia.host-projection-plan' as const,
+    format: 'host-projection-plan' as const,
     formatVersion: 1 as const,
     root,
     host,
@@ -372,7 +372,7 @@ export function applyProjection(
       replace(
         root,
         statePath(host),
-        Buffer.from(json({ format: 'ia.host-projection-state', formatVersion: 1, host, files: pending })),
+        Buffer.from(json({ format: 'host-projection-state', formatVersion: 1, host, files: pending })),
       );
       checkpoint('pending');
       for (const action of mutating) {
@@ -397,7 +397,7 @@ export function applyProjection(
       root,
       statePath(host),
       plan.artifacts.length
-        ? Buffer.from(json({ format: 'ia.host-projection-state', formatVersion: 1, host, files }))
+        ? Buffer.from(json({ format: 'host-projection-state', formatVersion: 1, host, files }))
         : null,
     );
     checkpoint('complete');

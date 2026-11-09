@@ -9,7 +9,7 @@ import { parseStrictJson } from './json.js';
 import { discard, staged, syncDirectory } from './retention.js';
 
 /** Local journal claims, not execution authorization or an attestation by an external observer. */
-export const RUNNER_EVIDENCE_FORMAT = 'ia.runner-evidence';
+export const RUNNER_EVIDENCE_FORMAT = 'runner-evidence';
 export const RUNNER_EVIDENCE_FORMAT_VERSION = 1;
 /** The literal receipts carried before `formatVersion` existed; read as written, never produced. */
 const LEGACY_RUNNER_EVIDENCE_FORMATS: readonly string[] = ['ia.runner-evidence.v1'];

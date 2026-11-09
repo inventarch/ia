@@ -143,7 +143,7 @@ it('bounds proposal discovery and exact candidate file reads independently of ge
 });
 
 it('writes the plain format with formatVersion 1 and still reads the legacy literal', () => {
-  const plain = { ...candidate, format: 'ia.source-change', formatVersion: 1 };
+  const plain = { ...candidate, format: 'source-change', formatVersion: 1 };
   expect(sourceChangeCandidate.parse(plain)).toEqual(plain);
   expect(sourceChangeCandidate.parse(candidate)).toEqual(candidate);
   for (const value of [
