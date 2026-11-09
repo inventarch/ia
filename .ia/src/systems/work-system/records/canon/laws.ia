@@ -11,3 +11,4 @@
     subject-word spec
   relationships
     cites @agent public-work-system-steward
+    enforced-by @check canon-a14

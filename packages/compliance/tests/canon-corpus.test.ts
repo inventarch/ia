@@ -5,6 +5,7 @@ import { KERNEL_DIGEST, LANGUAGE_VERSION, buildRegistry, compile, parse } from '
 import type { Location } from '@inventarch/language';
 import { load } from '@inventarch/graph';
 import { CHECK_IDS, canonSeverity, lawStatuses } from '../src/index.js';
+import type { Verdict } from '../src/index.js';
 
 const root = resolve(import.meta.dirname, '../../..');
 /** Canon records sit in the folder of the system owning their word: `.ia/src/systems/<system>/records/canon/`. */
@@ -68,6 +69,16 @@ const LAWS = [
   'canon-e5-mandate-narrow',
   'canon-steward-authority',
 ];
+/** The warning release: each qualified canon law is enforced by its check at advisory. C6, D9 and steward authority stay pending. */
+const ENFORCED: Readonly<Record<string, string>> = {
+  'canon-a14-work-placement': 'canon-a14',
+  'canon-a6-source-roots': 'canon-a6',
+  'canon-c12-teaching-links': 'canon-c12',
+  'canon-c4-kit-words': 'canon-c4',
+  'canon-c5a-kit-workspace': 'canon-c5a',
+  'canon-e4-local-tighten': 'canon-e4',
+  'canon-e5-mandate-narrow': 'canon-e5',
+};
 const PRINCIPLES = [
   'canon-a13-declared-homes',
   'canon-c5b-no-consumer-records',
@@ -107,7 +118,7 @@ const CONVENTIONS = [
 ];
 
 describe('the canon corpus', () => {
-  it('the canon corpus admits and every canon law is pending', () => {
+  it('the canon corpus admits, the qualified canon laws are enforced at advisory and the rest are pending', () => {
     const { diagnostics, graph, nodes } = corpus();
     expect(diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
     const canon = nodes.filter((node) => CANON.test(node.source.path));
@@ -124,19 +135,26 @@ describe('the canon corpus', () => {
     expect(named('law')).toEqual(LAWS);
     expect(named('principle')).toEqual(PRINCIPLES);
     expect(named('convention')).toEqual(CONVENTIONS);
-    const statuses = lawStatuses(nodes, [], graph).filter((status) =>
+    // Each built-in canon check passed this run, so a law whose every enforcing check is built in reads enforced.
+    const verdicts = CHECK_IDS.filter((id) => id.startsWith('CANON-')).map(
+      (id) => ({ check: id, scope: 'graph', outcome: 'pass', findings: [], revision: 'r' }) as Verdict,
+    );
+    const statuses = lawStatuses(nodes, verdicts, graph).filter((status) =>
       canon.some((node) => node.identity === status.identity),
     );
     expect(statuses).toHaveLength(LAWS.length);
-    for (const status of statuses)
+    for (const status of statuses) {
+      const name = status.identity.slice(status.identity.lastIndexOf('/') + 1);
+      const check = ENFORCED[name];
       expect(status, status.identity).toMatchObject({
         severity: 'advisory',
-        state: 'pending',
-        checks: [],
+        state: check === undefined ? 'pending' : 'enforced',
+        checks: check === undefined ? [] : [`compliance-system/check/gate/${check}`],
         suspendedBy: null,
       });
-    // Pending laws enforce nothing, so no built-in canon rule is active.
+    }
+    // An advisory law runs its evaluator at warning; C6's evaluator stays inactive until its own warning release.
     for (const id of CHECK_IDS.filter((id) => id.startsWith('CANON-')))
-      expect(canonSeverity(nodes, id, graph), id).toBeNull();
+      expect(canonSeverity(nodes, id, graph), id).toBe(id === 'CANON-KIT-SCRIPTS' ? null : 'warning');
   });
 });

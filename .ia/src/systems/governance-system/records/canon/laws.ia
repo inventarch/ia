@@ -11,6 +11,7 @@
     subject-word workspace
   relationships
     cites @agent public-workspace-system-steward
+    enforced-by @check canon-a6
 
 @law canon-c4-kit-words
   meaning
@@ -23,6 +24,7 @@
     subject-word distribution
   relationships
     cites @agent public-workspace-system-steward
+    enforced-by @check canon-c4
 
 @law canon-c5a-kit-workspace
   meaning
@@ -35,6 +37,7 @@
     subject-word workspace
   relationships
     cites @agent public-workspace-system-steward
+    enforced-by @check canon-c5a
 
 @law canon-c6-kit-scripts
   meaning
@@ -59,6 +62,7 @@
     subject-word distribution
   relationships
     cites @agent public-workspace-system-steward
+    enforced-by @check canon-c12
 
 @law canon-d9-no-secrets
   meaning
@@ -83,6 +87,7 @@
     subject-word law
   relationships
     cites @agent public-governance-system-steward
+    enforced-by @check canon-e4
 
 @law canon-e5-mandate-narrow
   meaning
@@ -95,3 +100,4 @@
     subject-word mandate
   relationships
     cites @agent public-agent-system-steward
+    enforced-by @check canon-e5

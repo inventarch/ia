@@ -3,7 +3,7 @@
 @contract ia-canon
   version "0.1.0"
   meaning
-    says "What the public IA canon requires of governance-system's canon laws, one requirement per law that has an evaluator. Each check names the built-in evaluator for its requirement, and each case names the test that exercises it. Law canon-d9-no-secrets has no requirement here, because its evaluator is deferred, and A14, which constrains work-system words, is stated in work-system's own canon contract. No canon law is enforced by a check yet, so every law reports pending and no evaluator runs."
+    says "What the public IA canon requires of governance-system's canon laws, one requirement per law that has an evaluator. Each check names the built-in evaluator for its requirement, and each case names the test that exercises it. Law canon-d9-no-secrets has no requirement here, because its evaluator is deferred, and A14, which constrains work-system words, is stated in work-system's own canon contract. Laws canon-a6-source-roots, canon-c4-kit-words, canon-c5a-kit-workspace, canon-c12-teaching-links, canon-e4-local-tighten and canon-e5-mandate-narrow are enforced by their checks at advisory severity, so their evaluators run and report warnings that block nothing. Law canon-c6-kit-scripts is not enforced by its check yet and reports pending, as does canon-d9-no-secrets."
     answers "Which requirements does the public IA canon state, and which evaluator and tests cover each one?"
   invariants
     REQ-CANON-A6 "A knowledge repository or a kit holds one .ia/src per repository root; a nested .ia/src is reported unless it is a separately released or adopted workspace (law canon-a6-source-roots)."
