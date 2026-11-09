@@ -2,7 +2,7 @@
   "version": 1,
   "language": "ia 1.0",
   "status": "public IA 1.0 language contract",
-  "sourceDigest": "b12b5c96f347421c200168e7bdb4349d881401e13ab156df74ffe49126e90487",
+  "sourceDigest": "f535f2aa765ac0bbc1ed985e41cd7c03a3d2a092633b571933d6226e07bc66d6",
   "words": [
     {
       "word": "agent",
@@ -3730,13 +3730,13 @@
             "path": "template.parameters",
             "type": "list of id",
             "required": false,
-            "description": "The scalar renderer requires declared parameters; structured-v1 may omit this field or retain an empty list."
+            "description": "The scalar renderer requires declared parameters; structured may omit this field or retain an empty list."
           },
           {
             "path": "template.lines",
             "type": "list of text",
             "required": false,
-            "description": "The scalar renderer requires content lines; structured-v1 may omit this field or retain an empty list."
+            "description": "The scalar renderer requires content lines; structured may omit this field or retain an empty list."
           },
           {
             "path": "template.profile",
