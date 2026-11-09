@@ -8,6 +8,7 @@ import { digest, frozen, fail } from './format.js';
 import type { KnowledgeFile, Provenance } from './format.js';
 import { capture, nativeInput, requireFoundation } from './foundation.js';
 import type { Foundation } from './foundation.js';
+import { currentStamp } from './plain-format.js';
 export interface PortableContent {
   readonly format: string;
   readonly provenance: Provenance;
@@ -58,7 +59,8 @@ export function validateContent<T extends PortableContent>(portable: T, foundati
       if (
         !next ||
         next.digest !== r.digest ||
-        (portable.format !== 'iakb.portable.v1' &&
+        (portable.format !== 'kb-portable' &&
+          portable.format !== 'iakb.portable.v1' &&
           (next.source.path !== r.source.path || digest(next.placement) !== digest(r.placement)))
       )
         fail('Native foundation override refused');
@@ -153,7 +155,11 @@ export function validateContent<T extends PortableContent>(portable: T, foundati
         })
         .sort((a, b) => (a.key.path < b.key.path ? -1 : 1));
     const resourceBody = {
-      format: 'ia.captured-resources.v1',
+      // A portable or package written before formats stopped carrying a version derives its resources under the literal it
+      // was pinned with, so the digests it reproduced stay the same.
+      ...(!('formatVersion' in portable)
+        ? { format: 'ia.captured-resources.v1' as const }
+        : currentStamp('captured-resources')),
       sourceRevisions: inventory.sourceRevisions,
       nativeCaptureRevision: c.revision,
       files: resources,

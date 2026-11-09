@@ -131,7 +131,8 @@ it('registers each delivery refusal in RUNTIME_CODES', () => {
 it('orders the plan in one sort, prerequisites first and ties by milestone then task, from any seat in it', () => {
   const root = delivery('base'),
     delivered = view(root);
-  expect(delivered.format).toBe('ia.delivery-view.v1');
+  expect(delivered.format).toBe('delivery-view');
+  expect(delivered.formatVersion).toBe(1);
   expect(delivered.plan).toBe(id('plan', 'release'));
   // guide < schema by identity; examples requires schema; build requires foundation, though build sorts first.
   expect(delivered.tasks.map((t) => t.identity)).toEqual(
@@ -1602,7 +1603,7 @@ it('holds the next row of the machine protocol table to the Door', () => {
   const base = door(delivery('base'));
   expect(base.request({ operation: 'next', params: row.example })).toMatchObject({
     ok: true,
-    result: { format: 'ia.delivery-view.v1', plan: id('plan', 'release') },
+    result: { format: 'delivery-view', formatVersion: 1, plan: id('plan', 'release') },
   });
   expect(
     door(resolve(import.meta.dirname, '../../compliance/fixtures/loop')).request({

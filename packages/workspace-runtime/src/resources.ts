@@ -33,6 +33,7 @@ import {
   validateAssociations,
   verifyResourcesWith,
 } from './resource-context.js';
+import { currentStamp } from './plain-format.js';
 export { RESOURCE_LIMITS, ResourceError } from './resource-format.js';
 export { nativeResourcePath } from './resource-sources.js';
 export type {
@@ -121,7 +122,7 @@ export function captureResources(capture: Capture, request: ResourceCaptureReque
     for (const pin of pins) readPinnedResource(roots.get(pin.key.source)!.root, pin);
     for (const root of roots.values()) verifyPackageSource(root, context.capture);
     const body = {
-      format: 'ia.captured-resources.v1' as const,
+      ...currentStamp('captured-resources'),
       sourceRevisions: context.sourceRevisions,
       nativeCaptureRevision: context.capture.revision,
       files: ordered(files, (f) => keyOf(f.key)),

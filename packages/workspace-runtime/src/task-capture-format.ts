@@ -2,6 +2,7 @@ import { PHASES, PRIMITIVES } from '@inventarch/language';
 import type { Phase, Primitive } from '@inventarch/language';
 import { digest } from '@inventarch/session-system';
 import { hash, object, text } from './resource-format.js';
+import { peekStamp, stampKeys } from './plain-format.js';
 
 export const TASK_CAPTURE_BYTES = 700 * 1024;
 /** This policy selects by declared native relations, never by an inferred prose similarity. */
@@ -26,7 +27,8 @@ export interface TaskCaptureRequest {
   readonly primitive: Primitive;
 }
 export interface TaskCaptureSelection {
-  readonly format: 'ia.task-capture-selection.v1';
+  readonly format: 'task-capture-selection' | 'ia.task-capture-selection.v1';
+  readonly formatVersion?: 1;
   readonly request: TaskCaptureRequest;
   readonly policy: string;
   readonly implementation: string;
@@ -56,8 +58,9 @@ export function taskCaptureSelection(value: unknown): TaskCaptureSelection {
     value !== null &&
     typeof value === 'object' &&
     Object.getOwnPropertyDescriptor(value, 'policy')?.value === LEGACY_TASK_CAPTURE_POLICY;
+  const stamp = peekStamp(value, 'task-capture-selection', ['ia.task-capture-selection.v1']);
   const row = object(value, [
-    'format',
+    ...stampKeys(stamp),
     'request',
     'policy',
     'implementation',
@@ -68,10 +71,10 @@ export function taskCaptureSelection(value: unknown): TaskCaptureSelection {
     'teaching',
     'proof',
   ]);
-  if (row['format'] !== 'ia.task-capture-selection.v1' || (row['policy'] !== TASK_CAPTURE_POLICY && !legacy))
+  if (stamp === undefined || (row['policy'] !== TASK_CAPTURE_POLICY && !legacy))
     throw new Error('Unsupported task capture policy');
   return {
-    format: row['format'],
+    ...stamp,
     request: taskCaptureRequest(row['request']),
     policy: hash(row['policy']),
     implementation: hash(row['implementation']),

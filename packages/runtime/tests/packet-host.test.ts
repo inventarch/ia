@@ -587,7 +587,8 @@ it("returns a receipt whose file digests are the SHA-256 of each file's UTF-8 te
   // The participant's `says` is not ASCII, so its UTF-8 bytes are what the digest covers.
   expect(Buffer.byteLength(files[0]!.text, 'utf8')).toBeGreaterThan(files[0]!.text.length);
   expect(receipt).toEqual({
-    format: 'ia.packet-receipt.v1',
+    format: 'packet-receipt',
+    formatVersion: 1,
     host: 'claude',
     cli: null,
     adapter: `ia-claude@${version}`,
@@ -645,4 +646,25 @@ it("refuses an unknown host or target, and a digest that is not the packet's", (
     expect(() => renderHost(host as PacketHost, HAND, digest(HAND), NOTE, 'consumer')).toThrow(invalid);
   expect(() => renderHost('claude', HAND, digest(HAND), NOTE, 'ci' as PacketTarget)).toThrow(invalid);
   expect(() => renderHost('claude', HAND, 'f'.repeat(64), NOTE, 'consumer')).toThrow(invalid);
+});
+
+// A packet digested before formats stopped carrying a version still renders and verifies as written: the format is not
+// printed in the entry file, so both stamps render the same files, and the receipt it returns is the plain one.
+it('renders a packet under its original literal and under the plain stamp to the same files', () => {
+  const { format: _format, formatVersion: _version, ...rest } = HAND,
+    plain: PositionPacket = { ...rest, format: 'position-packet', formatVersion: 1 };
+  expect(HAND.format).toBe('ia.position-packet.v1');
+  expect(Object.hasOwn(HAND, 'formatVersion')).toBe(false);
+  expect(digest(plain)).not.toBe(digest(HAND));
+  for (const host of ['claude', 'codex'] as const) {
+    const original = renderHost(host, HAND, digest(HAND), NOTE, 'repository'),
+      current = renderHost(host, plain, digest(plain), NOTE, 'repository');
+    // Only the provenance line's digest differs: it names the digest of the packet as digested.
+    expect(current.files.map((file) => file.path)).toEqual(original.files.map((file) => file.path));
+    expect(original.receipt).toMatchObject({ format: 'packet-receipt', formatVersion: 1, packetDigest: digest(HAND) });
+    expect(current.receipt).toMatchObject({ format: 'packet-receipt', formatVersion: 1, packetDigest: digest(plain) });
+    // A digest that is not the packet's, under either stamp, is still refused.
+    expect(() => renderHost(host, plain, digest(HAND), NOTE, 'repository')).toThrow();
+    expect(() => renderHost(host, HAND, digest(plain), NOTE, 'repository')).toThrow();
+  }
 });

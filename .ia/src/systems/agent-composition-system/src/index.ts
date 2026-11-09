@@ -1,6 +1,7 @@
 export type { Manifest, Profile, OperationDefinition } from '@inventarch/agent-system';
 export { compileHarness } from './compile.js';
-export { executionManifest, compiledAliases } from './execution.js';
+export type { CompiledStamp } from './compile.js';
+export { executionManifest, compiledAliases, compiledStamp } from './execution.js';
 /** The workspace-runtime pin plus this package's own installed bytes; not the bare @inventarch/workspace-runtime export. */
 export { installedImplementationDigest } from './installed-catalog.js';
 export type { CompileOptions } from './compile.js';

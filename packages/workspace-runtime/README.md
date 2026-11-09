@@ -39,10 +39,10 @@ try {
 | Entry point | Use it for |
 | --- | --- |
 | `.` | `captureWorkspace`, `adoptWorkspace`, `verifyCapture` and `Corpus`, plus `candidateValidation`, `managedPublication` and `installedImplementationDigest`. |
-| `./corpus` | The capture and adoption API on its own. `Corpus` also offers `context(grant)` and `adapter`, the `ia.corpus.inspect.v1` operation that lists, reads, searches and resolves captured sources. |
+| `./corpus` | The capture and adoption API on its own. `Corpus` also offers `context(grant)` and `adapter`, the `corpus-inspect` operation (also answered as `ia.corpus.inspect.v1`) that lists, reads, searches and resolves captured sources. |
 | `./bind` | `executionBindings` and `bindExecution`: join each `@execution-binding` to the installed-implementation catalog as `bound`, `unavailable` or `revoked`. |
 | `./resources`, `./resource-format`, `./resource-sources` | `captureResources`, `verifyResources` and `resolveResources`: capture, verify and resolve the teaching resources that records cite. |
-| `./projections` | `compileProjection` compiles a projection descriptor over a capture and its resources into an `ia.projection-result.v1` result; `claudeProseCatalog` and `codexProseCatalog` build the host catalogs. |
+| `./projections` | `compileProjection` compiles a projection descriptor over a capture and its resources into a `projection-result` result; `claudeProseCatalog` and `codexProseCatalog` build the host catalogs. |
 | `./templates` | `renderCapturedTemplate` renders a captured `@template`. |
 | `./lifecycle`, `./lifecycle-profile` | `prepareLifecycleContext` and `prepareScopedContext` assemble lifecycle context; `lifecycleProfile` returns a host's lifecycle profile. |
 | `./authoring`, `./authoring-manifest`, `./authoring-format`, `./authoring-types` | `resolveAuthoring` and `prepareAuthoringTarget` over the authoring index; `captureAuthoringManifest` and `openLocalAuthoringView` over `.ia/authoring.resources.json`. |

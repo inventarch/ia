@@ -14,9 +14,11 @@ import { verifySelection } from './package.js';
 import type { KnowledgeSelection } from './package.js';
 import { readKnowledgeSelection, selectableKnowledgeRecord } from './selection.js';
 import type { validateContent } from './validate.js';
+import { currentStamp } from './plain-format.js';
 export type KnowledgeRecord = ReturnType<typeof validateContent>['records'][number];
 export interface KnowledgeSnapshot {
-  readonly format: 'ia.kb.snapshot.v1';
+  readonly format: 'kb-snapshot';
+  readonly formatVersion: 1;
   readonly sourceId: string;
   readonly digest: string;
   readonly nativeGraphRevision: string;
@@ -166,7 +168,7 @@ export function captureKnowledge(root: string, options: KnowledgeOptions = {}): 
     };
     // Refusals expose selected records only; whole-workspace diagnostic paths are not copied to scoped responses.
     const base = {
-      format: 'ia.kb.snapshot.v1' as const,
+      ...currentStamp('kb-snapshot'),
       sourceId: c.id,
       nativeGraphRevision: reader.revision,
       records,

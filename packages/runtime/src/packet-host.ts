@@ -7,6 +7,7 @@ import type { PacketHostNote, PositionPacket } from './packet.js';
 import type { ScopeKey } from './scope-key.js';
 import { scopeKeyTextParts } from './scope-key.js';
 import { freeze } from './types.js';
+import { currentStamp } from './plain-format.js';
 
 /**
  * The host adapters (SPEC R20). `renderHost` renders one position packet (R19) for the claude or the
@@ -128,7 +129,8 @@ export type PacketDefinition =
  * `writtenAt` null; the caller that writes and deletes the files sets those five.
  */
 export interface PacketReceipt {
-  readonly format: 'ia.packet-receipt.v1';
+  readonly format: 'packet-receipt' | 'ia.packet-receipt.v1';
+  readonly formatVersion?: 1;
   readonly host: PacketHost;
   /** The applying CLI's `<id>@<version>`, which only that caller knows. */
   readonly cli: string | null;
@@ -432,7 +434,7 @@ export function renderHost(
     ...paths.skills.map((path) => ({ path, text: skill(target, packet.revision) })),
   ];
   const receipt: PacketReceipt = {
-    format: 'ia.packet-receipt.v1',
+    ...currentStamp('packet-receipt'),
     host,
     cli: null,
     adapter,

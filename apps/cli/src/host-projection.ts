@@ -858,7 +858,8 @@ export function readReceipt(root: string, host: HostName): PacketReceipt | null 
     row === null ||
     typeof row !== 'object' ||
     Array.isArray(row) ||
-    row.format !== 'ia.packet-receipt.v1' ||
+    ((row.format !== 'packet-receipt' || row.formatVersion !== 1) &&
+      (row.format !== 'ia.packet-receipt.v1' || Object.hasOwn(row, 'formatVersion'))) ||
     row.host !== host ||
     !HEX.test(String(row.packetDigest)) ||
     !digests(row.files) ||
