@@ -2449,6 +2449,7 @@
         "tests/editor.test.ts",
         "tests/handle.test.ts",
         "tests/inputs.test.ts",
+        "tests/language-floor.test.ts",
         "tests/membership.test.ts",
         "tests/open-follows-links.test.ts",
         "tests/paths.test.ts",
@@ -3787,6 +3788,7 @@
         "tools/native/check.test.ts",
         "tools/native/language-base.test.ts",
         "tools/native/language-bases.test.ts",
+        "tools/native/language-compat.test.ts",
         "tools/native/public-systems.test.ts",
         "tools/native/stewardship.test.ts",
         "tools/native/canon-cases.test.ts"
@@ -4406,6 +4408,30 @@
       "resourceClass": "io",
       "covers": [
         "node --conditions=development --import tsx tools/native/public-vocabulary.ts --check"
+      ]
+    },
+    {
+      "id": "language-compat:check",
+      "kind": "command",
+      "project": ".",
+      "command": "pnpm language-compat:check",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [],
+      "outputs": [
+        "artifacts/tests/language-compat-check"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "node --conditions=development --import tsx tools/native/language-compat.ts --check"
       ]
     },
     {
