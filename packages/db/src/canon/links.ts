@@ -226,8 +226,10 @@ function atxContent(line: string): string | null {
 }
 
 /**
- * The tables `inlineLinks` fills, kept between lines so that a document of many short lines allocates them once. A
- * line longer than `REUSED` gets tables of its own, so one huge line does not hold its memory after the scan.
+ * The tables `inlineLinks` fills, kept between lines so that a document of many short lines allocates them once. They
+ * grow to at most `REUSED` entries each, so at most 8 × 65536 × 4 B = 2 MiB stays allocated for the life of the
+ * process. A span of `REUSED` code units or more gets tables of its own, so one huge line does not hold its memory
+ * after the scan.
  */
 const REUSED = 1 << 16;
 let tables: Int32Array[] = [];
@@ -286,12 +288,13 @@ function inlineLinks(whole: string): { raw: string; image: boolean }[] {
   fillNext(paren, line, ')', first);
   fillNext(angle, line, '>', first);
   space[size] = label[size] = inner[size] = plain[size] = size;
-  // The first `]` after `at`, else -1; and the code unit after `at`, else -1.
+  // The first `]` after `at`, else -1; and the code unit after `at`, else -1 (the slice ends in `)`, so a backslash
+  // always has a next unit).
   let bracket = -1,
     next = -1;
   for (let at = size - 1; at >= first; at--) {
     const code = line.charCodeAt(at),
-      blank = code <= 0x20 ? code === 0x20 || (code >= 0x09 && code <= 0x0d) : code >= 0xa0 && isSpaceCode(code);
+      blank = isSpaceCode(code);
     if (!blank && code !== 0x5b && code !== 0x5c && code !== 0x5d && code !== 0x28 && code !== 0x29) {
       // A code unit none of the parts below stops at.
       space[at] = at;
