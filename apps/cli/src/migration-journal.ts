@@ -12,6 +12,7 @@ import { Refusal } from './consumer.js';
 import { projectionEvidence } from './host-projection.js';
 import { quote } from './render.js';
 import type { BasePin, MigrationView } from './init.js';
+import { WRITE_PLAIN_NAMES } from './written-names.js';
 
 export const MIGRATION_JOURNAL = '.ia/migration.json';
 type State = { readonly digest: string; readonly bytes: string } | 'directory' | null;
@@ -226,8 +227,9 @@ export function beginMigrationJournal(input: MigrationView, ignore: string): Mig
     ]),
   );
   const journal: MigrationJournal = {
-    format: 'migration',
-    formatVersion: 1,
+    ...(WRITE_PLAIN_NAMES
+      ? ({ format: 'migration', formatVersion: 1 } as const)
+      : ({ format: 'ia-migration-1' } as const)),
     view,
     operations,
     lockDigest,

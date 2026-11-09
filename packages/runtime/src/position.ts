@@ -11,7 +11,7 @@ import { statedText } from './render.js';
 import { SCOPE_KEY_CAPS, normalizeScopeKey, resolveScopeKey } from './scope-key.js';
 import type { ResolvedScopeKey, ResolvedSeat, ScopeKey } from './scope-key.js';
 import { freeze } from './types.js';
-import { currentStamp } from './plain-format.js';
+import { writeStamp } from './plain-format.js';
 
 /**
  * The position body: body(K), with its bound, order keys, quantification and traversal (SPEC R15 and R17). `position`
@@ -208,8 +208,8 @@ export interface PositionWidening {
   readonly reseat: Pick<ScopeKey, 'shape' | 'phase' | 'depth' | 'budget' | 'primitive'>;
 }
 export interface PositionBody {
-  readonly format: 'position-body';
-  readonly formatVersion: 1;
+  readonly format: 'position-body' | 'ia.position-body.v1';
+  readonly formatVersion?: 1;
   /**
    * The authored revision of the view the scope reads (db `Snapshot.authoredRevision`): its graph revision without the
    * sources at runtime placement, so a runtime-band source leaves it unchanged. The format keeps its name; earlier,
@@ -872,7 +872,7 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
     tallied = pointers.slice(LISTED),
     frontierIds = [...frontier];
   const body: PositionBody = {
-    ...currentStamp('position-body'),
+    ...writeStamp('position-body', 'ia.position-body.v1'),
     revision: snapshot.authoredRevision,
     key,
     seat,

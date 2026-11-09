@@ -25,8 +25,8 @@ export interface LocatedImplementation extends PayloadImplementation {
   reason: string | null;
 }
 export interface PayloadCatalog {
-  format: 'installed-implementations';
-  formatVersion: 1;
+  format: 'installed-implementations' | 'ia.installed-implementations.v1';
+  formatVersion?: 1;
   evaluators: { format: string; entries: unknown[] };
   operations: ({ id: string; status: 'available' | 'unavailable'; reason?: string } & Record<string, unknown>)[];
 }

@@ -10,6 +10,7 @@ import { Corpus, verifyCapture } from '@inventarch/workspace-runtime/corpus';
 import type { Capture } from '@inventarch/workspace-runtime/corpus';
 import { compiledAliases, compiledStamp, executionManifest } from './execution.js';
 import { installedImplementationDigest } from './installed-catalog.js';
+import { WRITE_PLAIN_NAMES } from './written-names.js';
 
 /** Fixed first-party identities. Native/model inputs never select a module or handler. */
 export const INSTALLED_READ = Object.freeze({
@@ -54,8 +55,13 @@ const outputSchema: Json = {
   additionalProperties: false,
 };
 
-/** Each old read name mapped to the plain name that replaces it, for the host to pass to `compileHarness`. */
+/**
+ * Each old read name mapped to the plain name that replaces it, for the host to pass to `compileHarness`. Until
+ * `WRITE_PLAIN_NAMES` is flipped the table is empty, so a record that names the original read compiles to the original
+ * entry and the harness pins and dispatches exactly what the released programs know.
+ */
 export function installedReadAliases(): CatalogAliases {
+  if (!WRITE_PLAIN_NAMES) return {};
   return {
     operations: { [INSTALLED_READ_LEGACY.implementation]: INSTALLED_READ.implementation },
     validators: {

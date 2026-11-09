@@ -28,6 +28,7 @@ import {
   unaliased,
   utf8,
   versionedDocument,
+  stamped,
   versionedObject,
   workspace,
 } from './files.js';
@@ -55,8 +56,8 @@ interface Cache {
 /** What the pure planners need of a cache: a verified one, or the v2 payload a caller is about to materialize. */
 export type HostCacheTarget = Pick<Cache, 'directory' | 'release' | 'name' | 'host' | 'launcher'>;
 interface State {
-  format: 'host-state';
-  formatVersion: 1;
+  format: 'host-state' | 'ia.host-state.v1';
+  formatVersion?: 1;
   host: Host;
   id: string;
   cache: string;
@@ -79,8 +80,8 @@ export interface HostPlan {
   digest: string;
 }
 interface Pending {
-  format: 'host-pending';
-  formatVersion: 1;
+  format: 'host-pending' | 'ia.host-pending.v1';
+  formatVersion?: number;
   host: Host;
   id: string;
   before: { config: string | null; state: string | null };
@@ -450,8 +451,7 @@ function planHostWith(root: string, host: Host, cache: HostCacheTarget | null, r
   }
   const afterState = cache
     ? json({
-        format: 'host-state',
-        formatVersion: 1,
+        ...stamped('host-state', 'ia.host-state.v1'),
         host,
         id: name,
         cache: cache.directory,
@@ -549,7 +549,7 @@ export function applyHost(
     const plan = planHost(root, host, input['cache'], name);
     if (json(plan) !== json(value)) fail('PLAN-STALE', 'Host plan no longer matches selected inputs');
     const before = { config: read(root, configFile(host)), state: read(root, stateFile(host, name)) },
-      pending: Pending = { format: 'host-pending', formatVersion: 1, host, id: name, before, after: plan.after };
+      pending: Pending = { ...stamped('host-pending', 'ia.host-pending.v1'), host, id: name, before, after: plan.after };
     replace(root, pendingFile, Buffer.from(json(pending)));
     checkpoint('pending');
     same(root, configFile(host), before.config);

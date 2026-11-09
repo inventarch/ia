@@ -16,6 +16,7 @@ import { basename, dirname, isAbsolute, join, posix, relative, resolve } from 'n
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import ts from 'typescript';
 import { isEntry } from '../entry/is-entry.mjs';
+import { WRITE_PLAIN_NAMES } from '../written-names.mjs';
 
 const ROOTS = ['apps/cli', 'apps/distribution', 'apps/mcp-door', 'apps/steward-hook'];
 /** Imported only by the private service bridge (apps/mcp-door/src/service*.ts); the public door never loads them. */
@@ -29,12 +30,18 @@ export const EXCLUDED = new Set(['@modelcontextprotocol/client', '@inventarch/se
  * package or module is not there is listed as unavailable.
  */
 export const IMPLEMENTATIONS = Object.freeze([
-  Object.freeze({
-    id: 'captured-source-read',
-    package: '@inventarch/agent-composition-system',
-    module: 'dist/installed-read.js',
-    declaration: 'installedReadCatalog',
-  }),
+  // The plain id is listed once `WRITE_PLAIN_NAMES` is flipped; until then the catalog lists exactly what the released
+  // programs know.
+  ...(WRITE_PLAIN_NAMES
+    ? [
+        Object.freeze({
+          id: 'captured-source-read',
+          package: '@inventarch/agent-composition-system',
+          module: 'dist/installed-read.js',
+          declaration: 'installedReadCatalog',
+        }),
+      ]
+    : []),
   // The id this implementation shipped under before names stopped carrying their version. A workspace whose binding
   // still names it binds the same handler module, so the catalog keeps listing it beside the plain id.
   Object.freeze({
@@ -382,8 +389,9 @@ export async function generateHostPayload({ repository, write, implementations =
   for (const implementation of [...located].sort((a, b) => (a.id < b.id ? -1 : 1)))
     operations.push(await operationRow(implementation, files));
   const catalog = installedImplementationsValue({
-    format: 'installed-implementations',
-    formatVersion: 1,
+    ...(WRITE_PLAIN_NAMES
+      ? { format: 'installed-implementations', formatVersion: 1 }
+      : { format: 'ia.installed-implementations.v1' }),
     evaluators: { format: 'ia-evaluator-catalog/1.0', entries: [] },
     operations,
   });
@@ -393,8 +401,7 @@ export async function generateHostPayload({ repository, write, implementations =
     throw Error(`Runtime closure of ${runtimeBytes} bytes exceeds the ${PAYLOAD_BYTES}-byte payload ceiling`);
   const version = JSON.parse(readFileSync(resolve(repository, 'apps/cli/package.json'), 'utf8')).version;
   const inventory = json({
-    format: 'host-cache',
-    formatVersion: 2,
+    ...(WRITE_PLAIN_NAMES ? { format: 'host-cache', formatVersion: 2 } : { format: 'ia.host-cache.v2' }),
     version,
     packages,
     files: [...files]
@@ -406,8 +413,7 @@ export async function generateHostPayload({ repository, write, implementations =
     hash(inventory),
   );
   const release = json({
-    format: 'host-release',
-    formatVersion: 2,
+    ...(WRITE_PLAIN_NAMES ? { format: 'host-release', formatVersion: 2 } : { format: 'ia.host-release.v2' }),
     inventory: hash(inventory),
     launcher: hash(launcher),
   });

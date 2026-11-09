@@ -19,7 +19,7 @@ import { MethodError } from './errors.js';
 import { findKit, folderKits, homeFolder, iaHome } from './kits.js';
 import type { Kit } from './kits.js';
 import { canonical } from './packet.js';
-import { currentStamp, peekStamp } from '../plain-format.js';
+import { peekStamp, writeStamp } from '../plain-format.js';
 
 /**
  * Retained method bytes: an exact copy of a kit and of its carrier's scripts and support files, stored by the digest of
@@ -172,7 +172,7 @@ export function retainKit(kit: Kit, store: string = closureStore()): Kit {
   if (source.length > 10000 || source.reduce((sum, entry) => sum + entry.bytes, 0) > 128 * 1024 * 1024)
     fail('retained method resource limit exceeded');
   const manifest = {
-    ...currentStamp(FORMAT),
+    ...writeStamp(FORMAT, LEGACY_FORMATS[0]),
     kit: kit.id,
     files: source.map(({ path, sha256, bytes }) => ({ path, sha256, bytes })),
   };

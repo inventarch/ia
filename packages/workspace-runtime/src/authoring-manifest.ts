@@ -34,7 +34,7 @@ import type {
   ResourceOccurrence,
   ResourceRoot,
 } from './resources.js';
-import { currentStamp, peekStamp, stampKeys } from './plain-format.js';
+import { peekStamp, stampKeys, writeStamp } from './plain-format.js';
 
 export interface AuthoringManifestImport {
   readonly alias: string;
@@ -478,7 +478,7 @@ export function captureAuthoringManifestBytes(
     return { ...pin, content: selected };
   });
   const body = {
-    ...currentStamp('captured-resources'),
+    ...writeStamp('captured-resources', 'ia.captured-resources.v1'),
     nativeCaptureRevision: capture.revision,
     sourceRevisions: resourceOccurrences(capture).sourceRevisions,
     files: ordered(files, (file) => keyOf(file.key)),

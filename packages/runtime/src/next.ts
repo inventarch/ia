@@ -7,7 +7,7 @@ import { RUNTIME_CODES } from './errors.js';
 import type { RuntimeCode } from './errors.js';
 import { statedText } from './render.js';
 import { freeze } from './types.js';
-import { currentStamp } from './plain-format.js';
+import { writeStamp } from './plain-format.js';
 
 /**
  * The delivery view, with the five state lines of each task (SPEC R18), which `ia next` reads.
@@ -134,8 +134,8 @@ export interface ReviewItem {
   readonly message: string;
 }
 export interface DeliveryView {
-  readonly format: 'delivery-view';
-  readonly formatVersion: 1;
+  readonly format: 'delivery-view' | 'ia.delivery-view.v1';
+  readonly formatVersion?: 1;
   /**
    * The authored revision of the view the scope reads (db `Snapshot.authoredRevision`): runtime-band evidence that the
    * view counts as exit evidence moves its verdicts, never this revision.
@@ -1092,7 +1092,7 @@ export function deliveryView(handle: ReadHandle, within: string, seat?: string):
   return freeze({
     ok: true,
     view: {
-      ...currentStamp('delivery-view'),
+      ...writeStamp('delivery-view', 'ia.delivery-view.v1'),
       revision: snapshot.authoredRevision,
       plan,
       milestones: plannedMilestones,

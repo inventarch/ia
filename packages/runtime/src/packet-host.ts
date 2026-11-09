@@ -7,7 +7,7 @@ import type { PacketHostNote, PositionPacket } from './packet.js';
 import type { ScopeKey } from './scope-key.js';
 import { scopeKeyTextParts } from './scope-key.js';
 import { freeze } from './types.js';
-import { currentStamp } from './plain-format.js';
+import { writeStamp } from './plain-format.js';
 
 /**
  * The host adapters (SPEC R20). `renderHost` renders one position packet (R19) for the claude or the
@@ -434,7 +434,7 @@ export function renderHost(
     ...paths.skills.map((path) => ({ path, text: skill(target, packet.revision) })),
   ];
   const receipt: PacketReceipt = {
-    ...currentStamp('packet-receipt'),
+    ...writeStamp('packet-receipt', 'ia.packet-receipt.v1'),
     host,
     cli: null,
     adapter,

@@ -11,6 +11,7 @@ import { EditorSnapshot } from '@inventarch/db/editor';
 import { canonical, digest, SessionError } from '@inventarch/session-system';
 import type { Json } from '@inventarch/session-system';
 import type { Grant, OperationAdapter } from '@inventarch/agent-system';
+import { written } from './plain-format.js';
 
 /** The adapter id this inspection shipped under before ids stopped carrying their version; still answered. */
 export const LEGACY_CORPUS_INSPECT_HANDLER = 'ia.corpus.inspect.v1';
@@ -136,7 +137,8 @@ export class Corpus {
     };
   }
   readonly adapter: OperationAdapter = {
-    id: CORPUS_INSPECT_HANDLER,
+    // The id a manifest names is the original until `WRITE_PLAIN_NAMES` is flipped.
+    id: written(CORPUS_INSPECT_HANDLER, LEGACY_CORPUS_INSPECT_HANDLER),
     execute: async (input, context) => {
       this.authorize(context.grant);
       const args = input as { operation: string; query?: string; path?: string; start?: number; limit?: number };
@@ -207,7 +209,7 @@ export class Corpus {
   /** The adapter under the plain id and the original one, for manifests pinned before the rename. */
   get adapters(): Readonly<Record<string, OperationAdapter>> {
     return Object.freeze({
-      [CORPUS_INSPECT_HANDLER]: this.adapter,
+      [CORPUS_INSPECT_HANDLER]: { ...this.adapter, id: CORPUS_INSPECT_HANDLER },
       [LEGACY_CORPUS_INSPECT_HANDLER]: { ...this.adapter, id: LEGACY_CORPUS_INSPECT_HANDLER },
     });
   }

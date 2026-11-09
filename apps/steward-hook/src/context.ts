@@ -28,6 +28,7 @@ import type {
 } from '@inventarch/workspace-runtime/lifecycle';
 import type { AuthoringTarget, LifecycleCoordinate } from '@inventarch/workspace-runtime/authoring';
 import { COORDINATE_DOMAINS, isEntry, prepareCoordinate } from '@inventarch/runtime';
+import { WRITE_PLAIN_NAMES } from './written-names.js';
 
 export interface ContextHookBindingInput {
   /** `context-hook-binding` with `formatVersion` 1, or the legacy `ia.context-hook-binding.v1` literal (no `formatVersion`), whose digest verifies as written. */
@@ -454,8 +455,9 @@ export function contextHookImplementationDigest(directory = import.meta.dirname)
   if (source === emitted) fail('Hook implementation is partial or mixed');
   return hash(
     canonicalDistributionJson({
-      format: 'context-hook-implementation',
-      formatVersion: 1,
+      ...(WRITE_PLAIN_NAMES
+        ? { format: 'context-hook-implementation', formatVersion: 1 }
+        : { format: 'ia.context-hook-implementation.v1' }),
       native: installedImplementationDigest(),
       kind: source ? 'source' : 'emitted',
       files,
@@ -660,8 +662,9 @@ export async function runContextHook(argv: readonly string[], input: string): Pr
   if (argv.length === 1 && argv[0] === 'identity') {
     const profile = lifecycleProfile('claude-code', SELECTED_CLAUDE_CODE_VERSION);
     return {
-      format: 'context-hook-identity',
-      formatVersion: 2,
+      ...(WRITE_PLAIN_NAMES
+        ? ({ format: 'context-hook-identity', formatVersion: 2 } as const)
+        : ({ format: 'ia.context-hook-identity.v2' } as const)),
       implementation: contextHookImplementationDigest(),
       profile: profile.digest,
       slots: profile.maxContextParts,

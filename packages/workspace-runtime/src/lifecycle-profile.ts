@@ -1,7 +1,7 @@
 import { stableSerialize } from '@inventarch/graph';
 import { decodeJson, frozen, metadataDigest } from './resource-format.js';
 import { claudeCodeRows, profileFromRows } from './lifecycle-rows.js';
-import { currentStamp, peekStamp } from './plain-format.js';
+import { peekStamp, writeStamp } from './plain-format.js';
 
 export class LifecycleError extends Error {
   constructor(
@@ -219,7 +219,7 @@ export function decodeLifecycleEvent(inputProfile: LifecycleProfile, input: stri
   const key =
     !start && promptId !== null
       ? metadataDigest({
-          ...currentStamp('lifecycle-input-key'),
+          ...writeStamp('lifecycle-input-key', 'ia.lifecycle-input-key.v1'),
           profile: profile.digest,
           session,
           agent,
@@ -228,7 +228,7 @@ export function decodeLifecycleEvent(inputProfile: LifecycleProfile, input: stri
         })
       : null;
   return frozen({
-    ...currentStamp('lifecycle-event'),
+    ...writeStamp('lifecycle-event', 'ia.lifecycle-event.v1'),
     profile: profile.digest,
     host: profile.host,
     kind: start ? 'start' : 'prompt',
@@ -261,7 +261,7 @@ export function createNativeLifecycleEvent(input: {
     promptId === null
       ? null
       : metadataDigest({
-          ...currentStamp('lifecycle-input-key'),
+          ...writeStamp('lifecycle-input-key', 'ia.lifecycle-input-key.v1'),
           profile: profile.digest,
           session,
           agent,
@@ -269,7 +269,7 @@ export function createNativeLifecycleEvent(input: {
           event: 'NativeContext',
         });
   return frozen({
-    ...currentStamp('lifecycle-event'),
+    ...writeStamp('lifecycle-event', 'ia.lifecycle-event.v1'),
     profile: profile.digest,
     host: profile.host,
     kind: 'native',

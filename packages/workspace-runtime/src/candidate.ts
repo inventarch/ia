@@ -5,6 +5,7 @@ import type { Json } from '@inventarch/session-system';
 import type { OperationAdapter, OperationDefinition } from '@inventarch/agent-system';
 import { verifyCapture } from './corpus.js';
 import type { Capture } from './corpus.js';
+import { written } from './plain-format.js';
 
 export function candidateInputSchema(): Json {
   const string = { type: 'string' },
@@ -39,7 +40,9 @@ export function candidateValidation(
   /** The same adapter under the plain handler and the original one, for manifests pinned before the rename. */
   adapters: Readonly<Record<string, OperationAdapter>>;
 } {
-  const frozen = verifyCapture(capture),
+  // The handler a binding names is the one it carries: the original until `WRITE_PLAIN_NAMES` is flipped.
+  const handler = written(CANDIDATE_VALIDATE_HANDLER, LEGACY_CANDIDATE_VALIDATE_HANDLER),
+    frozen = verifyCapture(capture),
     boundary = JSON.parse(JSON.stringify(scope)) as CandidateScope;
   if (
     boundary.revision !== frozen.revision ||
@@ -57,9 +60,9 @@ export function candidateValidation(
   });
   const definition: OperationDefinition = {
     id: 'candidate.validate',
-    handler: CANDIDATE_VALIDATE_HANDLER,
+    handler,
     digest: digest({
-      implementation: CANDIDATE_VALIDATE_HANDLER,
+      implementation: handler,
       implementationDigest,
       capture: frozen.revision,
       boundary,
@@ -108,7 +111,7 @@ export function candidateValidation(
     definition,
     adapter,
     adapters: Object.freeze({
-      [CANDIDATE_VALIDATE_HANDLER]: adapter,
+      [CANDIDATE_VALIDATE_HANDLER]: { ...adapter, id: CANDIDATE_VALIDATE_HANDLER },
       [LEGACY_CANDIDATE_VALIDATE_HANDLER]: { ...adapter, id: LEGACY_CANDIDATE_VALIDATE_HANDLER },
     }),
   };

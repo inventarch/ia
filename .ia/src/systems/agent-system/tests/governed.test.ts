@@ -1,11 +1,19 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import { copy, digest, memoryStore } from '@inventarch/session-system';
 import { sqliteStore } from '@inventarch/session-system/sqlite';
 import type { Json, SessionStore } from '@inventarch/session-system';
 import { Engine, manifestDigest } from '../src/index.js';
+
+/** The package's one switch, flipped here to prove the plain names come back exactly when the follow-up release flips it. */
+const flip = vi.hoisted(() => ({ plain: false }));
+vi.mock('../src/written-names.js', () => ({
+  get WRITE_PLAIN_NAMES() {
+    return flip.plain;
+  },
+}));
 import type {
   EngineHost,
   ExecutionContract,
@@ -31,7 +39,7 @@ const contract = (): ExecutionContract => ({
   limits: {},
   delegation: [{ profile: 'child', limits: { modelCalls: 1, children: 0, depth: 0 } }],
   checks: [],
-  completionEvaluator: 'completion',
+  completionEvaluator: 'ia.completion.v1',
   repairAttempts: 1,
   maxAttempts: 2,
 });
@@ -778,7 +786,7 @@ it.each(['caller', 'deadline'] as const)(
   },
 );
 
-function independent(f: ReturnType<typeof fixture>, rule: string = 'independent-exact-candidate') {
+function independent(f: ReturnType<typeof fixture>, rule: string = 'independent-exact-candidate-v1') {
   f.manifest.profiles['author']!.contract!.review = {
     rule: rule as 'independent-exact-candidate',
     reviewer: 'bob',
@@ -850,7 +858,7 @@ it('records an independent review without transferring session ownership and app
     actor: 'bob',
     review: {
       reviewer: 'bob',
-      rule: 'independent-exact-candidate',
+      rule: 'independent-exact-candidate-v1',
       authority: { mandate: 'review-mandate', policyRevision: 'policy-1' },
     },
   });
@@ -934,11 +942,21 @@ const published = (request: ModelRequest) => ({
     (request.history.find((row) => (row as { target?: string }).target === 'publish') as { receipt: string }).receipt,
   ],
 });
-it('writes the plain operator review rule and the plain completion evaluator', async () => {
-  const f = fixture(),
-    { proposal } = await offered(f);
-  expect(proposal.review!.rule).toBe('operator-exact-candidate');
-  expect((await f.store.read('session')).runs['root']!.contract).toMatchObject({ evaluator: 'completion' });
+it('writes the released operator review rule and completion evaluator until the switch flips, then the plain names', async () => {
+  for (const [plain, rule, evaluator] of [
+    [false, 'operator-exact-candidate-v1', 'ia.completion.v1'],
+    [true, 'operator-exact-candidate', 'completion'],
+  ] as const) {
+    flip.plain = plain;
+    try {
+      const f = fixture(),
+        { proposal } = await offered(f);
+      expect(proposal.review!.rule).toBe(rule);
+      expect((await f.store.read('session')).runs['root']!.contract).toMatchObject({ evaluator });
+    } finally {
+      flip.plain = false;
+    }
+  }
 });
 it.each(['operator-exact-candidate', 'operator-exact-candidate-v1'])(
   'applies a stored review carrying the %s rule and refuses an unknown rule',
@@ -962,13 +980,21 @@ it.each(['operator-exact-candidate', 'operator-exact-candidate-v1'])(
   },
 );
 it.each(['independent-exact-candidate', 'independent-exact-candidate-v1'])(
-  'accepts the %s independent policy, records the plain rule and reads an old stored review',
+  'accepts the %s independent policy, records the policy rule (the plain one once the switch flips) and reads an old stored review',
   async (rule) => {
     const f = fixture(),
       { action } = await independentAccepted(f, rule);
-    expect(Object.values((await f.store.read('session')).proposals)[0]!.review!.rule).toBe(
-      'independent-exact-candidate',
-    );
+    expect(Object.values((await f.store.read('session')).proposals)[0]!.review!.rule).toBe(rule);
+    flip.plain = true;
+    try {
+      const flipped = fixture();
+      await independentAccepted(flipped, rule);
+      expect(Object.values((await flipped.store.read('session')).proposals)[0]!.review!.rule).toBe(
+        'independent-exact-candidate',
+      );
+    } finally {
+      flip.plain = false;
+    }
     storedReviewRule(f, 'independent-exact-candidate-v1');
     let n = 0;
     scripted(f, (request) => (n++ === 0 ? action : published(request)));

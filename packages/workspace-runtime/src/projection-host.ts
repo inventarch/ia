@@ -13,7 +13,7 @@ import {
   serializeCodexExport,
 } from './projection-codex.js';
 import type { SerializedExport } from './projection-codex.js';
-import { currentStamp, peekStamp, stampKeys } from './plain-format.js';
+import { peekStamp, stampKeys, writeStamp, written } from './plain-format.js';
 import type { Stamp } from './plain-format.js';
 
 export { CODEX_PROSE_FEATURES, codexAgentRegistration } from './projection-codex.js';
@@ -56,13 +56,14 @@ export function claudeProseCatalog(
     inputFields: [],
   },
 ): ProjectionCatalog {
-  return proseCatalog(CLAUDE_PROSE_PROFILE, implementationDigest, selections);
+  // The profile id is the original until `WRITE_PLAIN_NAMES` is flipped, as the released programs that read it expect.
+  return proseCatalog(written(CLAUDE_PROSE_PROFILE, LEGACY_CLAUDE_PROSE_PROFILE), implementationDigest, selections);
 }
 function proseCatalog(
   profile: string,
   implementationDigest: string,
   selections: Pick<ProjectionCatalog, 'models' | 'tools' | 'inputFields'>,
-  stamp: Stamp<'projection-catalog', 'ia.projection-catalog.v1'> = currentStamp('projection-catalog'),
+  stamp: Stamp<'projection-catalog', 'ia.projection-catalog.v1'> = writeStamp('projection-catalog', 'ia.projection-catalog.v1'),
 ): ProjectionCatalog {
   object(selections, ['models', 'tools', 'inputFields']);
   const names = (value: unknown) =>
@@ -121,7 +122,7 @@ export function codexProseCatalog(
     inputFields: [],
   },
 ): ProjectionCatalog {
-  return proseCatalog(CODEX_PROSE_PROFILE, implementationDigest, selections);
+  return proseCatalog(written(CODEX_PROSE_PROFILE, LEGACY_CODEX_PROSE_PROFILE), implementationDigest, selections);
 }
 export const isCodex = (catalog: ProjectionCatalog): boolean =>
   catalog.profile.id === CODEX_PROSE_PROFILE || catalog.profile.id === LEGACY_CODEX_PROSE_PROFILE;

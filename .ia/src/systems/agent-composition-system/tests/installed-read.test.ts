@@ -12,6 +12,14 @@ import * as SDK from '../src/index.js';
 import * as code from '../src/installed-catalog.js';
 import { readFixture, readPath, qualifyAdmission, qualifyInstalledRead } from './installed-read-fixture.mjs';
 
+/** The package's one switch, flipped here to prove the plain names come back exactly when the follow-up release flips it. */
+const flip = vi.hoisted(() => ({ plain: false }));
+vi.mock('../src/written-names.js', () => ({
+  get WRITE_PLAIN_NAMES() {
+    return flip.plain;
+  },
+}));
+
 vi.setConfig({ testTimeout: 30000 });
 const root = resolve(import.meta.dirname, '../../../../..'),
   close: (() => void)[] = [];
@@ -640,13 +648,20 @@ it('names the read plainly and keeps the original ids as legacy', () => {
     input: 'captured-source-read-input-v1',
     output: 'captured-source-read-output-v1',
   });
-  expect(SDK.installedReadAliases()).toEqual({
-    operations: { 'captured-source-read-v1': 'captured-source-read' },
-    validators: {
-      'captured-source-read-input-v1': 'captured-source-read-input',
-      'captured-source-read-output-v1': 'captured-source-read-output',
-    },
-  });
+  // Until the switch flips a record that names the original read compiles to the original entry: no aliases.
+  expect(SDK.installedReadAliases()).toEqual({});
+  flip.plain = true;
+  try {
+    expect(SDK.installedReadAliases()).toEqual({
+      operations: { 'captured-source-read-v1': 'captured-source-read' },
+      validators: {
+        'captured-source-read-input-v1': 'captured-source-read-input',
+        'captured-source-read-output-v1': 'captured-source-read-output',
+      },
+    });
+  } finally {
+    flip.plain = false;
+  }
 });
 it('retains the original read entries byte for byte beside the plain ones', () => {
   const catalog = SDK.installedReadCatalog(),
@@ -673,8 +688,14 @@ it('compiles records that use the plain names and pins the plain entry', () => {
   expect(f.compiled.provenance.aliases).toBeUndefined();
   expect(f.manifest.operations[SDK.INSTALLED_READ.operation]!.handler).toBe('captured-source-read');
 });
-it('compiles records that still name the original ids through the aliases to the plain entry', () => {
-  const f = modeContext('aliased');
+it('compiles records that still name the original ids through the aliases to the plain entry once the switch flips', () => {
+  flip.plain = true;
+  let f: ReturnType<typeof modeContext>;
+  try {
+    f = modeContext('aliased');
+  } finally {
+    flip.plain = false;
+  }
   expect(operationPins(f.compiled)).toEqual(['captured-source-read']);
   expect(f.compiled.provenance.aliases).toEqual([
     { group: 'operations', from: 'captured-source-read-v1', to: 'captured-source-read' },
@@ -682,7 +703,21 @@ it('compiles records that still name the original ids through the aliases to the
     { group: 'validators', from: 'captured-source-read-output-v1', to: 'captured-source-read-output' },
   ]);
   expect(f.manifest.operations[SDK.INSTALLED_READ.operation]!.handler).toBe('captured-source-read');
-  expect(SDK.compiledAliases(f.compiled)).toEqual(SDK.installedReadAliases());
+  flip.plain = true;
+  try {
+    expect(SDK.compiledAliases(f.compiled)).toEqual(SDK.installedReadAliases());
+  } finally {
+    flip.plain = false;
+  }
+});
+it('compiles the shipped records to the original read entry and handler by default, as the released compiler does', () => {
+  const f = modeContext('legacy');
+  expect(operationPins(f.compiled)).toEqual(['captured-source-read-v1']);
+  expect(f.compiled.provenance.aliases).toBeUndefined();
+  expect(f.manifest.operations[SDK.INSTALLED_READ.operation]!.handler).toBe('ia.captured-source.read.v1');
+  expect(f.compiled).toMatchObject({ format: 'ia.compiled-harness.v1' });
+  expect(Object.hasOwn(f.compiled, 'formatVersion')).toBe(false);
+  expect(f.manifest.profiles && Object.values(f.manifest.profiles).every((p) => p.contract!.completionEvaluator === 'ia.completion.v1')).toBe(true);
 });
 it('refuses records that name the original ids when no aliases are passed and the originals are gone', () => {
   const f = readFixture(SDK, root, 'legacy'),

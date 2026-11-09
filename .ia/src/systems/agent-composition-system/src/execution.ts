@@ -5,7 +5,7 @@ import type { Json } from '@inventarch/session-system';
 import type { CatalogAliases, CompositionCatalog } from './catalog.js';
 import { CompositionError } from './compiled.js';
 import type { CompiledStamp } from './compile.js';
-import { peekStamp } from './plain-format.js';
+import { peekStamp, written } from './plain-format.js';
 import type { CompiledHarness } from './compiled.js';
 
 /** The stamp a compiled harness carries, to pass back to `compileHarness` when rebuilding it from its capture. */
@@ -53,7 +53,7 @@ export function executionManifest(compiled: CompiledHarness, catalog: Compositio
           if (!evaluator || !evaluator.value.phases.length) return refuse(`Required evaluator unavailable: ${check}`);
           return { id: check, phases: [...evaluator.value.phases] };
         }),
-        completionEvaluator: COMPLETION_EVALUATOR,
+        completionEvaluator: written(COMPLETION_EVALUATOR, 'ia.completion.v1'),
         repairAttempts: 1,
         maxAttempts: 2,
       },

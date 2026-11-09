@@ -20,7 +20,7 @@ import { nativeInput, requireFoundation } from './foundation.js';
 import type { Foundation, NativeProfile } from './foundation.js';
 import { validateContent } from './validate.js';
 import { committedReader } from './git.js';
-import { currentStamp, peekStamp, stampKeys } from './plain-format.js';
+import { peekStamp, stampKeys, writeStamp } from './plain-format.js';
 
 export interface KnowledgeSelection {
   readonly format: 'kb-selection' | 'ia.kb.selection.v1';
@@ -147,7 +147,7 @@ export function packageFromCommit(request: PackageRequest): KnowledgePackage {
   // A selection file written before formats stopped carrying a version is read, and the package it yields carries the plain one.
   const requested = verifySelection(git.read(selectionPath).text),
     selection = verifySelection({
-      ...currentStamp('kb-selection'),
+      ...writeStamp('kb-selection', 'ia.kb.selection.v1'),
       sourceId: requested.sourceId,
       records: requested.records,
       resources: requested.resources,
@@ -208,7 +208,7 @@ export function packageFromCommit(request: PackageRequest): KnowledgePackage {
   ].sort((a, b) => (a.path < b.path ? -1 : 1));
   verifyFiles(files, false, true);
   const base = {
-    ...currentStamp('kb-package'),
+    ...writeStamp('kb-package', 'ia.kb.package.v1'),
     provenance: { sourceId: selection.sourceId, commit, verification: 'unverified' as const },
     foundation: profile(foundation),
     selection,

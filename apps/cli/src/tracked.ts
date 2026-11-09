@@ -22,6 +22,7 @@ import { withTrackedLock } from './tracked-lock.js';
 import type { LockOptions } from './tracked-lock.js';
 import { Refusal } from './consumer.js';
 import { quote } from './render.js';
+import { WRITE_PLAIN_NAMES } from './written-names.js';
 
 export const TRACKED_FILE = 'tracked-workspaces.json';
 export const TRACKED_FORMAT = 'tracked-workspaces';
@@ -158,13 +159,11 @@ function load(home: string): Loaded {
 }
 /** The document with its rows replaced; every other key, and every key of a kept row, as it was read. */
 function save(home: string, loaded: Loaded, rows: readonly object[]): void {
-  // Every other key stays as it was read; the format itself is always written in the plain shape.
-  const document = {
-    ...loaded.document,
-    format: TRACKED_FORMAT,
-    formatVersion: TRACKED_FORMAT_VERSION,
-    workspaces: rows,
-  };
+  // Every other key stays as it was read. Until `WRITE_PLAIN_NAMES` is flipped the format is the document's own, or the
+  // released literal for a new one; once flipped the format itself is always written in the plain shape.
+  const document = WRITE_PLAIN_NAMES
+    ? { ...loaded.document, format: TRACKED_FORMAT, formatVersion: TRACKED_FORMAT_VERSION, workspaces: rows }
+    : { ...(loaded.document ?? { format: LEGACY_TRACKED_FORMATS[0]! }), workspaces: rows };
   writeHomeFile(home, TRACKED_FILE, JSON.stringify(document, null, 2) + '\n');
 }
 
