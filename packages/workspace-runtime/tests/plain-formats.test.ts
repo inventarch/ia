@@ -322,14 +322,14 @@ describe('projection descriptors and catalogs', () => {
         old = {
           ...rest,
           format: 'ia.projection-catalog.v1' as const,
-          profile: { ...catalog.profile, id: `ia.${name}.v1` },
+          profile: { ...catalog.profile, id: `ia.host.${name}.v1` },
         };
       expect(verifyCatalog(old)).toEqual(old);
       for (const bad of [
         { ...catalog, formatVersion: 2 },
         { ...old, formatVersion: 1 },
         { ...old, format: 'ia.projection-catalog.v2' },
-        { ...catalog, profile: { ...catalog.profile, id: `ia.${name}.v2` } },
+        { ...catalog, profile: { ...catalog.profile, id: `ia.host.${name}.v2` } },
       ])
         expect(() => verifyCatalog(bad as never)).toThrow();
     }
