@@ -16,16 +16,18 @@ import {
 import { userInfo } from 'node:os';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { MethodError } from './errors.js';
+import { lockOnBase } from './kit-base.js';
 import type { BasePin, KitBaseUse } from './kit-base.js';
 import { declaredAssets, iaHome, isText, lf, sourcesDigest, walk } from './kits.js';
 import type { Kit } from './kits.js';
+import { canonical } from './packet.js';
 
 /**
  * The read root of a kit: a restored copy of its workspace in a per-user cache folder, keyed by its source digests and
  * the language base it is restored with. Nothing is written into the kit's own folder. The native restore is the
  * caller's (`KitRestore`): `select` chooses the base for a kit (`selectKitBase` over the bases the host carries), and
- * `apply` installs it in process into a fresh copy, rewriting only that copy's lock row when the base is a compatible
- * one rather than the locked archive.
+ * `apply` installs it in process into a fresh copy whose lock is `lockOnBase(lock, base)`: only the language row moves,
+ * and only when it names anything other than the chosen base.
  */
 export type KitRestore = {
   select(kit: Kit): { base: BasePin; use: KitBaseUse };
@@ -93,15 +95,12 @@ function readSourceDigest(root: string, normalized = false, withLock = true): st
   return hash.digest('hex');
 }
 
-/** The archive a root's lock pins for package `id`, or undefined when the lock is missing, unreadable or has no row. */
-function lockedArchive(root: string, id: string): unknown {
+/** A root's `.ia/distributions.lock.json` as canonical JSON, or null when it is missing or unreadable. */
+function canonicalLock(root: string, transform: (lock: unknown) => unknown = (lock) => lock): string | null {
   try {
-    const lock = JSON.parse(readFileSync(join(root, '.ia', LOCK), 'utf8')) as {
-      packages?: { id?: unknown; archive?: unknown }[];
-    };
-    return lock.packages?.find((pkg) => pkg.id === id)?.archive;
+    return canonical(transform(JSON.parse(readFileSync(join(root, '.ia', LOCK), 'utf8')) as unknown));
   } catch {
-    return undefined;
+    return null;
   }
 }
 
@@ -127,9 +126,9 @@ export function assertReadable(
 /**
  * The restored read root of a kit and the base it was restored with, restoring a fresh copy when the cache holds no
  * complete one. The key covers the kit's sources, its lock and the chosen base's archive, so roots restored on
- * different bases never mix. A cached root is checked against the kit: its sources without the lock, which a compatible
- * restore rewrites, and its lock's language row, which must name the chosen archive. The cache's parent is
- * `options.base`, else `kitCache(options.env)`.
+ * different bases never mix. A cached root is checked against the kit: its sources without the lock, and its lock,
+ * which must be the kit's lock with only the language row moved to the chosen base (`lockOnBase`, the rewrite a
+ * restore's `apply` makes). The cache's parent is `options.base`, else `kitCache(options.env)`.
  */
 export function kitReadRoot(
   kit: Kit,
@@ -150,9 +149,10 @@ export function kitReadRoot(
   const verified = (): { root: string; base: KitBaseUse } => {
     if (readSourceDigest(target, false, false) !== readSourceDigest(kit.dir, true, false))
       throw new MethodError(`restored method sources were altered at ${target}`, 'IA-CORE-CLOSURE-INTEGRITY');
-    if (lockedArchive(target, base.id) !== base.archive)
+    const expected = canonicalLock(kit.dir, (lock) => lockOnBase(lock, base));
+    if (expected === null || canonicalLock(target) !== expected)
       throw new MethodError(
-        `the restored lock at ${target} does not name the ${base.id} ${base.version} archive it was restored with`,
+        `the restored lock at ${target} is not the kit's lock on the ${base.id} ${base.version} archive it was restored with`,
         'IA-CORE-CLOSURE-INTEGRITY',
       );
     for (const { rel, abs } of declaredAssets(kit.dir)) {

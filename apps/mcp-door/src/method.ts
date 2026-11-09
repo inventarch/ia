@@ -5,9 +5,11 @@ import { applyInstallation, cacheArchive, planInstallation } from '@inventarch/d
 import {
   ENTRIES,
   MethodError,
+  canonical,
   checkRoot,
   iaHome,
   laneCatalogue,
+  lockOnBase,
   workspaceKits,
   methodRefusal,
   openSession,
@@ -147,7 +149,7 @@ function declaredRange(dir: string, id: string): string | undefined {
 /**
  * Restores a kit's read root in process. `select` chooses among the language bases this package carries: the kit's
  * locked archive when carried, else the newest when the kit's range admits it (runtime `selectKitBase`). `apply` caches
- * that archive in the read root, moves only the read root's lock row to it when the row names anything else (another
+ * that archive in the read root, moves only the read root's language lock row to it (runtime `lockOnBase`: another
  * archive, or the same archive under a stale label), then plans and installs it. The kit's own folder is never written.
  */
 export const restoreKit: KitRestore = {
@@ -163,21 +165,11 @@ export const restoreKit: KitRestore = {
   },
   apply(root, _kit, base) {
     cacheArchive(root, readFileSync(new URL(`../assets/base/${base.archive}.ia.tgz`, import.meta.url)), base.archive);
-    const lock = readLockFile(root) as { packages?: Record<string, unknown>[] };
-    const row = lock.packages?.find((pkg) => pkg['id'] === base.id);
     // A compatible base moves the row; an exact one whose label disagrees with its archive gets the archive's own label.
-    if (
-      row !== undefined &&
-      (row['archive'] !== base.archive || row['version'] !== base.version || row['manifest'] !== base.manifest)
-    ) {
-      Object.assign(row, {
-        archive: base.archive,
-        location: `sha256:${base.archive}`,
-        manifest: base.manifest,
-        version: base.version,
-      });
-      writeFileSync(lockPath(root), JSON.stringify(lock) + '\n');
-    }
+    // The read-root check (runtime `kitReadRoot`) expects exactly this lock.
+    const locked = readLockFile(root);
+    const lock = lockOnBase(locked, base);
+    if (canonical(lock) !== canonical(locked)) writeFileSync(lockPath(root), JSON.stringify(lock) + '\n');
     applyInstallation(planInstallation(root, lock, 'restore'));
   },
 };

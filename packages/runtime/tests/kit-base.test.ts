@@ -106,16 +106,34 @@ describe('selectKitBase', () => {
     expect(refused.message).toContain('kit inventarch/x-kit 1.0.0 requires inventarch/language ~3.1.0');
     expect(refused.message).toContain('3.2.1');
     expect(refused.message).not.toMatch(/downgrade/);
-    // Without a declared range the lock's request is the range; a declared range comes first.
+    // Without a declared range the lock's request alone is the range.
     expect(
       refusal(() => selectKitBase(locked('3.1.5', UNCARRIED, [{ id: ID, range: '~3.1.0' }]), undefined, carried)).code,
     ).toBe('IA-CORE-CLI-UNSUPPORTED');
-    expect(selectKitBase(locked('3.1.5', UNCARRIED, [{ id: ID, range: '~3.1.0' }]), '^3.1.0', carried).use.mode).toBe(
+    expect(selectKitBase(locked('3.1.5', UNCARRIED, [{ id: ID, range: '^3.1.0' }]), undefined, carried).use.mode).toBe(
       'compatible',
     );
     // A range whose floor is above every carried base names the upgrade.
     expect(refusal(() => selectKitBase(locked('3.1.5', UNCARRIED), '^3.4.0', carried)).message).toContain(
       'upgrade @inventarch/mcp-door',
+    );
+  });
+
+  it('refuses when the declared range is wider than the lock request that excludes the carried newest', () => {
+    // Both ranges must admit the base: a declared ^3.1.0 does not override a lock that requests ~3.1.0.
+    const lock = locked('3.1.5', UNCARRIED, [{ id: ID, range: '~3.1.0' }]);
+    const refused = refusal(() => selectKitBase(lock, '^3.1.0', [B300, B320, B321], 'inventarch/x-kit 1.0.0'));
+    expect(refused).toEqual({
+      code: 'IA-CORE-CLI-UNSUPPORTED',
+      message: `kit inventarch/x-kit 1.0.0 requires inventarch/language ^3.1.0 (declared in .ia/release.json) and ~3.1.0 (requested by its lock), which this door's newest base 3.2.1 does not satisfy, and the locked 3.1.5 (${UNCARRIED}) is not one this door carries: the kit needs a release whose range admits inventarch/language 3.2.1`,
+    });
+    // And the other way round: a lock request wider than the declared range.
+    expect(
+      refusal(() => selectKitBase(locked('3.1.5', UNCARRIED, [{ id: ID, range: '^3.1.0' }]), '~3.1.0', [B321])).message,
+    ).toContain('~3.1.0 (declared in .ia/release.json) and ^3.1.0 (requested by its lock)');
+    // Both admitting it: compatible.
+    expect(selectKitBase(locked('3.1.5', UNCARRIED, [{ id: ID, range: '^3.0.0' }]), '^3.1.0', [B321]).use.mode).toBe(
+      'compatible',
     );
   });
 

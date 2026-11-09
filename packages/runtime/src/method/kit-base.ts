@@ -47,8 +47,8 @@ function attempt<T>(run: () => T): T | undefined {
  * 1. the locked archive, when carried, whatever its version label says (`exact`);
  * 2. another major than the newest carried refuses;
  * 3. a locked version above the newest carried refuses: the reader needs an upgrade, never the kit a downgrade;
- * 4. a range (declared, else the lock's language request, else `^<locked version>`) that does not admit the newest
- *    carried base refuses;
+ * 4. the newest carried base must satisfy the declared range and the lock's language request, each when present, or
+ *    `^<locked version>` when neither is; otherwise it refuses;
  * 5. otherwise the newest carried base (`compatible`).
  *
  * Every refusal is `IA-CORE-CLI-UNSUPPORTED`; `kit` names the kit in it (`<id> <version>`).
@@ -89,19 +89,44 @@ export function selectKitBase(
     );
   if (compareVersions(at, newest.version) < 0)
     return refuse(`${label} locks ${id} ${at}; this door carries up to ${newest.version}: upgrade ${CARRIER}`);
-  const range = declaredRange ?? lock.requests?.find((request) => request.id === id)?.range ?? `^${at}`;
-  if (attempt(() => satisfies(newest.version, range)) !== true) {
-    const floor = attempt(() => rangeFloor(range));
-    const next =
-      floor !== undefined && compareVersions(floor, newest.version) < 0
-        ? `upgrade ${CARRIER}`
-        : `the kit needs a release whose range admits ${id} ${newest.version}`;
+  const requested = lock.requests?.find((request) => request.id === id)?.range;
+  const ranges = [declaredRange, requested].filter((range): range is string => range !== undefined);
+  if (ranges.length === 0) ranges.push(`^${at}`);
+  if (!ranges.every((range) => attempt(() => satisfies(newest.version, range)) === true)) {
+    const above = ranges.some((range) => {
+      const floor = attempt(() => rangeFloor(range));
+      return floor !== undefined && compareVersions(floor, newest.version) < 0;
+    });
+    const next = above ? `upgrade ${CARRIER}` : `the kit needs a release whose range admits ${id} ${newest.version}`;
+    const required =
+      declaredRange !== undefined && requested !== undefined
+        ? `${declaredRange} (declared in .ia/release.json) and ${requested} (requested by its lock)`
+        : ranges[0];
     return refuse(
-      `${label} requires ${id} ${range}, which this door's newest base ${newest.version} does not satisfy, and the locked ${at} (${row.archive}) is not one this door carries: ${next}`,
+      `${label} requires ${id} ${required}, which this door's newest base ${newest.version} does not satisfy, and the locked ${at} (${row.archive}) is not one this door carries: ${next}`,
     );
   }
   return {
     base: newest,
     use: { locked, effective: { version: newest.version, archive: newest.archive }, mode: 'compatible' },
   };
+}
+
+/**
+ * The lock a read root restored on `base` holds: a copy of the kit's `lock` whose `base.id` row names `base` (archive,
+ * location `sha256:<archive>`, manifest, version) and nothing else changed; a row that already says so is left as it
+ * is. The restore writes it and the read-root check expects it, so the two cannot drift.
+ */
+export function lockOnBase<T>(lock: T, base: BasePin): T {
+  const copy = JSON.parse(JSON.stringify(lock ?? {})) as { packages?: unknown };
+  if (Array.isArray(copy.packages))
+    for (const row of copy.packages as Record<string, unknown>[])
+      if (row !== null && typeof row === 'object' && row['id'] === base.id)
+        Object.assign(row, {
+          archive: base.archive,
+          location: `sha256:${base.archive}`,
+          manifest: base.manifest,
+          version: base.version,
+        });
+  return copy as T;
 }

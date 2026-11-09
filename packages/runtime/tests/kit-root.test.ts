@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, expect, it } from 'vitest';
-import { selectKitBase } from '../src/method/kit-base.js';
+import { lockOnBase, selectKitBase } from '../src/method/kit-base.js';
 import type { BasePin } from '../src/method/kit-base.js';
 import { kitReadRoot } from '../src/method/kit-root.js';
 import type { KitRestore } from '../src/method/kit-root.js';
@@ -89,15 +89,7 @@ function restoreWith(carried: readonly BasePin[]): KitRestore & { applied: numbe
     },
     apply: (root: string, _kit: Kit, base: BasePin) => {
       restore.applied++;
-      const lock = readJson(join(root, ...LOCK));
-      const row = (lock['packages'] as Record<string, unknown>[]).find((r) => r['id'] === ID)!;
-      Object.assign(row, {
-        archive: base.archive,
-        location: `sha256:${base.archive}`,
-        manifest: base.manifest,
-        version: base.version,
-      });
-      write(join(root, ...LOCK), lock);
+      write(join(root, ...LOCK), lockOnBase(readJson(join(root, ...LOCK)), base));
       write(join(root, '.ia', 'distributions', 'active.json'), { base: base.archive });
     },
   };
@@ -154,4 +146,32 @@ it('a read-root lock rewritten to another base is detected as altered', () => {
   expect(() => kitReadRoot(kit, other, { base: cache })).toThrow(
     expect.objectContaining({ code: 'IA-CORE-CLOSURE-INTEGRITY' }),
   );
+});
+
+it('any other change to a read-root lock is detected as altered', () => {
+  const tamper: ((lock: Record<string, unknown>) => void)[] = [
+    (lock) => {
+      (lock['requests'] as { range: string }[])[0]!.range = '*';
+    },
+    (lock) => {
+      Object.assign((lock['packages'] as Record<string, unknown>[])[0]!, { manifest: 'f'.repeat(64) });
+    },
+    (lock) => {
+      Object.assign((lock['packages'] as Record<string, unknown>[])[0]!, { location: 'https://example.invalid/x' });
+    },
+    (lock) => {
+      (lock['packages'] as Record<string, unknown>[]).push({ id: 'inventarch/other-kit', version: '1.0.0' });
+    },
+  ];
+  for (const [index, change] of tamper.entries()) {
+    const restore = restoreWith([B300, B321]);
+    const { root } = kitReadRoot(kit, restore, { base: join(cache, String(index)) });
+    expect(kitReadRoot(kit, restore, { base: join(cache, String(index)) }).root).toBe(root);
+    const lock = readJson(join(root, ...LOCK));
+    change(lock);
+    write(join(root, ...LOCK), lock);
+    expect(() => kitReadRoot(kit, restore, { base: join(cache, String(index)) }), String(index)).toThrow(
+      expect.objectContaining({ code: 'IA-CORE-CLOSURE-INTEGRITY' }),
+    );
+  }
 });

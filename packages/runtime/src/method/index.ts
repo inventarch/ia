@@ -79,7 +79,7 @@ export type { MethodPacket } from './packet.js';
 export { closureStore, retainKit, retainedKit } from './retained.js';
 export { assertReadable, kitCache, kitReadRoot, userCache } from './kit-root.js';
 export type { KitRestore } from './kit-root.js';
-export { selectKitBase } from './kit-base.js';
+export { lockOnBase, selectKitBase } from './kit-base.js';
 export type { BasePin, KitBaseLock, KitBaseUse } from './kit-base.js';
 export { WorkspaceReader } from './reader.js';
 export type { JsonRecord, PositionAnswer } from './reader.js';
