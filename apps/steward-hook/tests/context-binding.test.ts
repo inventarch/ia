@@ -302,9 +302,9 @@ it.skipIf(process.platform === 'win32')(
 it('creates and reads the plain binding with formatVersion 1, still verifies the legacy literal as written, and refuses others', () => {
   const { root, path, input } = fixture();
   const legacy = createContextHookBinding(input),
-    plain = createContextHookBinding({ ...input, format: 'ia.context-hook-binding', formatVersion: 1 });
+    plain = createContextHookBinding({ ...input, format: 'context-hook-binding', formatVersion: 1 });
   expect(legacy.format).toBe('ia.context-hook-binding.v1');
-  expect(plain).toMatchObject({ format: 'ia.context-hook-binding', formatVersion: 1 });
+  expect(plain).toMatchObject({ format: 'context-hook-binding', formatVersion: 1 });
   // The digest covers the declared format, so a binding stored under the legacy literal verifies as written.
   expect(plain.digest).not.toBe(legacy.digest);
   writeFileSync(path, JSON.stringify(legacy));
@@ -312,8 +312,8 @@ it('creates and reads the plain binding with formatVersion 1, still verifies the
   writeFileSync(path, JSON.stringify(plain));
   expect(readContextHookBinding(root, path)).toEqual(plain);
   for (const bad of [
-    { ...input, format: 'ia.context-hook-binding' },
-    { ...input, format: 'ia.context-hook-binding', formatVersion: 2 },
+    { ...input, format: 'context-hook-binding' },
+    { ...input, format: 'context-hook-binding', formatVersion: 2 },
     { ...input, formatVersion: 1 },
     { ...input, format: 'ia.context-hook-binding.v2' },
   ])

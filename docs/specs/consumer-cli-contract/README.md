@@ -101,7 +101,7 @@ A refusal is `IA-RUNTIME-MANDATE-MOVE`, `IA-RUNTIME-MANDATE-WORD` or `IA-RUNTIME
 
 ### 2.16 Workspace tracking
 
-`workspaces` keeps one person's list of the workspaces they keep current in the IA home, at `<IA home>/tracked-workspaces.json`. The file is `{"format": "ia-tracked-workspaces", "formatVersion": 1, "workspaces": [{id, root, label?, added}]}`: `root` is an absolute real path and `added` an ISO-8601 UTC time. A list written as `ia-tracked-workspaces-1` is still read and is rewritten in this shape on the next save. A rewrite keeps every top-level key and row key it does not know. A file that does not parse, or names another format, is refused as `IA-CLI-TRACKED-INVALID` at exit 3 and is never overwritten. Tracking is not admission: it never reads or writes the MCP door's `workspace-locations.json` and admits no workspace to the door.
+`workspaces` keeps one person's list of the workspaces they keep current in the IA home, at `<IA home>/tracked-workspaces.json`. The file is `{"format": "tracked-workspaces", "formatVersion": 1, "workspaces": [{id, root, label?, added}]}`: `root` is an absolute real path and `added` an ISO-8601 UTC time. A list written as `ia-tracked-workspaces-1` is still read and is rewritten in this shape on the next save. A rewrite keeps every top-level key and row key it does not know. A file that does not parse, or names another format, is refused as `IA-CLI-TRACKED-INVALID` at exit 3 and is never overwritten. Tracking is not admission: it never reads or writes the MCP door's `workspace-locations.json` and admits no workspace to the door.
 
 The command opens no workspace, so `--root` is refused. It has four actions:
 

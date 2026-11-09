@@ -19,12 +19,12 @@ import { assess } from './types.js';
 import type { Assessment, EvidenceCode, Finding, Verdict } from './types.js';
 
 /**
- * Current receipt format (C28): the plain `ia-evidence-receipt` with `formatVersion` 1. A receipt written as
- * `ia-evidence-receipt/1` (no `formatVersion`) is still read as written; any other value refuses.
+ * Current receipt format (C28): the plain `evidence-receipt` with `formatVersion` 1. A receipt written as
+ * `evidence-receipt/1` (no `formatVersion`) is still read as written; any other value refuses.
  */
-export const EVIDENCE_RECEIPT_FORMAT = 'ia-evidence-receipt';
+export const EVIDENCE_RECEIPT_FORMAT = 'evidence-receipt';
 export const EVIDENCE_RECEIPT_FORMAT_VERSION = 1;
-const LEGACY_EVIDENCE_RECEIPT_FORMATS: readonly string[] = ['ia-evidence-receipt/1'];
+const LEGACY_EVIDENCE_RECEIPT_FORMATS: readonly string[] = ['evidence-receipt/1'];
 export const EVIDENCE_RESULTS = Object.freeze([
   'passed',
   'failed',
@@ -53,7 +53,7 @@ export interface EvaluatorIdentity {
   readonly implementationDigest: string;
 }
 export interface EvidenceReceipt {
-  /** `ia-evidence-receipt` with `formatVersion` 1, or the legacy `ia-evidence-receipt/1` literal (no `formatVersion`). */
+  /** `evidence-receipt` with `formatVersion` 1, or the legacy `evidence-receipt/1` literal (no `formatVersion`). */
   readonly format: string;
   readonly formatVersion?: number;
   readonly receiptId: string;

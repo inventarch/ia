@@ -11,7 +11,7 @@ import { DistributionError, fail, object, versionedObject } from './files.js';
 /** Registry spec §3 and §5.1 bounds. */
 export const REGISTRY_LIMITS = Object.freeze({ indexBytes: 4 * 1024 * 1024, releases: 1000, reads: 256 });
 export interface RegistryInfo {
-  readonly format: 'ia.registry';
+  readonly format: 'registry';
   readonly formatVersion: 1;
   readonly name: string;
 }
@@ -31,7 +31,7 @@ export interface RegistryRelease {
   readonly artifact?: string;
 }
 export interface PackageIndex {
-  readonly format: 'ia.registry-package';
+  readonly format: 'registry-package';
   readonly formatVersion: 1;
   readonly id: string;
   readonly releases: readonly RegistryRelease[];
@@ -96,12 +96,12 @@ export function decodeRegistryInfo(content: string): RegistryInfo {
   return dbDecode(() => {
     const { row } = versionedObject(
       decodeDistributionJson(content),
-      { format: 'ia.registry', version: 1, legacy: ['ia.registry.v1'] },
+      { format: 'registry', version: 1, legacy: ['ia.registry.v1'] },
       ['name'],
-      'Not an ia.registry registry',
+      'Not a registry file',
     );
     return frozen({
-      format: 'ia.registry' as const,
+      format: 'registry' as const,
       formatVersion: 1 as const,
       name: field('name', undefined, () => text(row['name'], 128)),
     });
@@ -117,9 +117,9 @@ export function decodePackageIndex(content: string, expectedId: string): Package
           : ['format', 'id', 'releases'];
     const { row } = versionedObject(
       value,
-      { format: 'ia.registry-package', version: 1, legacy: ['ia.registry-package.v1'] },
+      { format: 'registry-package', version: 1, legacy: ['ia.registry-package.v1'] },
       keys.filter((key) => key !== 'format'),
-      'Not an ia.registry-package index',
+      'Not a registry-package index',
     );
     if (row['id'] !== id) fail('INPUT-INVALID', `Registry index names a different package than ${id}`);
     if (!Array.isArray(row['releases'])) fail('INPUT-INVALID', 'Registry releases must be an array');
@@ -180,6 +180,6 @@ export function decodePackageIndex(content: string, expectedId: string): Package
         ...(licensed ? {} : { artifact: r['artifact'] as string }),
       };
     });
-    return frozen({ format: 'ia.registry-package' as const, formatVersion: 1 as const, id, releases });
+    return frozen({ format: 'registry-package' as const, formatVersion: 1 as const, id, releases });
   });
 }

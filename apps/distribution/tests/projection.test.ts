@@ -193,7 +193,7 @@ it("upgrades a 1.x claude projection: legacy-marked owned files are replaced and
   for (const artifact of artifacts()) expect(read(root, artifact.path)).toBe(artifact.text);
   // The state is written in the plain format; it now lists only what the packet renders.
   expect(JSON.parse(read(root, STATE))).toEqual({
-    format: 'ia.host-projection-state',
+    format: 'host-projection-state',
     formatVersion: 1,
     host: 'claude',
     files: Object.fromEntries(artifacts().map((artifact) => [artifact.path, sha256(artifact.text)])),

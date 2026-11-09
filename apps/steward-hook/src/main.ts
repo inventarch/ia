@@ -337,7 +337,7 @@ function projectionOwnership(root: string): Ownership | undefined {
     if (
       !object(row) ||
       shapeOf(row) !== 'files|format|host' ||
-      !declares(row, 'ia.host-projection-state', [1], ['ia.host-projection-state.v1']) ||
+      !declares(row, 'host-projection-state', [1], ['ia.host-projection-state.v1']) ||
       row['host'] !== host ||
       !object(row['files'])
     )
@@ -384,7 +384,7 @@ function registeredSelection(root: string, hook: string): readonly string[] | un
       row = decodeDistributionJson(new TextDecoder('utf-8', { fatal: true }).decode(content));
       if (
         !object(row) ||
-        !declares(row, 'ia.hook-registration-state', [1], ['ia.hook-registration-state.v1']) ||
+        !declares(row, 'hook-registration-state', [1], ['ia.hook-registration-state.v1']) ||
         !Array.isArray(row['groups'])
       )
         throw new Error('Invalid hook ownership state');
@@ -455,7 +455,7 @@ function contextSettingsManaged(root: string, includeContext = true): GuardContr
     if (pending) {
       if (
         shapeOf(row) !== 'after|before|format|id' ||
-        !declares(row, 'ia.lifecycle-registration-pending', [1], ['ia.lifecycle-registration-pending.v1'])
+        !declares(row, 'lifecycle-registration-pending', [1], ['ia.lifecycle-registration-pending.v1'])
       )
         throw new Error('Invalid pending context ownership');
       for (const key of ['before', 'after']) {
@@ -470,10 +470,10 @@ function contextSettingsManaged(root: string, includeContext = true): GuardContr
     } else if (guardPending) {
       // One journal serves the retired steward guard's registration and the `@hook` groups' (distribution
       // guard-registration.ts): each names its own state format.
-      const hookJournal = declares(row, 'ia.hook-registration-pending', [1], ['ia.hook-registration-pending.v1']);
+      const hookJournal = declares(row, 'hook-registration-pending', [1], ['ia.hook-registration-pending.v1']);
       if (
         shapeOf(row) !== 'after|before|format|id' ||
-        (!hookJournal && !declares(row, 'ia.guard-registration-pending', [1], ['ia.guard-registration-pending.v1']))
+        (!hookJournal && !declares(row, 'guard-registration-pending', [1], ['ia.guard-registration-pending.v1']))
       )
         throw new Error('Invalid pending guard ownership');
       for (const key of ['before', 'after']) {
@@ -490,8 +490,8 @@ function contextSettingsManaged(root: string, includeContext = true): GuardContr
           if (
             !object(state) ||
             !(hookJournal
-              ? declares(state, 'ia.hook-registration-state', [1], ['ia.hook-registration-state.v1'])
-              : declares(state, 'ia.guard-registration-state', [1], ['ia.guard-registration-state.v1'])) ||
+              ? declares(state, 'hook-registration-state', [1], ['ia.hook-registration-state.v1'])
+              : declares(state, 'guard-registration-state', [1], ['ia.guard-registration-state.v1'])) ||
             state['id'] !== row['id'] ||
             typeof state['cache'] !== 'string' ||
             !isAbsolute(state['cache'])
@@ -506,7 +506,7 @@ function contextSettingsManaged(root: string, includeContext = true): GuardContr
       if (
         shapeOf(row, 'existing') !== 'cache|created|format|groups|id|release' ||
         (row['existing'] !== undefined && !Array.isArray(row['existing'])) ||
-        !declares(row, 'ia.hook-registration-state', [1], ['ia.hook-registration-state.v1']) ||
+        !declares(row, 'hook-registration-state', [1], ['ia.hook-registration-state.v1']) ||
         row['id'] !== hooks[1] ||
         typeof row['cache'] !== 'string' ||
         !isAbsolute(row['cache']) ||
@@ -522,7 +522,7 @@ function contextSettingsManaged(root: string, includeContext = true): GuardContr
       if (
         shapeOf(row, 'existing') !== 'cache|created|format|group|id|release' ||
         (row['existing'] !== undefined && !Array.isArray(row['existing'])) ||
-        !declares(row, 'ia.guard-registration-state', [1], ['ia.guard-registration-state.v1']) ||
+        !declares(row, 'guard-registration-state', [1], ['ia.guard-registration-state.v1']) ||
         row['id'] !== guard[1] ||
         typeof row['cache'] !== 'string' ||
         !isAbsolute(row['cache']) ||
@@ -539,7 +539,7 @@ function contextSettingsManaged(root: string, includeContext = true): GuardContr
       (row['existing'] !== undefined && !Array.isArray(row['existing'])) ||
       !declares(
         row,
-        'ia.lifecycle-registration-state',
+        'lifecycle-registration-state',
         [1, 2],
         ['ia.lifecycle-registration-state.v1', 'ia.lifecycle-registration-state.v2'],
       ) ||
@@ -661,7 +661,7 @@ function actorMap(path: string, revision: string): ReadonlyMap<string, string> {
   if (
     !object(value) ||
     shapeOf(value) !== 'actors|format|revision' ||
-    !declares(value, 'ia.steward-actors', [1], ['ia.steward-actors.v1']) ||
+    !declares(value, 'steward-actors', [1], ['ia.steward-actors.v1']) ||
     value['revision'] !== revision ||
     !Array.isArray(value['actors']) ||
     value['actors'].length > 256

@@ -30,7 +30,7 @@ A note is one JSON file under `releases/pending/`. The file name is the change i
 
 ```json
 {
-  "format": "ia.npm-change-note",
+  "format": "npm-change-note",
   "formatVersion": 1,
   "bump": "minor",
   "title": "Add selected-context workflows to the CLI",

@@ -14,7 +14,7 @@ afterEach(() => {
   for (const p of made.splice(0)) rmSync(p, { recursive: true, force: true });
 });
 const cfg = (map: Record<string, unknown>) =>
-  JSON.stringify({ format: 'ia.registries', formatVersion: 1, registries: map });
+  JSON.stringify({ format: 'registries', formatVersion: 1, registries: map });
 const refusal = (code: string, message: RegExp) => ({
   code: `IA-DIST-${code}`,
   message: expect.stringMatching(message),
@@ -353,8 +353,8 @@ it('reads the legacy ia.registries.v1 literal beside the plain format and refuse
   workspaceFile(root, cfg({ '*': 'https://new.test/r' }));
   expect(pick()).toMatchObject({ level: 'workspace', base: { url: 'https://new.test/r/' } });
   for (const bad of [
-    { format: 'ia.registries', registries: {} },
-    { format: 'ia.registries', formatVersion: 2, registries: {} },
+    { format: 'registries', registries: {} },
+    { format: 'registries', formatVersion: 2, registries: {} },
     { format: 'ia.registries.v1', formatVersion: 1, registries: {} },
     { format: 'ia.registries.v2', registries: {} },
   ]) {

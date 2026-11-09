@@ -166,7 +166,7 @@ function mixed(): { readonly root: string; readonly registry: string } {
   put(
     join(root, KIT_COLLECTIONS),
     serializeKitCollections({
-      format: 'ia-kit-collections',
+      format: 'kit-collections',
       formatVersion: 1,
       lock: createHash('sha256').update(lock).digest('hex'),
       collections: [
@@ -266,7 +266,7 @@ it('an unknown collection identity is warn with a reinstall fix', () => {
   put(
     join(root, KIT_COLLECTIONS),
     serializeKitCollections({
-      format: 'ia-kit-collections',
+      format: 'kit-collections',
       formatVersion: 1,
       lock: createHash('sha256').update(lock).digest('hex'),
       collections: [],

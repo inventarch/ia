@@ -131,7 +131,7 @@ export type ArtifactChunk = z.infer<typeof artifactChunk>;
 export const registryKind = z.enum(['release', 'kit', 'workspace']);
 export const registryKitIndex = z
   .strictObject({
-    format: z.enum(['ia.registry-kit', 'ia.registry-kit.v1']),
+    format: z.enum(['registry-kit', 'ia.registry-kit.v1']),
     formatVersion: z.literal(1).optional(),
     id: packageId,
     releases: z
@@ -144,7 +144,7 @@ export const registryKitIndex = z
   );
 export const registryWorkspaceIndex = z
   .strictObject({
-    format: z.enum(['ia.registry-workspace', 'ia.registry-workspace.v1']),
+    format: z.enum(['registry-workspace', 'ia.registry-workspace.v1']),
     formatVersion: z.literal(1).optional(),
     id: packageId,
     releases: z

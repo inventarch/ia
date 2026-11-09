@@ -29,7 +29,7 @@ export interface WorkspaceRelease {
   readonly files: readonly WorkspaceFile[];
 }
 export interface CollectionIndex<K extends 'kit' | 'workspace'> {
-  readonly format: `ia.registry-${K}`;
+  readonly format: `registry-${K}`;
   readonly formatVersion: 1;
   readonly id: string;
   readonly releases: readonly (K extends 'kit' ? KitRelease : WorkspaceRelease)[];
@@ -39,7 +39,7 @@ export type CollectionIndexInput<K extends 'kit' | 'workspace'> = Omit<
   CollectionIndex<K>,
   'format' | 'formatVersion'
 > & {
-  readonly format: `ia.registry-${K}` | `ia.registry-${K}.v1`;
+  readonly format: `registry-${K}` | `ia.registry-${K}.v1`;
   readonly formatVersion?: 1;
 };
 export const collectionIndexPath = (kind: 'kit' | 'workspace', id: string): string =>
@@ -114,7 +114,7 @@ export function decodeCollectionIndex<K extends 'kit' | 'workspace'>(
   kind: K,
   expected: string,
 ): CollectionIndex<K> {
-  const format = `ia.registry-${kind}` as const;
+  const format = `registry-${kind}` as const;
   // The legacy literal is an explicit allow-list entry: the exact name written before formatVersion existed.
   const { row } = versionedObject(
     decodeDistributionJson(content),

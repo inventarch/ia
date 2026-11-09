@@ -1455,7 +1455,7 @@ it('recovers real process termination between each filesystem mutation and journ
       journalText = readFileSync(journalPath, 'utf8');
     if (journalText !== '') {
       const written = JSON.parse(journalText);
-      expect(written).toMatchObject({ format: 'ia-migration', formatVersion: 1 });
+      expect(written).toMatchObject({ format: 'migration', formatVersion: 1 });
       if (cut.length % 2 === 1) {
         const { formatVersion: _formatVersion, ...legacy } = written;
         writeFileSync(journalPath, JSON.stringify({ ...legacy, format: 'ia-migration-1' }));

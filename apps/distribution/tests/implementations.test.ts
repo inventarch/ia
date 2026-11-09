@@ -879,7 +879,7 @@ it('takes a session open time before it reads any input, so it never prunes what
   }
 });
 
-it('records joins in the plain ia.host-joins format and still reads the legacy ia.host-joins.v1 file', () => {
+it('records joins in the plain host-joins format and still reads the legacy ia.host-joins.v1 file', () => {
   const root = temp();
   const row = {
     consumer: 'claude',
@@ -891,11 +891,11 @@ it('records joins in the plain ia.host-joins format and still reads the legacy i
   };
   put(root, JOINS, json({ format: 'ia.host-joins.v1', joins: [row] }));
   expect(readJoins(root)).toEqual([row]);
-  put(root, JOINS, json({ format: 'ia.host-joins', formatVersion: 1, joins: [row] }));
+  put(root, JOINS, json({ format: 'host-joins', formatVersion: 1, joins: [row] }));
   expect(readJoins(root)).toEqual([row]);
   for (const bad of [
-    { format: 'ia.host-joins', joins: [row] },
-    { format: 'ia.host-joins', formatVersion: 2, joins: [row] },
+    { format: 'host-joins', joins: [row] },
+    { format: 'host-joins', formatVersion: 2, joins: [row] },
     { format: 'ia.host-joins.v1', formatVersion: 1, joins: [row] },
     { format: 'ia.host-joins.v2', joins: [row] },
   ]) {
