@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { MethodError } from './errors.js';
+import { homeFolder } from './kits.js';
 import type { Kit, KitOrigin } from './kits.js';
 import { RESTORE_NEEDED, STORE } from './installed-kits.js';
 import type { LockedKit } from './installed-kits.js';
@@ -14,6 +15,7 @@ import { samePath } from './registry.js';
  * private governance's.
  */
 export const BRIEFING_LIMIT = 2500;
+/** The legacy folder name; the authoritative folder is `homeFolder(home, 'sessions')`. */
 export const SESSION_DIRECTORY = 'sessions-v1';
 /** The three lanes, in the order a briefing names them. */
 export const LANES = ['work', 'knowledge', 'delivery'] as const;
@@ -63,7 +65,7 @@ export const sessionKits = (kits: readonly Kit[]): SessionKit[] =>
 
 /** The task pin most recently written for the workspace at root, under `<IA home>/work-v1/<project>/<task>/`. */
 export function currentPin(home: string, root: string): SessionPin | undefined {
-  const work = join(home, 'work-v1');
+  const work = homeFolder(home, 'work');
   if (!existsSync(work)) return undefined;
   let found: { pin: SessionPin; at: number } | undefined;
   for (const project of readdirSync(work)) {
@@ -149,7 +151,7 @@ export function openSession(
 /** Appends one event line to a session's log. */
 export function appendSessionEvent(home: string, sessionId: string, event: Record<string, unknown>): string {
   if (!SESSION_ID.test(sessionId)) throw new MethodError(`not a session id: ${sessionId}`, 'IA-CORE-USAGE');
-  const dir = join(home, SESSION_DIRECTORY);
+  const dir = homeFolder(home, 'sessions');
   mkdirSync(dir, { recursive: true, mode: 0o700 });
   const path = join(dir, `${sessionId}.jsonl`);
   appendFileSync(path, JSON.stringify({ sessionId, ...event }) + '\n');

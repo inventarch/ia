@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { MethodError } from './errors.js';
-import { iaHome } from './kits.js';
+import { homeFolder, iaHome } from './kits.js';
 
 /**
  * The task binding (pin): which kit versions and capabilities a task resolved, one entry per activity key, kept at
@@ -66,7 +66,7 @@ export function pinRootFor(
       'a task binding needs --project and --task together (or IA_CORE_RUN_ROOT); --run only names the run that attaches',
       'IA-CORE-USAGE',
     );
-  return join(iaHome(env), 'work-v1', options.project, options.task);
+  return join(homeFolder(iaHome(env), 'work'), options.project, options.task);
 }
 
 /**

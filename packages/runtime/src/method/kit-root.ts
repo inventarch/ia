@@ -18,7 +18,7 @@ import { basename, dirname, join, relative, resolve } from 'node:path';
 import { MethodError } from './errors.js';
 import { lockOnBase } from './kit-base.js';
 import type { BasePin, KitBaseUse } from './kit-base.js';
-import { declaredAssets, iaHome, isText, lf, sourcesDigest, walk } from './kits.js';
+import { declaredAssets, homeFolder, iaHome, isText, lf, sourcesDigest, walk } from './kits.js';
 import type { Kit } from './kits.js';
 import { canonical } from './packet.js';
 
@@ -39,13 +39,14 @@ const LOCK = 'distributions.lock.json';
 const NUL = String.fromCharCode(0);
 
 /**
- * The default parent of the read-root cache: `kit-roots-v1` under the IA home, which is this user's, never the shared
+ * The default parent of the read-root cache: `kit-roots-v1` under the IA home (or `kit-roots` once it holds the
+ * `authoritative` marker; `homeFolder`), which is this user's, never the shared
  * system temporary folder. The IA home is created when missing and named through its links.
  */
 export function kitCache(env: NodeJS.ProcessEnv = process.env): string {
   const home = iaHome(env);
   mkdirSync(home, { recursive: true, mode: 0o700 });
-  return join(realpathSync(home), 'kit-roots-v1');
+  return homeFolder(realpathSync(home), 'kit-roots');
 }
 
 /** The folder under `base` that holds this user's restored copies, refused when another user owns it. */

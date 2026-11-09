@@ -2910,6 +2910,7 @@
         "tests/door-read.test.ts",
         "tests/editor.test.ts",
         "tests/entry.test.ts",
+        "tests/home-folders.test.ts",
         "tests/install-guard.test.ts",
         "tests/kit-base.test.ts",
         "tests/kit-root.test.ts",
