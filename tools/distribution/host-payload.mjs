@@ -382,7 +382,8 @@ export async function generateHostPayload({ repository, write, implementations =
   for (const implementation of [...located].sort((a, b) => (a.id < b.id ? -1 : 1)))
     operations.push(await operationRow(implementation, files));
   const catalog = installedImplementationsValue({
-    format: 'ia.installed-implementations.v1',
+    format: 'ia.installed-implementations',
+    formatVersion: 1,
     evaluators: { format: 'ia-evaluator-catalog/1.0', entries: [] },
     operations,
   });

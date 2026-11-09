@@ -176,8 +176,9 @@ export function qualifyInstalledViews(cli, cwd, env, workspace) {
     current = resolve(workspace, '.ia/work/snapshot/current.json');
   const snapshotBytes = readFileSync(current),
     snapshot = JSON.parse(snapshotBytes);
-  assert.equal(captured.format, 'ia-snapshot-1');
-  assert.equal(snapshot.format, 'ia-snapshot-1');
+  assert.equal(captured.format, 'ia-snapshot');
+  assert.equal(snapshot.format, 'ia-snapshot');
+  assert.equal(snapshot.formatVersion, 1);
   assert.equal(captured.digest, sha256(snapshotBytes));
   assert.equal(captured.admission.errors, 0);
   for (const identity of [plan, milestone, prerequisite, dependent])

@@ -16,7 +16,10 @@
  */
 import { deepFreeze, snapshot } from '../descriptors/codec.js';
 
-export const INSTALLED_IMPLEMENTATIONS_FORMAT = 'ia.installed-implementations.v1';
+export const INSTALLED_IMPLEMENTATIONS_FORMAT = 'ia.installed-implementations';
+export const INSTALLED_IMPLEMENTATIONS_FORMAT_VERSION = 1;
+/** The literal catalogs carried before `formatVersion` existed; read as written (the payload pins their bytes), never produced. */
+export const LEGACY_INSTALLED_IMPLEMENTATIONS_FORMATS: readonly string[] = ['ia.installed-implementations.v1'];
 
 export interface AvailableOperation {
   readonly id: string;
@@ -48,7 +51,9 @@ export interface RevokedOperation {
 }
 export type InstalledOperation = AvailableOperation | UnavailableOperation | RevokedOperation;
 export interface InstalledImplementationsValue {
-  readonly format: typeof INSTALLED_IMPLEMENTATIONS_FORMAT;
+  /** `ia.installed-implementations` with `formatVersion` 1, or the legacy literal (no `formatVersion`). */
+  readonly format: string;
+  readonly formatVersion?: number;
   /**
    * An evaluator catalog as compliance's `createEvaluatorCatalog` takes it, in the current `{format, formatVersion,
    * entries}` shape or the legacy `ia-evaluator-catalog/1.x` `{format, entries}` shape: its built-ins are implicit.
@@ -183,9 +188,13 @@ export function checkInstalledImplementations(input: unknown): InstalledImplemen
   } catch {
     return refuse('The installed-implementation catalog is not plain, acyclic, bounded data');
   }
-  const row = record(value, ['format', 'evaluators', 'operations']);
+  const plain =
+    value !== null && typeof value === 'object' && (value as Record<string, unknown>)['format'] === INSTALLED_IMPLEMENTATIONS_FORMAT;
+  const row = plain
+    ? record(value, ['format', 'formatVersion', 'evaluators', 'operations'])
+    : record(value, ['format', 'evaluators', 'operations']);
   if (row === null) return refuse('Unexpected installed-implementation catalog fields');
-  if (row['format'] !== INSTALLED_IMPLEMENTATIONS_FORMAT)
+  if (plain ? row['formatVersion'] !== INSTALLED_IMPLEMENTATIONS_FORMAT_VERSION : !LEGACY_INSTALLED_IMPLEMENTATIONS_FORMATS.includes(row['format'] as string))
     return refuse('Unknown installed-implementation catalog format');
   const section = row['evaluators'],
     evaluators = record(section, ['format', 'entries']) ?? record(section, ['format', 'formatVersion', 'entries']);

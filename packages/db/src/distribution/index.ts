@@ -63,7 +63,12 @@ export type {
   GenerationInputs,
   ActivationPointer,
 } from './contracts.js';
-export { checkInstalledImplementations, INSTALLED_IMPLEMENTATIONS_FORMAT } from './implementations.js';
+export {
+  checkInstalledImplementations,
+  INSTALLED_IMPLEMENTATIONS_FORMAT,
+  INSTALLED_IMPLEMENTATIONS_FORMAT_VERSION,
+  LEGACY_INSTALLED_IMPLEMENTATIONS_FORMATS,
+} from './implementations.js';
 export type {
   AvailableOperation,
   InstalledImplementationsCheck,
