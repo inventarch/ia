@@ -497,6 +497,13 @@ it('shapes an installed-implementation catalog once for its reader and its binde
   const revoked = { id: 'withdrawn-v1', status: 'revoked', reason: 'withdrawn by its producer' },
     unavailable = { id: 'zeta-v1', status: 'unavailable', reason: 'not shipped' };
   const checked = checkInstalledImplementations(catalog([available, revoked, unavailable]));
+  // The current evaluator shape, an integer formatVersion beside the plain format name, is admitted too.
+  expect(
+    checkInstalledImplementations({
+      ...catalog([]),
+      evaluators: { format: 'ia-evaluator-catalog', formatVersion: 2, entries: [] },
+    }).ok,
+  ).toBe(true);
   expect(checked.ok && checked.value.operations.map((row) => row.status)).toEqual([
     'available',
     'revoked',
@@ -523,7 +530,19 @@ it('shapes an installed-implementation catalog once for its reader and its binde
     [{ ...catalog([]), format: 'ia.installed-implementations.v2' }, 'Unknown installed-implementation catalog format'],
     [
       { ...catalog([]), evaluators: { format: 'ia-evaluator-catalog/2.0', entries: [] } },
-      'not an ia-evaluator-catalog/1.x',
+      'not an ia-evaluator-catalog value',
+    ],
+    [
+      { ...catalog([]), evaluators: { format: 'ia-evaluator-catalog/1.0', formatVersion: 2, entries: [] } },
+      'not an ia-evaluator-catalog value',
+    ],
+    [
+      { ...catalog([]), evaluators: { format: 'ia-evaluator-catalog', formatVersion: 0, entries: [] } },
+      'not an ia-evaluator-catalog value',
+    ],
+    [
+      { ...catalog([]), evaluators: { format: 'ia-evaluator-catalog', entries: [] } },
+      'not an ia-evaluator-catalog value',
     ],
   ] as const)
     expect(checkInstalledImplementations(bad)).toEqual({ ok: false, reason: expect.stringContaining(reason) });

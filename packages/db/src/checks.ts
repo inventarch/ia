@@ -3,9 +3,11 @@ import {
   CHECK_IDS,
   checkRunner,
   createEvaluatorCatalog,
+  isCodecRef,
+  legacyCodecRef,
   selectEvaluator,
 } from '@inventarch/compliance';
-import type { Report, Verdict } from '@inventarch/compliance';
+import type { CodecRef, EvaluatorCodec, Report, Verdict } from '@inventarch/compliance';
 import type { Node } from '@inventarch/graph';
 import type { CompiledField } from '@inventarch/language';
 
@@ -24,8 +26,8 @@ import type { CompiledField } from '@inventarch/language';
  *   `createEvaluatorCatalog`, `selectEvaluator`): `supported` is bound, but no host implementation is bound to run it in
  *   this release (`bindEvaluators` with none), so its result is not-evaluated; `unavailable`, an entry the catalog does
  *   not list, a catalog that is not valid, or no catalog at all is unavailable, not-evaluated; `revoked`, or a catalog
- *   that failed verification, is revoked, an error. The host registers no evaluator codec in this release, so each schema
- *   id the catalog's entries declare is given one that accepts nothing (`inertCodecs`): the catalog's structure and
+ *   that failed verification, is revoked, an error. The host registers no evaluator codec in this release, so each codec
+ *   the catalog's entries declare is given one that accepts nothing (`inertCodecs`): the catalog's structure and
  *   statuses are checked as compliance checks them, and nothing it lists can validate an input or produce evidence.
  */
 export const WHOLE_WORKSPACE_SCOPE = '*';
@@ -33,7 +35,11 @@ export const WHOLE_WORKSPACE_SCOPE = '*';
 export type CheckCatalog =
   | {
       readonly status: 'present';
-      readonly evaluators: { readonly format: string; readonly entries: readonly unknown[] };
+      readonly evaluators: {
+        readonly format: string;
+        readonly formatVersion?: number;
+        readonly entries: readonly unknown[];
+      };
     }
   | { readonly status: 'unavailable'; readonly reason: string }
   | { readonly status: 'damaged'; readonly reason: string };
@@ -66,18 +72,28 @@ const fieldText = (node: Node, section: string, key: string): string | null => {
         }
   return null;
 };
-/** One codec per schema id `entries` declare, each refusing every value (see the module comment). */
-function inertCodecs(
-  entries: readonly unknown[],
-): readonly { readonly id: string; validate(value: unknown): boolean }[] {
-  const ids = new Set<string>();
+/**
+ * One codec per `{id, version}` `entries` declare, each refusing every value (see the module comment). Entries name
+ * codecs as `inputCodec` / `outputCodec` references in the current shape, or as `inputSchemaId` / `outputSchemaId`
+ * `name@major` strings in the legacy `ia-evaluator-catalog/1.x` shape, which compliance's `legacyCodecRef` reads. A
+ * value that is neither gets no codec, so compliance refuses that entry as unknown.
+ */
+function inertCodecs(entries: readonly unknown[]): readonly EvaluatorCodec[] {
+  const refs = new Map<string, CodecRef>();
   for (const entry of entries)
     if (entry !== null && typeof entry === 'object')
-      for (const key of ['inputSchemaId', 'outputSchemaId'] as const) {
-        const id = (entry as Record<string, unknown>)[key];
-        if (typeof id === 'string') ids.add(id);
+      for (const [current, legacy] of [
+        ['inputCodec', 'inputSchemaId'],
+        ['outputCodec', 'outputSchemaId'],
+      ] as const) {
+        const fields = entry as Record<string, unknown>,
+          declared = fields[current] ?? fields[legacy],
+          ref = isCodecRef(declared) ? declared : legacyCodecRef(declared);
+        if (ref !== undefined) refs.set(`${ref.id}#${ref.version}`, ref);
       }
-  return [...ids].sort().map((id) => Object.freeze({ id, validate: () => false }));
+  return [...refs.entries()]
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([, ref]) => Object.freeze({ id: ref.id, version: ref.version, validate: () => false }));
 }
 const RANK: Readonly<Record<CheckOutcome, number>> = { pass: 0, 'not-evaluated': 1, fail: 2 };
 /**
@@ -144,7 +160,7 @@ export function bindChecks(
           codecs: inertCodecs(catalog.evaluators.entries),
         });
       } catch (error) {
-        // A schema id that is not a codec id at all: compliance refuses the registration itself.
+        // A refused registration: compliance refuses the catalog itself.
         evaluators = { ok: 'refused', reason: error instanceof Error ? error.message : String(error) };
       }
     return evaluators;

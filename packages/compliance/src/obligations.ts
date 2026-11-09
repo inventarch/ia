@@ -1,6 +1,7 @@
 import { stableSerialize } from '@inventarch/graph';
 import { isBuiltinCheck } from './check-ids.js';
 import { assertCatalog, codecOf, selectEvaluator } from './catalog.js';
+import type { CodecRef } from './catalog.js';
 import type { EvaluatorCatalog, EvidencePolicy } from './catalog.js';
 import { compareText, deepFreeze, echo, exactKeys, frozenCopy, jsonData, record, sanitized, sha256 } from './shape.js';
 import { assess } from './types.js';
@@ -227,25 +228,28 @@ const validDirective = (directive: unknown): directive is PackageDirective =>
 function inputDigestOf(
   subject: string,
   occurrence: ObligationOccurrence,
-  codecId: string | undefined,
+  codecRef: CodecRef | undefined,
   catalog: EvaluatorCatalog,
 ): { digest: string } | { reason: string } {
   const value = occurrence.input === undefined ? null : occurrence.input;
   try {
     if (!jsonData(value)) return { reason: 'input is not JSON data' };
     let normalized: unknown = value;
-    if (codecId !== undefined) {
-      const codec = codecOf(catalog, codecId);
+    if (codecRef !== undefined) {
+      const codec = codecOf(catalog, codecRef);
+      const name = `${codecRef.id} version ${codecRef.version}`;
       if (codec === undefined || codec.validate(frozenCopy(value)) !== true)
-        return { reason: `input does not satisfy codec ${codecId}` };
+        return { reason: `input does not satisfy codec ${name}` };
       if (codec.normalize !== undefined) normalized = codec.normalize(frozenCopy(value));
-      if (!jsonData(normalized)) return { reason: `codec ${codecId} normalized the input to non-JSON data` };
+      if (!jsonData(normalized)) return { reason: `codec ${name} normalized the input to non-JSON data` };
     }
     return {
       digest: sha256({ subject, runs: occurrence.runs, requirement: occurrence.requirement, input: normalized }),
     };
   } catch {
-    return { reason: `input codec ${codecId ?? ''} failed` };
+    return {
+      reason: `input codec ${codecRef === undefined ? '' : `${codecRef.id} version ${codecRef.version}`} failed`,
+    };
   }
 }
 interface Collected {
@@ -365,7 +369,7 @@ function collect(input: ObligationInput): Collected {
       );
       continue;
     }
-    const digest = inputDigestOf(input.subject, occurrence, entry?.inputSchemaId, catalog);
+    const digest = inputDigestOf(input.subject, occurrence, entry?.inputCodec, catalog);
     if ('reason' in digest) {
       findings.push(
         note('IA-COMP-OBLIGATION-UNRESOLVED', path, line, `${label}: ${digest.reason}`, false, occurrence.identity),

@@ -49,8 +49,15 @@ export interface RevokedOperation {
 export type InstalledOperation = AvailableOperation | UnavailableOperation | RevokedOperation;
 export interface InstalledImplementationsValue {
   readonly format: typeof INSTALLED_IMPLEMENTATIONS_FORMAT;
-  /** An `ia-evaluator-catalog/1.x` value as compliance's `createEvaluatorCatalog` takes it: its built-ins are implicit. */
-  readonly evaluators: { readonly format: string; readonly entries: readonly unknown[] };
+  /**
+   * An evaluator catalog as compliance's `createEvaluatorCatalog` takes it, in the current `{format, formatVersion,
+   * entries}` shape or the legacy `ia-evaluator-catalog/1.x` `{format, entries}` shape: its built-ins are implicit.
+   */
+  readonly evaluators: {
+    readonly format: string;
+    readonly formatVersion?: number;
+    readonly entries: readonly unknown[];
+  };
   readonly operations: readonly InstalledOperation[];
 }
 export type InstalledImplementationsCheck =
@@ -63,7 +70,8 @@ const TOKEN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/,
   IDENTITY = /^[a-z][a-z0-9-]*(?:\/[a-z0-9][a-z0-9-]*)+$/,
   PACKAGE = /^(?:@[a-z0-9-]+\/)?[a-z0-9][a-z0-9._-]*$/,
   HEX = /^[a-f0-9]{64}$/,
-  EVALUATOR_FORMAT = /^ia-evaluator-catalog\/1\.(?:0|[1-9][0-9]*)$/;
+  EVALUATOR_FORMAT = /^ia-evaluator-catalog\/1\.(?:0|[1-9][0-9]*)$/,
+  EVALUATOR_FORMAT_NAME = 'ia-evaluator-catalog';
 const AVAILABLE_KEYS = [
     'id',
     'status',
@@ -159,8 +167,9 @@ function operationProblem(item: unknown): string | null {
 }
 
 /**
- * Whether `value` is a catalog: exactly `format`, `evaluators` (an `ia-evaluator-catalog/1.x` format and entry list,
- * whose entries compliance validates when it binds) and `operations`, one row per operation sorted by id and unique,
+ * Whether `value` is a catalog: exactly `format`, `evaluators` (an `ia-evaluator-catalog` format with an integer
+ * `formatVersion`, or the legacy `ia-evaluator-catalog/1.x` format without one, and an entry list, whose entries
+ * compliance validates when it binds) and `operations`, one row per operation sorted by id and unique,
  * each as the module comment describes. `value` is first copied once as plain data, as the descriptor codec copies
  * host input (`snapshot`: no proxy, accessor, class instance, cycle or excess size), and the checked copy is returned
  * deeply frozen, so what was checked is what every reader of it sees. Returns that copy, or the first reason `value` is
@@ -178,15 +187,18 @@ export function checkInstalledImplementations(input: unknown): InstalledImplemen
   if (row === null) return refuse('Unexpected installed-implementation catalog fields');
   if (row['format'] !== INSTALLED_IMPLEMENTATIONS_FORMAT)
     return refuse('Unknown installed-implementation catalog format');
-  const evaluators = record(row['evaluators'], ['format', 'entries']);
-  if (
-    evaluators === null ||
-    typeof evaluators['format'] !== 'string' ||
-    !EVALUATOR_FORMAT.test(evaluators['format']) ||
-    !Array.isArray(evaluators['entries']) ||
-    evaluators['entries'].length > ROWS
-  )
-    return refuse('The evaluators section is not an ia-evaluator-catalog/1.x value');
+  const section = row['evaluators'],
+    evaluators = record(section, ['format', 'entries']) ?? record(section, ['format', 'formatVersion', 'entries']);
+  const shaped =
+    evaluators !== null &&
+    typeof evaluators['format'] === 'string' &&
+    (Object.hasOwn(evaluators, 'formatVersion')
+      ? evaluators['format'] === EVALUATOR_FORMAT_NAME &&
+        Number.isSafeInteger(evaluators['formatVersion']) &&
+        (evaluators['formatVersion'] as number) > 0
+      : EVALUATOR_FORMAT.test(evaluators['format']));
+  if (evaluators === null || !shaped || !Array.isArray(evaluators['entries']) || evaluators['entries'].length > ROWS)
+    return refuse('The evaluators section is not an ia-evaluator-catalog value (format and formatVersion, or 1.x)');
   const operations = row['operations'];
   if (!Array.isArray(operations) || operations.length > ROWS) return refuse('Invalid installed operation list');
   let previous = '';
