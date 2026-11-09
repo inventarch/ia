@@ -1,5 +1,5 @@
 /**
- * The one switch of this package for the contract names it compiles into harnesses (decision dec-008, amendment A15).
+ * The one switch of this package for the contract names it compiles into harnesses (decision dec-008).
  *
  * Older, separately released programs read the harnesses and manifests that name these contracts. While this is
  * `false` a record that names an original contract (`runner-local-v1` and the others) compiles to that original

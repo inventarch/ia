@@ -10,6 +10,8 @@ Provide checked built-in-only arguments, bounded Git, stable versions, contained
 - [args.d.mts](args.d.mts) — generated from the checked implementation for package test consumers.
 - [paths.mjs](paths.mjs) — bounded regular-file reads and contained, alias-free paths.
 - [paths.d.mts](paths.d.mts) — generated from the checked implementation for package test consumers.
+- [written-names.mjs](written-names.mjs) — the one switch for the names the repository tools write into shared documents.
+- [written-names.d.mts](written-names.d.mts) — typed declaration of that switch for package test consumers.
 - [check-write.mjs](check-write.mjs) — validates all output paths before atomic idempotent writes.
 - [contracts.test.ts](contracts.test.ts) — behavior and refusal coverage.
 - [git.mjs](git.mjs).

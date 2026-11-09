@@ -16,7 +16,7 @@ import { basename, dirname, isAbsolute, join, posix, relative, resolve } from 'n
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import ts from 'typescript';
 import { isEntry } from '../entry/is-entry.mjs';
-import { WRITE_PLAIN_NAMES } from '../written-names.mjs';
+import { WRITE_PLAIN_NAMES } from '../shared/written-names.mjs';
 
 const ROOTS = ['apps/cli', 'apps/distribution', 'apps/mcp-door', 'apps/steward-hook'];
 /** Imported only by the private service bridge (apps/mcp-door/src/service*.ts); the public door never loads them. */

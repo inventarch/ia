@@ -16,6 +16,7 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { afterAll, expect, it } from 'vitest';
+import { WRITE_PLAIN_NAMES } from '../shared/written-names.mjs';
 import { unpackTree, HOST_TREE_LIMITS } from '../../apps/distribution/src/ustar.js';
 import { verifyHostCache } from '../../apps/distribution/src/host.js';
 import { readInstalledImplementations } from '../../apps/distribution/src/implementations.js';
@@ -60,7 +61,11 @@ it('produces a deterministic v2 payload that verifies after extraction', async (
   expect(first.pin).toEqual(second.pin);
   expect(first.archive.equals(second.archive)).toBe(true);
   const verified = verifyHostCache(extract(first.archive));
-  expect(verified).toMatchObject({ format: 2, host: null, release: first.pin.release });
+  expect(verified).toMatchObject({
+    format: 2,
+    host: null,
+    release: first.pin.release,
+  });
 });
 it('ships the installed read handler as a payload root and pins the catalog to the shipped handler bytes', async () => {
   const payload = await generateHostPayload({ repository, write: false });
@@ -82,13 +87,12 @@ it('ships the installed read handler as a payload root and pins the catalog to t
     digest: sha(bytes),
     evaluators: { format: 'ia-evaluator-catalog/1.0', entries: [] },
   });
-  // The plain id, then the id this handler shipped under before names stopped carrying their version.
-  expect(catalog.operations.map((row: { id: string }) => row.id)).toEqual([
-    'captured-source-read',
-    'captured-source-read-v1',
-  ]);
+  // The released id until the switch flips; then the plain id, then the id this handler shipped under.
+  expect(catalog.operations.map((row: { id: string }) => row.id)).toEqual(
+    WRITE_PLAIN_NAMES ? ['captured-source-read', 'captured-source-read-v1'] : ['captured-source-read-v1'],
+  );
+  const original = catalog.operations[WRITE_PLAIN_NAMES ? 1 : 0]!;
   const operation = catalog.operations[0]!;
-  const original = catalog.operations[1]!;
   if (original.status !== 'available') throw Error(`Expected the original read id to ship: ${original.reason}`);
   expect(original).toMatchObject({
     handler: 'ia.captured-source.read.v1',
@@ -98,14 +102,15 @@ it('ships the installed read handler as a payload root and pins the catalog to t
   });
   if (operation.status !== 'available') throw Error(`Expected the read handler to ship: ${operation.reason}`);
   expect(original.digest).toBe(operation.digest);
-  expect(operation).toMatchObject({
-    id: 'captured-source-read',
-    operation: 'authoring-system/binding/operation/read-captured-source',
-    handler: 'captured-source-read',
-    input: 'captured-source-read-input',
-    output: 'captured-source-read-output',
-    module: HANDLER,
-  });
+  if (WRITE_PLAIN_NAMES)
+    expect(operation).toMatchObject({
+      id: 'captured-source-read',
+      operation: 'authoring-system/binding/operation/read-captured-source',
+      handler: 'captured-source-read',
+      input: 'captured-source-read-input',
+      output: 'captured-source-read-output',
+      module: HANDLER,
+    });
   // The handler bytes are the installed adapter's built module, shipped in the payload and pinned by their SHA-256.
   const shipped = readFileSync(resolve(root, HANDLER));
   expect(
@@ -127,7 +132,10 @@ it('ships the installed read handler as a payload root and pins the catalog to t
   expect(closure.some((row) => row.path.endsWith('/dist/compile.js'))).toBe(true);
 });
 it('never reports the read handler available once its shipped bytes are altered or missing', async () => {
-  const { archive, pin } = await generateHostPayload({ repository, write: false });
+  const { archive, pin } = await generateHostPayload({
+    repository,
+    write: false,
+  });
   const altered = extract(archive);
   writeFileSync(resolve(altered, HANDLER), Buffer.concat([readFileSync(resolve(altered, HANDLER)), Buffer.from('\n')]));
   expect(() => readInstalledImplementations(altered, pin.release)).toThrow(
@@ -182,8 +190,15 @@ it('reads the actual payload without its catalog, as a release before the catalo
   const inventoryText = JSON.stringify(inventory, null, 2) + '\n',
     launcher = text('scripts/ia.mjs').replace(sha(text('inventory.json')), sha(inventoryText));
   const release =
-    JSON.stringify({ format: 'ia.host-release.v2', inventory: sha(inventoryText), launcher: sha(launcher) }, null, 2) +
-    '\n';
+    JSON.stringify(
+      {
+        format: 'ia.host-release.v2',
+        inventory: sha(inventoryText),
+        launcher: sha(launcher),
+      },
+      null,
+      2,
+    ) + '\n';
   tree.delete('implementations.json');
   tree.set('inventory.json', Buffer.from(inventoryText));
   tree.set('scripts/ia.mjs', Buffer.from(launcher));
@@ -238,8 +253,14 @@ it('follows a handler module closure through relative imports and released expor
     Object.entries({
       'runtime/node_modules/@inventarch/a/package.json': JSON.stringify({
         name: '@inventarch/a',
-        exports: { '.': { types: './dist/index.d.ts', default: './dist/index.js' } },
-        dependencies: { '@inventarch/b': '1', semver: '1', '@inventarch/service-contracts': '1' },
+        exports: {
+          '.': { types: './dist/index.d.ts', default: './dist/index.js' },
+        },
+        dependencies: {
+          '@inventarch/b': '1',
+          semver: '1',
+          '@inventarch/service-contracts': '1',
+        },
       }),
       'runtime/node_modules/@inventarch/a/dist/index.js': [
         "import { x } from './x.js';",
@@ -257,7 +278,9 @@ it('follows a handler module closure through relative imports and released expor
         exports: { './sub': { default: './dist/sub.js' } },
       }),
       'runtime/node_modules/@inventarch/b/dist/sub.js': "export * from './gone.js';\nimport '@inventarch/c';\n",
-      'runtime/node_modules/semver/package.json': JSON.stringify({ name: 'semver' }),
+      'runtime/node_modules/semver/package.json': JSON.stringify({
+        name: 'semver',
+      }),
     }).map(([path, text]) => [path, Buffer.from(text)]),
   );
   expect(moduleClosure(files, 'runtime/node_modules/@inventarch/a/dist/index.js')).toEqual({
@@ -283,17 +306,24 @@ it('lists the read handler unavailable for a staged candidate whose dependencies
   mkdirSync(join(candidate, 'apps'));
   for (const app of ['cli', 'distribution', 'mcp-door', 'steward-hook'])
     symlinkSync(join(repository, 'apps', app), join(candidate, 'apps', app), 'junction');
-  const payload = await generateHostPayload({ repository: candidate, write: false });
+  const payload = await generateHostPayload({
+    repository: candidate,
+    write: false,
+  });
   expect(payload.catalog.operations).toEqual(
-    ['captured-source-read', 'captured-source-read-v1'].map((id) => ({
-      id,
-      status: 'unavailable',
-      reason: '@inventarch/agent-composition-system is not installed in this repository',
-    })),
+    (WRITE_PLAIN_NAMES ? ['captured-source-read', 'captured-source-read-v1'] : ['captured-source-read-v1']).map(
+      (id) => ({
+        id,
+        status: 'unavailable',
+        reason: '@inventarch/agent-composition-system is not installed in this repository',
+      }),
+    ),
   );
   const root = extract(payload.archive);
   expect(verifyHostCache(root).release).toBe(payload.pin.release);
-  expect(present(root, payload.pin.release).operations[0]).toMatchObject({ status: 'unavailable' });
+  expect(present(root, payload.pin.release).operations[0]).toMatchObject({
+    status: 'unavailable',
+  });
   expect(readFileSync(resolve(root, 'inventory.json'), 'utf8')).not.toContain('agent-composition-system');
 });
 it('excludes the private service dependencies and the payload itself', async () => {
@@ -355,9 +385,15 @@ it("runs the real launcher from the extracted payload regardless of the caller's
   const { archive } = await generateHostPayload({ repository, write: false }),
     dir = extract(archive),
     launcher = join(dir, 'scripts/ia.mjs');
-  const verify = spawnSync(process.execPath, [launcher, 'verify'], { encoding: 'utf8', timeout: 10_000 });
+  const verify = spawnSync(process.execPath, [launcher, 'verify'], {
+    encoding: 'utf8',
+    timeout: 10_000,
+  });
   expect(verify.status, verify.stderr).toBe(0);
-  expect(JSON.parse(verify.stdout)).toMatchObject({ status: 'verified', host: null });
+  expect(JSON.parse(verify.stdout)).toMatchObject({
+    status: 'verified',
+    host: null,
+  });
   const env = { ...process.env, NODE_OPTIONS: '--conditions=development' };
   const door = spawnSync(
     process.execPath,
@@ -372,7 +408,10 @@ it('refuses omitted capabilities instead of transforming a staging manifest', ()
   const original = JSON.parse(readFileSync(join(repository, 'apps/cli/package.json'), 'utf8'));
   expect(staticCliManifest(original)).toEqual(original);
   expect(() =>
-    staticCliManifest({ ...original, exports: { './development': './dist/inventarch-development/index.js' } }),
+    staticCliManifest({
+      ...original,
+      exports: { './development': './dist/inventarch-development/index.js' },
+    }),
   ).toThrow(/omitted capability/);
   for (const code of [
     "import '@inventarch/architecture-system'",
@@ -388,12 +427,17 @@ it('excludes the public CLI embedded payload so repeated materialization keeps t
   made.push(candidate);
   mkdirSync(cli, { recursive: true });
   for (const entry of ['dist', 'assets', 'LICENSE', 'README.md', 'SPEC.md', 'package.json'])
-    cpSync(join(repository, 'apps/cli', entry), join(cli, entry), { recursive: true });
+    cpSync(join(repository, 'apps/cli', entry), join(cli, entry), {
+      recursive: true,
+    });
   symlinkSync(join(repository, 'node_modules'), join(candidate, 'node_modules'), 'junction');
   mkdirSync(join(cli, 'node_modules'));
   for (const app of ['distribution', 'mcp-door', 'steward-hook'])
     symlinkSync(join(repository, 'apps', app), join(candidate, 'apps', app), 'junction');
-  const first = await generateHostPayload({ repository: candidate, write: true }),
+  const first = await generateHostPayload({
+      repository: candidate,
+      write: true,
+    }),
     second = await generateHostPayload({ repository: candidate, write: true });
   expect(second.pin).toEqual(first.pin);
   expect(second.archive.equals(first.archive)).toBe(true);
@@ -438,11 +482,24 @@ it('never ships, or imports at build time, an implementation package found above
     `import { writeFileSync } from 'node:fs';\nwriteFileSync(${JSON.stringify(marker)}, 'imported');\nexport const catalog = () => ({ operations: {} });\n`,
   );
   const implementations = [
-    { id: 'acme-read-v1', package: '@acme/impl', module: 'dist/read.js', declaration: 'catalog' },
+    {
+      id: 'acme-read-v1',
+      package: '@acme/impl',
+      module: 'dist/read.js',
+      declaration: 'catalog',
+    },
   ];
-  const { catalog, archive, pin } = await generateHostPayload({ repository: fake, write: false, implementations });
+  const { catalog, archive, pin } = await generateHostPayload({
+    repository: fake,
+    write: false,
+    implementations,
+  });
   expect(catalog.operations).toEqual([
-    { id: 'acme-read-v1', status: 'unavailable', reason: '@acme/impl is not installed in this repository' },
+    {
+      id: 'acme-read-v1',
+      status: 'unavailable',
+      reason: '@acme/impl is not installed in this repository',
+    },
   ]);
   expect(existsSync(marker)).toBe(false);
   expect(readFileSync(resolve(extract(archive), 'inventory.json'), 'utf8')).not.toContain('@acme/impl');
@@ -462,13 +519,23 @@ it('resolves an implementation closure inside the repository install, never from
     symlinkSync(join(repository, 'apps', app), join(candidate, 'apps', app), 'junction');
   put(
     'repo/node_modules/@acme/impl/package.json',
-    JSON.stringify({ name: '@acme/impl', version: '1.0.0', type: 'module', dependencies: { '@acme/outside': '1' } }),
+    JSON.stringify({
+      name: '@acme/impl',
+      version: '1.0.0',
+      type: 'module',
+      dependencies: { '@acme/outside': '1' },
+    }),
   );
   put('repo/node_modules/@acme/impl/dist/read.js', 'export const catalog = () => ({ operations: {} });\n');
   put('node_modules/@acme/outside/package.json', JSON.stringify({ name: '@acme/outside', version: '1.0.0' }));
   await expect(
     collectPayload(candidate, [
-      { id: 'acme-read-v1', package: '@acme/impl', module: 'dist/read.js', declaration: 'catalog' },
+      {
+        id: 'acme-read-v1',
+        package: '@acme/impl',
+        module: 'dist/read.js',
+        declaration: 'catalog',
+      },
     ]),
   ).rejects.toThrow('Installed package manifest unavailable: @acme/outside');
 });
@@ -476,9 +543,13 @@ it('lists an implementation unavailable when its module closure is incomplete or
   const files = (handler: string, extra: Record<string, string> = {}) =>
     new Map(
       Object.entries({
-        'runtime/node_modules/@acme/handler/package.json': JSON.stringify({ name: '@acme/handler' }),
+        'runtime/node_modules/@acme/handler/package.json': JSON.stringify({
+          name: '@acme/handler',
+        }),
         'runtime/node_modules/@acme/handler/dist/read.js': handler,
-        'runtime/node_modules/@acme/other/package.json': JSON.stringify({ name: '@acme/other' }),
+        'runtime/node_modules/@acme/other/package.json': JSON.stringify({
+          name: '@acme/other',
+        }),
         ...extra,
       }).map(([key, text]) => [key, Buffer.from(text)]),
     );

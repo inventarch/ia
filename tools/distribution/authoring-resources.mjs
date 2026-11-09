@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { decodeDistributionJson } from '@inventarch/db/distribution';
 import { teachingLinkClasses, teachingLinkFindings } from '../docs/teaching-links.mjs';
 import { containedFile, readRegular } from '../shared/paths.mjs';
-import { WRITE_PLAIN_NAMES } from '../written-names.mjs';
+import { WRITE_PLAIN_NAMES } from '../shared/written-names.mjs';
 
 export const AUTHORING_MANIFEST = '.ia/authoring.resources.json';
 export const AUTHORING_LIBRARY = '.ia/src/systems/authoring-system/library.json';

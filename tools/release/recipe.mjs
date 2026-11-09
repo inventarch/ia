@@ -60,6 +60,7 @@ export const RECIPE_TOOL_MODULES = Object.freeze([
   'tools/release/system-partitions.ts',
   'tools/shared/args.mjs',
   'tools/shared/paths.mjs',
+  'tools/shared/written-names.mjs',
   'tools/temp/physical-temp.mjs',
 ]);
 

@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { isEntry } from '../entry/is-entry.mjs';
-import { WRITE_PLAIN_NAMES } from '../written-names.mjs';
+import { WRITE_PLAIN_NAMES } from '../shared/written-names.mjs';
 import { RELEASE_ENGINE_VERSION } from '../../packages/db/src/distribution/index.js';
 
 import { packOptionalDistribution } from './distribution.mjs';

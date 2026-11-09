@@ -5,10 +5,6 @@ import { exampleCatalog } from '../../../../../tools/native/public-language.js';
 
 export function executionCatalog(model: string, implementationDigest: string) {
   const catalog = exampleCatalog();
-  // The shipped records name the released entry `example-entry-v1`; the shared example catalog may install it under
-  // either name, so this fixture installs it under the released one.
-  const entry = catalog.entries['example-entry-v1'] ?? catalog.entries['example-entry'];
-  if (entry) catalog.entries['example-entry-v1'] = entry;
   const host = catalog.hosts['example-host']!.value;
   catalog.hosts['example-host'] = installed({ ...host, limits: { ...host.limits, tokens: 400000 } });
   catalog.models['example-model'] = installed({ model });

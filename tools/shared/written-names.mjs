@@ -1,6 +1,6 @@
 /**
- * The one switch of the repository tools for the names they write into shared documents (decision dec-008,
- * amendment A15): the committed `.ia/authoring.resources.json`, the host payload and the projection fixtures.
+ * The one switch of the repository tools for the names they write into shared documents (decision dec-008):
+ * the committed `.ia/authoring.resources.json`, the host payload and the projection fixtures.
  *
  * Older, separately released programs read those documents and refuse anything but the exact literals they were
  * released with. While this is `false` every writer emits the released name and shape; the plain names stay accepted

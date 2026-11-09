@@ -88,8 +88,6 @@ it('compiles executable definitions from the real packed installed activation wi
     harness: 'example-harness',
     entry: 'example-entry',
     catalog: exampleCatalog(),
-    // The released example record names its entry contract `example-entry-v1`; the catalogue now installs the plain name.
-    aliases: { entries: { 'example-entry-v1': 'example-entry' } },
   });
   expect(result, JSON.stringify(result)).toMatchObject({ ok: true });
   expect(revisions).toEqual([expectedView]);
