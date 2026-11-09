@@ -214,7 +214,33 @@ export async function languageKit(range: string): Promise<SourcedRelease> {
     manifestDigest: sha256(canonicalDistributionJson(manifest)),
   };
 }
-/** A directory registry listing exactly `releases`, each index entry copied from the manifest its archive carries (§3). */
+/**
+ * A language base as a registry or catalog would publish it: the carried base `version`'s manifest and files, cut again
+ * with published provenance (no registry lists an unpublished archive, §5.1), so its archive differs from the carried one.
+ * `as` labels the cut with another version, standing for a base this CLI does not carry.
+ */
+export function publishedBase(version: string, as = version): SourcedRelease {
+  const base = readBases(cli).find((carried) => carried.pin.version === version);
+  if (base === undefined) throw new Error(`The CLI carries no language base ${version}`);
+  const { manifest: carried, files } = verifyArchive(base.bytes);
+  const manifest = {
+    ...carried,
+    version: as,
+    source: { ...carried.source, repository: 'https://fixture.example/language', commit: 'b'.repeat(40) },
+  };
+  const bytes = buildArchive(manifest, files);
+  return {
+    manifest,
+    files,
+    bytes,
+    archiveDigest: sha256(bytes),
+    manifestDigest: sha256(canonicalDistributionJson(manifest)),
+  };
+}
+/**
+ * A directory registry listing exactly `releases`, each index entry copied from the manifest its archive carries (§3);
+ * the releases of one id share its index, in the order given.
+ */
 export function sourcedRegistry(releases: readonly SourcedRelease[]): string {
   const dir = mkdtempSync(join(tmpdir(), 'ia-cli-registry-'));
   const put = (path: string, content: string | Buffer): void => {
@@ -222,6 +248,7 @@ export function sourcedRegistry(releases: readonly SourcedRelease[]): string {
     writeFileSync(join(dir, path), content);
   };
   put('ia-registry.json', JSON.stringify({ format: 'ia.registry.v1', name: 'Fixture' }));
+  const indexes = new Map<string, unknown[]>();
   for (const { manifest, bytes, archiveDigest, manifestDigest } of releases) {
     put(`artifacts/${archiveDigest}.ia.tgz`, bytes);
     const entry = {
@@ -237,11 +264,10 @@ export function sourcedRegistry(releases: readonly SourcedRelease[]): string {
       access: 'public',
       artifact: `artifacts/${archiveDigest}.ia.tgz`,
     };
-    put(
-      `packages/${manifest.id}.json`,
-      JSON.stringify({ format: 'ia.registry-package.v1', id: manifest.id, releases: [entry] }),
-    );
+    indexes.set(manifest.id, [...(indexes.get(manifest.id) ?? []), entry]);
   }
+  for (const [id, entries] of indexes)
+    put(`packages/${id}.json`, JSON.stringify({ format: 'ia.registry-package.v1', id, releases: entries }));
   return dir;
 }
 /** A registry directory holding the given releases exactly, in the `ia.registry.v1` layout. */

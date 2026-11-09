@@ -46,6 +46,7 @@ import { readBases, readCompatIndex } from './bundled-base.js';
 import { gapText, recordSources } from './record-sources.js';
 import {
   canonicalDistributionJson,
+  commonRange,
   compareVersions,
   decodeDistributionRequests,
   DISTRIBUTION_ENGINE_VERSION,
@@ -768,6 +769,82 @@ function requireMinimum(offer: CarriedOffer, newest: string, reruns: Reruns, upd
     `Run "${update(`^${lowest}`)}" to move the workspace to a base its records can use.`,
   );
 }
+/**
+ * `update` of the base with `--to` never plans a downgrade: a range that admits no version at or above the locked one
+ * refuses before anything is resolved, naming the lock. A range the codec refuses is left to resolution.
+ */
+function requireNoDowngrade(offer: CarriedOffer, to: string, update: (to: string) => string): void {
+  const locked = attempt(() => exactVersion(offer.locked.version));
+  if (locked === undefined || attempt(() => commonRange(to, `>=${locked}`)) !== null) return;
+  throw new Refusal(
+    'IA-DIST-CONFLICT',
+    `The range ${to} admits only ${offer.id} versions below the locked ${offer.id} ${locked}, and update never moves the base down`,
+    3,
+    { path: INSTALL_PATHS.lock },
+    `Run "${update(`^${locked}`)}" to update within the versions at or above the lock.`,
+  );
+}
+/**
+ * No downgrade and no base below the minimum, from any origin: the bound every `inventarch/language` candidate of an
+ * install or update meets, whether the CLI carries it or a registry, a catalog or the workspace cache lists it. A
+ * candidate is admitted when it is the locked archive itself, or at or above the locked version and, when the
+ * workspace's minimum was computed (`CarriedOffer.minimum`) and some base reads its records, at or above that minimum.
+ * `refused` keeps the versions it turned away, so a resolution that then finds nothing says why (`explain`). Undefined
+ * when the plan offers no carried base for a locked row: no lock, or a 1.x caller that names no package root.
+ */
+interface LanguageBound {
+  readonly admits: (release: { readonly id: string; readonly version: string; readonly archive: string }) => boolean;
+  /** `candidates` without those `admits` refuses. */
+  readonly within: (
+    candidates: readonly ReleaseCandidate<BundleMetadata>[],
+  ) => readonly ReleaseCandidate<BundleMetadata>[];
+  /** A conflict after `admits` refused some version, as a refusal naming the lock; any other error unchanged. */
+  readonly explain: (error: unknown) => unknown;
+}
+function languageBound(offer: CarriedOffer | undefined, reruns: Reruns): LanguageBound | undefined {
+  if (offer === undefined) return undefined;
+  const locked = attempt(() => exactVersion(offer.locked.version));
+  if (locked === undefined) return undefined;
+  const floor = offer.minimum?.floor ?? null,
+    refused = new Set<string>();
+  const admits: LanguageBound['admits'] = ({ id, version, archive }) => {
+    if (id !== offer.id || archive === offer.locked.archive) return true;
+    const admitted = attempt(() => atLeast(version, locked) && (floor === null || atLeast(version, floor))) === true;
+    if (!admitted) refused.add(version);
+    return admitted;
+  };
+  return {
+    admits,
+    within: (candidates) =>
+      candidates.filter(({ release }) =>
+        admits({ id: release.manifest.id, version: release.manifest.version, archive: release.archiveDigest }),
+      ),
+    explain: (error) => {
+      if (refused.size === 0 || codeOf(error, '') !== 'IA-DIST-CONFLICT') return error;
+      // The effective bound: the minimum when the records need more than the lock, else the lock.
+      const versions = [...refused].sort((a, b) => compareVersions(b, a)),
+        limit =
+          floor !== null && !atLeast(locked, floor)
+            ? `the minimum ${floor} the workspace's records need`
+            : `the locked ${locked}`;
+      return new Refusal(
+        'IA-DIST-CONFLICT',
+        `${error instanceof Error ? error.message : String(error)}: ${offer.id} ${versions.join(', ')} ${versions.length === 1 ? 'is' : 'are'} below ${limit}, and a plan never moves the base below the lock or that minimum`,
+        3,
+        { path: INSTALL_PATHS.lock },
+        `The lock holds ${offer.id} ${locked}. Run "${reruns.inspect}" for the installed generation, and install a release whose range admits it.`,
+      );
+    },
+  };
+}
+/** `run`'s value, or its error as `bound` explains it. */
+async function heldBy<T>(bound: LanguageBound | undefined, run: () => T | Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (error) {
+    throw bound === undefined ? error : bound.explain(error);
+  }
+}
 /** The offered bases as resolution candidates beside `candidates`, except one whose id and version they already hold. */
 function carriedCandidates(
   offer: CarriedOffer | undefined,
@@ -1064,27 +1141,37 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
     // newer carried one when a kit's range or an update of the base asks for it, cold or warm, offline or online.
     const naming = newest !== undefined && updated === newest.id;
     const offer = carriedOffer(root, request.packageRoot, bases, previous, requests, naming);
+    if (naming && offer !== undefined && request.to !== undefined)
+      requireNoDowngrade(offer, request.to, (to) => update(offer.id, to));
     if (naming && offer !== undefined) requireMinimum(offer, newest.version, reruns, (to) => update(offer.id, to));
+    // Every source's language candidates are held to the same bound as the carried ones: never below the lock or the
+    // workspace's minimum.
+    const bound = languageBound(offer, reruns),
+      within = bound?.within ?? ((candidates: readonly ReleaseCandidate<BundleMetadata>[]) => candidates);
     let choices: readonly ReleaseCandidate<BundleMetadata>[];
     if (request.catalog !== undefined) {
       const entries = supplied(request.catalog, 'catalog');
       await warm(root, entries, request.offline, reruns, request.signal);
       choices = carriedCandidates(
         offer,
-        await acquiring(
-          () => resolveCatalog({ root, entries, offline: request.offline, signal: request.signal }),
-          request.catalog,
-          'catalog',
-          reruns,
+        within(
+          await acquiring(
+            () => resolveCatalog({ root, entries, offline: request.offline, signal: request.signal }),
+            request.catalog,
+            'catalog',
+            reruns,
+          ),
         ),
       );
     } else if (request.offline) {
       choices = carriedCandidates(
         offer,
-        cached(
-          root,
-          [...requests.map((dependency) => dependency.id), ...(previous?.packages ?? []).map((pkg) => pkg.id)],
-          reruns,
+        within(
+          cached(
+            root,
+            [...requests.map((dependency) => dependency.id), ...(previous?.packages ?? []).map((pkg) => pkg.id)],
+            reruns,
+          ),
         ),
       );
     } else {
@@ -1106,28 +1193,35 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
         ...recorded.named,
         ...(previous?.requests ?? []).map((dependency) => dependency.id).filter((id) => !listed.has(id)),
       ];
-      const resolution = await acquiring(
-        () =>
-          resolveFromRegistries({
-            allowKits: operation === 'install',
-            collectionMembers,
-            direct: earlier,
-            root,
-            requests,
-            engine: DISTRIBUTION_ENGINE_VERSION,
-            previous,
-            preferredExcept: updated,
-            named,
-            choose,
-            signal: request.signal,
-            extra: (offer?.offered ?? []).map((base) => ({
-              release: { manifest: base.manifest, archiveDigest: base.pin.archive, manifestDigest: base.pin.manifest },
-              bytes: base.bytes,
-            })),
-          }),
-        null,
-        'registry',
-        reruns,
+      const resolution = await heldBy(bound, () =>
+        acquiring(
+          () =>
+            resolveFromRegistries({
+              allowKits: operation === 'install',
+              collectionMembers,
+              direct: earlier,
+              root,
+              requests,
+              engine: DISTRIBUTION_ENGINE_VERSION,
+              previous,
+              preferredExcept: updated,
+              named,
+              choose,
+              signal: request.signal,
+              extra: (offer?.offered ?? []).map((base) => ({
+                release: {
+                  manifest: base.manifest,
+                  archiveDigest: base.pin.archive,
+                  manifestDigest: base.pin.manifest,
+                },
+                bytes: base.bytes,
+              })),
+              admits: bound?.admits,
+            }),
+          null,
+          'registry',
+          reruns,
+        ),
       );
       requests = resolution.expandedRequests ?? requests;
       // A holder whose shared member this install narrowed still accepts where it lands, so its row is recorded again at
@@ -1157,7 +1251,9 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
         ? { ...previous, packages: previous.packages.filter((pkg) => pkg.id !== updated) }
         : previous;
     request.signal?.throwIfAborted();
-    const { lock } = resolveReleases(requests, choices, DISTRIBUTION_ENGINE_VERSION, preference);
+    const { lock } = await heldBy(bound, () =>
+      resolveReleases(requests, choices, DISTRIBUTION_ENGINE_VERSION, preference),
+    );
     // A selected carried base is cached from the CLI's verified bytes, as a selected registry archive is, so the plan
     // reads it where every installation reads its archives.
     const chosen = lock.packages.find((pkg) => pkg.id === offer?.id);

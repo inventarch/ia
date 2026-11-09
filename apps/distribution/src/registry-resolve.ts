@@ -70,6 +70,18 @@ export interface RegistryResolveRequest {
    * answers for is not offered again.
    */
   readonly extra?: readonly CandidateRelease[] | undefined;
+  /**
+   * The caller's own bound on what selection may pick (the CLI's rule that the language base never moves below the lock
+   * or the workspace's minimum): a registry release, carried release or cached pin it refuses is neither followed nor
+   * offered, so selection never picks it. Absent, every release is admitted as before.
+   */
+  readonly admits?: ((release: AdmittedRelease) => boolean) | undefined;
+}
+/** What `RegistryResolveRequest.admits` is asked about one release. */
+export interface AdmittedRelease {
+  readonly id: string;
+  readonly version: string;
+  readonly archive: string;
 }
 /**
  * `candidates` are exactly the selected releases, admitted. A selected cached lock pin retains its manifest-level
@@ -267,6 +279,8 @@ async function resolveWithPins(
   verified: ReadonlyMap<string, CachedPin>,
 ): Promise<RegistryResolution> {
   const { signal, engine, previous, acquirer } = request;
+  const bounded = (id: string, version: string, archive: string): boolean =>
+    request.admits === undefined || request.admits({ id, version, archive });
   const requests = [...decodeDistributionRequests(request.requests)],
     read = registries(request.choose, signal);
   // §5.1: a usable cached pin is a verified cached lock pin whose engine range admits the running engine; each is a
@@ -349,7 +363,8 @@ async function resolveWithPins(
       entry !== undefined &&
       !release.withdrawn &&
       satisfies(engine, release.engine) &&
-      (entry.pinned.has(release.version) || [...entry.ranges].some((r) => satisfies(release.version, r)))
+      (entry.pinned.has(release.version) || [...entry.ranges].some((r) => satisfies(release.version, r))) &&
+      bounded(id, release.version, release.archive)
     );
   };
   // The range that says what two collections sharing a member both accept, or null when no release both accept exists:
@@ -484,7 +499,7 @@ async function resolveWithPins(
   // location) is. A pin is withdrawn only when its id's index was read and marks that archive withdrawn.
   const pinned = new Map<string, { readonly pin: CachedPin; readonly withdrawn: boolean }>();
   for (const [id, pin] of pins) {
-    if (!known.has(id)) continue;
+    if (!known.has(id) || !bounded(id, pin.locked.version, pin.locked.archive)) continue;
     const source = indexed.get(id),
       entry = source?.index.releases.find((r) => r.archive === pin.locked.archive);
     if (
@@ -507,6 +522,7 @@ async function resolveWithPins(
         entry !== undefined &&
         satisfies(engine, manifest.engine) &&
         (entry.pinned.has(manifest.version) || [...entry.ranges].some((r) => satisfies(manifest.version, r))) &&
+        bounded(id, manifest.version, archiveDigest) &&
         !(pin !== undefined && (pin.locked.version === manifest.version || pin.locked.archive === archiveDigest)) &&
         !(indexed.get(id)?.index.releases ?? []).some(
           (r) => r.version === manifest.version || r.archive === archiveDigest,
