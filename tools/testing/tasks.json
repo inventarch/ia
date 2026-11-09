@@ -1387,6 +1387,7 @@
         "tests/consumer.test.ts",
         "tests/distribution-verbs.test.ts",
         "tests/equivalence.test.ts",
+        "tests/floor.test.ts",
         "tests/host-plugin.test.ts",
         "tests/host-projection.test.ts",
         "tests/install-package.test.ts"

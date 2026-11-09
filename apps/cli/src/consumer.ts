@@ -31,6 +31,7 @@ import { runAdopt } from './adopt.js';
 import { runInit } from './init.js';
 import { runInspect } from './inspect.js';
 import { runNext } from './next.js';
+import { runFloor } from './floor.js';
 import { runPack } from './pack.js';
 import { runPosition } from './position.js';
 import { runPreview } from './preview.js';
@@ -523,6 +524,7 @@ const HANDLERS: Readonly<Record<string, Handler>> = {
   next: runNext,
   project: runProject,
   pack: runPack,
+  floor: runFloor,
   install: runDistribute('install'),
   update: runDistribute('update'),
   remove: runDistribute('remove'),

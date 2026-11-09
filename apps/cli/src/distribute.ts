@@ -39,10 +39,11 @@
  * with the service's code, message and file, and its next action opens "The installation is applied." before the
  * repair, so a script sees the failure and a reader sees what did happen. `ia doctor` reports the drift until then.
  */
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Base } from './bundled-base.js';
 import { readBases, readCompatIndex } from './bundled-base.js';
+import { gapText, recordSources } from './record-sources.js';
 import {
   canonicalDistributionJson,
   compareVersions,
@@ -681,41 +682,6 @@ function attempt<T>(run: () => T): T | undefined {
 const majorOf = (value: string): number => Number(value.split('.')[0]);
 /** Whether version `a` is at or above `b` (`compareVersions` orders the highest first). */
 const atLeast = (a: string, b: string): boolean => compareVersions(a, b) <= 0;
-
-/**
- * The workspace's authored record trees as `languageFloor` reads them: every `.ia` file under `.ia/src`, by its
- * workspace-relative path. Only record trees count (a kit's other assets would say nothing true about its minimum), and
- * links are not followed.
- */
-function recordSources(root: string): { path: string; text: string }[] {
-  const sources: { path: string; text: string }[] = [];
-  const walk = (directory: string, at: string): void => {
-    for (const entry of readdirSync(directory, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))) {
-      const path = `${at}/${entry.name}`;
-      if (entry.isDirectory()) walk(join(directory, entry.name), path);
-      else if (entry.isFile() && entry.name.endsWith('.ia'))
-        sources.push({ path, text: readFileSync(join(directory, entry.name), 'utf8') });
-    }
-  };
-  const top = join(root, '.ia/src');
-  if (existsSync(top)) walk(top, '.ia/src');
-  return sources;
-}
-/** One gap, said as what the record does and what the base it fails on makes of that. */
-function gapText(gap: Gap): string {
-  const owner = gap.record === '' ? '' : ` (@${gap.word} ${gap.record})`;
-  const said: Readonly<Record<Gap['kind'], string>> = {
-    word: `uses the word ${gap.key}, which ${gap.base} does not register`,
-    section: `uses the section ${gap.key}, which ${gap.base} does not declare`,
-    field: `uses the field ${gap.key}, which ${gap.base} does not declare`,
-    value: `uses the value ${gap.key}, which ${gap.base} does not admit`,
-    type: `gives ${gap.key} a value ${gap.base} does not admit`,
-    'required-section': `lacks the section ${gap.key}, which ${gap.base} requires`,
-    'required-field': `lacks the field ${gap.key}, which ${gap.base} requires`,
-    parse: `does not parse (${gap.key})`,
-  };
-  return `${gap.source}${owner} ${said[gap.kind]}`;
-}
 
 /**
  * The carried bases a plan may offer for the workspace's locked language row (`offered`), by one rule: the same major
