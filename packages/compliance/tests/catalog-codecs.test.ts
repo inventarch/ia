@@ -94,9 +94,9 @@ describe('versioned codecs (T1.6)', () => {
     expect(codecOf(r.catalog, r.catalog.entries[0]!.inputCodec)?.validate).toBe(
       codecOf(fresh.catalog, fresh.catalog.entries[0]!.inputCodec)?.validate,
     );
-    // Any 1.x minor is still read; the digest of a legacy catalog is the one computed before this change.
+    // Any 1.x minor is still read; the digest of a legacy catalog is the one main's build computes without this change.
     expect(old([legacy], 'ia-evaluator-catalog/1.3').ok).toBe(true);
-    expect(r.catalog.digest).toBe('sha256:b21f5a360892536c0a55acf4dfc5141e705d3096fd53e24a00ab6c34d9e92710');
+    expect(r.catalog.digest).toBe('sha256:c211233d54a0409932518c058e591a960ee21b09d2911824fc358650bfb2d73e');
     expect(legacyCodecRef('acme-typing-input@2')).toEqual({ id: 'acme-typing-input', version: 2 });
     // Each shape is exact: the legacy fields are not read in the current shape, nor the reverse.
     expect(codes(now([legacy]))).toEqual(['IA-COMP-CATALOG-ENTRY-INVALID']);
