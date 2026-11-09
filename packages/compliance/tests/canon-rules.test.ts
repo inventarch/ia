@@ -373,6 +373,39 @@ describe('E4 local tightening', () => {
     expect(none).toHaveLength(1);
     expect(none[0]!.message).toContain('no subject word');
   });
+  it('E4 judges only severity when the cited canon law has no subject word', () => {
+    const wordlessCanon = [
+      `${CANON_DIR}/wordless.ia`,
+      `@law wordless-canon
+  meaning
+    says "Rule wordless-canon."
+    answers "What does wordless-canon require?"
+  governance
+    severity advisory
+`,
+    ] as const;
+    const worded = graphOf(...tightenRules, wordlessCanon, [
+      'local.ia',
+      subjectRule('law', 'widget-local', 'advisory', 'wordless-canon'),
+    ]);
+    expect(ruleFindings(worded, TIGHTEN)).toEqual([]);
+    const weaker = graphOf(...tightenRules, wordlessCanon, [
+      'local.ia',
+      `@law wordless-local
+  meaning
+    says "Rule wordless-local."
+    answers "What does wordless-local require?"
+  governance
+    severity informational
+  relationships
+    cites @law wordless-canon
+`,
+    ]);
+    const found = ruleFindings(weaker, TIGHTEN);
+    expect(found).toHaveLength(1);
+    expect(found[0]!.message).toContain('informational');
+    expect(found[0]!.message).not.toContain('(none)');
+  });
   it('E4 accepts a citing local rule at least as strong and never checks canon against itself', () => {
     const graph = graphOf(...tightenRules, canon, [
       'local.ia',

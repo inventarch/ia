@@ -334,10 +334,11 @@ export function canonLocalTightening(nodes: readonly Node[], graph?: Graph): rea
       });
     };
     for (const law of tightened) {
+      // A canon law with no subject word sets no word to match: only its severity is judged.
       const lawWord = textField(law, 'subject', 'subject-word');
-      if (word !== lawWord)
+      if (lawWord !== undefined && word !== lawWord)
         report(
-          `${local.name} cites the canon law ${law.name}, which governs the word ${lawWord ?? '(none)'}, but ${
+          `${local.name} cites the canon law ${law.name}, which governs the word ${lawWord}, but ${
             word === undefined ? 'governs no subject word' : `governs the word ${word}`
           }.`,
         );
