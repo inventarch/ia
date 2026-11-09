@@ -2,8 +2,8 @@
   "format": "ia.public-package-inputs.v2",
   "source": {
     "repository": "https://github.com/inventarch/ia",
-    "commit": "fb72028e6715983b7a7c4679cd5bed8892abb61b",
-    "tree": "b616640f2ef6f42806b5f665ff82da7e99428401",
+    "commit": "671f470cec3b0deab9cc91f4f984cbae167ca7e7",
+    "tree": "db5270ce8821fe9da0813b84865be5a174b63a92",
     "dirty": true
   },
   "membership": {
@@ -4012,7 +4012,7 @@
     },
     {
       "path": "packages/compliance/SPEC.md",
-      "sha256": "aa56b3a28ebed1d9fb4c5e070c9c5d2479756bc7e30d46ecee26fce9b669acd9"
+      "sha256": "04dbe36dc1ba35549d557a657c65f2abea097be4345f8efe865d5872f3d593fb"
     },
     {
       "path": "packages/compliance/fixtures/language/cases/fail/duplicate-given.diagnostics.json",
@@ -5720,7 +5720,7 @@
     },
     {
       "path": "packages/compliance/src/catalog.ts",
-      "sha256": "3b0ec18ce4d6e15eae9f135bd80156329ff68d3556f18211ce258ad9f47d8a51"
+      "sha256": "8342c474dfd39bc3a54b2f544aa2c7c7f7cc10ee5c45601f6ec92ffbfb2cbfb3"
     },
     {
       "path": "packages/compliance/src/check-ids.ts",
@@ -5736,7 +5736,7 @@
     },
     {
       "path": "packages/compliance/src/conformance/evidence-fixtures.ts",
-      "sha256": "04de47cd21529b240cd7b3bd2304befd4ff8b6dc9d22ae5171f86f565445f56a"
+      "sha256": "b3f100c6e198cb6ae6a36a452083b45b4f1fc27489932c05d12d3ece9edcec6b"
     },
     {
       "path": "packages/compliance/src/conformance/evidence.ts",
@@ -5764,7 +5764,7 @@
     },
     {
       "path": "packages/compliance/src/evidence.ts",
-      "sha256": "3c68a242e96cb8431f596fd2ce85553e4c55d9e623c7da2a774a50fb7286a98f"
+      "sha256": "5d5f78fa9ee67c52707da4a0ca96fa49486813894e58f2d7214d6982f35da13c"
     },
     {
       "path": "packages/compliance/src/fixtures.ts",
@@ -5780,7 +5780,7 @@
     },
     {
       "path": "packages/compliance/src/index.ts",
-      "sha256": "5c0039d7c86548beba24c2122f8da4f9dcc6ab5a908af912b82cdd848cfeee8c"
+      "sha256": "693e3ef1a97ab3a206710c7fdc9552805679ecee47ab0ef172838811f73b18c6"
     },
     {
       "path": "packages/compliance/src/kernel.ts",
@@ -5788,7 +5788,7 @@
     },
     {
       "path": "packages/compliance/src/obligations.ts",
-      "sha256": "682796b2d970dc239c60d58643e3cf927cee9d2b1db802d0514a4aa878f29fee"
+      "sha256": "abf55f2dc535a2260e65522f660853ab665fc7df91d96ce07410d3327cebf804"
     },
     {
       "path": "packages/compliance/src/profiles.ts",
@@ -5843,8 +5843,12 @@
       "sha256": "f7cf568678b160d1c17bacec742c758780afa46a9aec693565edbf1b24e2187a"
     },
     {
+      "path": "packages/compliance/tests/catalog-codecs.test.ts",
+      "sha256": "27c9763b77d47ce289438bcf0be741619af3f22976d7b56fe78a7dfaec00f9c4"
+    },
+    {
       "path": "packages/compliance/tests/evaluator-catalog.test.ts",
-      "sha256": "00de2a8a57e4db844a84a6e7bce8fe2a7ee78c7421ffe3241a1e69a73c7a57d9"
+      "sha256": "09024e47d57ae68f6d443438b12bb9375e7d953f5715d0214f956416147af6e7"
     },
     {
       "path": "packages/compliance/tests/field-relations-baseline.test.ts",
@@ -5908,7 +5912,7 @@
     },
     {
       "path": "packages/db/SPEC.md",
-      "sha256": "37af05d78583636650cb2211ba9a7ae10674099fb627819521484543bcf05a2f"
+      "sha256": "dcd2d8833954b663bbef13760b8eff2e178558e2a2ca35d47f1c45d134934715"
     },
     {
       "path": "packages/db/fixtures/descriptors/consumer.mjs",
@@ -6012,7 +6016,7 @@
     },
     {
       "path": "packages/db/src/checks.ts",
-      "sha256": "6cd7e731c025108d2465a2e70fa735ab5c0c6fabe2bf7f2d499c120d92d4eba4"
+      "sha256": "9b5bc5884266d7c9b37bada5a4d8f9d43b6a5045d1bbfc9042732af29b46baa5"
     },
     {
       "path": "packages/db/src/conformance.ts",
@@ -6060,7 +6064,7 @@
     },
     {
       "path": "packages/db/src/distribution/implementations.ts",
-      "sha256": "52567d7d6fa32f7c9feaadef83988a86f3b48dc1b56f11c6cbc3650fa031509f"
+      "sha256": "fe4102e03e6ee561068f9a9a9faa441395867c728bdba37a80667c87cfa12f8c"
     },
     {
       "path": "packages/db/src/distribution/index.ts",
@@ -6156,7 +6160,7 @@
     },
     {
       "path": "packages/db/tests/check-evidence.test.ts",
-      "sha256": "1db6aab15c4fb66e8b5d9af1e2ee9a9c706e51c1e5a0aebae3d31f82ea33e8bd"
+      "sha256": "725205fa4367bae238df63d6e6c4b1e7cc58af22e16802e3311bedc25d59f09c"
     },
     {
       "path": "packages/db/tests/complete-scope.test.ts",
@@ -6168,7 +6172,7 @@
     },
     {
       "path": "packages/db/tests/distribution-contracts.test.ts",
-      "sha256": "e253fbd58e10a23ea0bc3808155d749e58746267390f3bfc0a4b55b182f46945"
+      "sha256": "878d075fccd2b24371147fa3ddf54d0d1dbe10b1a22ad8dc23a2dfd1a1f0cbcd"
     },
     {
       "path": "packages/db/tests/editor.test.ts",
@@ -7907,6 +7911,10 @@
       "sha256": "d7d0324520e2e43d95f4dc30347a1b0f07904f6b505b025cbf35342bfe8d9e6d"
     },
     {
+      "path": "releases/pending/db-reads-both-evaluator-catalog-shapes.json",
+      "sha256": "7eec5c60af349b2d565016f65b58a18009d56918334a3d92e4a41bc7c0aeabb5"
+    },
+    {
       "path": "releases/pending/document-the-home-lock-kit-collections-and-kit-i.json",
       "sha256": "fbe79dea30c5637e15ed8d9c9fcba50f5bb669f22b7935fe1b6f0dd1faeaefc2"
     },
@@ -7941,6 +7949,10 @@
     {
       "path": "releases/pending/term-dumb-and-ia-no-console-keep-bare-ia-out-of.json",
       "sha256": "23593cef5d870768ffdbfa2a5b56c110834259ac19b1ed7d35b491c3949c73d1"
+    },
+    {
+      "path": "releases/pending/versioned-codecs-for-evaluator-catalogs.json",
+      "sha256": "98953c0ce43cef1294b168827582c467e0d94837b275748c485c26a5e5f54708"
     },
     {
       "path": "tools/compliance/SPEC.md",
@@ -9044,7 +9056,7 @@
     },
     {
       "path": "tools/testing/tasks.json",
-      "sha256": "f2437c4049c033068820783975b6cb36626729952f4cc6102cfe25914aaf6292"
+      "sha256": "b62d6669e533873c5b59f1c1a37f3166ef709ea13c9dbd91bac5d8d3ed422c9a"
     },
     {
       "path": "tools/testing/timeouts.ts",
@@ -9103,5 +9115,5 @@
       "sha256": "b7a2070d0de01d78a2f8dbd4e8c646740a4b9f68810cfda96aafe69ffc7a47f4"
     }
   ],
-  "inputDigest": "89f1832bd155343a5d0e77a7541ea3799d1fa88ecf550da3311d557c8a558e3c"
+  "inputDigest": "1a3103947e1c4d1e812eb32ee3886de906b77889d9e599b658687bb912b23cb3"
 }
