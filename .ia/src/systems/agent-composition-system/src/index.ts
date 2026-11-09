@@ -14,6 +14,7 @@ export { installedImplementationDigest } from './installed-catalog.js';
 export type { CompileOptions } from './compile.js';
 export { installed } from './catalog.js';
 export type {
+  CatalogAliases,
   CompositionCatalog,
   Installed,
   HostContract,

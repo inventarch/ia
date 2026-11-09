@@ -17,7 +17,7 @@ export function executionManifest(compiled: CompiledHarness, catalog: Compositio
   for (const pin of compiled.provenance.installed) {
     const entry = (
       catalog[pin.group as keyof CompositionCatalog] as
-        | Record<string, { version: 1; digest: string; value: unknown }>
+        | Record<string, { version: number; digest: string; value: unknown }>
         | undefined
     )?.[pin.id];
     if (!entry || entry.digest !== pin.digest || digest({ version: entry.version, value: entry.value }) !== pin.digest)
