@@ -50,10 +50,11 @@ env:
   IA_FULL: ${{ (github.event_name == 'schedule' || inputs.full) && 'true' || '' }}
   # Main pushes, dispatches on main without full, and pull requests from this repository's branches may also reuse
   # results through the remote cache.
-  # The server keeps each token's entries apart but has no read-only token, so main's token is a secret of the
-  # nx-cache-main environment, which only main may use: a pull request cannot obtain it even by editing this file.
-  # Every other run takes its token from nx-cache-pr, whose entries main never reads. Fork pull requests receive no
-  # secrets, and a run without a token or server URL reuses only the Actions cache.
+  # Main's write token is a secret of the nx-cache-main environment, which only main may use: a pull request cannot
+  # obtain it even by editing this file. Every other run takes a read-only token from nx-cache-pr: it reads what main
+  # stored, and the server answers its uploads with 403, which Nx treats as not stored, so a pull request cannot plant
+  # an entry. Fork pull requests receive no secrets, and a run without a token or server URL reuses only the Actions
+  # cache.
   IA_REMOTE: ${{ !(github.event_name == 'schedule' || inputs.full) && (((github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && 'true' || '' }}
 
 jobs:
