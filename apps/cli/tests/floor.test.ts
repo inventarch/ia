@@ -7,7 +7,8 @@
  * method goldens use (`apps/mcp-door/tests/fixtures/method/plugin.json.gz`), locked on the published 3.2.0 base and
  * declaring `^3.2.0`. An agent profile's `execution.effort` field first appeared in 3.1.0.
  */
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { gunzipSync } from 'node:zlib';
 import { afterAll, expect, it } from 'vitest';
@@ -193,6 +194,42 @@ it('--verify on the published ia-kb fixture kit passes on every base from its mi
   expect(readFileSync(resolve(root, '.ia/distributions.lock.json'), 'utf8')).toBe(lock);
   expect(existsSync(resolve(root, '.ia/distributions'))).toBe(false);
   expect(existsSync(resolve(root, '.ia/work'))).toBe(false);
+}, 300_000);
+
+it('--verify succeeds when the temporary folder is reached through a link', async (context) => {
+  // macOS keeps the per-user temporary folder under /var, a symlink to /private/var; the installer refuses any linked
+  // ancestor (PATH-UNSAFE). The scratch copy must be made under the physical folder.
+  const root = publishedKit();
+  const holder = scratch('floor-link'),
+    physical = resolve(holder, 'physical'),
+    alias = resolve(holder, 'alias');
+  mkdirSync(physical);
+  try {
+    symlinkSync(physical, alias, 'junction');
+  } catch (error) {
+    context.skip(`this platform cannot link a folder here: ${(error as Error).message}`);
+    return;
+  }
+  expect(lstatSync(alias).isSymbolicLink()).toBe(true);
+  // The host's homes are made before the switch, so only the verb itself sees the linked folder.
+  const env = { IA_HOST_HOME: scratch('host-home'), IA_CONFIG_HOME: scratch('config-home') };
+  const saved = { TMPDIR: process.env['TMPDIR'], TMP: process.env['TMP'], TEMP: process.env['TEMP'] };
+  for (const name of ['TMPDIR', 'TMP', 'TEMP'] as const) process.env[name] = alias;
+  let result: Awaited<ReturnType<typeof run>>;
+  try {
+    expect(tmpdir()).toBe(alias);
+    result = await run(['floor', '--root', root, '--json', '--verify'], { env });
+  } finally {
+    for (const [name, value] of Object.entries(saved))
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+  }
+  const body = JSON.parse(result.stdout) as Record<string, unknown>;
+  expect(result.exitCode, result.stdout).toBe(0);
+  expect(body).toMatchObject({ status: 'range-too-high', declared: '^3.2.0' });
+  expect((body['verified'] as { errors: number }[]).every((row) => row.errors === 0)).toBe(true);
+  // Every scratch copy was removed.
+  expect(readdirSync(physical)).toEqual([]);
 }, 300_000);
 
 it('--verify raises the minimum past every base that reports errors and exits 1', async () => {

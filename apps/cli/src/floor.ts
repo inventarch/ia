@@ -17,7 +17,7 @@
  * `ia pack` holds a release to the same rule (`requireFloor`, called from pack.ts): a descriptor declaring a range that
  * admits a base below the minimum, or records no base reads, refuse; a range higher than needed is reported.
  */
-import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 import {
@@ -170,7 +170,9 @@ function admissionErrors(error: unknown): number | undefined {
  * the errors the restore's own admission refused it for.
  */
 function errorsOn(root: string, lock: unknown, base: Base): number {
-  const scratch = mkdtempSync(join(tmpdir(), 'ia-floor-'));
+  // The installer refuses any linked ancestor (PATH-UNSAFE), and macOS keeps tmpdir() under /var, a link to
+  // /private/var: the scratch copy is made under the physical folder, as the door's read-root cache is.
+  const scratch = mkdtempSync(join(realpathSync.native(tmpdir()), 'ia-floor-'));
   try {
     scratchCopy(root, scratch);
     cacheArchive(scratch, base.bytes, base.pin.archive);
