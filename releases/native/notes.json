@@ -7,8 +7,8 @@
   "changes": [
     {
       "id": "inventarch/agent-composition-system",
-      "bump": "patch",
-      "summary": "Align exact native dependencies on the changed `governance-system`."
+      "bump": "minor",
+      "summary": "Align exact native dependencies on the changed `governance-system`. Installed catalog entries carry the contract version as a positive integer, and compileHarness accepts aliases that send an old contract name to its plain replacement; provenance.aliases records each alias used."
     },
     {
       "id": "inventarch/agent-system",
@@ -17,8 +17,8 @@
     },
     {
       "id": "inventarch/authoring-system",
-      "bump": "patch",
-      "summary": "Align exact native dependencies on the changed `governance-system`."
+      "bump": "minor",
+      "summary": "Align exact native dependencies on the changed `governance-system`. Rebuilt on agent-composition-system's contract versions and catalog aliases; no change of its own."
     },
     {
       "id": "inventarch/compliance-system",
@@ -32,18 +32,18 @@
     },
     {
       "id": "inventarch/hook-authoring-system",
-      "bump": "patch",
-      "summary": "Align exact native dependencies on the changed `governance-system`."
+      "bump": "minor",
+      "summary": "Align exact native dependencies on the changed `governance-system`. Rebuilt on agent-composition-system's contract versions and catalog aliases; no change of its own."
     },
     {
       "id": "inventarch/language",
-      "bump": "patch",
-      "summary": "Align the embedded native system selection with the changed `governance-system`. IA syntax remains 1.0."
+      "bump": "minor",
+      "summary": "Align the embedded native system selection with the changed `governance-system`. IA syntax remains 1.0. Rebuilt on agent-composition-system's contract versions and catalog aliases; no change of its own."
     },
     {
       "id": "inventarch/learning-system",
-      "bump": "patch",
-      "summary": "Align exact native dependencies on the changed `governance-system`."
+      "bump": "minor",
+      "summary": "Align exact native dependencies on the changed `governance-system`. Rebuilt on agent-composition-system's contract versions and catalog aliases; no change of its own."
     },
     {
       "id": "inventarch/session-system",
@@ -52,8 +52,8 @@
     },
     {
       "id": "inventarch/template-system",
-      "bump": "patch",
-      "summary": "Align exact native dependencies on the changed `governance-system`."
+      "bump": "minor",
+      "summary": "Align exact native dependencies on the changed `governance-system`. Rebuilt on agent-composition-system's contract versions and catalog aliases; no change of its own."
     },
     {
       "id": "inventarch/work-system",

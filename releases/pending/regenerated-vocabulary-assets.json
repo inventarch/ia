@@ -1,0 +1,19 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "none",
+  "title": "Regenerated vocabulary assets",
+  "summary": "The bundled vocabulary assets carry the new native system versions; no consumer-facing change.",
+  "packages": [
+    "@inventarch/cli",
+    "@inventarch/mcp-door"
+  ],
+  "paths": [
+    ".ia/authoring.resources.json",
+    "CLAUDE.md",
+    "apps/cli/",
+    "apps/mcp-door/",
+    "docs/",
+    "examples/",
+    "tools/"
+  ]
+}

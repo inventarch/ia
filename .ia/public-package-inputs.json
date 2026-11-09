@@ -2,8 +2,8 @@
   "format": "ia.public-package-inputs.v2",
   "source": {
     "repository": "https://github.com/inventarch/ia",
-    "commit": "5083a4656f0998bf0fd23ff7eed755e6138ac386",
-    "tree": "9b81473e8c2b3890bb9c55fb9d53123e3762f792",
+    "commit": "2b05a8cce0e54b40ea810095e338e7d6e1e22372",
+    "tree": "df48ff47fe72fac42fb88e833042c2caea2fc5c8",
     "dirty": true
   },
   "membership": {
@@ -3357,10 +3357,6 @@
     {
       "path": "docs/reference/language/vocabulary.json",
       "sha256": "d2bd3a8dd8358ae026b49d81c483bb3b0f3dd49a85518c84d9ceaaa43e16ef92"
-    },
-    {
-      "path": "docs/reference/language/vocabulary.md",
-      "sha256": "cd8bd05462f65aff5bacbc15b50962f97d23875a0057d19198b29d03a0f07b04"
     },
     {
       "path": "docs/reference/packages/README.md",
@@ -7888,7 +7884,7 @@
     },
     {
       "path": "releases/native/notes.json",
-      "sha256": "3df4477370d16475cca4522c55e51604089669db892e7207499fddb6104e783c"
+      "sha256": "e4e0c66b22aa0749071074dc0f40d8112c0c9bda752d4b34efab5adb9f861d19"
     },
     {
       "path": "releases/pending/batch-pnpm-installs-ignore-the-repository-pnpmfi.json",
@@ -7921,6 +7917,10 @@
     {
       "path": "releases/pending/pin-the-console-s-batch-wiring.json",
       "sha256": "187313714f3159cef0528ed186f7203b5e4096b7e4fe9200ebfe7b3e2e7e6583"
+    },
+    {
+      "path": "releases/pending/regenerated-vocabulary-assets.json",
+      "sha256": "5c0c38babaa5b10beb1d231177dac475980575c7cb25c4e07c1b325256a407cc"
     },
     {
       "path": "releases/pending/term-dumb-and-ia-no-console-keep-bare-ia-out-of.json",
@@ -9087,5 +9087,5 @@
       "sha256": "b7a2070d0de01d78a2f8dbd4e8c646740a4b9f68810cfda96aafe69ffc7a47f4"
     }
   ],
-  "inputDigest": "43362001fe7b75a7ad732aa5cd9b96ae71ec0ab08b1c6cfcb216e66fe1e9549e"
+  "inputDigest": "433ccba5ba88e92cebfc68c03e1d66805a20653226d371a6ba8f0a53c998b16f"
 }
