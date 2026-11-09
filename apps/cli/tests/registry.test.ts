@@ -1108,6 +1108,11 @@ it('install refuses to move the base below the lock, whether a registry, a catal
   cacheKit(offline, kit);
   writeFileSync(join(offline, `.ia/distributions/cache/${earlier.archive}.ia.tgz`), earlier.bytes);
   await refusedBy(offline, ['install', id, '--offline']);
+  // A conflict over another id is not the bound's doing, and keeps its own message.
+  const other = await run(['install', 'acme/absent', '--offline', '--root', offline, '--json']);
+  expect(other.exitCode, other.stdout).toBe(3);
+  expect(json<Failure>(other.stdout).message).toContain('acme/absent');
+  expect(json<Failure>(other.stdout).message).not.toContain('below the locked');
 }, 240_000);
 
 it("install refuses a base the lock admits but the workspace's records cannot use", async () => {

@@ -798,7 +798,10 @@ interface LanguageBound {
   readonly within: (
     candidates: readonly ReleaseCandidate<BundleMetadata>[],
   ) => readonly ReleaseCandidate<BundleMetadata>[];
-  /** A conflict after `admits` refused some version, as a refusal naming the lock; any other error unchanged. */
+  /**
+   * A conflict that found no option for the language id after `admits` refused some version of it, as a refusal naming
+   * the lock; any other error unchanged.
+   */
   readonly explain: (error: unknown) => unknown;
 }
 function languageBound(offer: CarriedOffer | undefined, reruns: Reruns): LanguageBound | undefined {
@@ -820,7 +823,19 @@ function languageBound(offer: CarriedOffer | undefined, reruns: Reruns): Languag
         admits({ id: release.manifest.id, version: release.manifest.version, archive: release.archiveDigest }),
       ),
     explain: (error) => {
-      if (refused.size === 0 || codeOf(error, '') !== 'IA-DIST-CONFLICT') return error;
+      // Only a search that found no complete set is the bound's doing, and only when its reasons (`<id>: <ranges>`,
+      // separated by ` | `) name the language id or name none (a selected base a later range excluded); a conflict
+      // the search lays on other ids, or any other conflict, keeps its own message.
+      const message = error instanceof Error ? error.message : String(error),
+        search = /^No compatible complete release set: ?(.*)$/s.exec(message);
+      const reasons = search?.[1] === undefined || search[1] === '' ? [] : search[1].split(' | ');
+      if (
+        refused.size === 0 ||
+        codeOf(error, '') !== 'IA-DIST-CONFLICT' ||
+        search === null ||
+        (reasons.length > 0 && !reasons.some((reason) => reason.startsWith(`${offer.id}: `)))
+      )
+        return error;
       // The effective bound: the minimum when the records need more than the lock, else the lock.
       const versions = [...refused].sort((a, b) => compareVersions(b, a)),
         limit =
@@ -829,7 +844,7 @@ function languageBound(offer: CarriedOffer | undefined, reruns: Reruns): Languag
             : `the locked ${locked}`;
       return new Refusal(
         'IA-DIST-CONFLICT',
-        `${error instanceof Error ? error.message : String(error)}: ${offer.id} ${versions.join(', ')} ${versions.length === 1 ? 'is' : 'are'} below ${limit}, and a plan never moves the base below the lock or that minimum`,
+        `${message}: ${offer.id} ${versions.join(', ')} ${versions.length === 1 ? 'is' : 'are'} below ${limit}, and a plan never moves the base below the lock or that minimum`,
         3,
         { path: INSTALL_PATHS.lock },
         `The lock holds ${offer.id} ${locked}. Run "${reruns.inspect}" for the installed generation, and install a release whose range admits it.`,
