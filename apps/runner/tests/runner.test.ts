@@ -477,15 +477,24 @@ it('retains cumulative path operation counts after reopening a run', async () =>
 });
 
 it('reserves the installed body output bound within a nonzero path byte budget', async () => {
-  const options = fixture(),
-    actions: ModelAction[] = [];
-  pathMandate(options, 'limit-bytes 65536');
-  const runner = openRunner({ ...options, model: scripted(actions, []) });
-  cleanups.push(() => runner.close());
-  actions.push(read(runner));
-  await runner.start('Keep the body within the covered byte budget', 'path-output-bytes');
-  const refused = await runner.run();
-  expect(refused.budget.retainedBytes).toBeLessThan(65536);
+  const covered = async (execution: string, id: string) => {
+    const options = fixture(),
+      actions: ModelAction[] = [];
+    pathMandate(options, execution);
+    const runner = openRunner({ ...options, model: scripted(actions, []) });
+    cleanups.push(() => runner.close());
+    actions.push(read(runner));
+    await runner.start('Keep the body within the covered byte budget', id);
+    return runner.run();
+  };
+  // What a run retains before its first read is its journal (the compiled manifest, the delivered packet), which the
+  // fixture and the adopted public language size. A covered zero-operation mandate refuses at the same check, so it
+  // measures that. The budget admits it but not the read's 65536-byte installed output ceiling and 2048-byte envelope
+  // (SPEC.md: a read reserves both within the applicable byte limit), so only the reservation can refuse.
+  const before = (await covered('limit-operations 0', 'path-output-probe')).budget.retainedBytes,
+    budget = before + 4096;
+  const refused = await covered(`limit-bytes ${budget}`, 'path-output-bytes');
+  expect(refused.budget.retainedBytes).toBeLessThan(budget);
   expect(refused.budget.operations).toBe(0);
   expect(refused.runs['root']?.wait).toMatchObject({ details: { code: 'IA-RUNNER-MANDATE-LIMIT' } });
 });
