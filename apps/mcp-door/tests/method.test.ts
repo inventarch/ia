@@ -7,7 +7,6 @@ import {
   rmSync,
   writeFileSync,
   copyFileSync,
-  cpSync,
   existsSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -19,7 +18,7 @@ import { packDistribution } from '@inventarch/distribution/pack';
 import { folderKits, packetDigest, projectOf, readReleases, registerWorkspace } from '@inventarch/runtime/method';
 import { MethodTools, restoreKit } from '../src/method.js';
 import { Protocol } from '../src/protocol.js';
-import { KIT_LOCK, lockedOn } from './kit-base.js';
+import { CARRIED, KIT_LOCK, lockedOn, restoreInPlace } from './kit-base.js';
 
 /**
  * The method tools against `fixtures/method`: `plugin.json.gz` holds the public `ia` plugin's scripts and support files
@@ -27,8 +26,9 @@ import { KIT_LOCK, lockedOn } from './kit-base.js';
  * plugin's `resolve.mjs` printed for the same consumer, bindings, task and subject hash, with the temporary root as
  * `<ROOT>`, its digest taken over that content by the plugin's own `packetDigest`, and the envelope, which no digest
  * covers, left out. `consumer` is a workspace whose lock installs the kit through a real installation; `bare` is the same
- * workspace with no lock, which a bound kit refuses. The plugin's kit is locked on this door's language base first
- * (`kit-base.ts`), as `generate.mjs` locks it for the goldens.
+ * workspace with no lock, which a bound kit refuses. The plugin compared with the goldens holds the kit locked on this
+ * door's newest base (`kit-base.ts` `lockedOn`), as `generate.mjs` locks it for the goldens; every other kit here is the
+ * published one, its lock as shipped.
  */
 const fixture = new URL('./fixtures/method/', import.meta.url);
 const golden = (name: string): unknown => JSON.parse(readFileSync(new URL(name, fixture), 'utf8'));
@@ -39,14 +39,16 @@ const BASE = JSON.parse(readFileSync(new URL('../assets/base.json', import.meta.
   manifest: string;
 };
 let root: string, consumer: string, bare: string, kits: string, env: NodeJS.ProcessEnv;
+/** The fixture's files as published: the kit's lock pins the base its release was packed on. */
+let published: Record<string, string>;
 
 beforeAll(() => {
   root = realpathSync(mkdtempSync(join(tmpdir(), 'ia-door-method-')));
-  const files = lockedOn(
-    JSON.parse(gunzipSync(readFileSync(new URL('plugin.json.gz', fixture))).toString('utf8')) as Record<string, string>,
-    BASE,
-  );
-  for (const [path, text] of Object.entries(files)) {
+  published = JSON.parse(gunzipSync(readFileSync(new URL('plugin.json.gz', fixture))).toString('utf8')) as Record<
+    string,
+    string
+  >;
+  for (const [path, text] of Object.entries(lockedOn(published, BASE))) {
     mkdirSync(dirname(join(root, 'plugin', path)), { recursive: true });
     writeFileSync(join(root, 'plugin', path), text);
   }
@@ -54,15 +56,16 @@ beforeAll(() => {
   mkdirSync(join(bare, '.ia', 'src'), { recursive: true });
   copyFileSync(new URL('bindings.json', fixture), join(bare, '.ia', 'bindings.json'));
   kits = join(root, 'plugin', 'config', 'kits');
-  // `ia pack` of the fixture kit, in a copy restored with the language base it locks: the archive its releases.json names.
+  // `ia pack` of the published fixture kit, in a copy restored with the base the door chooses for its lock: the
+  // archive its releases.json names.
   const source = join(root, 'packed', 'ia-kb');
-  for (const [path, text] of Object.entries(files))
+  for (const [path, text] of Object.entries(published))
     if (path.startsWith('config/kits/ia-kb/')) {
       const target = join(source, path.slice('config/kits/ia-kb/'.length));
       mkdirSync(dirname(target), { recursive: true });
       writeFileSync(target, text);
     }
-  restoreKit(source, folderKits(join(root, 'packed'))[0]!);
+  restoreInPlace(source, folderKits(join(root, 'packed'))[0]!);
   const packed = packDistribution(source, readFileSync(join(source, '.ia', 'release.json'), 'utf8'));
   const released = readReleases(source).releases.find((row) => row.version === '0.9.0')!;
   expect([packed.archiveDigest, packed.manifestDigest]).toEqual([released.archive, released['manifest']]);
@@ -287,20 +290,104 @@ it('restores a kit read root under the IA home when the host names no cache', ()
   expect(readdirSync(join(roots, user!)).filter((name) => name.startsWith('kit-'))).toHaveLength(1);
 }, 120_000);
 
+/**
+ * A copy of the published fixture kit in a kit folder `name` of its own; with `row`, its lock's language row changed by
+ * it, else its lock exactly as published.
+ */
+function kitCopy(name: string, row?: Record<string, unknown>): { kits: string; kit: ReturnType<typeof folderKits>[0] } {
+  const at = join(root, name);
+  const source = join(at, 'ia-kb');
+  for (const [path, text] of Object.entries(published))
+    if (path.startsWith('config/kits/ia-kb/')) {
+      const target = join(source, path.slice('config/kits/ia-kb/'.length));
+      mkdirSync(dirname(target), { recursive: true });
+      writeFileSync(target, text);
+    }
+  if (row !== undefined) {
+    const lock = JSON.parse(published[KIT_LOCK]!) as { packages: Record<string, unknown>[] };
+    for (const pkg of lock.packages) if (pkg['id'] === BASE.id) Object.assign(pkg, row);
+    writeFileSync(join(source, '.ia', 'distributions.lock.json'), JSON.stringify(lock) + '\n');
+  }
+  return { kits: at, kit: folderKits(at)[0]! };
+}
+
 it('refuses to restore a kit locked on a language base this door does not carry', () => {
-  // A copy of the fixture kit locked on a base archive this door does not carry, as a published kit is after a base release.
-  const source = join(root, 'foreign', 'ia-kb');
-  cpSync(join(root, 'packed', 'ia-kb'), source, { recursive: true });
-  const lock = JSON.parse(readFileSync(join(root, 'packed', KIT_LOCK.slice('config/kits/'.length)), 'utf8')) as {
-    packages: { id: string; archive: string; version: string }[];
-  };
-  for (const row of lock.packages)
-    if (row.id === BASE.id) Object.assign(row, { archive: '0'.repeat(64), version: '0.0.1' });
-  writeFileSync(join(source, '.ia', 'distributions.lock.json'), JSON.stringify(lock));
-  expect(() => restoreKit(source, folderKits(join(root, 'foreign'))[0]!)).toThrow(
+  // A copy of the fixture kit locked on a later major than any base this door carries.
+  const { kit } = kitCopy('foreign', { archive: '0'.repeat(64), version: '9.0.0' });
+  const newest = CARRIED.at(-1)!;
+  expect(() => restoreKit.select(kit)).toThrow(
     expect.objectContaining({
       code: 'IA-CORE-CLI-UNSUPPORTED',
-      message: `kit inventarch/ia-kb-kit 0.9.0 locks inventarch/language 0.0.1, and this door carries ${BASE.version}: use the @inventarch/mcp-door release that ships it`,
+      message: `kit inventarch/ia-kb-kit 0.9.0 locks inventarch/language 9.0.0, major 9; this door carries major 3, up to ${newest.version}: upgrade @inventarch/mcp-door to a release that carries inventarch/language 9.x`,
     }),
   );
 });
+
+it('restores the published fixture kit with its real lock', () => {
+  // No re-lock: the kit as published locks 3.2.0, and this door carries that archive exactly.
+  const { kits: shipped } = kitCopy('published');
+  const text = readFileSync(join(shipped, 'ia-kb', '.ia', 'distributions.lock.json'), 'utf8');
+  expect(text).toBe(published[KIT_LOCK]);
+  const lock = JSON.parse(text) as { packages: { id: string; version: string; archive: string }[] };
+  const language = lock.packages.find((pkg) => pkg.id === BASE.id)!;
+  expect(language.version).toBe('3.2.0');
+  expect(CARRIED.map((base) => base.archive)).toContain(language.archive);
+  const answer = new MethodTools({ root: consumer, kits: shipped, env, cache: join(root, 'cache') }).call(
+    'method:method',
+    { key: 'knowledge.find' },
+  );
+  expect(answer.ok, JSON.stringify(answer.value)).toBe(true);
+  const { envelope } = answer.value as { envelope: Record<string, unknown> };
+  expect(envelope['base']).toEqual({
+    locked: { version: '3.2.0', archive: language.archive },
+    effective: { version: '3.2.0', archive: language.archive },
+    mode: 'exact',
+  });
+}, 120_000);
+
+it('restores a kit locked on an uncarried 3.2.0 archive as compatible', () => {
+  // As a kit is after a base re-release under a new digest: the same version label, an archive this door lacks.
+  const uncarried = '0'.repeat(64);
+  const { kits: foreign } = kitCopy('uncarried', {
+    archive: uncarried,
+    location: `sha256:${uncarried}`,
+    manifest: '1'.repeat(64),
+    version: '3.2.0',
+  });
+  const newest = CARRIED.at(-1)!;
+  const answer = new MethodTools({ root: consumer, kits: foreign, env, cache: join(root, 'cache') }).call(
+    'method:method',
+    { key: 'knowledge.find' },
+  );
+  expect(answer.ok, JSON.stringify(answer.value)).toBe(true);
+  const { envelope } = answer.value as { envelope: Record<string, unknown> };
+  expect(envelope['base']).toEqual({
+    locked: { version: '3.2.0', archive: uncarried },
+    effective: { version: newest.version, archive: newest.archive },
+    mode: 'compatible',
+  });
+  // The read root's lock moved to the base it was restored with; the kit's own folder kept its lock.
+  const readRoot = JSON.parse(
+    readFileSync(join(String(envelope['kitRoot']), '.ia', 'distributions.lock.json'), 'utf8'),
+  ) as { packages: { id: string; archive: string; version: string }[] };
+  expect(readRoot.packages.find((pkg) => pkg.id === BASE.id)).toMatchObject({
+    archive: newest.archive,
+    version: newest.version,
+  });
+  expect(readFileSync(join(foreign, 'ia-kb', '.ia', 'distributions.lock.json'), 'utf8')).toContain(uncarried);
+}, 120_000);
+
+it('restores a kit whose lock names a carried archive under a stale label on that archive, reporting its true version', () => {
+  const published320 = CARRIED.find((base) => base.version === '3.2.0')!;
+  const { kits: stale } = kitCopy('stale-label', { version: '3.2.9' });
+  const answer = new MethodTools({ root: consumer, kits: stale, env, cache: join(root, 'cache') }).call(
+    'method:method',
+    { key: 'knowledge.find' },
+  );
+  expect(answer.ok, JSON.stringify(answer.value)).toBe(true);
+  expect((answer.value as { envelope: Record<string, unknown> }).envelope['base']).toEqual({
+    locked: { version: '3.2.9', archive: published320.archive },
+    effective: { version: '3.2.0', archive: published320.archive },
+    mode: 'exact',
+  });
+}, 120_000);

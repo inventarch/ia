@@ -16,15 +16,23 @@ import {
 import { userInfo } from 'node:os';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { MethodError } from './errors.js';
+import type { BasePin, KitBaseUse } from './kit-base.js';
 import { declaredAssets, iaHome, isText, lf, sourcesDigest, walk } from './kits.js';
 import type { Kit } from './kits.js';
 
 /**
- * The read root of a kit: a restored copy of its workspace in a per-user cache folder, keyed by its source digests, so
- * any reader opens it with the language base its lock pins. Nothing is written into the kit's own folder. The native
- * restore is the caller's (`KitRestore`): a host that carries the language base installs it in process.
+ * The read root of a kit: a restored copy of its workspace in a per-user cache folder, keyed by its source digests and
+ * the language base it is restored with. Nothing is written into the kit's own folder. The native restore is the
+ * caller's (`KitRestore`): `select` chooses the base for a kit (`selectKitBase` over the bases the host carries), and
+ * `apply` installs it in process into a fresh copy, rewriting only that copy's lock row when the base is a compatible
+ * one rather than the locked archive.
  */
-export type KitRestore = (root: string, kit: Kit) => void;
+export type KitRestore = {
+  select(kit: Kit): { base: BasePin; use: KitBaseUse };
+  apply(root: string, kit: Kit, base: BasePin): void;
+};
+
+const LOCK = 'distributions.lock.json';
 
 const NUL = String.fromCharCode(0);
 
@@ -69,12 +77,13 @@ function normalize(dir: string): void {
   }
 }
 
-function readSourceDigest(root: string, normalized = false): string {
+/** A digest of `.ia/` without its installation and work folders; `withLock` false leaves out the lock too. */
+function readSourceDigest(root: string, normalized = false, withLock = true): string {
   const hash = createHash('sha256');
   const ia = join(root, '.ia');
   for (const file of walk(ia)) {
     const path = relative(ia, file).replace(/\\/g, '/');
-    if (path.startsWith('distributions/') || path.startsWith('work/')) continue;
+    if (path.startsWith('distributions/') || path.startsWith('work/') || (!withLock && path === LOCK)) continue;
     const bytes = readFileSync(file);
     hash
       .update(path + NUL)
@@ -82,6 +91,18 @@ function readSourceDigest(root: string, normalized = false): string {
       .update(NUL);
   }
   return hash.digest('hex');
+}
+
+/** The archive a root's lock pins for package `id`, or undefined when the lock is missing, unreadable or has no row. */
+function lockedArchive(root: string, id: string): unknown {
+  try {
+    const lock = JSON.parse(readFileSync(join(root, '.ia', LOCK), 'utf8')) as {
+      packages?: { id?: unknown; archive?: unknown }[];
+    };
+    return lock.packages?.find((pkg) => pkg.id === id)?.archive;
+  } catch {
+    return undefined;
+  }
 }
 
 const complete = (dir: string): boolean => existsSync(join(dir, '.ia', 'distributions', 'active.json'));
@@ -104,32 +125,43 @@ export function assertReadable(
 }
 
 /**
- * The restored read root of a kit, restoring a fresh copy when the cache holds no complete one. The cache's parent is
+ * The restored read root of a kit and the base it was restored with, restoring a fresh copy when the cache holds no
+ * complete one. The key covers the kit's sources, its lock and the chosen base's archive, so roots restored on
+ * different bases never mix. A cached root is checked against the kit: its sources without the lock, which a compatible
+ * restore rewrites, and its lock's language row, which must name the chosen archive. The cache's parent is
  * `options.base`, else `kitCache(options.env)`.
  */
 export function kitReadRoot(
   kit: Kit,
   restore: KitRestore,
   options: { readonly base?: string; readonly env?: NodeJS.ProcessEnv } = {},
-): string {
+): { root: string; base: KitBaseUse } {
+  const { base, use } = restore.select(kit);
   const cache = userCache(options.base ?? kitCache(options.env));
   const target = join(
     cache,
     `kit-${basename(kit.folder)}-${createHash('sha256')
       .update(sourcesDigest(kit.dir))
       .update(readSourceDigest(kit.dir, true))
+      .update(base.archive)
       .digest('hex')}`,
   );
-  const verified = (): string => {
-    if (readSourceDigest(target) !== readSourceDigest(kit.dir, true))
+  const found = { root: target, base: use };
+  const verified = (): { root: string; base: KitBaseUse } => {
+    if (readSourceDigest(target, false, false) !== readSourceDigest(kit.dir, true, false))
       throw new MethodError(`restored method sources were altered at ${target}`, 'IA-CORE-CLOSURE-INTEGRITY');
+    if (lockedArchive(target, base.id) !== base.archive)
+      throw new MethodError(
+        `the restored lock at ${target} does not name the ${base.id} ${base.version} archive it was restored with`,
+        'IA-CORE-CLOSURE-INTEGRITY',
+      );
     for (const { rel, abs } of declaredAssets(kit.dir)) {
       const expected = readFileSync(abs);
       const bytes = isText(abs) ? lf(expected) : expected;
       if (!existsSync(join(target, rel)) || !readFileSync(join(target, rel)).equals(bytes))
         throw new MethodError(`restored method asset was altered: ${rel}`, 'IA-CORE-CLOSURE-INTEGRITY');
     }
-    return target;
+    return found;
   };
   if (complete(target)) return verified();
   const work = mkdtempSync(join(cache, 'tmp-'));
@@ -140,7 +172,7 @@ export function kitReadRoot(
       copyFileSync(abs, join(work, rel));
     }
     normalize(work);
-    restore(work, kit);
+    restore.apply(work, kit, base);
     if (existsSync(target) && !complete(target)) rmSync(target, { recursive: true, force: true });
     try {
       renameSync(work, target);
@@ -151,7 +183,7 @@ export function kitReadRoot(
         'IA-CORE-KIT',
       );
     }
-    return target;
+    return found;
   } finally {
     rmSync(work, { recursive: true, force: true });
   }

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { isAbsolute, join, resolve } from 'node:path';
 import { applyInstallation, cacheArchive, planInstallation } from '@inventarch/distribution/install';
 import {
@@ -14,11 +14,13 @@ import {
   projectOf,
   RESTORE_NEEDED,
   sessionRestore,
+  readDescriptor,
   readRegistry,
   resolveMethod,
   samePath,
+  selectKitBase,
 } from '@inventarch/runtime/method';
-import type { Kit, KitSources, LockedKit } from '@inventarch/runtime/method';
+import type { BasePin, Kit, KitBaseLock, KitRestore, KitSources, LockedKit } from '@inventarch/runtime/method';
 
 /**
  * The door's method tools: `ia_session`, `ia_catalogue` and `ia_method`. They take structured input only; `subject`
@@ -27,7 +29,7 @@ import type { Kit, KitSources, LockedKit } from '@inventarch/runtime/method';
  * read from the bundled folder (`--kits`, else `IA_KITS_DIR`) and then the IA home's `kits/`; at a workspace whose lock
  * installs kits from an npm package of kits (contract C7b), from its store too, as ordinary installed releases. A
  * session at a workspace whose store lacks them, a fresh clone, says to run `ia restore`. A kit's read root is restored
- * in process with the language base this package carries; nothing spawns the CLI.
+ * in process with one of the language bases this package carries (`restoreKit`); nothing spawns the CLI.
  */
 export interface MethodHost {
   /** The door's launch root. */
@@ -41,7 +43,7 @@ export interface MethodHost {
 export type MethodOperation = 'method:session' | 'method:catalogue' | 'method:method';
 type Result = { readonly ok: true; readonly value: unknown } | { readonly ok: false; readonly value: unknown };
 
-const BASE_URL = new URL('../assets/base.json', import.meta.url);
+const BASES_URL = new URL('../assets/bases.json', import.meta.url);
 const SLUG = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const KEY = /^([a-z]+)\.([a-z][a-z0-9-]*|\*)$/;
 const text = { type: 'string' };
@@ -114,31 +116,71 @@ export const METHOD_TOOLS = [
   },
 ] as const;
 
-interface BasePin {
-  readonly id: string;
-  readonly version: string;
-  readonly archive: string;
-}
-/** Restores a kit's read root in process: the language base this package carries, cached, planned and installed. */
-export function restoreKit(root: string, kit: Kit): void {
-  let pin: BasePin;
+/** The language bases this package carries, oldest first (`assets/bases.json`, written by `language-base:generate`). */
+function carriedBases(): BasePin[] {
   try {
-    pin = JSON.parse(readFileSync(BASE_URL, 'utf8')) as BasePin;
+    const bases = JSON.parse(readFileSync(BASES_URL, 'utf8')) as unknown;
+    if (Array.isArray(bases) && bases.length > 0) return bases as BasePin[];
   } catch {
-    throw new MethodError('this door carries no language base; reinstall @inventarch/mcp-door', 'IA-CORE-CLI-MISSING');
+    // reported below
   }
-  const lock = JSON.parse(readFileSync(join(root, '.ia', 'distributions.lock.json'), 'utf8')) as {
-    packages?: { id: string; version: string; archive: string }[];
-  };
-  const language = lock.packages?.find((pkg) => pkg.id === pin.id);
-  if (language?.archive !== pin.archive)
-    throw new MethodError(
-      `kit ${kit.id} ${kit.latest?.version ?? kit.version} locks ${pin.id} ${language?.version ?? 'an unknown version'}, and this door carries ${pin.version}: use the @inventarch/mcp-door release that ships it`,
-      'IA-CORE-CLI-UNSUPPORTED',
-    );
-  cacheArchive(root, readFileSync(new URL(`../assets/base/${pin.archive}.ia.tgz`, import.meta.url)), pin.archive);
-  applyInstallation(planInstallation(root, lock, 'restore'));
+  throw new MethodError('this door carries no language base; reinstall @inventarch/mcp-door', 'IA-CORE-CLI-MISSING');
 }
+const lockPath = (dir: string): string => join(dir, '.ia', 'distributions.lock.json');
+/** A folder's `.ia/distributions.lock.json`, or `{}` when it has none (the rule then refuses: no language row). */
+function readLockFile(dir: string): unknown {
+  try {
+    return JSON.parse(readFileSync(lockPath(dir), 'utf8')) as unknown;
+  } catch {
+    return {};
+  }
+}
+/** The language range a kit's `.ia/release.json` declares, or undefined when it declares none. */
+function declaredRange(dir: string, id: string): string | undefined {
+  if (!existsSync(join(dir, '.ia', 'release.json'))) return undefined;
+  const dependencies = readDescriptor(dir)['dependencies'];
+  const row = Array.isArray(dependencies)
+    ? (dependencies as { id?: unknown; range?: unknown }[]).find((dependency) => dependency?.id === id)
+    : undefined;
+  return typeof row?.range === 'string' ? row.range : undefined;
+}
+/**
+ * Restores a kit's read root in process. `select` chooses among the language bases this package carries: the kit's
+ * locked archive when carried, else the newest when the kit's range admits it (runtime `selectKitBase`). `apply` caches
+ * that archive in the read root, moves only the read root's lock row to it when the row names anything else (another
+ * archive, or the same archive under a stale label), then plans and installs it. The kit's own folder is never written.
+ */
+export const restoreKit: KitRestore = {
+  select(kit) {
+    const carried = carriedBases();
+    const lock = readLockFile(kit.dir) as KitBaseLock;
+    return selectKitBase(
+      lock,
+      declaredRange(kit.dir, carried.at(-1)!.id),
+      carried,
+      `${kit.id} ${kit.latest?.version ?? kit.version}`,
+    );
+  },
+  apply(root, _kit, base) {
+    cacheArchive(root, readFileSync(new URL(`../assets/base/${base.archive}.ia.tgz`, import.meta.url)), base.archive);
+    const lock = readLockFile(root) as { packages?: Record<string, unknown>[] };
+    const row = lock.packages?.find((pkg) => pkg['id'] === base.id);
+    // A compatible base moves the row; an exact one whose label disagrees with its archive gets the archive's own label.
+    if (
+      row !== undefined &&
+      (row['archive'] !== base.archive || row['version'] !== base.version || row['manifest'] !== base.manifest)
+    ) {
+      Object.assign(row, {
+        archive: base.archive,
+        location: `sha256:${base.archive}`,
+        manifest: base.manifest,
+        version: base.version,
+      });
+      writeFileSync(lockPath(root), JSON.stringify(lock) + '\n');
+    }
+    applyInstallation(planInstallation(root, lock, 'restore'));
+  },
+};
 
 const object = (value: unknown): Record<string, unknown> =>
   value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
