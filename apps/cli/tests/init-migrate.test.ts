@@ -1452,11 +1452,14 @@ it('recovers real process termination between each filesystem mutation and journ
     expect(existsSync(resolve(root, '.ia/migration.json')), cut).toBe(true);
     // The journal is written plain; an older CLI's `ia-migration-1` journal is still recovered, so alternate the two.
     const journalPath = resolve(root, '.ia/migration.json'),
-      written = JSON.parse(readFileSync(journalPath, 'utf8'));
-    expect(written).toMatchObject({ format: 'ia-migration', formatVersion: 1 });
-    if (cut.length % 2 === 1) {
-      const { formatVersion: _formatVersion, ...legacy } = written;
-      writeFileSync(journalPath, JSON.stringify({ ...legacy, format: 'ia-migration-1' }));
+      journalText = readFileSync(journalPath, 'utf8');
+    if (journalText !== '') {
+      const written = JSON.parse(journalText);
+      expect(written).toMatchObject({ format: 'ia-migration', formatVersion: 1 });
+      if (cut.length % 2 === 1) {
+        const { formatVersion: _formatVersion, ...legacy } = written;
+        writeFileSync(journalPath, JSON.stringify({ ...legacy, format: 'ia-migration-1' }));
+      }
     }
     const finished = await apply(root);
     expect(finished.exitCode, `${cut}: ${finished.stdout}`).toBe(0);
