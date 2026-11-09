@@ -130,14 +130,19 @@ export type ArtifactChunk = z.infer<typeof artifactChunk>;
 /** Public static registry collections. Native/source admission remains the distribution and db owners' job. */
 export const registryKind = z.enum(['release', 'kit', 'workspace']);
 export const registryKitIndex = z.strictObject({
-  format: z.literal('ia.registry-kit.v1'),
+  format: z.enum(['ia.registry-kit', 'ia.registry-kit.v1']),
+  formatVersion: z.literal(1).optional(),
   id: packageId,
   releases: z
     .array(z.strictObject({ version, withdrawn: z.boolean(), distributions: z.array(dependency).min(1).max(128) }))
     .max(1000),
-});
+}).refine(
+  (value) => (value.format === 'ia.registry-kit.v1' ? value.formatVersion === undefined : value.formatVersion === 1),
+  'The plain format declares formatVersion 1; the legacy literal declares none',
+);
 export const registryWorkspaceIndex = z.strictObject({
-  format: z.literal('ia.registry-workspace.v1'),
+  format: z.enum(['ia.registry-workspace', 'ia.registry-workspace.v1']),
+  formatVersion: z.literal(1).optional(),
   id: packageId,
   releases: z
     .array(
@@ -152,4 +157,8 @@ export const registryWorkspaceIndex = z.strictObject({
       }),
     )
     .max(1000),
-});
+}).refine(
+  (value) =>
+    value.format === 'ia.registry-workspace.v1' ? value.formatVersion === undefined : value.formatVersion === 1,
+  'The plain format declares formatVersion 1; the legacy literal declares none',
+);
