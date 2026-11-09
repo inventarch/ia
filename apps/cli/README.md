@@ -171,12 +171,15 @@ The example with `--compare` prints `Round trip: content-exact and a fixed point
 | `ia adopt <id>[@version]` | Plans a source-only workspace adoption: pinned source mounted at band 50, then a capture and a refresh of registered projections. `ia init --adopt` adopts at initialization. |
 | `ia update <id>` | Plans a version change for one direct request, `--to <range>`. |
 | `ia remove <id>` | Plans the removal of one direct request. |
-| `ia restore --apply` | Reinstalls the locked generation from its pinned archives. |
+| `ia restore --apply` | Reinstalls the locked generation from its pinned archives. Any published language base the CLI carries restores exactly, and restore never rewrites the lock; a base it cannot reach refuses and names `ia update inventarch/language`. |
+| `ia floor [--verify] [--json]` | Reports the minimum `inventarch/language` base the workspace's records need, the feature that sets it, and whether the declared range is `ok`, `range-too-high`, `range-too-low` or `no-floor`. `--verify` proves it by validating on each carried base. Exit 1 for `range-too-low`, `no-floor` or a verified error. |
 | `ia recover [installation\|host\|guard\|lifecycle] --root <directory>` | Finishes or rolls back an interrupted installation or host transaction. |
 
 ```sh
 ia restore --apply --yes
 ia update inventarch/language --offline
+ia update inventarch/language --apply --yes   # works on a fresh clone; moves to a carried base only when the records allow
+ia floor --verify
 ia init my-lib --system --host none --apply --yes
 ia pack --root my-lib --descriptor .ia/release.json
 ia recover --root .

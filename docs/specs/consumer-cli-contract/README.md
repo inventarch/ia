@@ -58,9 +58,11 @@ Every `--apply` (`init`, `adopt`, `install`, `update`, `remove`, `restore`, `pro
 
 ### 2.8–2.11 Distribution changes
 
-`install`, `update`, `remove` and `adopt` plan by default and apply only with `--apply`. `restore` has no preview and requires `--apply`. An apply rechecks the plan's inputs, and confirms as §2.0 describes.
+`install`, `update`, `remove` and `adopt` plan by default and apply only with `--apply`. `restore` has no preview and requires `--apply`. `ia restore` restores any language base the CLI carries exactly and never rewrites the lock; a locked base the CLI does not carry and no registry provides refuses and names `ia update inventarch/language` as the next command. `ia update inventarch/language` works on a cold clone: it previews the move to a carried base (same major, not below the locked version, admitted by the workspace's declared and requested ranges), writes only with `--apply`, and refuses when the workspace's records need a newer base than any candidate (the minimum comes from `languageFloor` over `.ia/src`). `install`, `update` and `--offline` offer the carried bases as candidates beside the registry's. An apply rechecks the plan's inputs, and confirms as §2.0 describes.
 
 After the installed set changes, registered host projections are refreshed. A refresh that fails after the install committed refuses at exit 3 and says that the installation is applied. `ia recover [installation|host|guard|lifecycle] --root <directory>` repairs an interrupted installation, host, guard or lifecycle transaction; `--root` is required. See [registry](../registry/README.md).
+
+`floor [--root <directory>] [--verify] [--json]` reports the minimum `inventarch/language` base the records under `.ia/src` need, the feature that sets it, and how the declared range (`.ia/release.json`, else the lock's request, else `^<locked version>`) compares: `ok`, `range-too-high`, `range-too-low` or `no-floor`. It exits 0 for `ok` and `range-too-high` and 1 for `range-too-low`, `no-floor` or a verified base that reports errors. `--verify` restores each carried base from the minimum to the newest offline into a scratch copy, validates it, and raises the minimum to the lowest base from which every later base is clean; it writes nothing to the root. `pack` refuses a descriptor whose range admits a base below the minimum, or whose records no base reads, and reports a range higher than needed.
 
 ### 2.12 Doctor
 

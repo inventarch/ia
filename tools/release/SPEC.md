@@ -8,6 +8,8 @@ Select, stage, scan and pack public/native artifacts and maintain their compatib
 
 - [distribution.d.mts](distribution.d.mts) — interface declaration; implementation checking is tracked separately.
 - [distribution.mjs](distribution.mjs).
+- [language-compat-gate.test.ts](language-compat-gate.test.ts) — behavior and refusal coverage.
+- [language-compat-gate.ts](language-compat-gate.ts) — the release gate for `inventarch/language` bases: classifies the change from the last published base (label, additive, breaking or unclassified) and refuses an `inventarch/language` native note that bumps less than the class needs; an unclassified change needs a major unless the note carries `compatibility: "reviewed-additive"`, which makes it a minor.
 - [native-archives.ts](native-archives.ts).
 - [native-selectors.d.mts](native-selectors.d.mts) — interface declaration; implementation checking is tracked separately.
 - [native-selectors.mjs](native-selectors.mjs).
@@ -36,6 +38,7 @@ Select, stage, scan and pack public/native artifacts and maintain their compatib
 - `pnpm npm:inputs`: `node tools/release/public-pack.mjs refresh-inputs`.
 - `pnpm native:version`: `node --conditions=development --import tsx tools/release/native-version.ts`.
 - `pnpm native:release:check`: `node --conditions=development --import tsx tools/release/native-version.ts --check`.
+- `pnpm language:compat-gate`: `node --conditions=development --import tsx tools/release/language-compat-gate.ts --check`; the `language:compat-gate` task depends on `cli:build` and is the last step of `pnpm platform:qualify`.
 
 Commands report success as exit 0 and evaluated failure as exit 1. Corrected strict parsers use exit 2 for usage errors. Existing command-specific defaults, flags and refusal behavior are described below; a check never implies a write.
 

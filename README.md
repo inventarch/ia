@@ -415,6 +415,9 @@ To use that build in another project, substitute `node /path/to/ia/apps/cli/dist
 | `pnpm public-language:check` | Public schema and reference closure and harness compilation |
 | `pnpm compliance:check` / `pnpm systems:check` | Compliance fixtures and local system scenarios |
 | `pnpm dependencies:check` | Package dependency direction |
+| `pnpm language-compat:check` / `pnpm language-compat:generate` | Check or regenerate the language compatibility index; `build` runs the check |
+| `pnpm language:compat-gate` | Classify the language base against the last published one and require a native note bump that fits the class |
+| `pnpm language-bases:fetch` | Add a published language base to the ledger from its npm tarball |
 | `pnpm tests:inventory` | Test ownership and qualification task coverage |
 | `pnpm docs:check --all` | Local link targets across tracked Markdown files |
 | `pnpm vocabulary:check` / `pnpm vocabulary:generate` | Check or regenerate the vocabulary catalogue |
