@@ -42,7 +42,7 @@ export function readFixture(SDK, root, mode = 'plain') {
     },
     {
       path: '.ia/src/systems/agent-composition-system/operations/read-captured-source.ia',
-      text: '#! ia 1.0\n@operation read-captured-source\n  meaning\n    says "Read one exact captured native source through the first-party adapter."\n    answers "Which captured bytes are selected?"\n  execution\n    handler captured-source-read\n    effects read-only\n    input captured-source-read-input\n    output captured-source-read-output\n    profile governed-v1\n    recovery repeatable\n  relationships\n    implements @contract agent-composition-runtime-contract#REQ-RT-CAPTURED-INPUT\n    implements @contract agent-composition-runtime-contract#REQ-RT-CAPTURED-READ\n    implements @contract agent-composition-runtime-contract#REQ-RT-CAPTURED-REFUSE\n',
+      text: '#! ia 1.0\n@operation read-captured-source\n  meaning\n    says "Read one exact captured native source through the first-party adapter."\n    answers "Which captured bytes are selected?"\n  execution\n    handler captured-source-read\n    effects read-only\n    input captured-source-read-input\n    output captured-source-read-output\n    profile governed\n    recovery repeatable\n  relationships\n    implements @contract agent-composition-runtime-contract#REQ-RT-CAPTURED-INPUT\n    implements @contract agent-composition-runtime-contract#REQ-RT-CAPTURED-READ\n    implements @contract agent-composition-runtime-contract#REQ-RT-CAPTURED-REFUSE\n',
       location: placement,
     },
     {

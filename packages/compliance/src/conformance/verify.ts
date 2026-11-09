@@ -9,7 +9,13 @@ import { COMP_CODES, EVIDENCE_CODES, assess } from '../types.js';
 import type { Assessment, Finding } from '../types.js';
 import { loadCorpus } from './corpus.js';
 import { runEvidenceFixtures } from './evidence-fixtures.js';
-import { companionSuffixes, fileDigest, inventoryDigest } from './inventory.js';
+import {
+  CONFORMANCE_PROFILE,
+  companionSuffixes,
+  fileDigest,
+  inventoryDigest,
+  isConformanceProfile,
+} from './inventory.js';
 import type { ConformanceInventory } from './inventory.js';
 import { runRefusalFixtures } from './refusals.js';
 
@@ -50,7 +56,7 @@ function listing(root: string): { files: Set<string>; strays: string[] } {
 }
 
 /**
- * Runs the package-v1 profile `inventory` describes over the language fixture files under `directory`: every listed
+ * Runs the package profile `inventory` describes over the language fixture files under `directory`: every listed
  * file must exist with its listed digest, as a companion its clause and mode admit, and nothing else may; the corpus
  * boundary suites must run exactly the listed cases; and passing failing cases must observe every required code. A
  * fixture file that cannot be read is not evaluated and suspends the coverage judgement; other failures still fail. This returns an assessment, not evidence; only verifyFixtures produces evidence.
@@ -67,12 +73,13 @@ export function runProfile(inventory: ConformanceInventory, digest: string, dire
   } catch (error) {
     const message = `The package fixture files cannot be read: ${error instanceof Error ? error.message : String(error)}`;
     return Object.freeze({
-      assessment: assess('COMP-FIXTURES', 'package-v1', [
+      assessment: assess('COMP-FIXTURES', CONFORMANCE_PROFILE, [
         { code: 'IA-COMP-NOT-EVALUATED', severity: 'warning', path: '', line: 1, message },
       ]),
       observedCodes: Object.freeze([]),
     });
   }
+  if (!isConformanceProfile(inventory.profile)) mismatch('', 'The inventory names an unknown conformance profile');
   if (inventoryDigest(inventory) !== digest) mismatch('', 'The inventory differs from the digest it is pinned by');
   const running = [...new Set([...LANG_CODES, ...GRAPH_CODES, ...COMP_CODES, ...EVIDENCE_CODES])].sort(compare);
   if (stableSerialize(inventory.requiredCodes) !== stableSerialize(running))
@@ -170,7 +177,7 @@ export function runProfile(inventory: ConformanceInventory, digest: string, dire
     ...(unreadable ? [] : fixtureCoverage(inventory.requiredCodes, results).findings),
   );
   return Object.freeze({
-    assessment: assess('COMP-FIXTURES', 'package-v1', findings),
+    assessment: assess('COMP-FIXTURES', CONFORMANCE_PROFILE, findings),
     observedCodes: Object.freeze(
       [...new Set(results.filter((r) => r.assessment.outcome === 'pass').flatMap((r) => r.observedCodes))].sort(
         compare,

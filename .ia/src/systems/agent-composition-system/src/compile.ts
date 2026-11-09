@@ -6,7 +6,7 @@ import type { CompiledRecord, CompiledValue } from '@inventarch/language';
 import { context } from '@inventarch/runtime';
 import { canonical, copy, digest } from '@inventarch/session-system';
 import type { Json } from '@inventarch/session-system';
-import { MAX_MODEL_REQUEST_BYTES } from '@inventarch/agent-system';
+import { MAX_MODEL_REQUEST_BYTES, isIndependentReviewRule } from '@inventarch/agent-system';
 import type { OutcomeKind } from '@inventarch/agent-system';
 import { verifyCapture } from '@inventarch/workspace-runtime/corpus';
 import type { Capture } from '@inventarch/workspace-runtime/corpus';
@@ -317,7 +317,8 @@ class Compiler {
         'Operation identity, physical owner or native handler differs from its installed binding',
         node,
       );
-    if (field(node, 'execution', 'profile', '') !== 'governed-v1')
+    // `governed-v1` is the original spelling, accepted for compatibility for at least one major release.
+    if (!['governed', 'governed-v1'].includes(field(node, 'execution', 'profile', '')))
       fail('IA-COMPOSITION-UNAVAILABLE', 'Legacy operation has no general-executor profile', node, 'execution.profile');
     const declaredEffect = field(node, 'execution', 'effects');
     const nativeEffects = this.effectList(
@@ -518,7 +519,7 @@ class Compiler {
     if (
       reviews.some(
         (r) =>
-          r.rule !== 'independent-exact-candidate-v1' ||
+          !isIndependentReviewRule(r.rule) ||
           Object.keys(r).sort().join(',') !== 'mandate,policyRevision,reviewer,rule' ||
           ![r.reviewer, r.mandate, r.policyRevision].every(
             (v) => typeof v === 'string' && v.trim().length > 0 && v.length <= 512,

@@ -1,4 +1,4 @@
-import { manifestDigest } from '@inventarch/agent-system';
+import { COMPLETION_EVALUATOR, manifestDigest } from '@inventarch/agent-system';
 import type { Manifest, Profile } from '@inventarch/agent-system';
 import { copy, digest } from '@inventarch/session-system';
 import type { Json } from '@inventarch/session-system';
@@ -48,7 +48,7 @@ export function executionManifest(compiled: CompiledHarness, catalog: Compositio
           if (!evaluator || !evaluator.value.phases.length) return refuse(`Required evaluator unavailable: ${check}`);
           return { id: check, phases: [...evaluator.value.phases] };
         }),
-        completionEvaluator: 'ia.completion.v1',
+        completionEvaluator: COMPLETION_EVALUATOR,
         repairAttempts: 1,
         maxAttempts: 2,
       },

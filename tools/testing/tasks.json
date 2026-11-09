@@ -3174,6 +3174,7 @@
         "tests/adapters.test.ts",
         "tests/authoring-base.test.ts",
         "tests/authoring-bytes.test.ts",
+        "tests/authoring-criteria.test.ts",
         "tests/authoring-integrity.test.ts",
         "tests/authoring-lifecycle.test.ts",
         "tests/authoring-shipped.test.ts",

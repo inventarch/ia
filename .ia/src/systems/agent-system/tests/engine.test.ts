@@ -323,7 +323,7 @@ function requestContract(requestBytes: number): NonNullable<Profile['contract']>
     limits: {},
     delegation: [],
     checks: [],
-    completionEvaluator: 'ia.completion.v1',
+    completionEvaluator: 'completion',
     repairAttempts: 1,
     maxAttempts: 2,
     requestBytes,

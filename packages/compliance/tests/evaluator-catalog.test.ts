@@ -1159,12 +1159,8 @@ describe('evaluator catalog rules D1-D6 and the redaction and directive fixes', 
       'not-evaluated',
     );
   });
-  it('D6: strict-typing-v1 maps to three required catalog obligations that presence never satisfies', () => {
-    expect(EVALUATION_PROFILES['strict-typing-v1']).toEqual([
-      'configuration',
-      'included-file-coverage',
-      'compiler-run',
-    ]);
+  it('D6: strict-typing maps to three required catalog obligations that presence never satisfies', () => {
+    expect(EVALUATION_PROFILES['strict-typing']).toEqual(['configuration', 'included-file-coverage', 'compiler-run']);
     const binding = {
       occurrence: 'governance-system/rule/law/strict-typing',
       word: 'law' as const,
@@ -1177,19 +1173,27 @@ describe('evaluator catalog rules D1-D6 and the redaction and directive fixes', 
       },
       input: { project: 'tsconfig.json' },
     };
-    const occurrences = profileOccurrences('strict-typing-v1', binding);
+    const occurrences = profileOccurrences('strict-typing', binding);
     expect(occurrences.map((o) => [o.requirement, o.runs, o.required])).toEqual([
-      ['strict-typing-v1/configuration', 'acme-strict-typing', true],
-      ['strict-typing-v1/included-file-coverage', 'acme-file-coverage', true],
-      ['strict-typing-v1/compiler-run', 'acme-strict-typing', true],
+      ['strict-typing/configuration', 'acme-strict-typing', true],
+      ['strict-typing/included-file-coverage', 'acme-file-coverage', true],
+      ['strict-typing/compiler-run', 'acme-strict-typing', true],
     ]);
     expect(() =>
-      profileOccurrences('strict-typing-v1', {
+      profileOccurrences('strict-typing', {
         ...binding,
         evaluators: { ...binding.evaluators, 'compiler-run': 'COMP-CHECK' },
       }),
     ).toThrow(TypeError);
-    expect(() => profileOccurrences('strict-typing-v2' as 'strict-typing-v1', binding)).toThrow(TypeError);
+    expect(() => profileOccurrences('strict-typing-v2' as 'strict-typing', binding)).toThrow(TypeError);
+    // The original id stays an accepted alias: it maps to the same requirements and names them after itself, so
+    // receipts written under it keep matching.
+    expect(EVALUATION_PROFILES['strict-typing-v1']).toEqual(EVALUATION_PROFILES['strict-typing']);
+    expect(profileOccurrences('strict-typing-v1', binding).map((o) => [o.requirement, o.runs, o.required])).toEqual([
+      ['strict-typing-v1/configuration', 'acme-strict-typing', true],
+      ['strict-typing-v1/included-file-coverage', 'acme-file-coverage', true],
+      ['strict-typing-v1/compiler-run', 'acme-strict-typing', true],
+    ]);
     const input = baseInput();
     input.occurrences = [...occurrences];
     input.adoptions = [{ identity: 'governance-system/rule/law/strict-typing', source: 'package', mandatory: false }];

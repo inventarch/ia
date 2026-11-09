@@ -8,7 +8,7 @@
     effects read-only
     input captured-source-read-input
     output captured-source-read-output
-    profile governed-v1
+    profile governed
     recovery repeatable
   relationships
     implements @contract agent-composition-runtime-contract#REQ-RT-CAPTURED-INPUT

@@ -114,7 +114,13 @@ export { runLanguageFixture, fixtureCoverage } from './fixtures.js';
 export type { FixtureResult, LanguageFixture } from './fixtures.js';
 export { CLAUDE_MARKETPLACE, CLAUDE_PLUGIN, PLUGIN_MARKER, renderClaudePlugin } from './host-plugin.js';
 export type { ClaudePluginInput, PluginFile } from './host-plugin.js';
-export { CONFORMANCE_PROFILE, isConformanceEvidence, verifyFixtures, verifyKernel } from './conformance/evidence.js';
+export {
+  CONFORMANCE_PROFILE,
+  isConformanceEvidence,
+  isConformanceProfile,
+  verifyFixtures,
+  verifyKernel,
+} from './conformance/evidence.js';
 export type {
   ConformanceEvidence,
   ConformanceProfile,

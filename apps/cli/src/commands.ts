@@ -258,7 +258,7 @@ export const COMMANDS: readonly CommandSpec[] = [
         option({
           name: 'verify-conformance',
           kind: 'boolean',
-          summary: 'Verify COMP-KERNEL and COMP-FIXTURES in-process (package-v1 profile)',
+          summary: 'Verify COMP-KERNEL and COMP-FIXTURES in-process (package profile)',
         }),
         option({
           name: 'require-verified',

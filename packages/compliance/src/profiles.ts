@@ -4,12 +4,19 @@ import type { ObligationOccurrence } from './obligations.js';
 import { exactKeys } from './shape.js';
 
 /**
- * Consumer evaluation profiles (C29). A profile id such as strict-typing-v1 is a consumer contract id, not a
+ * Consumer evaluation profiles (C29). A profile id such as strict-typing is a consumer contract id, not a
  * native word: it maps one selected law/contract occurrence to required obligations that host catalog evaluators
  * discharge. Cases and declarations never satisfy them; only valid receipts do.
  */
+const STRICT_TYPING = Object.freeze(['configuration', 'included-file-coverage', 'compiler-run'] as const);
+/**
+ * No profile id carries its version in its name. `strict-typing-v1` is the original spelling of `strict-typing`; it
+ * stays an accepted alias (compatibility for at least one major release) so bindings and receipts written before the
+ * rename keep resolving. A profile requirement is named after the profile id the caller gave.
+ */
 export const EVALUATION_PROFILES = Object.freeze({
-  'strict-typing-v1': Object.freeze(['configuration', 'included-file-coverage', 'compiler-run'] as const),
+  'strict-typing': STRICT_TYPING,
+  'strict-typing-v1': STRICT_TYPING,
 });
 export type EvaluationProfile = keyof typeof EVALUATION_PROFILES;
 export interface ProfileBinding {

@@ -4,13 +4,14 @@ import { kernelDigest } from '../kernel.js';
 import type { KernelSource } from '../kernel.js';
 import type { Assessment } from '../types.js';
 import { INVENTORY, INVENTORY_DIGEST } from './inventory.generated.js';
-import type { OutOfProfileSuite } from './inventory.js';
+import { CONFORMANCE_PROFILE } from './inventory.js';
+import type { ConformanceProfile, OutOfProfileSuite } from './inventory.js';
 import { kernelAssessment } from './verify-kernel.js';
 import { runProfile } from './verify.js';
 
 /** The conformance profile a sandboxed consumer can run itself (C31). */
-export const CONFORMANCE_PROFILE = 'package-v1';
-export type ConformanceProfile = typeof CONFORMANCE_PROFILE;
+export { CONFORMANCE_PROFILE, isConformanceProfile } from './inventory.js';
+export type { ConformanceProfile } from './inventory.js';
 /** The running toolchain an evidence object was produced by. */
 export interface ConformanceToolchain {
   readonly languageVersion: string;
@@ -122,7 +123,7 @@ export function verifyKernel(floor: readonly KernelSource[] = KERNEL_SOURCES): K
 }
 
 /**
- * Verifies COMP-FIXTURES in this process for the package-v1 profile: runs the language fixtures this package ships
+ * Verifies COMP-FIXTURES in this process for the package profile: runs the language fixtures this package ships
  * against its generated inventory, and the refusal and evidence suites over the conformance corpus it embeds. It reads
  * the package's own fixture files and writes nothing.
  */
