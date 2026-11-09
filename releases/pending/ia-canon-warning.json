@@ -2,7 +2,7 @@
   "format": "ia.npm-change-note.v1",
   "bump": "minor",
   "title": "IA canon (warning)",
-  "summary": "The canon laws A6, C4, C5a, C12, E4, E5 and A14 now report their findings as warnings in `ia validate` and `ia preview`; nothing blocks yet.",
+  "summary": "The canon laws A6, C4, C5a, C12, E4, E5 and A14 now report their findings as warnings in `ia validate` and `ia preview`; nothing blocks yet. The language base moves to 3.2.1, so a door or runtime from this release refuses a kit locked on 3.2.0 until the kit is re-recorded on 3.2.1.",
   "packages": [
     "@inventarch/agent-composition-system",
     "@inventarch/agent-system",

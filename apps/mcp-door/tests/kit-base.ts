@@ -16,10 +16,14 @@ export interface BasePin {
 }
 export const KIT_LOCK = 'config/kits/ia-kb/.ia/distributions.lock.json';
 
-/** The fixture's files with the ia-kb kit locked on `base`; unchanged when the kit already locks it. */
+/**
+ * The fixture's files with the ia-kb kit locked on `base`; unchanged when the kit already locks it.
+ * `fixtures/method/generate.mjs` has a twin `lockedOn` for the goldens: keep the two in step.
+ */
 export function lockedOn(files: Record<string, string>, base: BasePin): Record<string, string> {
   const lock = JSON.parse(files[KIT_LOCK]!) as { packages: Record<string, unknown>[] };
-  const row = lock.packages.find((pkg) => pkg['id'] === base.id)!;
+  const row = lock.packages.find((pkg) => pkg['id'] === base.id);
+  if (row === undefined) throw new Error(`${KIT_LOCK} has no ${base.id} row to lock on the door's base`);
   if (row['archive'] === base.archive) return files;
   Object.assign(row, {
     archive: base.archive,
