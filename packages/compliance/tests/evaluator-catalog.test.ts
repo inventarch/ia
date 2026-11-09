@@ -677,7 +677,7 @@ describe('receipts and transition admission (C28)', () => {
       ],
       [{ format: 'ia-evidence-receipt/2' as typeof EVIDENCE_RECEIPT_FORMAT }, 'IA-COMP-RECEIPT-INVALID'],
       [{ formatVersion: 2 }, 'IA-COMP-RECEIPT-INVALID'],
-      [{ formatVersion: undefined }, 'IA-COMP-RECEIPT-INVALID'],
+      [{ formatVersion: undefined as unknown as number }, 'IA-COMP-RECEIPT-INVALID'],
       [{ format: 'ia-evidence-receipt/1' }, 'IA-COMP-RECEIPT-INVALID'],
       [{ completedAt: '2026-09-28T11:00:00Z' }, 'IA-COMP-RECEIPT-INVALID'],
       [{ result: 'great' as 'passed' }, 'IA-COMP-RECEIPT-INVALID'],
