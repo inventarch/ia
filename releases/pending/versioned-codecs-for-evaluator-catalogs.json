@@ -1,11 +1,10 @@
 {
   "format": "ia.npm-change-note.v1",
-  "bump": "minor",
+  "bump": "major",
   "title": "Versioned codecs for evaluator catalogs",
   "summary": "Evaluator codecs register as an id and a version, and an evaluator entry references its input and output codec as `inputCodec` and `outputCodec`, each an id and a version, in place of the `inputSchemaId` and `outputSchemaId` strings that carried the version; lookup is by the pair, so two versions of one codec id coexist. A catalog declares format `ia-evaluator-catalog` with an integer `formatVersion` of 2. The legacy `ia-evaluator-catalog/1.x` shape with `name@N` codec ids is still read through an explicit legacy reader and keeps its digest, and the installed-implementation catalog in db admits both shapes. `EvaluatorCodec` gains a `version` field, so a host registering codecs adds it and drops the `@N` from the id.",
   "packages": [
-    "@inventarch/compliance",
-    "@inventarch/db"
+    "@inventarch/compliance"
   ],
   "paths": [
     ".ia/authoring.resources.json",
