@@ -1,0 +1,17 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "db docs and tests use the plain rule and profile names",
+  "summary": "The db SPEC and tests use the plain rule and profile names (completion, independent-exact-candidate, package); db reads stored values written under the old literals unchanged.",
+  "packages": [
+    "@inventarch/db"
+  ],
+  "paths": [
+    ".ia/authoring.resources.json",
+    "CLAUDE.md",
+    "docs/",
+    "examples/",
+    "packages/db/",
+    "tools/"
+  ]
+}
