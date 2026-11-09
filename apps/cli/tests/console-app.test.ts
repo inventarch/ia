@@ -1764,7 +1764,7 @@ describe('quit with a workspace refresh pending', () => {
         signal?.addEventListener('abort', () => answer({ status: null, stdout: '' }));
       });
     };
-    const run = launchAll(1, { copies: true, spawnDoctor });
+    const run = await launchAll(1, { copies: true, spawnDoctor });
     await until(run.shows('first'), 'the row to load');
     run.stdin.write('\r');
     await until(run.shows('esc back'), 'the opened workspace');
