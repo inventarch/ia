@@ -203,7 +203,7 @@ describe('conformance verification (D10)', () => {
       editor = new EditorDatabase(root, { conformance: 'verify' }),
       report = editor.current.report;
     expect(conformance(report)).toEqual(verified('pass'));
-    expect(report.conformance?.profile).toBe('package');
+    expect(report.conformance?.profile).toBe('package-v1');
     expect(report.conformance?.kernel?.floorDigest).toMatch(/^[0-9a-f]{64}$/);
     expect(report.conformance?.fixtures?.outOfProfile.map((suite) => suite.suite)).toEqual([
       'HOOK',

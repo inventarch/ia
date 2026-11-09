@@ -2,6 +2,14 @@ import { existsSync, readFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, 
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
+
+/** The package's one switch, flipped here to prove the plain names come back exactly when the follow-up release flips it. */
+const flip = vi.hoisted(() => ({ plain: false }));
+vi.mock('../src/written-names.js', () => ({
+  get WRITE_PLAIN_NAMES() {
+    return flip.plain;
+  },
+}));
 import { registryAddCollection } from '../src/registry-build.js';
 import { decodeCollectionIndex, workspaceRevision } from '../src/registry-collections.js';
 import { openRegistry, registryBudget } from '../src/registry-source.js';
@@ -18,6 +26,7 @@ const temporary = () => {
   return root;
 };
 afterEach(() => {
+  flip.plain = false;
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 const files = [{ path: '.ia/src/work.ia', text: '#! ia 1.0\n' }];
@@ -360,29 +369,40 @@ it.each(['dist', 'nested/DiSt', 'node_modules', 'nested/NODE_MODULES', '.git', '
   },
 );
 
-it('writes collection indexes in the plain shape and still reads the legacy literals', () => {
-  const root = temporary();
-  registryAddCollection(root, 'kit', kit);
-  const written = JSON.parse(readFileSync(join(root, 'kits/example/kit/index.json'), 'utf8')) as Record<
-    string,
-    unknown
-  >;
-  expect(written['format']).toBe('registry-kit');
-  expect(written['formatVersion']).toBe(1);
-  expect(JSON.parse(readFileSync(join(root, 'ia-registry.json'), 'utf8'))).toEqual({
-    format: 'registry',
-    formatVersion: 1,
-    name: expect.any(String),
-  });
-  const plain = { ...kit, format: 'registry-kit' as const, formatVersion: 1 as const };
-  expect(decodeCollectionIndex(JSON.stringify(plain), 'kit', kit.id)).toEqual(plain);
-  expect(decodeCollectionIndex(JSON.stringify(kit), 'kit', kit.id)).toEqual(plain);
-  for (const bad of [
-    { ...plain, formatVersion: 2 },
-    { ...plain, formatVersion: undefined },
-    { ...kit, formatVersion: 1 },
-    { ...plain, format: 'ia.registry-kit.v2' },
-    { ...plain, format: 'registry-workspace' },
-  ])
-    expect(() => decodeCollectionIndex(JSON.stringify(bad), 'kit', kit.id)).toThrow();
-});
+it.each([false, true])(
+  'writes collection indexes in the released shape by default and the plain shape once the switch flips, and reads both (plain names: %s)',
+  (plainNames) => {
+    flip.plain = plainNames;
+    const root = temporary();
+    registryAddCollection(root, 'kit', kit);
+    const written = JSON.parse(readFileSync(join(root, 'kits/example/kit/index.json'), 'utf8')) as Record<
+      string,
+      unknown
+    >;
+    // Older programs refuse anything but the released literal, with no formatVersion (dec-008, A15).
+    expect(written['format']).toBe(plainNames ? 'registry-kit' : 'ia.registry-kit.v1');
+    expect(written['formatVersion']).toBe(plainNames ? 1 : undefined);
+    expect(JSON.parse(readFileSync(join(root, 'ia-registry.json'), 'utf8'))).toEqual(
+      plainNames
+        ? { format: 'registry', formatVersion: 1, name: expect.any(String) }
+        : { format: 'ia.registry.v1', name: expect.any(String) },
+    );
+    // A caller may hand the builder either shape; the file is written in the setting's shape.
+    const plain = { ...kit, format: 'registry-kit' as const, formatVersion: 1 as const };
+    const other = temporary();
+    registryAddCollection(other, 'kit', plain);
+    expect(JSON.parse(readFileSync(join(other, 'kits/example/kit/index.json'), 'utf8'))['format']).toBe(
+      plainNames ? 'registry-kit' : 'ia.registry-kit.v1',
+    );
+    expect(decodeCollectionIndex(JSON.stringify(plain), 'kit', kit.id)).toEqual(plain);
+    expect(decodeCollectionIndex(JSON.stringify(kit), 'kit', kit.id)).toEqual(plain);
+    for (const bad of [
+      { ...plain, formatVersion: 2 },
+      { ...plain, formatVersion: undefined },
+      { ...kit, formatVersion: 1 },
+      { ...plain, format: 'ia.registry-kit.v2' },
+      { ...plain, format: 'registry-workspace' },
+    ])
+      expect(() => decodeCollectionIndex(JSON.stringify(bad), 'kit', kit.id)).toThrow();
+  },
+);

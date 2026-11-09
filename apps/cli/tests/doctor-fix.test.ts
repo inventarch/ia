@@ -1683,7 +1683,7 @@ const BEFORE: Readonly<Record<FixtureName, unknown>> = {
         title: 'Implementations',
         status: 'ok',
         detail:
-          'Catalog <hex> in release <hex> (<version>): captured-source-read available (handler captured-source-read, shipped bytes <hex>); captured-source-read-v1 available (handler ia.captured-source.read.v1, shipped bytes <hex>); 0 installed evaluators beside the built-ins; listed, nothing run',
+          'Catalog <hex> in release <hex> (<version>): captured-source-read-v1 available (handler ia.captured-source.read.v1, shipped bytes <hex>); 0 installed evaluators beside the built-ins; listed, nothing run',
         remedy: null,
       },
       {

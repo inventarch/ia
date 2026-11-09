@@ -66,7 +66,7 @@ The `./internal/*` subpaths serve specific toolchain consumers and are not a sta
 
 - **It never writes authored source.** Its only writes are the disposable cache, which `cache: false` turns off, and the capture pair and evidence files, each only when you call its writer.
 - **It makes no network request and no installation write.** Reads verify installed distributions and refuse missing, corrupt or drifted state. Acquiring and installing archives belongs to the application, such as the `ia` CLI.
-- **Admission is not evaluation.** Opening a workspace runs no conformance suite unless you pass `conformance: 'verify'`, which runs `@inventarch/compliance`'s `package` profile in the same process, and never a prose case. `bindChecks` runs no evaluator that is not built in: such a check stays `not-evaluated`, which is never a pass.
+- **Admission is not evaluation.** Opening a workspace runs no conformance suite unless you pass `conformance: 'verify'`, which runs `@inventarch/compliance`'s `package` profile (reported under its released name `package-v1` until the follow-up release, dec-008, A15) in the same process, and never a prose case. `bindChecks` runs no evaluator that is not built in: such a check stays `not-evaluated`, which is never a pass.
 - **A scope narrows reads; it does not decide who reads.** Unscoped reads and issuing independent scopes are privileged host inspection, and the host that holds the handle decides what it discloses. Call `isCompleteScope(token)` before you show `report`, `refused` or `unadmitted` to a reader: only a whole-workspace scope may disclose them.
 - **Evidence is not attestation.** A runner journal's hash chain establishes internal integrity, not an external observer, authorized execution or real-world effects.
 

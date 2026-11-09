@@ -1,7 +1,18 @@
 import { createHash } from 'node:crypto';
 import { linkSync, mkdirSync, readFileSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { expect, it, vi } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
+
+/** The package's one switch, flipped here to prove the plain names come back exactly when the follow-up release flips it. */
+const flip = vi.hoisted(() => ({ plain: false }));
+vi.mock('../src/written-names.js', () => ({
+  get WRITE_PLAIN_NAMES() {
+    return flip.plain;
+  },
+}));
+afterEach(() => {
+  flip.plain = false;
+});
 import { digest } from '@inventarch/graph';
 import {
   bindChecks,
@@ -569,32 +580,43 @@ it('refreshes evidence through the normal editor reader and invalidates prior sc
   }
 });
 
-it('writes the plain format with formatVersion 1, reads the legacy literal as written, and refuses other formats', () => {
-  const root = workspace(),
-    input = journal(root);
-  append(input.events, {
-    type: 'attempt.prepare',
-    attempt: { id: 'read', kind: 'operation', runId: 'root', target: 'fixture-read' },
-  });
-  append(input.events, { type: 'attempt.observe', attemptId: 'read', effect: 'none', error: null });
-  const written = writeRunnerEvidence(root, input),
-    original = readFileSync(resolve(root, written.path), 'utf8');
-  expect(JSON.parse(original)).toMatchObject({ format: 'runner-evidence', formatVersion: 1 });
-  const projected = () => using(root, true, (db) => db.records().filter((node) => node.band === 0).length);
-  const withEvidence = projected();
-  expect(withEvidence).toBeGreaterThan(0);
-  const plain = '"format":"runner-evidence","formatVersion":1';
-  expect(original).toContain(plain);
-  // The same journal under the pre-versioning literal still projects; its event hashes do not include the format.
-  put(root, written.path, original.replace(plain, '"format":"ia.runner-evidence.v1"'));
-  expect(projected()).toBe(withEvidence);
-  for (const refused of [
-    original.replace(plain, '"format":"runner-evidence","formatVersion":2'),
-    original.replace(plain, '"format":"runner-evidence"'),
-    original.replace(plain, '"format":"ia.runner-evidence.v1","formatVersion":1'),
-    original.replace(plain, '"format":"ia.runner-evidence.v2"'),
-  ]) {
-    put(root, written.path, refused);
-    expect(projected()).toBeLessThan(withEvidence);
-  }
-});
+it.each([false, true])(
+  'writes the released literal by default and the plain format once the switch flips, reads both and refuses other formats (plain names: %s)',
+  (plainNames) => {
+    flip.plain = plainNames;
+    const root = workspace(),
+      input = journal(root);
+    append(input.events, {
+      type: 'attempt.prepare',
+      attempt: { id: 'read', kind: 'operation', runId: 'root', target: 'fixture-read' },
+    });
+    append(input.events, { type: 'attempt.observe', attemptId: 'read', effect: 'none', error: null });
+    const written = writeRunnerEvidence(root, input),
+      original = readFileSync(resolve(root, written.path), 'utf8');
+    const plain = '"format":"runner-evidence","formatVersion":1',
+      released = '"format":"ia.runner-evidence.v1"';
+    // Older, separately released programs refuse anything but the released literal, so it is the default (dec-008, A15).
+    expect(JSON.parse(original)).toMatchObject(
+      plainNames ? { format: 'runner-evidence', formatVersion: 1 } : { format: 'ia.runner-evidence.v1' },
+    );
+    if (!plainNames) expect(JSON.parse(original)).not.toHaveProperty('formatVersion');
+    expect(original).toContain(plainNames ? plain : released);
+    const projected = () => using(root, true, (db) => db.records().filter((node) => node.band === 0).length);
+    const withEvidence = projected();
+    expect(withEvidence).toBeGreaterThan(0);
+    // Either spelling projects: the event hashes do not include the format.
+    for (const other of [plain, released]) {
+      put(root, written.path, original.replace(plainNames ? plain : released, other));
+      expect(projected()).toBe(withEvidence);
+    }
+    for (const refused of [
+      original.replace(plainNames ? plain : released, '"format":"runner-evidence","formatVersion":2'),
+      original.replace(plainNames ? plain : released, '"format":"runner-evidence"'),
+      original.replace(plainNames ? plain : released, '"format":"ia.runner-evidence.v1","formatVersion":1'),
+      original.replace(plainNames ? plain : released, '"format":"ia.runner-evidence.v2"'),
+    ]) {
+      put(root, written.path, refused);
+      expect(projected()).toBeLessThan(withEvidence);
+    }
+  },
+);
