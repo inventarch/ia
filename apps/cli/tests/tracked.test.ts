@@ -14,7 +14,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { resolve } from 'node:path';
-import { afterAll, expect, it } from 'vitest';
+import { afterAll, afterEach, expect, it, vi } from 'vitest';
 import { Refusal } from '../src/consumer.js';
 import {
   defaultTrackId,
@@ -23,7 +23,6 @@ import {
   sameRoot,
   readTracked,
   TRACKED_FILE,
-  TRACKED_FORMAT,
   trackedState,
   trackWorkspace,
   trackWorkspaces,
@@ -32,6 +31,19 @@ import {
 import { cleanup, scratch } from './scratch-fixture.js';
 
 afterAll(cleanup);
+
+/** The package's one switch, flipped here to prove the plain names come back exactly when the follow-up release flips it. */
+const flip = vi.hoisted(() => ({ plain: false }));
+vi.mock('../src/written-names.js', () => ({
+  get WRITE_PLAIN_NAMES() {
+    return flip.plain;
+  },
+}));
+afterEach(() => {
+  flip.plain = false;
+});
+/** The literal lists were released with, and written under until the switch flips. */
+const TRACKED_FORMAT = 'ia-tracked-workspaces-1';
 
 const NOW = new Date('2026-11-03T12:00:00.000Z');
 const home = (): string => resolve(scratch('tracked-home'), '.ia');
@@ -64,11 +76,7 @@ it('adds a workspace with its @workspace name as id', async () => {
   expect(status).toBe('added');
   expect(row).toEqual({ id: 'team-kb', root: realpathSync(root), added: NOW.toISOString() });
   expect(readTracked(at)).toEqual([row]);
-  expect(JSON.parse(readFileSync(file(at), 'utf8'))).toEqual({
-    format: TRACKED_FORMAT,
-    formatVersion: 1,
-    workspaces: [row],
-  });
+  expect(JSON.parse(readFileSync(file(at), 'utf8'))).toEqual({ format: TRACKED_FORMAT, workspaces: [row] });
 });
 
 it('falls back to the folder name when no single @workspace is declared', () => {
@@ -194,7 +202,6 @@ it('keeps unknown fields', async () => {
     file(at),
     JSON.stringify({
       format: TRACKED_FORMAT,
-      formatVersion: 1,
       workspaces: [{ id: 'first', root: realpathSync(first), added: NOW.toISOString(), entry: 'x' }],
       note: 'y',
     }),
@@ -209,19 +216,12 @@ it('keeps unknown fields', async () => {
 it('refuses a malformed file and leaves it as it was', async () => {
   const root = workspaceAt(resolve(scratch('tracked'), 'repo'), 'repo');
   const added = NOW.toISOString();
-  const withRows = (...rows: unknown[]) =>
-    JSON.stringify({ format: TRACKED_FORMAT, formatVersion: 1, workspaces: rows });
+  const withRows = (...rows: unknown[]) => JSON.stringify({ format: TRACKED_FORMAT, workspaces: rows });
   const cases: readonly (readonly [string, string])[] = [
     ['{ not json', ''],
     ['[]', 'it is not a JSON object'],
-    [JSON.stringify({ format: 'ia-tracked-workspaces-2', workspaces: [] }), 'not ' + TRACKED_FORMAT],
-    [JSON.stringify({ format: TRACKED_FORMAT, workspaces: [] }), 'its formatVersion is undefined, not 1'],
-    [JSON.stringify({ format: TRACKED_FORMAT, formatVersion: 2, workspaces: [] }), 'its formatVersion is 2, not 1'],
-    [
-      JSON.stringify({ format: 'ia-tracked-workspaces-1', formatVersion: 1, workspaces: [] }),
-      'its format is "ia-tracked-workspaces-1", not ' + TRACKED_FORMAT,
-    ],
-    [JSON.stringify({ format: TRACKED_FORMAT, formatVersion: 1, workspaces: {} }), 'workspaces is not a list'],
+    [JSON.stringify({ format: 'ia-tracked-workspaces-2', workspaces: [] }), 'its format is "ia-tracked-workspaces-2"'],
+    [JSON.stringify({ format: TRACKED_FORMAT, workspaces: {} }), 'workspaces is not a list'],
     [withRows(1), 'workspaces[0] is not an object'],
     [withRows({ id: 'bad id', root, added }), 'workspaces[0] has no valid id'],
     [withRows({ id: 'x', root: 'relative', added }), 'x names no absolute root'],
@@ -415,11 +415,7 @@ const listRows = (at: string, rows: readonly { readonly id: string; readonly roo
   mkdirSync(at, { recursive: true });
   writeFileSync(
     file(at),
-    JSON.stringify({
-      format: TRACKED_FORMAT,
-      formatVersion: 1,
-      workspaces: rows.map((row) => ({ ...row, added: NOW.toISOString() })),
-    }),
+    JSON.stringify({ format: TRACKED_FORMAT, workspaces: rows.map((row) => ({ ...row, added: NOW.toISOString() })) }),
   );
 };
 const unprivileged = process.platform === 'win32' || process.getuid?.() === 0;
@@ -480,16 +476,44 @@ it('trackedState reads a stat that failed from its code: ENOENT and ENOTDIR are 
   expect(trackedState(row, () => ({ isDirectory: () => true }))).toBe('present');
 });
 
-it('reads a list written under the legacy ia-tracked-workspaces-1 literal and rewrites it in the plain shape', async () => {
-  const at = home(),
-    first = workspaceAt(resolve(scratch('tracked'), 'legacy-first'), 'first'),
-    second = workspaceAt(resolve(scratch('tracked'), 'legacy-second'), 'second');
-  mkdirSync(at, { recursive: true });
-  const row = { id: 'first', root: realpathSync(first), added: NOW.toISOString() };
-  writeFileSync(file(at), JSON.stringify({ format: 'ia-tracked-workspaces-1', workspaces: [row] }));
-  expect(readTracked(at).map((entry) => entry.id)).toEqual(['first']);
-  await trackWorkspace(at, { root: second }, NOW);
-  const written = JSON.parse(readFileSync(file(at), 'utf8'));
-  expect(written).toMatchObject({ format: 'tracked-workspaces', formatVersion: 1 });
-  expect(written.workspaces.map((entry: { id: string }) => entry.id)).toEqual(['first', 'second']);
-});
+it.each([false, true])(
+  'writes a new list under the released literal by default and rewrites a read list in the shape setting, reading both (plain names: %s)',
+  async (plainNames) => {
+    flip.plain = plainNames;
+    const first = workspaceAt(resolve(scratch('tracked'), 'forward-first'), 'first'),
+      second = workspaceAt(resolve(scratch('tracked'), 'forward-second'), 'second'),
+      third = workspaceAt(resolve(scratch('tracked'), 'forward-third'), 'third');
+    const fresh = home();
+    await trackWorkspace(fresh, { root: first }, NOW);
+    // Older programs accept only the released literal, with no formatVersion (dec-008, A15).
+    const written = JSON.parse(readFileSync(file(fresh), 'utf8'));
+    expect(written).toMatchObject(
+      plainNames ? { format: 'tracked-workspaces', formatVersion: 1 } : { format: TRACKED_FORMAT },
+    );
+    if (!plainNames) expect(written).not.toHaveProperty('formatVersion');
+    // A list in either spelling is read, and a rewrite keeps the released shape until the switch flips.
+    for (const document of [{ format: TRACKED_FORMAT }, { format: 'tracked-workspaces', formatVersion: 1 }]) {
+      const at = home();
+      mkdirSync(at, { recursive: true });
+      const row = { id: 'second', root: realpathSync(second), added: NOW.toISOString() };
+      writeFileSync(file(at), JSON.stringify({ ...document, workspaces: [row] }));
+      expect(readTracked(at).map((entry) => entry.id)).toEqual(['second']);
+      await trackWorkspace(at, { root: third }, NOW);
+      const rewritten = JSON.parse(readFileSync(file(at), 'utf8'));
+      expect(rewritten.workspaces.map((entry: { id: string }) => entry.id)).toEqual(['second', 'third']);
+      if (plainNames) expect(rewritten).toMatchObject({ format: 'tracked-workspaces', formatVersion: 1 });
+      else expect(rewritten).toMatchObject(document);
+    }
+    // Each shape is exact: the plain name needs its version, and the released literal takes none.
+    for (const bad of [
+      { format: 'tracked-workspaces', workspaces: [] },
+      { format: 'tracked-workspaces', formatVersion: 2, workspaces: [] },
+      { format: TRACKED_FORMAT, formatVersion: 1, workspaces: [] },
+    ]) {
+      const at = home();
+      mkdirSync(at, { recursive: true });
+      writeFileSync(file(at), JSON.stringify(bad));
+      expect(() => readTracked(at)).toThrow();
+    }
+  },
+);

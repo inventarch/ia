@@ -10,6 +10,7 @@ import type { EvaluatorCatalog, EvaluatorCodec, EvaluatorEntry } from '../catalo
 import {
   EVIDENCE_RECEIPT_FORMAT,
   EVIDENCE_RECEIPT_FORMAT_VERSION,
+  RELEASED_EVIDENCE_RECEIPT_FORMAT,
   acceptEvaluatorOutput,
   admitTransition,
   evidenceDigest,
@@ -22,6 +23,7 @@ import { resolveObligations } from '../obligations.js';
 import type { Obligation, ObligationInput } from '../obligations.js';
 import { assess } from '../types.js';
 import type { EvidenceCode, Finding } from '../types.js';
+import { WRITE_PLAIN_NAMES } from '../written-names.js';
 
 const hex = (value: string) => `sha256:${value.repeat(64)}`;
 const codecs: readonly EvaluatorCodec[] = [
@@ -113,8 +115,10 @@ export function runEvidenceFixtures(graph: Graph): readonly FixtureResult[] {
   };
   const now = '2026-09-28T10:30:00Z';
   const receipt = (selected: Obligation = obligation, overrides: Partial<EvidenceReceipt> = {}): EvidenceReceipt => ({
-    format: EVIDENCE_RECEIPT_FORMAT,
-    formatVersion: EVIDENCE_RECEIPT_FORMAT_VERSION,
+    // The released literal alone until `WRITE_PLAIN_NAMES` is flipped, as released programs expect a receipt.
+    ...(WRITE_PLAIN_NAMES
+      ? { format: EVIDENCE_RECEIPT_FORMAT, formatVersion: EVIDENCE_RECEIPT_FORMAT_VERSION }
+      : { format: RELEASED_EVIDENCE_RECEIPT_FORMAT }),
     receiptId: 'fixture-receipt',
     attemptId: context.attemptId,
     obligationId: selected.obligationId,

@@ -3,7 +3,18 @@ import { appendFileSync, cpSync, mkdtempSync, readFileSync, readdirSync, rmSync,
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+/** The package's one switch, flipped here to prove the plain names come back exactly when the follow-up release flips it. */
+const flip = vi.hoisted(() => ({ plain: false }));
+vi.mock('../src/written-names.js', () => ({
+  get WRITE_PLAIN_NAMES() {
+    return flip.plain;
+  },
+}));
+afterEach(() => {
+  flip.plain = false;
+});
 import {
   KERNEL_DIGEST,
   KERNEL_SOURCES,
@@ -30,7 +41,7 @@ import {
   verifyKernel,
 } from '../src/index.js';
 import { INVENTORY, INVENTORY_DIGEST } from '../src/conformance/inventory.generated.js';
-import { inventoryDigest } from '../src/conformance/inventory.js';
+import { RELEASED_CONFORMANCE_PROFILE, inventoryDigest } from '../src/conformance/inventory.js';
 import type { ConformanceInventory } from '../src/conformance/inventory.js';
 import { runProfile } from '../src/conformance/verify.js';
 import type { KernelSource, Report, ReportOptions } from '../src/index.js';
@@ -222,7 +233,7 @@ describe('kernel verification (C31)', () => {
     }
   });
 });
-describe('package suites (C31)', () => {
+describe('package-v1 suites (C31)', () => {
   it('are compiled package code that imports no repository tool or test', () => {
     const base = resolve(import.meta.dirname, '../src');
     const files = readdirSync(base, { recursive: true, encoding: 'utf8' })
@@ -251,22 +262,10 @@ describe('fixture verification (C31)', () => {
     edit(temp);
     return { temp, url: pathToFileURL(temp + '/') };
   };
-  it('accepts an inventory naming the original package-v1 profile and refuses an unknown profile', () => {
-    expect(isConformanceProfile('package')).toBe(true);
-    expect(isConformanceProfile('package-v1')).toBe(true);
-    expect(isConformanceProfile('package-v2')).toBe(false);
-    const old = tampered((inventory) => ({ ...inventory, profile: 'package-v1' }));
-    expect(messages(runProfile(old.inventory, old.digest, directory))).toEqual([]);
-    const unknown = tampered((inventory) => ({ ...inventory, profile: 'package-v2' as 'package' }));
-    expect(messages(runProfile(unknown.inventory, unknown.digest, directory))).toEqual([
-      'The inventory names an unknown conformance profile',
-    ]);
-  });
-  it('passes the package profile, observes every required code and lists what it does not run', () => {
+  it('passes the package-v1 profile, observes every required code and lists what it does not run', () => {
     const evidence = verifyFixtures();
-    expect(evidence.assessment).toMatchObject({ check: 'COMP-FIXTURES', scope: 'package', outcome: 'pass' });
-    expect(evidence.profile).toBe('package');
-    expect(evidence.profile).toBe(CONFORMANCE_PROFILE);
+    expect(evidence.assessment).toMatchObject({ check: 'COMP-FIXTURES', scope: 'package-v1', outcome: 'pass' });
+    expect(evidence.profile).toBe('package-v1');
     expect(evidence.inventoryDigest).toBe(INVENTORY_DIGEST);
     expect(INVENTORY.requiredCodes).toHaveLength(
       LANG_CODES.length + GRAPH_CODES.length + COMP_CODES.length + EVIDENCE_CODES.length,
@@ -274,6 +273,35 @@ describe('fixture verification (C31)', () => {
     expect(evidence.observedCodes).toEqual(expect.arrayContaining([...INVENTORY.requiredCodes]));
     expect(evidence.outOfProfile.map((s) => s.suite)).toEqual(['HOOK', 'RUNTIME', 'escalation', 'EXEC', 'PUBLICATION']);
     expect(evidence.outOfProfile.every((s) => s.codes.length > 0 && s.reason.length > 0)).toBe(true);
+  });
+  it('writes the released profile id by default and the plain one once the switch flips; both are read', () => {
+    expect(CONFORMANCE_PROFILE).toBe('package');
+    expect(RELEASED_CONFORMANCE_PROFILE).toBe('package-v1');
+    expect(isConformanceProfile('package')).toBe(true);
+    expect(isConformanceProfile('package-v1')).toBe(true);
+    expect(isConformanceProfile('package-v2')).toBe(false);
+    const released = verifyFixtures();
+    expect(released.profile).toBe('package-v1');
+    expect(released.assessment.scope).toBe('package-v1');
+    expect(verifyKernel().profile).toBe('package-v1');
+    flip.plain = true;
+    const plain = verifyFixtures();
+    expect(plain.profile).toBe('package');
+    expect(plain.assessment).toMatchObject({ check: 'COMP-FIXTURES', scope: 'package', outcome: 'pass' });
+    expect(verifyKernel().profile).toBe('package');
+    // The pinned inventory was generated under the released name; its digest is the one origin/main pins.
+    expect(INVENTORY.profile).toBe('package-v1');
+    expect(INVENTORY_DIGEST).toBe('2dd953609722f67d6a86f9a3cc89ab6496759bcb909ca08c6da50bc01c4049ac');
+  });
+  it('accepts an inventory naming either profile spelling and refuses an unknown profile', () => {
+    const plain = tampered((inventory) => ({ ...inventory, profile: 'package' }));
+    expect(messages(runProfile(plain.inventory, plain.digest, directory))).toEqual([]);
+    const old = tampered((inventory) => ({ ...inventory, profile: 'package-v1' }));
+    expect(messages(runProfile(old.inventory, old.digest, directory))).toEqual([]);
+    const unknown = tampered((inventory) => ({ ...inventory, profile: 'package-v2' as 'package' }));
+    expect(messages(runProfile(unknown.inventory, unknown.digest, directory))).toEqual([
+      'The inventory names an unknown conformance profile',
+    ]);
   });
   it('fails a changed companion file', () => {
     const { temp, url } = copy((root) => appendFileSync(join(root, 'format/fail/lost-comment.candidate.txt'), ' '));
@@ -502,7 +530,7 @@ describe('evaluate binds conformance evidence to the graph (C31)', () => {
       'COMP-KERNEL': { outcome: 'pass', basis: 'verified', messages: [] },
     });
     expect(report.conformance).toEqual({
-      profile: 'package',
+      profile: 'package-v1',
       toolchain: kernel.toolchain,
       kernel: { floorDigest: KERNEL_DIGEST },
       fixtures: fixturesSummary,
@@ -593,7 +621,7 @@ describe('evaluate binds conformance evidence to the graph (C31)', () => {
     });
     // The bound fixture pass still names what the profile does not run.
     expect(onLocal.conformance).toEqual({
-      profile: 'package',
+      profile: 'package-v1',
       toolchain: kernel.toolchain,
       fixtures: fixturesSummary,
     });
@@ -771,7 +799,7 @@ describe('evaluate binds conformance evidence to the graph (C31)', () => {
       'COMP-KERNEL': notEvaluated('COMP-KERNEL', stale),
     });
     expect(first.conformance).toEqual({
-      profile: 'package',
+      profile: 'package-v1',
       toolchain: kernel.toolchain,
       fixtures: fixturesSummary,
     });
@@ -784,7 +812,7 @@ describe('evaluate binds conformance evidence to the graph (C31)', () => {
       'COMP-KERNEL': { outcome: 'pass', basis: 'verified', messages: [] },
     });
     expect(second.conformance).toEqual({
-      profile: 'package',
+      profile: 'package-v1',
       toolchain: kernel.toolchain,
       kernel: { floorDigest: KERNEL_DIGEST },
     });

@@ -120,8 +120,7 @@ it('applies the packet and its receipt, which doctor reads with no drift until a
   const receipt = JSON.parse(read(root, RECEIPT));
   expect(envelope.applied).toEqual(receipt);
   expect(receipt).toMatchObject({
-    format: 'packet-receipt',
-    formatVersion: 1,
+    format: 'ia.packet-receipt.v1',
     host: 'claude',
     entries: 47,
     packetDigest: envelope.plan.packetDigest,
