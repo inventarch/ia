@@ -55,3 +55,24 @@ describe('the db teaching-link scanner and the tools parser agree on the shipped
     ).toEqual(tool);
   });
 });
+
+describe('both teaching readers report a root-relative link (H8)', () => {
+  const doc = {
+    path: '.ia/src/doc.md',
+    text: '[a](/abs) [b](//example.com/x) [c](https://example.com/y) [d](#top)\n\n[e]: /.ia/src/doc.md\n\n# Top\n',
+  };
+  const expected = [
+    '.ia/src/doc.md: target outside installed teaching closure: /.ia/src/doc.md',
+    '.ia/src/doc.md: target outside installed teaching closure: /abs',
+  ];
+  it('the tools reader flags it and still skips absolute URLs and anchors', () => {
+    expect(teachingLinkFindings(root, [doc], new Set(), () => true)).toEqual(expected);
+  });
+  it('the db reader gives the same verdicts', () => {
+    expect(
+      dbFindings([doc], new Set(), () => true)
+        .map((finding) => finding.message)
+        .sort(),
+    ).toEqual(expected);
+  });
+});

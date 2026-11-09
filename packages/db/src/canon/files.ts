@@ -1,15 +1,17 @@
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import type { Dirent } from 'node:fs';
 import { posix, resolve } from 'node:path';
 import { canonAssessment, executingKitSystems, isKitWorkspace } from '@inventarch/compliance';
 import type { Assessment, Finding } from '@inventarch/compliance';
 import type { Graph, Node } from '@inventarch/graph';
+import { decodeDistributionLock, decodeReleaseDescriptor } from '../distribution/contracts.js';
 import { localTarget, scanMarkdown } from './links.js';
 
 /** The directories no canon file walk enters. */
 const SKIPPED: ReadonlySet<string> = new Set(['node_modules', 'dist', '.git']);
-/** Runtime state under `.ia/`, never a source root. */
-const RUNTIME_STATE: ReadonlySet<string> = new Set(['.ia/distributions', '.ia/work']);
+/** Runtime state under any `.ia/` (the root's, or a nested workspace's): never a source root, never shipped. */
+const RUNTIME_STATE = /(?:^|\/)\.ia\/(?:distributions|work)$/;
+const isRuntimeState = (path: string): boolean => RUNTIME_STATE.test(path);
 const SOURCE = '.ia/src';
 const KB_KIT = 'inventarch/ia-kb-kit';
 
@@ -43,14 +45,17 @@ function entries(directory: string): readonly Dirent[] {
 const isSeparateCheckout = (root: string, path: string): boolean =>
   entries(resolve(root, path)).some((child) => child.name === '.git');
 
-/** Every file under `directory` as a root-relative `/` path, in order; links are not followed. */
+/**
+ * Every file under `directory` as a root-relative `/` path, in order; links are not followed. `node_modules`, `dist`,
+ * `.git` and runtime state at any depth are skipped; `bounded` also stops at separate checkouts.
+ */
 function walkFiles(root: string, directory: string, bounded = false): readonly string[] {
   const found: string[] = [];
   const visit = (relative: string): void => {
     for (const entry of entries(resolve(root, relative))) {
       if (SKIPPED.has(entry.name)) continue;
       const path = relative === '' ? entry.name : `${relative}/${entry.name}`;
-      if (bounded && entry.isDirectory() && (RUNTIME_STATE.has(path) || isSeparateCheckout(root, path))) continue;
+      if (entry.isDirectory() && (isRuntimeState(path) || (bounded && isSeparateCheckout(root, path)))) continue;
       if (entry.isDirectory()) visit(path);
       else if (entry.isFile()) found.push(path);
     }
@@ -67,9 +72,13 @@ export function teachingFiles(root: string): readonly string[] {
 const closed = (available: ReadonlySet<string>, target: string): boolean =>
   available.has(target) || [...available].some((file) => file.startsWith(`${target}/`));
 
+/** Absolute URLs (a scheme, or a `//` network path) and in-page anchors are not local teaching targets. */
+const NOT_LOCAL = /^[a-z][a-z0-9+.-]*:|^#|^\/\//i;
+
 /**
  * C12 over documents already read: a relative link must stay under `.ia/src/`, exist and be in the installed closure
- * (`nativePaths` and the documents themselves); absolute URLs, `#` and `/` links are skipped. Paths are `/` paths.
+ * (`nativePaths` and the documents themselves). A root-relative `/x` link leaves `.ia/src/` and is reported; absolute
+ * URLs and `#` anchors are skipped. Paths are `/` paths.
  */
 export function teachingLinkFindings(
   files: readonly { readonly path: string; readonly text: string }[],
@@ -84,7 +93,11 @@ export function teachingLinkFindings(
   };
   for (const file of files) {
     for (const link of parsed.get(file.path)!.links) {
-      if (link.kind === 'html' || /^[a-z][a-z0-9+.-]*:|^[#/]/i.test(link.href)) continue;
+      if (link.kind === 'html' || NOT_LOCAL.test(link.href)) continue;
+      if (link.href.startsWith('/')) {
+        report(file.path, link.line, `target outside installed teaching closure: ${link.href}`);
+        continue;
+      }
       let pathname: string, fragment: string;
       try {
         const local = localTarget(link.href);
@@ -127,7 +140,37 @@ export function canonTeachingLinks(
   return teachingLinkFindings(documents, installed, (path) => existsSync(resolve(root, path)));
 }
 
-const RELEASED = ['release.json', 'distributions.lock.json'];
+/**
+ * A nested `.ia/` is released when its `release.json` decodes as a release descriptor, or adopted when its
+ * `distributions.lock.json` decodes as a lock installing at least one package or entry. An empty or malformed file
+ * exempts nothing.
+ */
+function releasedOrAdopted(root: string, ia: string): boolean {
+  const read = (name: string): string | null => {
+    try {
+      return readFileSync(resolve(root, ia, name), 'utf8');
+    } catch {
+      return null;
+    }
+  };
+  const descriptor = read('release.json'),
+    lock = read('distributions.lock.json');
+  if (descriptor !== null)
+    try {
+      decodeReleaseDescriptor(descriptor);
+      return true;
+    } catch {
+      // Not a release descriptor; the lock may still adopt the root.
+    }
+  if (lock !== null)
+    try {
+      const decoded = decodeDistributionLock(lock);
+      return decoded.packages.length + (decoded.entries?.length ?? 0) > 0;
+    } catch {
+      // Not a lock.
+    }
+  return false;
+}
 
 /** Every `.ia/src` directory below `root` other than `<root>/.ia/src`, as a root-relative path. */
 function nestedSources(root: string): readonly string[] {
@@ -137,14 +180,13 @@ function nestedSources(root: string): readonly string[] {
     for (const entry of entries(resolve(root, relative))) {
       if (!entry.isDirectory() || SKIPPED.has(entry.name)) continue;
       const path = `${here}${entry.name}`;
-      if (RUNTIME_STATE.has(path)) continue;
-      if (isSeparateCheckout(root, path)) continue;
+      if (isRuntimeState(path) || isSeparateCheckout(root, path)) continue;
       const children = entries(resolve(root, path));
       if (entry.name === '.ia') {
         if (
           path !== '.ia' &&
           children.some((child) => child.isDirectory() && child.name === 'src') &&
-          !children.some((child) => child.isFile() && RELEASED.includes(child.name))
+          !releasedOrAdopted(root, path)
         )
           found.push(`${path}/src`);
       }
@@ -156,8 +198,9 @@ function nestedSources(root: string): readonly string[] {
 }
 
 /**
- * A6: a `.ia/src` below `root` other than `<root>/.ia/src` is reported unless its `.ia/` holds `release.json` or
- * `distributions.lock.json`. Active in a kit or a knowledge repository (`scope`), else nothing.
+ * A6: a `.ia/src` below `root` other than `<root>/.ia/src` is reported unless its `.ia/` holds a `release.json` that
+ * decodes or a `distributions.lock.json` that decodes with an entry. Active in a kit or a knowledge repository
+ * (`scope`), else nothing.
  */
 export function canonSourceRoots(root: string, scope: 'kit' | 'knowledge' | null): readonly Finding[] {
   if (scope === null) return [];
@@ -172,12 +215,50 @@ export function canonSourceRoots(root: string, scope: 'kit' | 'knowledge' | null
   );
 }
 
-const SCRIPT = /\.(mjs|cjs|js|ts|py|sh|ps1)$/;
+/** A script extension, matched case-insensitively. */
+const SCRIPT = /\.(?:mjs|cjs|js|ts|mts|cts|tsx|jsx|py|rb|sh|bash|zsh|ps1|psm1|cmd|bat)$/i;
 
 /**
- * C6: a kit holds no scripts. Files with a script extension are reported unless they sit under
- * `.ia/src/systems/<allowed>/` (the folders of the executing systems, dec-040 A). The walk skips `node_modules`, `dist`,
- * `.git`, `.ia/distributions`, `.ia/work` and separate checkouts. Nothing outside a kit.
+ * The files `<root>/.ia/release.json` declares under `assets`, as the marketplace kit loader reads them
+ * (`plugins/ia/scripts/lib/kit.mjs` `declaredAssets`): each `assets[].path`, resolved against the root. An asset that is
+ * absolute, leaves the root or names no regular file is not shipped and so not listed; a descriptor that does not
+ * parse declares none. C6 is not the descriptor's validator.
+ */
+function declaredAssets(root: string): readonly string[] {
+  let assets: unknown;
+  try {
+    assets = (JSON.parse(readFileSync(resolve(root, '.ia/release.json'), 'utf8')) as { assets?: unknown }).assets;
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(assets)) return [];
+  const found = new Set<string>();
+  for (const asset of assets) {
+    const path: unknown = (asset as { path?: unknown } | null)?.path;
+    if (typeof path !== 'string' || path === '' || isAbsolutePath(slashed(path))) continue;
+    const spelled = posix.normalize(slashed(path));
+    if (spelled === '.' || spelled === '..' || spelled.startsWith('../')) continue;
+    try {
+      if (statSync(resolve(root, spelled)).isFile()) found.add(spelled);
+    } catch {
+      // A declared asset that is missing is not shipped.
+    }
+  }
+  return [...found].sort();
+}
+
+/**
+ * The files a kit ships: everything under `<root>/.ia/src/` (the walk skips `node_modules`, `dist`, `.git`, runtime
+ * state at any depth and separate checkouts) plus the assets `.ia/release.json` declares. Tests, fixtures and scripts
+ * the descriptor does not declare stay home.
+ */
+function shippedFiles(root: string): readonly string[] {
+  return [...new Set([...walkFiles(root, SOURCE, true), ...declaredAssets(root)])].sort();
+}
+
+/**
+ * C6: a kit ships no scripts. A shipped file (`shippedFiles`) with a script extension is reported unless it sits under
+ * `.ia/src/systems/<allowed>/` (the folders of the executing systems, dec-040 A). Nothing outside a kit.
  */
 export function canonKitScripts(
   root: string,
@@ -186,7 +267,7 @@ export function canonKitScripts(
 ): readonly Finding[] {
   if (!isKit) return [];
   const folders = allowedSystems.map((name) => `${SOURCE}/systems/${name}/`);
-  return walkFiles(root, '', true)
+  return shippedFiles(root)
     .filter((path) => SCRIPT.test(path) && !folders.some((folder) => path.startsWith(folder)))
     .map(
       (path): Finding => ({

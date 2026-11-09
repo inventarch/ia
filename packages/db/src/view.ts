@@ -734,14 +734,13 @@ function views(
     const evaluated = {
         sourceDiagnostics,
         folders: folders.filter((f) => !blockedFolders.has(f.path)),
-        // Canon file rules (C12, A6) read the checkout, so they enter evaluate beside the admission observations.
-        admission: [
-          ...observations,
-          ...canonFileAssessments(input.root, [...graph.nodes.values()], {
-            graph,
-            ...(input.installed ? { installed: input.installed } : {}),
-          }),
-        ],
+        admission: observations,
+        // Canon file rules (C12, A6, C6) read the checkout. Their own channel keeps them unfiltered, so an advisory
+        // law's warnings and its passing verdict reach the report (the admission channel drops passing assessments).
+        canonFiles: canonFileAssessments(input.root, [...graph.nodes.values()], {
+          graph,
+          ...(input.installed ? { installed: input.installed } : {}),
+        }),
         ...(options.checks === 'structural' ? { checks: 'structural' as const } : {}),
       },
       unverified = evaluate(graph, evaluated),
