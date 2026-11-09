@@ -580,19 +580,16 @@ describe('shared authored-root ownership', () => {
     const result = await preview(root, ['task', 'adopted-task', ...fields, '--at', '.ia/src/shared/new.ia']);
     expect(body(result)).toMatchObject({ ok: false, code: 'IA-CLI-EDIT-UNOWNED' });
   });
-  it('retains the repository-only mandate restriction on a shared target for preview and author', async () => {
+  it('does not apply a repository-only mandate restriction on a shared target (db D02b, runtime R21)', async () => {
     const root = shared('alpha');
     rewrite(root, '.ia/src/workspace.ia', (text) =>
       text.replace('    scope [@workspace demo]', '    scope [@workspace demo]\n    excluded-words [task]'),
     );
-    const argv = ['task', 'restricted-task', ...fields, '--at', '.ia/src/shared/restricted.ia'];
-    const result = await preview(root, argv);
-    expect(body(result)).toMatchObject({ code: 'IA-RUNTIME-MANDATE-WORD' });
-    expect(body(result)['message']).toContain(mandate('demo-mandate'));
-    const before = trees(root);
-    const authored = await run(['author', ...argv, '--digest', EMPTY, '--root', root, '--json'], { env: HOMES });
-    expect(body(authored)).toMatchObject({ code: 'IA-RUNTIME-MANDATE-WORD' });
-    expect(trees(root)).toEqual(before);
+    // A mandate governs a shared root only when its scope names every declarer; this one names the repository alone.
+    const result = await preview(root, ['task', 'restricted-task', ...fields, '--at', '.ia/src/shared/restricted.ia']);
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(body(result)).not.toHaveProperty('code');
+    expect(body(result)).toMatchObject({ path: '.ia/src/shared/restricted.ia', exists: false });
   });
   it('authors an authorized shared target using the preview digest and admits the result', async () => {
     const root = shared('alpha');
