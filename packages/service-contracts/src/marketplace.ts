@@ -11,6 +11,8 @@ export const dependency = z.strictObject({ id: packageId, range: version });
 export const releasePin = z.strictObject({ provider: id, packageId, version, archive: digest, manifest: digest });
 export const releaseTerms = z.strictObject({ license: text, revision: text, text: z.string().min(1).max(16384) });
 export const distributionLock = z.strictObject({
+  // The plain name beside formatVersion (decision dec-008); the released lock carries formatVersion alone.
+  format: z.literal('distribution-lock').optional(),
   formatVersion: z.literal(1),
   engine: version,
   requests: z.array(dependency).min(1).max(100),
@@ -29,6 +31,8 @@ export const distributionLock = z.strictObject({
     .max(100),
 });
 export const releaseDescriptor = z.strictObject({
+  // The plain name beside formatVersion (decision dec-008); the released descriptor carries formatVersion alone.
+  format: z.literal('release-descriptor').optional(),
   formatVersion: z.literal(1),
   id: packageId,
   version,

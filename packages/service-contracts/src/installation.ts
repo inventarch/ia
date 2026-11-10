@@ -5,6 +5,8 @@ import { distributionLock } from './marketplace.js';
 import { sourceAdmission, sourceReceipt, sourceReference } from './sources.js';
 const counter = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 export const installationPointer = z.strictObject({
+  // The plain name beside formatVersion (decision dec-008); the released pointer carries formatVersion alone.
+  format: z.literal('activation-pointer').optional(),
   formatVersion: z.literal(1),
   generation: digest,
   previous: digest.nullable(),
