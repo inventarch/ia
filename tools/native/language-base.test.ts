@@ -26,7 +26,7 @@ import {
   archivePath,
 } from './language-base.js';
 
-import { ledgerArchive, readBaseLedger } from './language-bases.js';
+import { compareVersions, ledgerArchive, readBaseLedger } from './language-bases.js';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const version = languageVersion(root);
@@ -78,7 +78,14 @@ it.each(['apps/cli', 'apps/mcp-door'])('writes every ledger base into the carrie
       version: string;
       archive: string;
     }[];
-    expect(pins.map((pin) => pin.version)).toEqual([...ledger.bases.map((row) => row.version), base.pin.version]);
+    // The built base is listed after the ledger only while it is newer than every ledger row (not yet published).
+    const versions = ledger.bases.map((row) => row.version);
+    const newest = versions.at(-1);
+    expect(pins.map((pin) => pin.version)).toEqual(
+      newest !== undefined && compareVersions(base.pin.version, newest) <= 0
+        ? versions
+        : [...versions, base.pin.version],
+    );
     expect(pins.at(-1)).toEqual(base.pin);
     expect(JSON.parse(readFileSync(resolve(scratch, carrier, 'assets/base.json'), 'utf8'))).toEqual(base.pin);
     expect(readdirSync(resolve(scratch, carrier, 'assets/base')).sort()).toEqual(

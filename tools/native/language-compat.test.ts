@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import type { CatalogueWord } from '../../packages/db/src/distribution/index.js';
 import { distributionSnapshot, packSnapshot } from '../../apps/distribution/src/snapshot.js';
 import { buildLanguageBase, languageBaseDescriptor } from './language-base.js';
-import { ledgerArchive, readBaseLedger } from './language-bases.js';
+import { compareVersions, ledgerArchive, readBaseLedger } from './language-bases.js';
 import {
   baseCatalogue,
   compatIndex,
@@ -107,10 +107,13 @@ describe('language compatibility index', () => {
   it('covers every ledger base, then the built base when it is newer', () => {
     const index = compatIndex(root);
     expect([index.format, index.id, index.major]).toEqual(['ia.language-compat.v1', 'inventarch/language', 3]);
-    expect(index.bases.map((base) => [base.version, base.archive])).toEqual([
-      ...ledger.bases.map((base) => [base.version, base.archive]),
-      [built.pin.version, built.pin.archive],
-    ]);
+    const rows = ledger.bases.map((base) => [base.version, base.archive]);
+    const newest = ledger.bases.at(-1);
+    expect(index.bases.map((base) => [base.version, base.archive])).toEqual(
+      newest !== undefined && compareVersions(built.pin.version, newest.version) <= 0
+        ? rows
+        : [...rows, [built.pin.version, built.pin.archive]],
+    );
   });
 
   it('generation is deterministic', () => {

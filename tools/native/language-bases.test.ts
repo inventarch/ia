@@ -112,11 +112,16 @@ const cliTarball = (base: LanguageBase): Buffer =>
 describe('fetching a published base', () => {
   const SEEDED = '3.2.1';
   const SEEDED_ARCHIVE = 'ee6e65018df2ebef705913d9da1947f040edf44c2e7ade6c9750c6fa0185985e';
-  /** A copy of the ledger that does not hold `version` yet, in a folder of its own. */
+  /** A copy of the ledger without the `SEEDED` row and its archive, in a folder of its own. */
   function ledgerCopy(): string {
     const scratch = mkdtempSync(resolve(tmpdir(), 'ia-bases-fetch-test-'));
     cpSync(resolve(root, 'releases/native'), resolve(scratch, 'releases/native'), { recursive: true });
+    const copy = JSON.parse(readFileSync(resolve(scratch, LEDGER_PATH), 'utf8')) as { bases: { version: string }[] };
+    copy.bases = copy.bases.filter((base) => base.version !== SEEDED);
+    writeFileSync(resolve(scratch, LEDGER_PATH), `${JSON.stringify(copy, null, 2)}\n`);
+    rmSync(resolve(scratch, BASES_DIRECTORY, `${SEEDED_ARCHIVE}.ia.tgz`), { force: true });
     expect(readBaseLedger(scratch).bases.some((base) => base.version === SEEDED)).toBe(false);
+    expect(ledgerFindings(scratch)).toEqual([]);
     return scratch;
   }
   const snapshot = (scratch: string) => ({
