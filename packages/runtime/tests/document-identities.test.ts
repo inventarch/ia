@@ -23,7 +23,7 @@ import {
   releaseRecords,
 } from '../src/method/index.js';
 
-// Decision dec-008 (A14, A15). The bindings sidecar, the kit sidecars and releases files and the method packet are read
+// Decision dec-008. The bindings sidecar, the kit sidecars and releases files and the method packet are read
 // by programs released separately (the plugin, the door, kits), so this release reads the plain `format` name with
 // `formatVersion` beside the released shapes and keeps writing the released packet shape until the switch flips.
 let dir: string;

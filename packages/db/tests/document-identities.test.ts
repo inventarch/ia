@@ -21,7 +21,7 @@ import {
   sha256,
 } from '../src/distribution/index.js';
 
-// Decision dec-008 (A14, A15). A release descriptor, bundle manifest, lock, generation inputs and activation pointer are
+// Decision dec-008. A release descriptor, bundle manifest, lock, generation inputs and activation pointer are
 // shared documents: older programs read them, so this release reads the plain `format` name beside `formatVersion` and
 // keeps writing the released shape (a `formatVersion` and no name) until the switch flips.
 const hash = 'a'.repeat(64),
