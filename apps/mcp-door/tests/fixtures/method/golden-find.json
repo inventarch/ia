@@ -21,8 +21,8 @@
     "version": "0.9.0",
     "archive": "3e9c2330416197b602c3cd5f6dda12a3cfb313959684079ac2bfe8b5a1f7dc8c",
     "sources": "e06a6bddabe5a91bb02277c17745cc00a3be49a11e3b04f9bff85c08b94ac07f",
-    "implementation": "ccfdcec2995ee2817893f3058530d76106b84e45d1460fef38a16b636cc13d4d",
-    "retained": "ca569f324382665da818921c1ebe877bb7a9293c88615e9cbc9ae9e02b4e4210",
+    "implementation": "093ddc93f9e239f215a77758d42711f550685beb28a3da2c2fee488a27238671",
+    "retained": "5a696a50fe09449dedb630725ece4fa642954f0f4a9f4ae945e881940007f286",
     "records": [
       "agent-composition-system/definition/capability/kb-retrieve",
       "governance-system/definition/procedure/kb-retrieval",
@@ -201,5 +201,5 @@
     ]
   },
   "kitUpdateAvailable": null,
-  "digest": "ce26648424fcec69559342c1d4cdfadfa2371d1abac53091e6f0913b54c2bde8"
+  "digest": "9cebe6a3cf475ff7ea97180cfc2396487c0a69f40c84c1131fd029b579ff235b"
 }

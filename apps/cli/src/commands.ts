@@ -647,6 +647,19 @@ export const COMMANDS: readonly CommandSpec[] = [
     ]),
   },
   {
+    name: 'floor',
+    group: 'distribution',
+    summary: 'Report the minimum language base the records need',
+    syntax: ['ia floor [--verify] [--json]'],
+    grammar: grammar([
+      option({
+        name: 'verify',
+        kind: 'boolean',
+        summary: 'Prove it: validate on every carried base from the minimum to the newest',
+      }),
+    ]),
+  },
+  {
     name: 'install',
     group: 'distribution',
     summary: 'Plan or apply an installation of distributions',

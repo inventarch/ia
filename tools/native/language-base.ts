@@ -30,11 +30,14 @@ import {
 import { languagePackageInputs } from './public-language.js';
 import { isEntry } from '../entry/is-entry.mjs';
 import { containedFile, readRegular } from '../shared/paths.mjs';
+import { ledgerArchive, readBaseLedger } from './language-bases.js';
 
 export const BASE_ID = 'inventarch/language';
 /** The pin and the one archive it names, relative to the `@inventarch/cli` package root (workspace initialization §3 “Bundled language”). */
 export const PIN_PATH = 'assets/base.json';
 export const ARCHIVE_DIRECTORY = 'assets/base';
+/** Every carried base as a pin list, ascending, the last being the newest; beside the pin, relative to the package root. */
+export const BASES_PATH = 'assets/bases.json';
 export const archivePath = (digest: string): string => `${ARCHIVE_DIRECTORY}/${digest}.ia.tgz`;
 
 export interface BasePin {
@@ -142,24 +145,47 @@ export function languageBaseFindings(input: {
 /** The packages that carry the base: the CLI, and the MCP door, which restores a method kit's read root in process. */
 export const BASE_PACKAGES = ['apps/cli', 'apps/mcp-door'] as const;
 
-/** Writes the base into each package that carries it (`BASE_PACKAGES`), in order. */
-export function writeLanguageBase(root: string, base: LanguageBase): void {
-  for (const directory of BASE_PACKAGES) writePackageBase(root, base, directory);
+/**
+ * Writes the built base and every ledger base into each package that carries them (`BASE_PACKAGES`), in order.
+ * `ledgerRoot` is where the published-base ledger and its archives are read from; it is `root` unless a scratch output
+ * root is written from the repository's ledger.
+ */
+export function writeLanguageBase(root: string, base: LanguageBase, ledgerRoot: string = root): void {
+  const ledger = readBaseLedger(ledgerRoot);
+  // Ledger bases ascend; the built base is the newest and is listed once when it is the last ledger row.
+  const carried: LanguageBase[] = ledger.bases.map((row) => ({
+    pin: { id: BASE_ID, version: row.version, archive: row.archive, manifest: row.manifest },
+    bytes: ledgerArchive(ledgerRoot, row),
+  }));
+  if (carried.length > 0 && carried[carried.length - 1]!.pin.archive === base.pin.archive) carried.pop();
+  carried.push(base);
+  for (const directory of BASE_PACKAGES) writePackageBase(root, carried, directory);
 }
 
-/** Preflight the complete output set; publish the archive before its pin, then retire only owned archives. */
-function writePackageBase(root: string, base: LanguageBase, directory: string): void {
-  if (
-    !/^[a-f0-9]{64}$/.test(base.pin.archive) ||
-    createHash('sha256').update(base.bytes).digest('hex') !== base.pin.archive
-  )
-    throw new Error('Language base bytes do not match their archive pin');
-  const archive = `${directory}/${archivePath(base.pin.archive)}`,
-    pin = `${directory}/${PIN_PATH}`;
-  const outputs = new Map([
-    [archive, base.bytes],
-    [pin, Buffer.from(JSON.stringify(base.pin, null, 2) + '\n')],
-  ]);
+/** Preflight the complete output set; publish the archives before their pins, then retire only owned archives. */
+function writePackageBase(root: string, carried: readonly LanguageBase[], directory: string): void {
+  const base = carried[carried.length - 1]!;
+  for (const item of carried)
+    if (
+      !/^[a-f0-9]{64}$/.test(item.pin.archive) ||
+      createHash('sha256').update(item.bytes).digest('hex') !== item.pin.archive
+    )
+      throw new Error('Language base bytes do not match their archive pin');
+  const pin = `${directory}/${PIN_PATH}`;
+  const outputs = new Map<string, Buffer>(
+    carried.map((item) => [`${directory}/${archivePath(item.pin.archive)}`, item.bytes] as [string, Buffer]),
+  );
+  outputs.set(
+    `${directory}/${BASES_PATH}`,
+    Buffer.from(
+      JSON.stringify(
+        carried.map((item) => item.pin),
+        null,
+        2,
+      ) + '\n',
+    ),
+  );
+  outputs.set(pin, Buffer.from(JSON.stringify(base.pin, null, 2) + '\n'));
   for (const path of outputs.keys()) containedFile(root, path, { allowMissing: true });
   const archives = resolve(root, directory, ARCHIVE_DIRECTORY),
     obsolete: string[] = [];
@@ -170,7 +196,7 @@ function writePackageBase(root: string, base: LanguageBase, directory: string): 
       const bytes = readRegular(root, path, 64 * 1024 * 1024);
       if (createHash('sha256').update(bytes).digest('hex') !== name.slice(0, 64))
         throw new Error('Changed language base archive: ' + name);
-      if (path !== archive) obsolete.push(path);
+      if (!outputs.has(path)) obsolete.push(path);
     }
   const changed = [...outputs].filter(
     ([path, bytes]) => !existsSync(resolve(root, path)) || !readRegular(root, path, 64 * 1024 * 1024).equals(bytes),

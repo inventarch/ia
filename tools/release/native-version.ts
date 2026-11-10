@@ -39,7 +39,7 @@ export interface NativeBaseline {
 export interface NativeNotes {
   format: 'ia.native-release-notes.v1';
   baseline: NativeBaseline['source'];
-  changes: { id: string; bump: 'patch' | 'minor' | 'major'; summary: string }[];
+  changes: { id: string; bump: 'patch' | 'minor' | 'major'; summary: string; compatibility?: 'reviewed-additive' }[];
 }
 function validateArchives(rows: NativeArchive[]): void {
   assert.ok(Array.isArray(rows) && rows.length, 'Missing native archive inventory');
@@ -178,7 +178,8 @@ export function planNativeVersions(
         prior.has(row.id) &&
           ['patch', 'minor', 'major'].includes(row.bump) &&
           typeof row.summary === 'string' &&
-          row.summary.trim(),
+          row.summary.trim() &&
+          (row.compatibility === undefined || row.compatibility === 'reviewed-additive'),
         'Invalid native release note',
       );
   }

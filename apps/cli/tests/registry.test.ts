@@ -23,22 +23,28 @@ import {
 import { join, relative, resolve } from 'node:path';
 import { afterAll, afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { DEFAULT_REGISTRIES, registryChooser } from '@inventarch/distribution/registry';
+import { canonicalDistributionJson } from '@inventarch/db/distribution';
 import {
+  baseArchiveAt,
   baseCompanionArchive,
+  publishedBase,
   buildFixtureRegistry,
   fixtureArchive,
   indexEntry,
+  languageKit,
   registryOf,
   selectedRegistry,
   serveDirectory,
   sourcedClosure,
+  sourcedRegistry,
 } from './registry-fixture.js';
 import type { FixtureReleaseSpec, SourcedRelease } from './registry-fixture.js';
+import { readBases } from '../src/bundled-base.js';
 import { collectPlan, UNMAPPED } from '../src/distribute.js';
 import type { PlanRequest } from '../src/distribute.js';
 
 import { quote as serviceQuote } from '../src/render.js';
-import { quoteCommandRoot as quote, cleanup, commandRoots, nextArgv, run, scratch } from './workspace-fixture.js';
+import { quoteCommandRoot as quote, cleanup, cli, commandRoots, nextArgv, run, scratch } from './workspace-fixture.js';
 
 const BASE = 'https://registry.test/base/';
 /**
@@ -845,6 +851,336 @@ it('locates a failure at a corrupt cached base and names deleting it', async () 
   expect(failure.where?.path).toBe(path);
   expect(failure.next).toContain(`Delete ${path}`);
 });
+
+// The language-base floor (IA 3.7.1): the CLI carries every published base of its major, so a workspace locked on any
+// of them restores exactly, `update` of the base offers them cold or warm, and an install whose kit needs a newer base
+// moves the workspace to a carried one, never below the lock or below what the workspace's records need.
+const LANGUAGE = 'inventarch/language';
+const NEWEST = readBases(cli).at(-1)!.pin.version;
+const lockOf = (root: string): Envelope['plan']['lock'] =>
+  JSON.parse(readFileSync(join(root, '.ia/distributions.lock.json'), 'utf8')) as Envelope['plan']['lock'];
+/**
+ * Rewrites the workspace lock's language row and request, as a CLI that bundled that base would have written them; a
+ * `range` is the request an earlier move from a lower base left behind.
+ */
+function relock(
+  root: string,
+  { version, archive, manifest }: { version: string; archive: string; manifest: string },
+  range = `^${version}`,
+): void {
+  const path = join(root, '.ia/distributions.lock.json'),
+    lock = JSON.parse(readFileSync(path, 'utf8')) as { packages: Locked[]; requests: { id: string; range: string }[] };
+  lock.packages = lock.packages.map((pkg) =>
+    pkg.id === LANGUAGE ? { ...pkg, version, archive, manifest, location: `sha256:${archive}` } : pkg,
+  );
+  lock.requests = lock.requests.map((request) => (request.id === LANGUAGE ? { ...request, range } : request));
+  writeFileSync(path, canonicalDistributionJson(lock));
+}
+/**
+ * A fresh clone of a workspace an earlier CLI initialized on the carried base `version`: the committed lock and
+ * authored sources, with no installation and no archive cache.
+ */
+async function cloneOn(version: string, range?: string): Promise<string> {
+  const { root } = await initialized();
+  relock(root, baseArchiveAt(version), range);
+  rmSync(join(root, '.ia/distributions'), { recursive: true, force: true });
+  return root;
+}
+const languageRow = (lock: Envelope['plan']['lock']): Locked | undefined =>
+  lock.packages.find((pkg) => pkg.id === LANGUAGE);
+
+it('restores a cold clone locked on any carried base exactly', async () => {
+  const trapped = trapFetch();
+  for (const { pin } of readBases(cli)) {
+    const root = await cloneOn(pin.version),
+      lockPath = join(root, '.ia/distributions.lock.json'),
+      committed = readFileSync(lockPath);
+    const restored = await run(['restore', '--root', root, '--apply', '--yes', '--json']);
+    expect(restored.exitCode, `${pin.version}: ${restored.stdout}`).toBe(0);
+    expect(languageRow(json<Envelope>(restored.stdout).plan.lock)).toMatchObject({
+      version: pin.version,
+      archive: pin.archive,
+    });
+    // Restore stays exact: the committed lock is never rewritten.
+    expect(readFileSync(lockPath)).toEqual(committed);
+    expect(existsSync(join(root, `.ia/distributions/cache/${pin.archive}.ia.tgz`))).toBe(true);
+  }
+  // Every base is unpublished, so once its carried bytes are cached no registry is asked about it (§6.3).
+  expect(trapped).not.toHaveBeenCalled();
+}, 180_000);
+
+it('restore of an uncarried, unlisted base names the update command', async () => {
+  const dir = registry([]),
+    root = await cloneOn('3.1.0'),
+    lockPath = join(root, '.ia/distributions.lock.json');
+  // A base this CLI does not carry (a later patch of 3.1 it never bundled), which no registry lists either.
+  relock(root, { version: '3.1.5', archive: 'c'.repeat(64), manifest: 'd'.repeat(64) });
+  const committed = readFileSync(lockPath);
+  for (const source of [['--registry', dir], ['--offline']]) {
+    const refused = await run(['restore', ...source, '--root', root, '--apply', '--yes', '--json']);
+    expect(refused.exitCode, refused.stdout).toBe(3);
+    const failure = json<Failure>(refused.stdout);
+    const argv = nextArgv(failure.next!);
+    expect(argv.slice(0, 2), failure.next!).toEqual(['update', LANGUAGE]);
+    expect(argv).toContain(source[0]);
+    expect(argv).not.toContain('--apply');
+    // Run as printed, the update previews the move to the newest carried base and writes nothing.
+    const preview = await run([...argv, '--json']);
+    expect(preview.exitCode, preview.stdout).toBe(0);
+    expect(languageRow(json<Envelope>(preview.stdout).plan.lock)?.version).toBe(NEWEST);
+    expect(readFileSync(lockPath)).toEqual(committed);
+  }
+}, 120_000);
+
+it('update inventarch/language on a cold clone previews the move to the carried newest and writes it only with --apply', async () => {
+  const dir = registry([]),
+    trapped = trapFetch(),
+    newest = baseArchiveAt(NEWEST);
+  // Online: the registry is asked (it lists no language release) and the carried bases answer.
+  const root = await cloneOn('3.0.0'),
+    lockPath = join(root, '.ia/distributions.lock.json'),
+    committed = readFileSync(lockPath);
+  const preview = await run(['update', LANGUAGE, '--registry', dir, '--root', root, '--json']);
+  expect(preview.exitCode, preview.stdout).toBe(0);
+  const planned = json<Envelope>(preview.stdout);
+  expect(languageRow(planned.plan.lock)).toMatchObject({ version: NEWEST, archive: newest.archive });
+  expect(planned.plan.changes.updated).toEqual([LANGUAGE]);
+  // §6.2: without --to the request keeps its range.
+  expect(planned.plan.lock.requests).toEqual([{ id: LANGUAGE, range: '^3.0.0' }]);
+  expect(readFileSync(lockPath)).toEqual(committed);
+  expect(existsSync(join(root, '.ia/distributions/active.json'))).toBe(false);
+  const human = await run(['update', LANGUAGE, '--registry', dir, '--root', root]);
+  expect(human.exitCode, human.stderr).toBe(0);
+  expect(flat(human.stdout)).toContain('This is a preview. Nothing has been written.');
+  expect(flat(human.stdout)).toContain(`${LANGUAGE} ${NEWEST}`);
+
+  // Offline, from a clone with no cache at all: the carried bytes are the candidates.
+  const cold = await cloneOn('3.0.0');
+  const applied = await run(['update', LANGUAGE, '--offline', '--root', cold, '--apply', '--yes', '--json']);
+  expect(applied.exitCode, applied.stdout).toBe(0);
+  expect(json<Envelope>(applied.stdout).applied?.status).toBe('installed');
+  expect(languageRow(lockOf(cold))).toMatchObject({ version: NEWEST, archive: newest.archive });
+  expect(lockOf(cold).requests).toEqual([{ id: LANGUAGE, range: '^3.0.0' }]);
+  // The workspace is installed on the new base, so an ordinary restore and install plan against it.
+  expect((await run(['restore', '--offline', '--root', cold, '--apply', '--yes', '--json'])).exitCode).toBe(0);
+  expect(trapped).not.toHaveBeenCalled();
+}, 120_000);
+
+it("update refuses when the workspace's records need a base above every candidate", async () => {
+  const root = await cloneOn('3.0.0'),
+    lockPath = join(root, '.ia/distributions.lock.json'),
+    committed = readFileSync(lockPath);
+  // `invocation` on a capability arrived in 3.1.0, so the records need 3.1.0 or later.
+  writeFileSync(
+    join(root, '.ia/src/probe.ia'),
+    [
+      '#! ia 1.0',
+      '',
+      '@capability floor-probe',
+      '  meaning',
+      '    says "A capability that says when it is invoked."',
+      '    answers "When is the floor probe invoked?"',
+      '  execution',
+      '    effects [read]',
+      '  invocation',
+      '    mode model',
+      '',
+    ].join('\n'),
+  );
+  const refused = await run(['update', LANGUAGE, '--to', '~3.0.0', '--offline', '--root', root, '--json']);
+  expect(refused.exitCode, refused.stdout).toBe(3);
+  const failure = json<Failure>(refused.stdout);
+  expect(failure.message).toContain('3.1.0');
+  expect(failure.message).toContain('floor-probe');
+  expect(failure.message).toContain('~3.0.0');
+  // The one command is the update whose range admits the minimum.
+  expect(nextArgv(failure.next!)).toEqual(
+    commandRoots(['update', LANGUAGE, '--to', '^3.1.0', '--offline', '--root', root]),
+  );
+  expect(readFileSync(lockPath)).toEqual(committed);
+  // Without --to the existing range admits the newest carried base, which reads the records.
+  const moved = await run(['update', LANGUAGE, '--offline', '--root', root, '--json']);
+  expect(moved.exitCode, moved.stdout).toBe(0);
+  expect(languageRow(json<Envelope>(moved.stdout).plan.lock)?.version).toBe(NEWEST);
+}, 120_000);
+
+/** A warm workspace installed on the carried base `version`, whose cache holds only that base's archive. */
+async function installedOn(version: string, range?: string): Promise<string> {
+  const root = await cloneOn(version, range);
+  const restored = await run(['restore', '--offline', '--root', root, '--apply', '--yes', '--json']);
+  expect(restored.exitCode, restored.stdout).toBe(0);
+  expect(readdirSync(join(root, '.ia/distributions/cache'))).toEqual([`${baseArchiveAt(version).archive}.ia.tgz`]);
+  return root;
+}
+/** The kit's archive in the workspace cache, so an --offline install reaches it. */
+function cacheKit(root: string, kit: SourcedRelease): void {
+  writeFileSync(join(root, `.ia/distributions/cache/${kit.archiveDigest}.ia.tgz`), kit.bytes);
+}
+
+it('installing a kit whose range needs 3.2.0 into a 3.0.0 workspace moves the base offline and shows it as updated', async () => {
+  const kit = await languageKit('^3.2.0'),
+    id = kit.manifest.id,
+    newest = baseArchiveAt(NEWEST),
+    trapped = trapFetch();
+  const root = await installedOn('3.0.0');
+  cacheKit(root, kit);
+  const preview = await run(['install', id, '--offline', '--root', root, '--json']);
+  expect(preview.exitCode, preview.stdout).toBe(0);
+  const planned = json<Envelope>(preview.stdout);
+  expect(languageRow(planned.plan.lock)).toMatchObject({ version: NEWEST, archive: newest.archive });
+  expect(planned.plan.changes).toMatchObject({ added: [id], updated: [LANGUAGE] });
+  const human = await run(['install', id, '--offline', '--root', root]);
+  expect(flat(human.stdout)).toContain(`${LANGUAGE} ${NEWEST}`);
+  const applied = await run(['install', id, '--offline', '--root', root, '--apply', '--yes', '--json']);
+  expect(applied.exitCode, applied.stdout).toBe(0);
+  expect(languageRow(lockOf(root))?.version).toBe(NEWEST);
+  // The workspace's own request keeps its range; the kit's range is what moved the base.
+  expect(lockOf(root).requests.find((request) => request.id === LANGUAGE)?.range).toBe('^3.0.0');
+
+  // From a registry that lists the kit and no language release, the carried base is selected and cached the same way.
+  const dir = sourcedRegistry([kit]);
+  fixtures.push(dir);
+  const online = await installedOn('3.0.0');
+  const fetched = await run(['install', id, '--registry', dir, '--root', online, '--apply', '--yes', '--json']);
+  expect(fetched.exitCode, fetched.stdout).toBe(0);
+  const result = json<Envelope>(fetched.stdout);
+  expect(result.plan.changes).toMatchObject({ added: [id], updated: [LANGUAGE] });
+  expect(languageRow(result.plan.lock)).toMatchObject({ version: NEWEST, location: `sha256:${newest.archive}` });
+  // Only the kit came from the registry; the base came from the CLI.
+  expect(result.registries).toEqual([{ provider: 'inventarch', base: resolve(dir), level: 'flag' }]);
+  expect(trapped).not.toHaveBeenCalled();
+}, 180_000);
+
+it('installing a kit with range ^3.0.0 into a 3.0.0 workspace keeps the base', async () => {
+  const kit = await languageKit('^3.0.0'),
+    id = kit.manifest.id,
+    base = baseArchiveAt('3.0.0');
+  const root = await installedOn('3.0.0');
+  cacheKit(root, kit);
+  const applied = await run(['install', id, '--offline', '--root', root, '--apply', '--yes', '--json']);
+  expect(applied.exitCode, applied.stdout).toBe(0);
+  const result = json<Envelope>(applied.stdout);
+  expect(result.plan.changes).toMatchObject({ added: [id], updated: [] });
+  expect(languageRow(lockOf(root))).toMatchObject({ version: '3.0.0', archive: base.archive });
+}, 120_000);
+
+// No downgrade and no base below the minimum, from any origin: a registry, a catalog or the workspace cache may list a
+// language base below the lock, and no plan selects it.
+it('install refuses to move the base below the lock, whether a registry, a catalog or the cache lists the lower base', async () => {
+  const kit = await languageKit('~3.0.0'),
+    id = kit.manifest.id,
+    lower = publishedBase('3.0.0'),
+    published = publishedBase('3.2.0');
+  const dir = sourcedRegistry([kit, lower, published]);
+  fixtures.push(dir);
+  const refusedBy = async (root: string, argv: readonly string[]): Promise<void> => {
+    const lockPath = join(root, '.ia/distributions.lock.json'),
+      committed = readFileSync(lockPath);
+    for (const apply of [[], ['--apply', '--yes']]) {
+      const refused = await run([...argv, '--root', root, ...apply, '--json']);
+      expect(refused.exitCode, `${argv.join(' ')}: ${refused.stdout}`).toBe(3);
+      const failure = json<Failure>(refused.stdout);
+      expect(failure.code, refused.stdout).toBe('IA-DIST-CONFLICT');
+      expect(failure.message).toContain(`${LANGUAGE} 3.0.0 is below the locked 3.2.0`);
+      expect(failure.where).toMatchObject({ path: '.ia/distributions.lock.json' });
+      expect(readFileSync(lockPath)).toEqual(committed);
+    }
+  };
+  // The workspace moved from 3.0.0 to 3.2.0, so its own request still admits 3.0.0; only the lock holds it up. A kit
+  // whose range admits only 3.0.x is refused rather than installed on a lower base.
+  await refusedBy(await installedOn('3.2.0', '^3.0.0'), ['install', id, '--registry', dir]);
+  // A catalog caches each archive on its own, which a kit's authoring closure refuses, so the catalog case names the
+  // lower range directly.
+  const catalogued = await installedOn('3.2.0', '^3.0.0');
+  mkdirSync(join(catalogued, '.ia/work'), { recursive: true });
+  for (const release of [lower, published])
+    writeFileSync(join(catalogued, `.ia/work/${release.archiveDigest}.ia.tgz`), release.bytes);
+  writeFileSync(
+    join(catalogued, '.ia/work/catalog.json'),
+    JSON.stringify(
+      [lower, published].map((release) => ({ path: `.ia/work/${release.archiveDigest}.ia.tgz`, withdrawn: false })),
+    ),
+  );
+  await refusedBy(catalogued, ['install', `${LANGUAGE}@~3.0.0`, '--catalog', '.ia/work/catalog.json']);
+  // A workspace that was installed on 3.0.0 before it moved still caches that base's archive.
+  const offline = await installedOn('3.2.0', '^3.0.0'),
+    earlier = baseArchiveAt('3.0.0');
+  cacheKit(offline, kit);
+  writeFileSync(join(offline, `.ia/distributions/cache/${earlier.archive}.ia.tgz`), earlier.bytes);
+  await refusedBy(offline, ['install', id, '--offline']);
+  // A conflict over another id is not the bound's doing, and keeps its own message.
+  const other = await run(['install', 'acme/absent', '--offline', '--root', offline, '--json']);
+  expect(other.exitCode, other.stdout).toBe(3);
+  expect(json<Failure>(other.stdout).message).toContain('acme/absent');
+  expect(json<Failure>(other.stdout).message).not.toContain('below the locked');
+}, 240_000);
+
+it("install refuses a base the lock admits but the workspace's records cannot use", async () => {
+  // A 3.0.5 this CLI does not carry, which a registry lists: at or above the locked 3.0.0, but `invocation` on a
+  // capability arrived in 3.1.0, so the workspace's records need 3.1.0 or later.
+  const kit = await languageKit('~3.0.5'),
+    id = kit.manifest.id,
+    dir = sourcedRegistry([kit, publishedBase('3.0.0', '3.0.5')]);
+  fixtures.push(dir);
+  const root = await installedOn('3.0.0'),
+    lockPath = join(root, '.ia/distributions.lock.json');
+  writeFileSync(
+    join(root, '.ia/src/probe.ia'),
+    [
+      '#! ia 1.0',
+      '',
+      '@capability floor-probe',
+      '  meaning',
+      '    says "A capability that says when it is invoked."',
+      '    answers "When is the floor probe invoked?"',
+      '  execution',
+      '    effects [read]',
+      '  invocation',
+      '    mode model',
+      '',
+    ].join('\n'),
+  );
+  const committed = readFileSync(lockPath);
+  const refused = await run(['install', id, '--registry', dir, '--root', root, '--json']);
+  expect(refused.exitCode, refused.stdout).toBe(3);
+  const failure = json<Failure>(refused.stdout);
+  expect(failure.code, refused.stdout).toBe('IA-DIST-CONFLICT');
+  expect(failure.message).toContain(`${LANGUAGE} 3.0.5 is below the minimum 3.1.0`);
+  expect(readFileSync(lockPath)).toEqual(committed);
+}, 120_000);
+
+it('install of a kit the lock satisfies keeps the base when a registry also lists a lower one', async () => {
+  const kit = await languageKit('^3.0.0'),
+    id = kit.manifest.id;
+  const dir = sourcedRegistry([kit, publishedBase('3.0.0'), publishedBase('3.2.0')]);
+  fixtures.push(dir);
+  const root = await installedOn('3.2.0', '^3.0.0');
+  const applied = await run(['install', id, '--registry', dir, '--root', root, '--apply', '--yes', '--json']);
+  expect(applied.exitCode, applied.stdout).toBe(0);
+  expect(languageRow(lockOf(root))).toMatchObject({ version: '3.2.0', archive: baseArchiveAt('3.2.0').archive });
+}, 120_000);
+
+it('update --to a range that admits only versions below the lock refuses, naming the lock', async () => {
+  const dir = sourcedRegistry([publishedBase('3.0.0'), publishedBase('3.2.0')]);
+  fixtures.push(dir);
+  const root = await installedOn('3.2.0', '^3.0.0'),
+    lockPath = join(root, '.ia/distributions.lock.json'),
+    committed = readFileSync(lockPath);
+  for (const source of [['--registry', dir], ['--offline']]) {
+    const refused = await run(['update', LANGUAGE, '--to', '~3.0.0', ...source, '--root', root, '--json']);
+    expect(refused.exitCode, refused.stdout).toBe(3);
+    const failure = json<Failure>(refused.stdout);
+    expect(failure.code).toBe('IA-DIST-CONFLICT');
+    expect(failure.message).toContain('~3.0.0');
+    expect(failure.message).toContain(`the locked ${LANGUAGE} 3.2.0`);
+    expect(failure.where).toMatchObject({ path: '.ia/distributions.lock.json' });
+    // The one command keeps the base at or above the lock.
+    expect(nextArgv(failure.next!)).toEqual(
+      commandRoots(['update', LANGUAGE, '--to', '^3.2.0', ...source, '--root', root]),
+    );
+    expect(readFileSync(lockPath)).toEqual(committed);
+  }
+}, 120_000);
 
 // Registry spec §4 "Doctor": for each provider in the lock's requests and packages, the base it
 // resolves to and the level that chose it. Doctor never contacts a registry, so every test here traps fetch.

@@ -1387,6 +1387,7 @@
         "tests/consumer.test.ts",
         "tests/distribution-verbs.test.ts",
         "tests/equivalence.test.ts",
+        "tests/floor.test.ts",
         "tests/host-plugin.test.ts",
         "tests/host-projection.test.ts",
         "tests/install-package.test.ts"
@@ -1654,6 +1655,7 @@
         "tests/registry-build.test.ts",
         "tests/registry-collections.test.ts",
         "tests/registry-config.test.ts",
+        "tests/registry-extra.test.ts",
         "tests/registry-layout.test.ts",
         "tests/registry-resolve.test.ts",
         "tests/registry-selected.test.ts",
@@ -2449,6 +2451,7 @@
         "tests/editor.test.ts",
         "tests/handle.test.ts",
         "tests/inputs.test.ts",
+        "tests/language-floor.test.ts",
         "tests/membership.test.ts",
         "tests/open-follows-links.test.ts",
         "tests/paths.test.ts",
@@ -2880,6 +2883,8 @@
         "tests/editor.test.ts",
         "tests/entry.test.ts",
         "tests/install-guard.test.ts",
+        "tests/kit-base.test.ts",
+        "tests/kit-root.test.ts",
         "tests/kits-package.test.ts",
         "tests/locator.test.ts",
         "tests/loop.test.ts",
@@ -3786,6 +3791,8 @@
         "tools/native/work-example.test.ts",
         "tools/native/check.test.ts",
         "tools/native/language-base.test.ts",
+        "tools/native/language-bases.test.ts",
+        "tools/native/language-compat.test.ts",
         "tools/native/public-systems.test.ts",
         "tools/native/stewardship.test.ts",
         "tools/native/canon-cases.test.ts"
@@ -4408,6 +4415,30 @@
       ]
     },
     {
+      "id": "language-compat:check",
+      "kind": "command",
+      "project": ".",
+      "command": "pnpm language-compat:check",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [],
+      "outputs": [
+        "artifacts/tests/language-compat-check"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "node --conditions=development --import tsx tools/native/language-compat.ts --check"
+      ]
+    },
+    {
       "id": "language-base:generate",
       "kind": "command",
       "project": ".",
@@ -4424,8 +4455,10 @@
       "outputs": [
         "apps/cli/assets/base",
         "apps/cli/assets/base.json",
+        "apps/cli/assets/bases.json",
         "apps/mcp-door/assets/base",
         "apps/mcp-door/assets/base.json",
+        "apps/mcp-door/assets/bases.json",
         "artifacts/tests/language-base-generate"
       ],
       "cache": true,
@@ -4773,6 +4806,34 @@
       "reason": "Published Git tag availability and native archive digests must be checked fresh for each qualification."
     },
     {
+      "id": "language:compat-gate",
+      "kind": "command",
+      "project": ".",
+      "command": "pnpm language:compat-gate",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "repository-inventory",
+      "dependsOn": [
+        "cli:build",
+        "language-base:generate"
+      ],
+      "outputs": [
+        "artifacts/tests/language-compat-gate"
+      ],
+      "cache": false,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "node --conditions=development --import tsx tools/release/language-compat-gate.ts --check"
+      ],
+      "reason": "The gate runs the built CLI against the published fixture kit, so it must run fresh for each qualification."
+    },
+    {
       "id": "tools:test-public-release",
       "kind": "vitest",
       "project": ".",
@@ -4804,7 +4865,8 @@
       "kind": "vitest",
       "project": ".",
       "files": [
-        "tools/release/native-version.test.ts"
+        "tools/release/native-version.test.ts",
+        "tools/release/language-compat-gate.test.ts"
       ],
       "profile": "corpus",
       "platforms": [
