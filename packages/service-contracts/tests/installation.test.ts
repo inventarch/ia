@@ -1,5 +1,7 @@
 import { expect, it } from 'vitest';
+import { distributionLock, releaseDescriptor } from '../src/marketplace.js';
 import {
+  installationPointer,
   installationApplyRequest,
   installationInspectRequest,
   installationPlanRequest,
@@ -30,4 +32,49 @@ it('requires explicit exact review, decision and closed bounded inspection', () 
   ).toBe(false);
   expect(installationInspectRequest.parse({ kind: 'current' })).toEqual({ kind: 'current' });
   expect(installationInspectRequest.safeParse({ kind: 'current', owner: 'other' }).success).toBe(false);
+});
+
+// Decision dec-008 (A14, A15): the released lock, pointer and descriptor carry a formatVersion and no name; the plain
+// shape names the document beside it. Both are read, in one document or another, and any other name is refused.
+const hash = 'a'.repeat(64);
+const lockBody = {
+  formatVersion: 1,
+  engine: '^0.1.0',
+  requests: [{ id: 'test/one', range: '^1.0.0' }],
+  packages: [
+    {
+      id: 'test/one',
+      version: '1.0.0',
+      archive: hash,
+      manifest: hash,
+      location: `sha256:${hash}`,
+      dependencies: [],
+    },
+  ],
+};
+const pointerBody = { formatVersion: 1, generation: hash, previous: null, counter: 1 };
+const descriptorBody = {
+  formatVersion: 1,
+  id: 'independent/product',
+  version: '1.0.0',
+  distribution: 'workspace-system/definition/distribution/example',
+  engine: '^0.1.0',
+  language: ['1.0'],
+  dependencies: [],
+  assets: [],
+  source: { repository: 'https://independent.example/source', commit: 'a'.repeat(40), recipe: 'ustar-v1', epoch: 1 },
+  license: 'UNLICENSED',
+  description: 'Independent release',
+};
+it.each([
+  ['distribution-lock', distributionLock, lockBody],
+  ['activation-pointer', installationPointer, pointerBody],
+  ['release-descriptor', releaseDescriptor, descriptorBody],
+] as const)('%s: reads the released shape and the plain shape, and refuses any other name', (name, schema, body) => {
+  expect(schema.safeParse(body).success).toBe(true);
+  expect(schema.safeParse({ format: name, ...body }).success).toBe(true);
+  for (const format of [`${name}-1`, `ia.${name}.v1`, 'other-document', 1, ''])
+    expect(schema.safeParse({ format, ...body }).success, String(format)).toBe(false);
+  expect(schema.safeParse({ format: name, ...body, formatVersion: 2 }).success).toBe(false);
+  expect(schema.safeParse({ format: name, ...body, formatVersion: undefined }).success).toBe(false);
 });
