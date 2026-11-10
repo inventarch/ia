@@ -8,7 +8,7 @@
  * Per repository: refuse when planning did; `git fetch origin` and the base (`origin/HEAD`, then `origin/main`, then
  * `origin/master`); refuse a workspace whose `.ia/src` the base does not hold; refuse an existing worktree path or branch; `git worktree add --no-track -b <branch> <path> <base>`
  * (no upstream, ever), and when that fails, remove what it made (`undoAdd`); the package manager's install when the worktree holds a `package.json`, built for the worktree,
- * with no lifecycle script and frozen to a tracked lockfile (`batchInstallArgv`);
+ * with no lifecycle script, no pnpmfile under pnpm, and frozen to a tracked lockfile (`batchInstallArgv`; Yarn 2+ `yarnPath` and plugins and `.npmrc` settings still run);
  * then each step. Before the install and before every step the real filesystem is checked (`containedStep`): the
  * step's `cwd` and each path it names must lead, through any link, into the worktree. An `ia` step runs on the copy
  * the worktree has at that step, found again before each one, or on the running copy when there is none; the batch
@@ -928,7 +928,7 @@ async function runRepo(
         `the first step installs with ${first}, but the base is locked by ${manager}; run this offer from that workspace's own view instead`,
       );
     if (first === null) {
-      // No lifecycle script runs, and a tracked lockfile is never rewritten: the install is frozen to it.
+      // No lifecycle script or pnpmfile runs (Yarn 2+ yarnPath/plugins and .npmrc settings still do), and a tracked lockfile is never rewritten.
       const install: Step = {
         program: 'external',
         argv: [...batchInstallArgv(manager, manifest, workspace, lockTracked(manifest, manager, listing))],
