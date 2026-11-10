@@ -34,6 +34,7 @@ export function gapText(gap: Gap): string {
     section: `uses the section ${gap.key}, which ${gap.base} does not declare`,
     field: `uses the field ${gap.key}, which ${gap.base} does not declare`,
     value: `uses the value ${gap.key}, which ${gap.base} does not admit`,
+    form: `uses the value ${gap.key}, which is not in the text form ${gap.base} requires`,
     type: `gives ${gap.key} a value ${gap.base} does not admit`,
     'required-section': `lacks the section ${gap.key}, which ${gap.base} requires`,
     'required-field': `lacks the field ${gap.key}, which ${gap.base} requires`,

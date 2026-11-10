@@ -803,17 +803,20 @@
             {
               "path": "work.start",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.due",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.ended",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.source",
@@ -860,7 +863,9 @@
             {
               "predicate": "supersede",
               "direction": "out",
-              "required": false
+              "target": "decision",
+              "required": false,
+              "cardinality": "one"
             }
           ]
         },
@@ -1673,17 +1678,20 @@
             {
               "path": "work.start",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.due",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.ended",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.source",
@@ -1695,22 +1703,30 @@
             {
               "predicate": "require",
               "direction": "out",
-              "required": false
+              "target": "milestone",
+              "required": false,
+              "cardinality": "one-or-more"
             },
             {
               "predicate": "require",
               "direction": "out",
-              "required": false
+              "target": "task",
+              "required": false,
+              "cardinality": "one-or-more"
             },
             {
               "predicate": "require",
               "direction": "out",
-              "required": false
+              "target": "decision",
+              "required": false,
+              "cardinality": "one-or-more"
             },
             {
               "predicate": "supersede",
               "direction": "out",
-              "required": false
+              "target": "milestone",
+              "required": false,
+              "cardinality": "one"
             }
           ]
         },
@@ -2095,17 +2111,20 @@
             {
               "path": "work.start",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.due",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.ended",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.source",
@@ -2117,7 +2136,9 @@
             {
               "predicate": "supersede",
               "direction": "out",
-              "required": false
+              "target": "plan",
+              "required": false,
+              "cardinality": "one"
             }
           ]
         },
@@ -2428,17 +2449,20 @@
             {
               "path": "work.start",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.due",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.ended",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.source",
@@ -2460,12 +2484,16 @@
             {
               "predicate": "supersede",
               "direction": "out",
-              "required": false
+              "target": "spec",
+              "required": false,
+              "cardinality": "one"
             },
             {
               "predicate": "ground",
               "direction": "in",
-              "required": false
+              "target": "decision",
+              "required": false,
+              "cardinality": "one"
             }
           ]
         },
@@ -2572,17 +2600,20 @@
             {
               "path": "work.start",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.due",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.ended",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.source",
@@ -2616,22 +2647,30 @@
             {
               "predicate": "require",
               "direction": "out",
-              "required": false
+              "target": "task",
+              "required": false,
+              "cardinality": "one-or-more"
             },
             {
               "predicate": "require",
               "direction": "out",
-              "required": false
+              "target": "milestone",
+              "required": false,
+              "cardinality": "one-or-more"
             },
             {
               "predicate": "require",
               "direction": "out",
-              "required": false
+              "target": "decision",
+              "required": false,
+              "cardinality": "one-or-more"
             },
             {
               "predicate": "supersede",
               "direction": "out",
-              "required": false
+              "target": "task",
+              "required": false,
+              "cardinality": "one"
             }
           ]
         },
@@ -3714,17 +3753,20 @@
             {
               "path": "work.start",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.due",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.ended",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.source",
@@ -3771,7 +3813,9 @@
             {
               "predicate": "supersede",
               "direction": "out",
-              "required": false
+              "target": "decision",
+              "required": false,
+              "cardinality": "one"
             }
           ]
         },
@@ -4643,17 +4687,20 @@
             {
               "path": "work.start",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.due",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.ended",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.source",
@@ -4665,22 +4712,30 @@
             {
               "predicate": "require",
               "direction": "out",
-              "required": false
+              "target": "milestone",
+              "required": false,
+              "cardinality": "one-or-more"
             },
             {
               "predicate": "require",
               "direction": "out",
-              "required": false
+              "target": "task",
+              "required": false,
+              "cardinality": "one-or-more"
             },
             {
               "predicate": "require",
               "direction": "out",
-              "required": false
+              "target": "decision",
+              "required": false,
+              "cardinality": "one-or-more"
             },
             {
               "predicate": "supersede",
               "direction": "out",
-              "required": false
+              "target": "milestone",
+              "required": false,
+              "cardinality": "one"
             }
           ]
         },
@@ -5065,17 +5120,20 @@
             {
               "path": "work.start",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.due",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.ended",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.source",
@@ -5087,7 +5145,9 @@
             {
               "predicate": "supersede",
               "direction": "out",
-              "required": false
+              "target": "plan",
+              "required": false,
+              "cardinality": "one"
             }
           ]
         },
@@ -5398,17 +5458,20 @@
             {
               "path": "work.start",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.due",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.ended",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.source",
@@ -5430,12 +5493,16 @@
             {
               "predicate": "supersede",
               "direction": "out",
-              "required": false
+              "target": "spec",
+              "required": false,
+              "cardinality": "one"
             },
             {
               "predicate": "ground",
               "direction": "in",
-              "required": false
+              "target": "decision",
+              "required": false,
+              "cardinality": "one"
             }
           ]
         },
@@ -5542,17 +5609,20 @@
             {
               "path": "work.start",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.due",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.ended",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.source",
@@ -5586,22 +5656,30 @@
             {
               "predicate": "require",
               "direction": "out",
-              "required": false
+              "target": "task",
+              "required": false,
+              "cardinality": "one-or-more"
             },
             {
               "predicate": "require",
               "direction": "out",
-              "required": false
+              "target": "milestone",
+              "required": false,
+              "cardinality": "one-or-more"
             },
             {
               "predicate": "require",
               "direction": "out",
-              "required": false
+              "target": "decision",
+              "required": false,
+              "cardinality": "one-or-more"
             },
             {
               "predicate": "supersede",
               "direction": "out",
-              "required": false
+              "target": "task",
+              "required": false,
+              "cardinality": "one"
             }
           ]
         },
@@ -6684,17 +6762,20 @@
             {
               "path": "work.start",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.due",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.ended",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.source",
@@ -6741,7 +6822,9 @@
             {
               "predicate": "supersede",
               "direction": "out",
-              "required": false
+              "target": "decision",
+              "required": false,
+              "cardinality": "one"
             }
           ]
         },
@@ -7613,17 +7696,20 @@
             {
               "path": "work.start",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.due",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.ended",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.source",
@@ -7635,22 +7721,30 @@
             {
               "predicate": "require",
               "direction": "out",
-              "required": false
+              "target": "milestone",
+              "required": false,
+              "cardinality": "one-or-more"
             },
             {
               "predicate": "require",
               "direction": "out",
-              "required": false
+              "target": "task",
+              "required": false,
+              "cardinality": "one-or-more"
             },
             {
               "predicate": "require",
               "direction": "out",
-              "required": false
+              "target": "decision",
+              "required": false,
+              "cardinality": "one-or-more"
             },
             {
               "predicate": "supersede",
               "direction": "out",
-              "required": false
+              "target": "milestone",
+              "required": false,
+              "cardinality": "one"
             }
           ]
         },
@@ -8035,17 +8129,20 @@
             {
               "path": "work.start",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.due",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.ended",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.source",
@@ -8057,7 +8154,9 @@
             {
               "predicate": "supersede",
               "direction": "out",
-              "required": false
+              "target": "plan",
+              "required": false,
+              "cardinality": "one"
             }
           ]
         },
@@ -8368,17 +8467,20 @@
             {
               "path": "work.start",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.due",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.ended",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.source",
@@ -8400,12 +8502,16 @@
             {
               "predicate": "supersede",
               "direction": "out",
-              "required": false
+              "target": "spec",
+              "required": false,
+              "cardinality": "one"
             },
             {
               "predicate": "ground",
               "direction": "in",
-              "required": false
+              "target": "decision",
+              "required": false,
+              "cardinality": "one"
             }
           ]
         },
@@ -8512,17 +8618,20 @@
             {
               "path": "work.start",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.due",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.ended",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.source",
@@ -8556,22 +8665,30 @@
             {
               "predicate": "require",
               "direction": "out",
-              "required": false
+              "target": "task",
+              "required": false,
+              "cardinality": "one-or-more"
             },
             {
               "predicate": "require",
               "direction": "out",
-              "required": false
+              "target": "milestone",
+              "required": false,
+              "cardinality": "one-or-more"
             },
             {
               "predicate": "require",
               "direction": "out",
-              "required": false
+              "target": "decision",
+              "required": false,
+              "cardinality": "one-or-more"
             },
             {
               "predicate": "supersede",
               "direction": "out",
-              "required": false
+              "target": "task",
+              "required": false,
+              "cardinality": "one"
             }
           ]
         },
@@ -9654,17 +9771,20 @@
             {
               "path": "work.start",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.due",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.ended",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.source",
@@ -9711,7 +9831,9 @@
             {
               "predicate": "supersede",
               "direction": "out",
-              "required": false
+              "target": "decision",
+              "required": false,
+              "cardinality": "one"
             }
           ]
         },
@@ -10583,17 +10705,20 @@
             {
               "path": "work.start",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.due",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.ended",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.source",
@@ -10605,22 +10730,30 @@
             {
               "predicate": "require",
               "direction": "out",
-              "required": false
+              "target": "milestone",
+              "required": false,
+              "cardinality": "one-or-more"
             },
             {
               "predicate": "require",
               "direction": "out",
-              "required": false
+              "target": "task",
+              "required": false,
+              "cardinality": "one-or-more"
             },
             {
               "predicate": "require",
               "direction": "out",
-              "required": false
+              "target": "decision",
+              "required": false,
+              "cardinality": "one-or-more"
             },
             {
               "predicate": "supersede",
               "direction": "out",
-              "required": false
+              "target": "milestone",
+              "required": false,
+              "cardinality": "one"
             }
           ]
         },
@@ -11005,17 +11138,20 @@
             {
               "path": "work.start",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.due",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.ended",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.source",
@@ -11027,7 +11163,9 @@
             {
               "predicate": "supersede",
               "direction": "out",
-              "required": false
+              "target": "plan",
+              "required": false,
+              "cardinality": "one"
             }
           ]
         },
@@ -11338,17 +11476,20 @@
             {
               "path": "work.start",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.due",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.ended",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.source",
@@ -11370,12 +11511,16 @@
             {
               "predicate": "supersede",
               "direction": "out",
-              "required": false
+              "target": "spec",
+              "required": false,
+              "cardinality": "one"
             },
             {
               "predicate": "ground",
               "direction": "in",
-              "required": false
+              "target": "decision",
+              "required": false,
+              "cardinality": "one"
             }
           ]
         },
@@ -11482,17 +11627,20 @@
             {
               "path": "work.start",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.due",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.ended",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.source",
@@ -11526,22 +11674,30 @@
             {
               "predicate": "require",
               "direction": "out",
-              "required": false
+              "target": "task",
+              "required": false,
+              "cardinality": "one-or-more"
             },
             {
               "predicate": "require",
               "direction": "out",
-              "required": false
+              "target": "milestone",
+              "required": false,
+              "cardinality": "one-or-more"
             },
             {
               "predicate": "require",
               "direction": "out",
-              "required": false
+              "target": "decision",
+              "required": false,
+              "cardinality": "one-or-more"
             },
             {
               "predicate": "supersede",
               "direction": "out",
-              "required": false
+              "target": "task",
+              "required": false,
+              "cardinality": "one"
             }
           ]
         },
@@ -12624,17 +12780,20 @@
             {
               "path": "work.start",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.due",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.ended",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.source",
@@ -12681,7 +12840,9 @@
             {
               "predicate": "supersede",
               "direction": "out",
-              "required": false
+              "target": "decision",
+              "required": false,
+              "cardinality": "one"
             }
           ]
         },
@@ -13553,17 +13714,20 @@
             {
               "path": "work.start",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.due",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.ended",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.source",
@@ -13575,22 +13739,30 @@
             {
               "predicate": "require",
               "direction": "out",
-              "required": false
+              "target": "milestone",
+              "required": false,
+              "cardinality": "one-or-more"
             },
             {
               "predicate": "require",
               "direction": "out",
-              "required": false
+              "target": "task",
+              "required": false,
+              "cardinality": "one-or-more"
             },
             {
               "predicate": "require",
               "direction": "out",
-              "required": false
+              "target": "decision",
+              "required": false,
+              "cardinality": "one-or-more"
             },
             {
               "predicate": "supersede",
               "direction": "out",
-              "required": false
+              "target": "milestone",
+              "required": false,
+              "cardinality": "one"
             }
           ]
         },
@@ -13975,17 +14147,20 @@
             {
               "path": "work.start",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.due",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.ended",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.source",
@@ -13997,7 +14172,9 @@
             {
               "predicate": "supersede",
               "direction": "out",
-              "required": false
+              "target": "plan",
+              "required": false,
+              "cardinality": "one"
             }
           ]
         },
@@ -14308,17 +14485,20 @@
             {
               "path": "work.start",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.due",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.ended",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.source",
@@ -14340,12 +14520,16 @@
             {
               "predicate": "supersede",
               "direction": "out",
-              "required": false
+              "target": "spec",
+              "required": false,
+              "cardinality": "one"
             },
             {
               "predicate": "ground",
               "direction": "in",
-              "required": false
+              "target": "decision",
+              "required": false,
+              "cardinality": "one"
             }
           ]
         },
@@ -14452,17 +14636,20 @@
             {
               "path": "work.start",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.due",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.ended",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.source",
@@ -14496,22 +14683,30 @@
             {
               "predicate": "require",
               "direction": "out",
-              "required": false
+              "target": "task",
+              "required": false,
+              "cardinality": "one-or-more"
             },
             {
               "predicate": "require",
               "direction": "out",
-              "required": false
+              "target": "milestone",
+              "required": false,
+              "cardinality": "one-or-more"
             },
             {
               "predicate": "require",
               "direction": "out",
-              "required": false
+              "target": "decision",
+              "required": false,
+              "cardinality": "one-or-more"
             },
             {
               "predicate": "supersede",
               "direction": "out",
-              "required": false
+              "target": "task",
+              "required": false,
+              "cardinality": "one"
             }
           ]
         },
@@ -15594,17 +15789,20 @@
             {
               "path": "work.start",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.due",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.ended",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.source",
@@ -15651,7 +15849,9 @@
             {
               "predicate": "supersede",
               "direction": "out",
-              "required": false
+              "target": "decision",
+              "required": false,
+              "cardinality": "one"
             }
           ]
         },
@@ -16523,17 +16723,20 @@
             {
               "path": "work.start",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.due",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.ended",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.source",
@@ -16545,22 +16748,30 @@
             {
               "predicate": "require",
               "direction": "out",
-              "required": false
+              "target": "milestone",
+              "required": false,
+              "cardinality": "one-or-more"
             },
             {
               "predicate": "require",
               "direction": "out",
-              "required": false
+              "target": "task",
+              "required": false,
+              "cardinality": "one-or-more"
             },
             {
               "predicate": "require",
               "direction": "out",
-              "required": false
+              "target": "decision",
+              "required": false,
+              "cardinality": "one-or-more"
             },
             {
               "predicate": "supersede",
               "direction": "out",
-              "required": false
+              "target": "milestone",
+              "required": false,
+              "cardinality": "one"
             }
           ]
         },
@@ -16945,17 +17156,20 @@
             {
               "path": "work.start",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.due",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.ended",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.source",
@@ -16967,7 +17181,9 @@
             {
               "predicate": "supersede",
               "direction": "out",
-              "required": false
+              "target": "plan",
+              "required": false,
+              "cardinality": "one"
             }
           ]
         },
@@ -17278,17 +17494,20 @@
             {
               "path": "work.start",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.due",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.ended",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.source",
@@ -17310,12 +17529,16 @@
             {
               "predicate": "supersede",
               "direction": "out",
-              "required": false
+              "target": "spec",
+              "required": false,
+              "cardinality": "one"
             },
             {
               "predicate": "ground",
               "direction": "in",
-              "required": false
+              "target": "decision",
+              "required": false,
+              "cardinality": "one"
             }
           ]
         },
@@ -17422,17 +17645,20 @@
             {
               "path": "work.start",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.due",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.ended",
               "type": "text",
-              "required": false
+              "required": false,
+              "form": "iso-date"
             },
             {
               "path": "work.source",
@@ -17466,22 +17692,30 @@
             {
               "predicate": "require",
               "direction": "out",
-              "required": false
+              "target": "task",
+              "required": false,
+              "cardinality": "one-or-more"
             },
             {
               "predicate": "require",
               "direction": "out",
-              "required": false
+              "target": "milestone",
+              "required": false,
+              "cardinality": "one-or-more"
             },
             {
               "predicate": "require",
               "direction": "out",
-              "required": false
+              "target": "decision",
+              "required": false,
+              "cardinality": "one-or-more"
             },
             {
               "predicate": "supersede",
               "direction": "out",
-              "required": false
+              "target": "task",
+              "required": false,
+              "cardinality": "one"
             }
           ]
         },

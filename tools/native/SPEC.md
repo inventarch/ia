@@ -19,7 +19,7 @@ Compile and validate native corpora, repository architecture/work policy, public
 - [language-bases.test.ts](language-bases.test.ts) — behavior and refusal coverage.
 - [language-bases.ts](language-bases.ts) — the ledger of published `inventarch/language` bases: `releases/native/language-bases.json` and each verified archive under `releases/native/bases/<digest>.ia.tgz`; `--fetch <version> --from <npm-spec>` adds one from a published npm tarball and trusts it only when its digest matches.
 - [language-compat.test.ts](language-compat.test.ts) — behavior and refusal coverage.
-- [language-compat.ts](language-compat.ts) — the compatibility index: one schema catalogue per published base, written to `releases/native/language-compat.json` (pretty) and `apps/cli/assets/language-compat.json` (compact).
+- [language-compat.ts](language-compat.ts) — the compatibility index: one schema catalogue per published base, written to `releases/native/language-compat.json` (pretty) and `apps/cli/assets/language-compat.json` (compact). Each word lists its sections, its fields (type, required, and an `id` field's values, a `ref` field's target, a `text` field's form) and its edge rules (predicate, direction, target, required, cardinality).
 - [public-fixture.test.ts](public-fixture.test.ts) — behavior and refusal coverage.
 - [public-fixture.ts](public-fixture.ts).
 - [public-language.test.ts](public-language.test.ts) — behavior and refusal coverage.

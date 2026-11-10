@@ -30,8 +30,8 @@ interface VocabularyWord {
   schema: {
     closed: boolean;
     sections: { name: string; required: boolean }[];
-    fields: { path: string; type: string; required: boolean; values?: string[]; target?: string }[];
-    edges: { predicate: string; direction: 'out' | 'in'; required: boolean }[];
+    fields: { path: string; type: string; required: boolean; values?: string[]; target?: string; form?: string }[];
+    edges: { predicate: string; direction: 'out' | 'in'; target: string; required: boolean; cardinality: string }[];
   };
 }
 
@@ -58,14 +58,21 @@ describe('language compatibility index', () => {
         {
           closed: schema.closed,
           sections: schema.sections.map(({ name, required }) => ({ name, required })),
-          fields: schema.fields.map(({ path, type, required, values, target }) => ({
+          fields: schema.fields.map(({ path, type, required, values, target, form }) => ({
             path,
             type,
             required,
             ...(values ? { values } : {}),
             ...(target ? { target } : {}),
+            ...(form ? { form } : {}),
           })),
-          edges: schema.edges.map(({ predicate, direction, required }) => ({ predicate, direction, required })),
+          edges: schema.edges.map(({ predicate, direction, target, required, cardinality }) => ({
+            predicate,
+            direction,
+            target,
+            required,
+            cardinality,
+          })),
         },
       ]),
     );
