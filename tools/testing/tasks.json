@@ -4455,8 +4455,10 @@
       "outputs": [
         "apps/cli/assets/base",
         "apps/cli/assets/base.json",
+        "apps/cli/assets/bases.json",
         "apps/mcp-door/assets/base",
         "apps/mcp-door/assets/base.json",
+        "apps/mcp-door/assets/bases.json",
         "artifacts/tests/language-base-generate"
       ],
       "cache": true,
@@ -4817,7 +4819,8 @@
       "mode": "source",
       "inputProfile": "repository-inventory",
       "dependsOn": [
-        "cli:build"
+        "cli:build",
+        "language-base:generate"
       ],
       "outputs": [
         "artifacts/tests/language-compat-gate"
