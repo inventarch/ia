@@ -1,6 +1,7 @@
 import { registryWorkspace } from './adopt.js';
 import { HostPluginError, lowerPlugin, readPlugin } from '@inventarch/workspace-runtime/internal/host-plugin';
-import { adoptedBindings, refusesInstallation } from '@inventarch/db';
+import { adoptedBindings, identityOf, refusesInstallation } from '@inventarch/db';
+import { WRITE_PLAIN_NAMES } from './written-names.js';
 import { adoptionId, OPEN_ATTRIBUTES, planAdoption, applyAdoption } from '@inventarch/distribution/registry';
 import type { WorkspaceRelease } from '@inventarch/distribution/registry';
 import { readBase, PIN_PATH, PACKAGE_ID, DAMAGED } from './bundled-base.js';
@@ -199,6 +200,8 @@ export interface Provenance {
   readonly missing: Missing | null;
 }
 export interface Descriptor {
+  /** `release-descriptor` once the switch flips (decision dec-008); the released descriptor carries `formatVersion` alone. */
+  readonly format?: 'release-descriptor';
   readonly formatVersion: 1;
   readonly id: string;
   readonly version: string;
@@ -744,7 +747,7 @@ export function starterDescriptor(
   assets: Starter['assets'] = [],
 ): Descriptor {
   return {
-    formatVersion: 1,
+    ...identityOf(WRITE_PLAIN_NAMES, 'release-descriptor', 1, { formatVersion: 1 } as const),
     id,
     version: STARTER_VERSION,
     ...(distribution === undefined ? {} : { distribution }),

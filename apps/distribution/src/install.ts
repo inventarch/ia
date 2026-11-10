@@ -36,11 +36,13 @@ import {
   createFile,
   fail,
   object,
+  readIdentity,
   replace,
   sha256,
   syncDirectory,
   utf8,
   workspace,
+  writeIdentity,
 } from './files.js';
 
 import { planInstallationSnapshot, type InstallOperation, type NativeInstallationPlan } from './installation-core.js';
@@ -59,7 +61,12 @@ import {
 } from './kit-collections.js';
 import { distributionSnapshot } from './snapshot.js';
 export type { InstallOperation } from './installation-core.js';
+/**
+ * A saved plan is read only by the build that made it, so it names itself in the plain shape already (decision dec-008);
+ * a plan saved before that carries a digest over its old body and is asked to be made again.
+ */
 export interface InstallationPlan {
+  readonly format: 'installation-plan';
   readonly formatVersion: 1;
   readonly operation: InstallOperation;
   readonly root: string;
@@ -197,6 +204,7 @@ export function planInstallation(rootInput: string, lockInput: unknown, operatio
   const checked = candidate(root, lock, operation);
   if (json(state(root)) !== json(binding)) fail('SOURCE-CHANGED', 'Workspace changed while planning');
   const body = {
+    format: 'installation-plan' as const,
     formatVersion: 1 as const,
     operation,
     root,
@@ -209,7 +217,11 @@ export function planInstallation(rootInput: string, lockInput: unknown, operatio
   return Object.freeze({ ...body, digest: metadataDigest(body) });
 }
 function decodePlan(input: unknown): InstallationPlan {
-  const row = object(typeof input === 'string' ? decodeDistributionJson(input) : decodeDistributionJson(json(input)), [
+  const given = typeof input === 'string' ? decodeDistributionJson(input) : decodeDistributionJson(json(input));
+  if (given !== null && typeof given === 'object' && !Array.isArray(given) && !Object.hasOwn(given, 'format'))
+    fail('STALE-PLAN', 'Installation plan was made by an earlier version; plan again');
+  const row = object(given, [
+    'format',
     'formatVersion',
     'operation',
     'root',
@@ -221,6 +233,7 @@ function decodePlan(input: unknown): InstallationPlan {
     'digest',
   ]);
   if (
+    row['format'] !== 'installation-plan' ||
     row['formatVersion'] !== 1 ||
     !['install', 'update', 'remove', 'restore', 'rollback'].includes(String(row['operation'])) ||
     typeof row['root'] !== 'string' ||
@@ -311,7 +324,13 @@ function collectionsChange(
   const merged = mergeKitCollections(current, expanded, plan.lock, pending.afterLock, named);
   const after = emptyRecord(merged) ? null : serializeKitCollections(merged);
   if (after === before) return null;
-  return { formatVersion: 1, beforeActive: pending.beforeActive, afterActive: json(plan.pointer), before, after };
+  return {
+    ...writeIdentity('collections-journal', 1, { formatVersion: 1 } as const),
+    beforeActive: pending.beforeActive,
+    afterActive: json(plan.pointer),
+    before,
+    after,
+  };
 }
 /**
  * Whether applying `plan` now would write `.ia/kit-collections.json`: the same merge the apply makes, against the lock
@@ -380,7 +399,7 @@ export function applyInstallation(
     const beforeActive = bytes(root, INSTALL_PATHS.active)?.toString('utf8') ?? null,
       beforeLock = bytes(root, INSTALL_PATHS.lock, DISTRIBUTION_LIMITS.metadata)?.toString('utf8') ?? null;
     const pending = {
-      formatVersion: 1,
+      ...writeIdentity('installation-pending', 1, { formatVersion: 1 } as const),
       beforeActive,
       beforeLock,
       afterActive: json(plan.pointer),
@@ -434,14 +453,20 @@ export function recoverInstallation(
   try {
     const content = bytes(root, INSTALL_PATHS.pending, 4 * DISTRIBUTION_LIMITS.metadata);
     if (!content) return { status: 'current' };
-    const pending = object(decodeDistributionJson(utf8(content)), [
+    const given = decodeDistributionJson(utf8(content));
+    const named = given !== null && typeof given === 'object' && Object.hasOwn(given, 'format');
+    const pending = object(given, [
+      ...(named ? ['format'] : []),
       'formatVersion',
       'beforeActive',
       'beforeLock',
       'afterActive',
       'afterLock',
     ]);
-    if (pending['formatVersion'] !== 1) fail('RECOVERY-REQUIRED', 'Unknown pending format');
+    if (
+      readIdentity(pending, 'installation-pending', [1], [{ key: 'formatVersion', value: 1, version: 1 }]) === undefined
+    )
+      fail('RECOVERY-REQUIRED', 'Unknown pending format');
     const decode = (key: string, nullable: boolean, parser: (input: unknown) => unknown): string | null => {
       const v = pending[key];
       if (nullable && v === null) return null;
@@ -505,7 +530,7 @@ export function collectInstallationGarbage(
         if (!entry.isDirectory() || entry.isSymbolicLink() || !/^[a-f0-9]{64}$/.test(entry.name))
           fail('LOCAL-MODIFICATION', 'Unrecognized generation entry');
         const generation = readInstalledGeneration(root, {
-          formatVersion: 1,
+          ...writeIdentity('activation-pointer', 1, { formatVersion: 1 } as const),
           generation: entry.name,
           previous: null,
           counter: 1,

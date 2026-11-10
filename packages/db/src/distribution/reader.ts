@@ -19,6 +19,7 @@ import {
   decodeBundleManifest,
   decodeDistributionLock,
   decodeGenerationInputs,
+  sameGenerationInputs,
   generationDigest,
   lockedReleases,
 } from './contracts.js';
@@ -148,7 +149,7 @@ export function generationSources(
   inputs: GenerationInputs,
   bundles: ReadonlyMap<string, ExpandedBundle>,
 ): readonly RevisionSource[] {
-  if (canonicalDistributionJson(deriveGenerationInputs(lock, bundles)) !== canonicalDistributionJson(inputs))
+  if (!sameGenerationInputs(deriveGenerationInputs(lock, bundles), inputs))
     corrupt('Generation membership differs from manifests');
   let total = 0;
   for (const bundle of bundles.values()) {
@@ -313,7 +314,7 @@ export function readInstalledGeneration(
   for (const bundle of bundles.values())
     requireEngine(bundle.manifest.engine, `Bundle ${bundle.manifest.id}@${bundle.manifest.version}`);
   if (
-    canonicalDistributionJson(deriveGenerationInputs(lock, bundles)) !== canonicalDistributionJson(inputs) ||
+    !sameGenerationInputs(deriveGenerationInputs(lock, bundles), inputs) ||
     installationWorkspace(lock, inputs, bundles) !== workspaceText
   )
     corrupt('Generation membership/workspace differs from manifests');

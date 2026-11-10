@@ -9,7 +9,7 @@ import {
 } from '@inventarch/db/distribution';
 import type { BundleMetadata, Dependency, DistributionLock, GenerationInputs } from '@inventarch/db/distribution';
 import type { VerifiedArchive } from './archive.js';
-import { fail } from './files.js';
+import { fail, writeIdentity } from './files.js';
 
 /** `release` is a verified archive by default; resolution reads only its manifest-level metadata, so a caller may hold just that. */
 export interface ReleaseCandidate<R extends BundleMetadata = VerifiedArchive> {
@@ -144,7 +144,7 @@ export function resolveReleases<R extends BundleMetadata = VerifiedArchive>(
     // over, and the engine marker is the one every released 0.1.1 engine reads unless an entry needs ^0.1.2. Their kits
     // install from the workspace cache, so the installation plan checks them; the search checks the releases it chose.
     const releasesOnly = {
-      formatVersion: 1,
+      ...writeIdentity('distribution-lock', 1, { formatVersion: 1 } as const),
       engine: lockEngineMarker(engine, false),
       requests,
       packages: entries.map(([id, c]) => ({
