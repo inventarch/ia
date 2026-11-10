@@ -48,6 +48,18 @@ it('reads a document that carried a version and no name with the name present or
   ])
     expect(read(value, lock), JSON.stringify(value)).toBeUndefined();
 });
+it('refuses a document that names itself in both shapes', () => {
+  const schema = [{ key: 'schema', value: 'ia.thing.v1', version: 1 }] as const;
+  expect(readIdentity({ schema: 'ia.thing.v1' }, 'thing', [1], schema)).toEqual({
+    version: 1,
+    plain: false,
+    keys: ['schema'],
+  });
+  expect(readIdentity({ format: 'thing', formatVersion: 1 }, 'thing', [1], schema)?.plain).toBe(true);
+  expect(
+    readIdentity({ schema: 'ia.thing.v1', format: 'thing', formatVersion: 1 }, 'thing', [1], schema),
+  ).toBeUndefined();
+});
 it('reads only own properties', () => {
   expect(read(Object.create({ format: 1 }))).toBeUndefined();
 });
