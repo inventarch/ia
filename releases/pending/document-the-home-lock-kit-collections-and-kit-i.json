@@ -1,0 +1,13 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "none",
+  "title": "Document the home-lock, kit-collections and kit-inventory exports",
+  "summary": "The distribution specification now documents the home-lock, kit-collections and kit-inventory exports; no package behavior changes.",
+  "packages": [
+    "@inventarch/distribution"
+  ],
+  "paths": [
+    "apps/distribution/",
+    "docs/"
+  ]
+}
