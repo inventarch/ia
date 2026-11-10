@@ -5,6 +5,8 @@ import {
   metadataDigest,
   satisfies,
 } from './codec.js';
+import { identityOf } from '../document-identity.js';
+import { WRITE_PLAIN_NAMES } from '../written-names.js';
 import { decodeGenerationInputs, lockedReleases } from './contracts.js';
 import type { BundleManifest, DistributionLock, GenerationInputs } from './contracts.js';
 
@@ -64,7 +66,8 @@ export function deriveGenerationInputs(
     }
   }
   return decodeGenerationInputs({
-    formatVersion: 1,
+    // The released shape until `WRITE_PLAIN_NAMES` is flipped (decision dec-008).
+    ...identityOf(WRITE_PLAIN_NAMES, 'generation-inputs', 1, { formatVersion: 1 }),
     bundles: installed.map(({ id, archive }) => ({ id, archive })),
     systems: [...systems.values()]
       .sort((a, b) => (a.name < b.name ? -1 : 1))

@@ -13,6 +13,7 @@ import {
   storageId,
   unique,
   versioned,
+  descriptorIdentity,
 } from './codec.js';
 import type { DescriptorResult, Scope } from './codec.js';
 import { isCompiledDomainModel } from './domain.js';
@@ -34,7 +35,9 @@ export interface EntityMapping {
   readonly fields: readonly FieldMapping[];
 }
 export interface CompiledStorageBinding {
-  readonly format: 1;
+  /** `1` as released; `compiled-storage-descriptor` with `formatVersion` 1 once the switch flips (decision dec-008). */
+  readonly format: 1 | 'compiled-storage-descriptor';
+  readonly formatVersion?: 1;
   readonly kind: 'storage-binding';
   readonly owner: string;
   readonly source: string;
@@ -85,7 +88,7 @@ export function compileStorageBinding(input: StorageInput): DescriptorResult<Com
         refuse('DESC-SKEW', 'storage.model', 'Envelope model ref or version differs from the supplied compiled model');
       scope = { owner: envelope.owner, source: envelope.source, resource: envelope.resource.key };
       const decoded = bindResource(envelope, snapshotResources(given['resources']));
-      const row = versioned(decoded.value, [
+      const row = versioned(decoded.value, 'storage-descriptor', [
         'format',
         'model',
         'model-version',
@@ -210,7 +213,7 @@ export function compileStorageBinding(input: StorageInput): DescriptorResult<Com
         'migration-policy',
       );
       const body = {
-        format: 1 as const,
+        ...descriptorIdentity('compiled-storage-descriptor'),
         kind: 'storage-binding' as const,
         owner: envelope.owner,
         source: envelope.source,

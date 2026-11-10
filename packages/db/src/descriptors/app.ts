@@ -19,6 +19,7 @@ import {
   snapshot,
   unique,
   versioned,
+  descriptorIdentity,
 } from './codec.js';
 import type { DescriptorDiagnostic, DescriptorResult, Scope } from './codec.js';
 import type { DefinitionDigests } from './domain.js';
@@ -62,7 +63,9 @@ export interface TargetSupport {
   readonly diagnostics: readonly DescriptorDiagnostic[];
 }
 export interface CompiledAppComposition {
-  readonly format: 1;
+  /** `1` as released; `compiled-app-descriptor` with `formatVersion` 1 once the switch flips (decision dec-008). */
+  readonly format: 1 | 'compiled-app-descriptor';
+  readonly formatVersion?: 1;
   readonly kind: 'app-composition';
   readonly owner: string;
   readonly source: string;
@@ -109,7 +112,7 @@ export function compileAppComposition(input: AppInput): DescriptorResult<Compile
       const registry = requireRegistry(given['registry']);
       scope = { owner: envelope.owner, source: envelope.source, resource: envelope.resource.key };
       const decoded = bindResource(envelope, snapshotResources(given['resources']));
-      const row = versioned(decoded.value, [
+      const row = versioned(decoded.value, 'app-descriptor', [
         'format',
         'app',
         'version',
@@ -310,7 +313,7 @@ export function compileAppComposition(input: AppInput): DescriptorResult<Compile
         return { profile, status: diagnostics.length ? 'unsupported' : 'supported', diagnostics };
       });
       const body = {
-        format: 1 as const,
+        ...descriptorIdentity('compiled-app-descriptor'),
         kind: 'app-composition' as const,
         owner: envelope.owner,
         source: envelope.source,
