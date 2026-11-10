@@ -120,7 +120,8 @@ describe('kit releases', () => {
 
 describe('binding selection', () => {
   const data = (bindings: Bindings['bindings'], extra: Partial<Bindings> = {}): Bindings => ({
-    format: 1,
+    format: 'bindings',
+    formatVersion: 1,
     path: '.ia/bindings.json',
     bindings,
     precedence: [],
