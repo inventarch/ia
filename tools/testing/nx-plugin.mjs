@@ -90,7 +90,12 @@ function targetFor(workspaceRoot, manifest, scripts, task) {
     // manifest file itself need not be a shared input. run-commands does not forward object options.
     options: {
       command: `pnpm tests:run --task ${task.id}`,
-      contract: { schemaVersion: manifest.schemaVersion, task, profile: manifest.profiles?.[task.profile] ?? null },
+      contract: {
+        format: manifest.format,
+        formatVersion: manifest.formatVersion,
+        task,
+        profile: manifest.profiles?.[task.profile] ?? null,
+      },
     },
     // The profile names the task's own files and filesystem-read trees. Dependencies come from the
     // import graph, without their test files, which no consumer imports. A tools directory also reads
@@ -116,7 +121,8 @@ function targetFor(workspaceRoot, manifest, scripts, task) {
 
 export function projectNodes(workspaceRoot) {
   const manifest = JSON.parse(readFileSync(resolve(workspaceRoot, MANIFEST), 'utf8'));
-  if (manifest.schemaVersion !== 1) throw new Error(`${MANIFEST}: unsupported schemaVersion`);
+  if (manifest.format !== 'test-tasks' || manifest.formatVersion !== 1)
+    throw new Error(`${MANIFEST}: expected format test-tasks with formatVersion 1`);
   manifest.tasks ??= [];
   const scripts = scriptsOf(workspaceRoot),
     projects = {};

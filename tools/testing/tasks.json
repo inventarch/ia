@@ -1,5 +1,6 @@
 {
-  "schemaVersion": 1,
+  "format": "test-tasks",
+  "formatVersion": 1,
   "profiles": {
     "unit": {
       "hookTimeoutMs": 10000,
