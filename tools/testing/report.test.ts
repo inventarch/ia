@@ -201,14 +201,22 @@ it('reports a directory it cannot list instead of returning no evidence', () => 
 });
 
 it('expands the expected set to one entry per declared platform', () => {
-  const entries = expectedTasks({ schemaVersion: 1, profiles: {}, inputProfiles: {}, tasks: [task] });
+  const entries = expectedTasks({
+    format: 'test-tasks',
+    formatVersion: 1,
+    profiles: {},
+    inputProfiles: {},
+    tasks: [task],
+  });
   expect(entries).toEqual([
     { task: 'thing:test', platform: 'linux', kind: 'vitest' },
     { task: 'thing:test', platform: 'windows', kind: 'vitest' },
   ]);
-  expect(expectedTasks({ schemaVersion: 1, profiles: {}, inputProfiles: {}, tasks: [task] }, ['linux'])).toHaveLength(
-    1,
-  );
+  expect(
+    expectedTasks({ format: 'test-tasks', formatVersion: 1, profiles: {}, inputProfiles: {}, tasks: [task] }, [
+      'linux',
+    ]),
+  ).toHaveLength(1);
 });
 
 it('maps darwin to macos and refuses a platform whose results may not substitute for another', () => {

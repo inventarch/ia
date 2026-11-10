@@ -74,7 +74,8 @@ const task = (overrides: Partial<TaskRecord> = {}): TaskRecord =>
     ...overrides,
   }) as TaskRecord;
 const manifest = (tasks: readonly TaskRecord[]): Manifest => ({
-  schemaVersion: 1,
+  format: 'test-tasks',
+  formatVersion: 1,
   profiles: {
     unit: {
       taskTimeoutMs: 600_000,
