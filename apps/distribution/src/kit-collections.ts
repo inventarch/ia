@@ -22,7 +22,7 @@ import {
 import type { DistributionLock } from '@inventarch/db/distribution';
 import { lstatSync } from 'node:fs';
 import { join } from 'node:path';
-import { bytes, fail, replace, sha256, stamped, utf8, workspace } from './files.js';
+import { bytes, fail, readIdentity, replace, sha256, stamped, utf8, workspace } from './files.js';
 
 export const KIT_COLLECTIONS = '.ia/kit-collections.json';
 export const KIT_COLLECTIONS_JOURNAL = '.ia/distributions/kit-collections.journal.json';
@@ -73,6 +73,8 @@ export interface ExpandedCollection {
   readonly members: readonly string[];
 }
 export interface CollectionsJournal {
+  /** `collections-journal` when written in the plain shape; the released journal carries `formatVersion` alone (decision dec-008). */
+  readonly format?: 'collections-journal';
   readonly formatVersion: 1;
   /** The exact activation pointer bytes before the operation, or null when nothing was active. */
   readonly beforeActive: string | null;
@@ -209,9 +211,11 @@ function decodeJournal(input: string): CollectionsJournal {
     if (v !== null && typeof v !== 'string') fail('INPUT-INVALID', `The collections journal's ${key} is invalid`);
     return v;
   };
-  if (!isRecord(value) || value['formatVersion'] !== 1 || typeof value['afterActive'] !== 'string')
+  const identity = readIdentity(value, 'collections-journal', [1], [{ key: 'formatVersion', value: 1, version: 1 }]);
+  if (!isRecord(value) || identity === undefined || typeof value['afterActive'] !== 'string')
     fail('INPUT-INVALID', 'The collections journal is invalid');
   return {
+    ...(identity.plain ? { format: 'collections-journal' as const } : {}),
     formatVersion: 1,
     beforeActive: nullable('beforeActive'),
     afterActive: value['afterActive'] as string,

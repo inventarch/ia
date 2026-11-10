@@ -3,7 +3,7 @@ import type { SpawnSyncReturns } from 'node:child_process';
 import { SUPPORTED_VERSIONS } from '@inventarch/language';
 import { withHomeLock } from './home-lock.js';
 import { readHomeFile, writeHomeFile } from './ia-home.js';
-import { fail } from './files.js';
+import { fail, readIdentity, writeIdentity } from './files.js';
 import { installedUnits } from './kit-inventory.js';
 import type { InstalledUnit, InstalledUnits } from './kit-inventory.js';
 import { registryChooser } from './registry-config.js';
@@ -18,7 +18,10 @@ export const IA_CONFIG = 'config.json';
 export type UpdateChannel = 'checkout' | 'npm' | 'unknown';
 export const UPDATE_CHANNELS: readonly UpdateChannel[] = ['checkout', 'npm', 'unknown'];
 export interface UpdateCheck {
-  readonly schema: 'ia.update-check.v1';
+  /** The released identity; absent once the file is written in the plain shape, `format` `update-check` beside `formatVersion` 1 (decision dec-008). */
+  readonly schema?: 'ia.update-check.v1';
+  readonly format?: 'update-check';
+  readonly formatVersion?: 1;
   readonly checkedAt: string;
   readonly cli: {
     readonly channel: string;
@@ -59,6 +62,9 @@ function kitUpdateEntry(value: unknown): KitUpdateEntry | null {
   return { registry, kind: kind as KitUpdateEntry['kind'], id, latest: latest as string | null, checkedAt };
 }
 const DAY = 24 * 3600 * 1000;
+/** The literal the file carried when released; the plain identity is `update-check` with `formatVersion` 1 (decision dec-008). */
+const UPDATE_CHECK_SCHEMA = 'ia.update-check.v1';
+const updateCheckIdentity = () => writeIdentity('update-check', 1, { schema: UPDATE_CHECK_SCHEMA } as const);
 const record = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 /** `packages` in its older `{checked: false}` form or with entries; an entry that cannot be read is dropped. */
@@ -74,7 +80,8 @@ export function readUpdateCheck(home: string): UpdateCheck | null {
       value: unknown = text === null ? null : JSON.parse(text);
     if (
       !record(value) ||
-      value['schema'] !== 'ia.update-check.v1' ||
+      readIdentity(value, 'update-check', [1], [{ key: 'schema', value: UPDATE_CHECK_SCHEMA, version: 1 }]) ===
+        undefined ||
       typeof value['checkedAt'] !== 'string' ||
       Number.isNaN(Date.parse(value['checkedAt'])) ||
       !record(value['cli'])
@@ -89,7 +96,7 @@ export function readUpdateCheck(home: string): UpdateCheck | null {
     if (typeof cli['channel'] !== 'string' || typeof cli['current'] !== 'string' || typeof cli['checked'] !== 'boolean')
       return null;
     return {
-      schema: 'ia.update-check.v1',
+      ...updateCheckIdentity(),
       checkedAt: value['checkedAt'],
       cli: {
         channel: cli['channel'],
@@ -346,7 +353,7 @@ export async function refreshUpdates(input: RefreshInput, sources: Sources = liv
   if (offline && !(input.channel === 'checkout' && input.checkout !== null))
     return (
       readUpdateCheck(input.home) ?? {
-        schema: 'ia.update-check.v1',
+        ...updateCheckIdentity(),
         checkedAt: input.now.toISOString(),
         cli: { channel: input.channel, current: input.current, latest: null, behind: null, checked: false },
         packages: { checked: false },
@@ -402,7 +409,7 @@ export async function refreshUpdates(input: RefreshInput, sources: Sources = liv
         (entry) => start - Date.parse(entry.checkedAt) < ENTRY_TTL && !future(entry.checkedAt),
       );
       const check: UpdateCheck = {
-        schema: 'ia.update-check.v1',
+        ...updateCheckIdentity(),
         checkedAt: newer ? previous.checkedAt : checkedAt,
         cli: newer ? previous.cli : cli,
         packages: { checked: kept.length > 0, ...(kept.length === 0 ? {} : { entries: kept }) },

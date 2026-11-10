@@ -123,3 +123,12 @@ it('derives generation inputs with the plain format name once the switch flips',
   expect(Object.keys(derived())).toEqual(['format', 'formatVersion', 'bundles', 'systems']);
   expect(derived()).toMatchObject({ format: 'generation-inputs', formatVersion: 1 });
 });
+it('compares generation inputs by membership, whichever shape each was written in', async () => {
+  const { sameGenerationInputs } = await import('../src/distribution/contracts.js');
+  const released = decodeGenerationInputs({ formatVersion: 1, ...inputs }),
+    plain = decodeGenerationInputs({ format: 'generation-inputs', formatVersion: 1, ...inputs }),
+    different = decodeGenerationInputs({ formatVersion: 1, ...inputs, bundles: [{ id: common.id, archive: other }] });
+  expect(sameGenerationInputs(released, plain)).toBe(true);
+  expect(sameGenerationInputs(plain, released)).toBe(true);
+  expect(sameGenerationInputs(released, different)).toBe(false);
+});

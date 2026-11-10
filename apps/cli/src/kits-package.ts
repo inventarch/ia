@@ -22,6 +22,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { isAbsolute, join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
+import { identityOf, readIdentity } from '@inventarch/db';
+import { WRITE_PLAIN_NAMES } from './written-names.js';
 import {
   canonicalDistributionJson,
   decodeDistributionLock,
@@ -137,12 +139,17 @@ export function viewPackage(npm: Npm, name: string, version: string, again: stri
     throw unavailable(spec, 'npm view printed no JSON manifest', again);
   }
   const integrity = (manifest['dist'] as { integrity?: unknown } | undefined)?.integrity;
-  const ia = manifest['ia'] as { format?: unknown; kits?: unknown } | undefined;
+  const ia = manifest['ia'] as { format?: unknown; formatVersion?: unknown; kits?: unknown } | undefined;
   if (manifest['name'] !== name || typeof manifest['version'] !== 'string' || !EXACT.test(manifest['version']))
     throw unavailable(spec, 'npm view named another package or no exact version', again);
   if (typeof integrity !== 'string' || !INTEGRITY.test(integrity))
     throw unavailable(spec, 'npm view gave no sha512 dist.integrity', again);
-  if (ia?.format !== 1 || !Array.isArray(ia.kits) || ia.kits.length === 0)
+  // The released block is `format: 1`; the plain one is `format: "kit-package"` with `formatVersion: 1` (decision dec-008).
+  if (
+    readIdentity(ia, 'kit-package', [1], [{ key: 'format', value: 1, version: 1 }]) === undefined ||
+    !Array.isArray(ia?.kits) ||
+    ia.kits.length === 0
+  )
     throw unavailable(spec, 'its package.json has no format 1 ia.kits list', again);
   const kits = (ia.kits as unknown[]).map((value) => {
     const row = (value ?? {}) as Record<string, unknown>;
@@ -325,7 +332,12 @@ export function packageEntry(
 
 /** `lock` with `entry` in place of any entry of its name: the engine an entry needs, every other byte kept. */
 export function lockWithPackage(lock: DistributionLock | undefined, entry: PackageEntry): DistributionLock {
-  const base = lock ?? { formatVersion: 1 as const, engine: DISTRIBUTION_ENGINE_VERSION, requests: [], packages: [] };
+  const base: DistributionLock = lock ?? {
+    ...identityOf(WRITE_PLAIN_NAMES, 'distribution-lock', 1, { formatVersion: 1 } as const),
+    engine: DISTRIBUTION_ENGINE_VERSION,
+    requests: [],
+    packages: [],
+  };
   const entries = [...(base.entries ?? []).filter((row) => row.name !== entry.name), entry].sort((a, b) =>
     a.name < b.name ? -1 : 1,
   );
