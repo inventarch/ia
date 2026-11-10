@@ -1,11 +1,13 @@
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { readIdentity } from '@inventarch/db';
 import { MethodError } from './errors.js';
 
 /**
  * Bindings: which kit and capability answer an entry point's activity in a repository, read from the interim sidecar
  * `<repo>/.ia/bindings.json`:
- * `{ format: 1, bindings: { "<entry>.<activity>": binding | [binding, ...] }, precedence?: [kit id, ...], defaults?: { <entry>: binding } }`,
+ * `{ format: 1, bindings: { "<entry>.<activity>": binding | [binding, ...] }, precedence?: [kit id, ...], defaults?: { <entry>: binding } }`
+ * or, in the plain identity (decision dec-008), `{ format: "bindings", formatVersion: 1, ... }` with the same members,
  * where a binding is `{ kit, capability, profile? }`. `<entry>.*` answers every activity of the entry without an exact
  * key, and `defaults.<entry>` answers when neither does. Several candidates for one key conflict unless `precedence`
  * orders them. The entry points are Work, Delivery and Knowledge; Delivery took Development's place.
@@ -22,7 +24,9 @@ export interface Binding {
   readonly profile?: string;
 }
 export interface Bindings {
-  readonly format: 1;
+  /** The document the sidecar was read as: `format` `bindings` at `formatVersion` 1, whichever shape the file carries. */
+  readonly format: 'bindings';
+  readonly formatVersion: 1;
   readonly path: string;
   readonly bindings: Readonly<Record<string, readonly Binding[]>>;
   readonly precedence: readonly string[];
@@ -62,8 +66,16 @@ export function readBindings(root: string): Bindings | null {
     throw new MethodError(`${path} is not JSON: ${(error as Error).message}`, 'IA-CORE-BINDINGS-MALFORMED');
   }
   const declared = parsed['bindings'];
-  if (parsed['format'] !== 1 || typeof declared !== 'object' || declared === null)
-    throw new MethodError(`${path} needs format 1 and a bindings object`, 'IA-CORE-BINDINGS-MALFORMED');
+  // The released sidecar is `format: 1`; the plain one is `format: "bindings"` with `formatVersion: 1` (decision dec-008).
+  if (
+    readIdentity(parsed, 'bindings', [1], [{ key: 'format', value: 1, version: 1 }]) === undefined ||
+    typeof declared !== 'object' ||
+    declared === null
+  )
+    throw new MethodError(
+      `${path} needs format 1 (or format bindings with formatVersion 1) and a bindings object`,
+      'IA-CORE-BINDINGS-MALFORMED',
+    );
   const bindings: Record<string, readonly Binding[]> = {};
   for (const [key, value] of Object.entries(declared)) {
     if (!/^[a-z]+\.(?:[a-z][a-z0-9-]*|\*)$/.test(key))
@@ -89,7 +101,7 @@ export function readBindings(root: string): Bindings | null {
       );
     defaults[entry] = checkBinding(value, `${path}: defaults.${entry}`);
   }
-  return { format: 1, path, bindings, precedence: precedence as string[], defaults };
+  return { format: 'bindings', formatVersion: 1, path, bindings, precedence: precedence as string[], defaults };
 }
 
 /** The one binding for `<entry>.<activity>`, with how it was chosen: exact, wildcard or default, then precedence. */

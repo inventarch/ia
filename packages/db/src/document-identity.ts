@@ -32,8 +32,11 @@ export function readIdentity(
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return undefined;
   const format = own(value, 'format')?.value,
     version = own(value, 'formatVersion')?.value;
-  if (format === name && typeof version === 'number' && versions.includes(version))
-    return { version, plain: true, keys: ['format', 'formatVersion'] };
+  if (format === name && typeof version === 'number' && versions.includes(version)) {
+    // A document that also carries a released identity key (`schema`, `contract`) names itself twice, so it is neither.
+    const mixed = released.some((shape) => !['format', 'formatVersion'].includes(shape.key) && own(value, shape.key));
+    return mixed ? undefined : { version, plain: true, keys: ['format', 'formatVersion'] };
+  }
   for (const shape of released) {
     if (own(value, shape.key)?.value !== shape.value) continue;
     if (shape.key !== 'format' && own(value, 'format') !== undefined) continue;
@@ -47,11 +50,11 @@ export function readIdentity(
  * The identity keys a writer emits: the plain name with its version when `plain`, else exactly the `released` keys, so
  * a released program that reads the document sees what it was released with.
  */
-export function identityOf<R extends Readonly<Record<string, string | number>>>(
+export function identityOf<N extends string, V extends number, R extends Readonly<Record<string, string | number>>>(
   plain: boolean,
-  name: string,
-  version: number,
+  name: N,
+  version: V,
   released: R,
-): R | { readonly format: string; readonly formatVersion: number } {
+): R | { readonly format: N; readonly formatVersion: V } {
   return plain ? { format: name, formatVersion: version } : released;
 }

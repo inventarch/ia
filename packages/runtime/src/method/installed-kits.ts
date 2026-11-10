@@ -11,6 +11,7 @@ import {
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { MethodError, objectAt } from './errors.js';
+import { writeIdentity } from '../plain-format.js';
 import { homeFolder, iaHome, kitAt, listKits, readLock } from './kits.js';
 import type { Kit, KitSources, LockedPackage } from './kits.js';
 
@@ -115,7 +116,7 @@ function kitLock(root: string, manifest: Record<string, unknown>): unknown {
   dependencies.forEach((dependency) => visit(dependency.id));
   return {
     engine: '0.1.1',
-    formatVersion: 1,
+    ...writeIdentity('distribution-lock', 1, { formatVersion: 1 }),
     packages: [...needed.values()]
       .sort((a, b) => (a.id < b.id ? -1 : 1))
       .map((row) => ({

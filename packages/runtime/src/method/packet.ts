@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import { readIdentity } from '@inventarch/db';
+import { writeIdentity } from '../plain-format.js';
 import type { KitBaseUse } from './kit-base.js';
 
 /**
@@ -8,6 +10,13 @@ import type { KitBaseUse } from './kit-base.js';
  * excluded, so one resolution digests the same everywhere.
  */
 export const PACKET_CONTRACT = 1;
+/**
+ * The identity a packet carries (decision dec-008): the released `contract: 1`, or the plain `format` `packet` with
+ * `formatVersion` 1. The door and the plugin read the released shape, so a writer emits it until `WRITE_PLAIN_NAMES`
+ * flips. Neither shape is among the `DIGESTED` members, so the digest never depends on it. Undefined for any other.
+ */
+export const readPacketIdentity = (packet: unknown) =>
+  readIdentity(packet, 'packet', [1], [{ key: 'contract', value: PACKET_CONTRACT, version: 1 }]);
 export const EVIDENCE_STATES = ['proposed', 'attempted', 'executed', 'verified', 'accepted'] as const;
 export const DIGESTED = [
   'closure',
@@ -45,7 +54,11 @@ export function packetDigest(packet: Readonly<Record<string, unknown>>): string 
 }
 
 export interface MethodPacket {
-  contract: number;
+  /** The released `contract: 1`; absent when the packet is written in the plain identity. */
+  contract?: number;
+  /** `packet`, with `formatVersion` 1, when the packet is written in the plain identity. */
+  format?: 'packet';
+  formatVersion?: 1;
   resolver: string;
   binding: unknown;
   closure: unknown;
@@ -80,7 +93,7 @@ export function assemblePacket(parts: {
   readonly kitUpdateAvailable?: unknown;
 }): MethodPacket {
   const packet: MethodPacket = {
-    contract: PACKET_CONTRACT,
+    ...writeIdentity('packet', 1, { contract: PACKET_CONTRACT }),
     resolver: parts.resolver,
     binding: parts.binding,
     closure: parts.closure,
