@@ -24,6 +24,44 @@ afterEach(() => {
   }
 });
 
+it('declares its identity as the plain format and formatVersion, never schemaVersion', () => {
+  const manifest = valid();
+  expect(manifest.format).toBe('test-tasks');
+  expect(manifest.formatVersion).toBe(1);
+  expect(manifest).not.toHaveProperty('schemaVersion');
+});
+it.each([
+  [
+    'the old schemaVersion shape',
+    (m: Record<string, unknown>) => {
+      delete m['format'];
+      delete m['formatVersion'];
+      m['schemaVersion'] = 1;
+    },
+  ],
+  [
+    'another format',
+    (m: Record<string, unknown>) => {
+      m['format'] = 'ia.test-tasks.v1';
+    },
+  ],
+  [
+    'another version',
+    (m: Record<string, unknown>) => {
+      m['formatVersion'] = 2;
+    },
+  ],
+  [
+    'a missing version',
+    (m: Record<string, unknown>) => {
+      delete m['formatVersion'];
+    },
+  ],
+])('private test-tasks manifest refuses %s', (_name, mutate) => {
+  const value = valid();
+  mutate(value);
+  expect(() => readManifest(fixture(value))).toThrow();
+});
 it('reads a valid manifest unchanged', () => expect(readManifest(fixture(valid()))).toEqual(valid()));
 it.each([
   'null',
@@ -55,7 +93,7 @@ it('loads manifest parsing alone in a source-only fixture with no inventory, com
   const entry = resolve(directory, 'probe.mts');
   writeFileSync(
     entry,
-    "import {readManifest} from './tools/testing/manifest.ts'; console.log(String(readManifest(process.cwd()).schemaVersion));\n",
+    "import {readManifest} from './tools/testing/manifest.ts'; console.log(String(readManifest(process.cwd()).formatVersion));\n",
   );
   const result = spawnSync(
     process.execPath,
