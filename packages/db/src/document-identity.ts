@@ -1,5 +1,5 @@
 /**
- * The identity of a persisted or wire document (decision dec-008, amendments A14 and A15): the plain kebab `format`
+ * The identity of a persisted or wire document (decision dec-008): the plain kebab `format`
  * name and an integer `formatVersion`. A document written before that carries one of a few exact released shapes (an
  * integer `format`, a `schema` or `contract` literal, or a `formatVersion` with no name). Every reader lists those
  * shapes explicitly and refuses any other value; nothing here parses a suffix.

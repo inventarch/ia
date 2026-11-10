@@ -21,7 +21,7 @@ import {
 } from '../src/descriptors/index.js';
 import type { DescriptorEnvelope, DescriptorResult } from '../src/descriptors/index.js';
 
-// Decision dec-008 (A14, A15). Descriptor resources and the trusted registry are shared documents: services other than
+// Decision dec-008. Descriptor resources and the trusted registry are shared documents: services other than
 // this build read them, so this release reads `{format: '<name>', formatVersion: 1}` beside the released `format: 1`
 // and keeps writing the released shape until the switch flips.
 const fixtures = resolve(import.meta.dirname, '../fixtures/descriptors');

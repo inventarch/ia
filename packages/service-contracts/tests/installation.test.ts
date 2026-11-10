@@ -34,7 +34,7 @@ it('requires explicit exact review, decision and closed bounded inspection', () 
   expect(installationInspectRequest.safeParse({ kind: 'current', owner: 'other' }).success).toBe(false);
 });
 
-// Decision dec-008 (A14, A15): the released lock, pointer and descriptor carry a formatVersion and no name; the plain
+// Decision dec-008: the released lock, pointer and descriptor carry a formatVersion and no name; the plain
 // shape names the document beside it. Both are read, in one document or another, and any other name is refused.
 const hash = 'a'.repeat(64);
 const lockBody = {

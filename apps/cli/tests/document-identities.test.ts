@@ -12,7 +12,7 @@ import { descriptorText, starterDescriptor } from '../src/init.js';
 import { lockWithPackage, viewPackage } from '../src/kits-package.js';
 import type { Npm } from '../src/kits-package.js';
 
-// Decision dec-008 (A14, A15). The `ia` block of a kit package's package.json, the release descriptor `ia init` writes
+// Decision dec-008. The `ia` block of a kit package's package.json, the release descriptor `ia init` writes
 // and the distribution lock are read by programs released separately, so this release reads the plain `format` name with
 // `formatVersion` and keeps writing the released shapes until the switch flips.
 afterEach(() => {

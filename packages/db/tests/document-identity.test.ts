@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { identityOf, readIdentity } from '../src/document-identity.js';
 
-// Decision dec-008 (A14, A15): a document names its type and version with `format` and `formatVersion`; each reader
+// Decision dec-008: a document names its type and version with `format` and `formatVersion`; each reader
 // lists the exact shapes it still accepts, and nothing parses a version suffix.
 const bindings = { name: 'bindings', versions: [1], released: [{ key: 'format', value: 1, version: 1 }] } as const;
 const read = (value: unknown, spec: typeof bindings | typeof lock = bindings) =>
