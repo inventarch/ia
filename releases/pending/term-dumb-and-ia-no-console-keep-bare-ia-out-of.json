@@ -1,0 +1,13 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "TERM=dumb and IA_NO_CONSOLE keep bare ia out of the console",
+  "summary": "Bare ia now also prints the same help as ia --help, instead of opening the console, when TERM is exactly dumb or IA_NO_CONSOLE is set to any non-empty value; an unset TERM does not opt out. Scripts that run under a pseudo-terminal can set IA_NO_CONSOLE=1 or call ia --help.",
+  "packages": [
+    "@inventarch/cli"
+  ],
+  "paths": [
+    "apps/cli/",
+    "docs/"
+  ]
+}
