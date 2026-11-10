@@ -2,6 +2,34 @@
 
 Generated from reviewed release changesets. Entries describe intended releases; publication is a separate action.
 
+## 3.7.0
+
+Coordinated 3.7.0 release of the 24 public npm packages: Honor exact shared authored-root ownership in CLI edits; IA canon (warning); Runner byte budget test measures its journal.
+
+### Honor exact shared authored-root ownership in CLI edits
+
+Preview and author match root containment and shared ownership using exact native declaration spelling on every platform. Differently cased foreign roots cannot borrow the repository workspace authored placement; foreign child roots, adopted placement and mandate checks remain protected.
+
+Packages: `@inventarch/cli`.
+
+### IA canon (warning)
+
+The canon laws A6, C4, C5a, C12, E4, E5 and A14 now report their findings as warnings in `ia validate` and `ia preview`; nothing blocks yet. The language base moves to 3.2.1, so a door or runtime from this release refuses a kit locked on 3.2.0 until the kit is re-recorded on 3.2.1.
+
+Packages: `@inventarch/agent-composition-system`, `@inventarch/agent-system`, `@inventarch/authoring-system`, `@inventarch/cli`, `@inventarch/compliance`, `@inventarch/compliance-system`, `@inventarch/db`, `@inventarch/distribution`, `@inventarch/governance-system`, `@inventarch/graph`, `@inventarch/hook-authoring-system`, `@inventarch/learning-system`, `@inventarch/mcp-door`, `@inventarch/runtime`, `@inventarch/session-system`, `@inventarch/steward-hook`, `@inventarch/template-system`, `@inventarch/work-system`, `@inventarch/workspace-system`.
+
+### Runner byte budget test measures its journal
+
+The path byte budget test measures the journal a run retains before its first read instead of assuming it fits in 64 KiB; no consumer-facing change.
+
+Packages: `@inventarch/runner`.
+
+### Coordinated version alignment
+
+Package version metadata follows the coordinated 3.7.0 release; each native artifact version follows its own archive content.
+
+Packages: `@inventarch/kb`, `@inventarch/language`, `@inventarch/service-contracts`, `@inventarch/workspace-runtime`.
+
 ## 3.6.0
 
 Coordinated 3.6.0 release of the 24 public npm packages: A bound method refuses a kit the lock does not install; A missing binding refuses only the method it names, as a test; A pinned copy is refused when git cannot answer inside a repository; Bare ia opens a console; Doctor fixes you can run; Find a CLI copy a workspace hoisted; Host registration no longer needs a package descriptor; ia workspaces prints paths with control characters escaped; Install resolves a shared collection member against both ranges; Judge containment by real path where a volume reports no inode; Keep every workspace current from one console; Let the local knowledge tools read up to 5,000 records; Run the workspace's own ia; Scope tokens can now expire within a process, and a long-lived handle stays bounded; Seat a root several workspaces declare as shared; Take the current ia plugin release on ia host claude --user; The committed bootstrap no longer routes every task through a lane; Track the workspaces you keep current.
