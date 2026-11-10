@@ -7,7 +7,6 @@
     "@inventarch/cli"
   ],
   "paths": [
-    ".ia/src/records/shared-root-authoring.ia",
     "apps/cli/"
   ]
 }
