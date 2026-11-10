@@ -89,6 +89,28 @@ describe('languageFloor', () => {
     expect(gapsOn(usage, widened.bases[1]!, widened)).toEqual([]);
   });
 
+  it("a text value outside a base's form is a form gap", () => {
+    const when = (form?: string): CatalogueWord['fields'] => [
+      { path: 'evidence.when', type: 'text', required: false, ...(form ? { form } : {}) },
+    ];
+    // 3.0.0 requires an ISO date; 3.1.0 drops the form.
+    const relaxed: CompatIndex = {
+      ...index,
+      bases: [
+        base('3.0.0', { observation: observation(when('iso-date')) }),
+        base('3.1.0', { observation: observation(when()) }),
+      ],
+    };
+    const loose = usageOf(source(record(['    origin check', '    when "next week"'])));
+    const result = languageFloor(loose, relaxed);
+    expect(result.floor).toBe('3.1.0');
+    expect(result.gaps).toEqual([
+      expect.objectContaining({ base: '3.0.0', kind: 'form', key: 'observation.evidence.when=next week' }),
+    ]);
+    const dated = usageOf(source(record(['    origin check', '    when "2026-11-10"'])));
+    expect(languageFloor(dated, relaxed)).toEqual({ floor: '3.0.0', newest: '3.1.0', gaps: [] });
+  });
+
   it('a value of the wrong type or reference target is a type gap', () => {
     const usage = usageOf(source(record(['    origin check', '    subject @observation other'])));
     expect(gapsOn(usage, index.bases[0]!, index)).toEqual([

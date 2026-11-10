@@ -1,0 +1,8 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "Compatibility checks see text forms, edge targets and cardinality",
+  "summary": "The language compatibility index now records each text field's form and each edge rule's target and cardinality, so the release gate classes a base that adds or changes a form, narrows a cardinality or retargets an edge rule as breaking, and three edge rules that share a predicate are compared separately instead of as one. `ia floor` reports a value outside a base's text form as a `form` gap. When a base changes, the gate also proves the three published public kits (ia-authoring, ia-kb, ia-method) with `ia floor --verify`, beside the method fixture kit.",
+  "packages": ["@inventarch/cli", "@inventarch/db"],
+  "paths": ["apps/cli/", "docs/specs/", "packages/db/", "releases/native/", "tools/"]
+}

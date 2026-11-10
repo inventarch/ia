@@ -72,14 +72,21 @@ export function baseCatalogue(bytes: Buffer, digest: string): BaseCatalogue {
     words[registration.keyword] = {
       closed: schema.closed,
       sections: schema.sections.map(({ name, must }) => ({ name, required: must })),
-      fields: schema.fields.map(({ section, key, type, must, values, target }) => ({
+      fields: schema.fields.map(({ section, key, type, must, values, target, form }) => ({
         path: `${section}.${key}`,
         type,
         required: must,
         ...(values ? { values: [...values] } : {}),
         ...(target ? { target } : {}),
+        ...(form ? { form } : {}),
       })),
-      edges: schema.edges.map(({ predicate, direction, must }) => ({ predicate, direction, required: must })),
+      edges: schema.edges.map(({ predicate, direction, target, must, cardinality }) => ({
+        predicate,
+        direction,
+        target,
+        required: must,
+        cardinality,
+      })),
     };
   }
   return {

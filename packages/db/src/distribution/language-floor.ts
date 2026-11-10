@@ -4,23 +4,26 @@
  *
  * A base fails a record where its schema would refuse it: a word the base doesn't register (but another base does), a
  * section or field its closed schema doesn't declare, a section or field it requires that the record lacks, a value
- * outside its closed set, or a value of the wrong type or reference target. Words no base registers are the kit's own
+ * outside its closed set or text form, or a value of the wrong type or reference target. Words no base registers are the kit's own
  * and are ignored. The rules mirror compliance's schema admission (`packages/compliance/src/schema.ts`, C04/C04b/W0):
  * the head is open, `cognition` and `activation` are floor grammar, `relationships`/`cognition`/`activation` fields are
  * never ordinary fields, `governance` fields are variants or the `severity` dimension, a contract's `REQ-*` clauses are
  * requirements, and the two floor dialect words (`schema`, `system`) carry no ordinary fields. Relationship edges are
- * not compared. A source that does not parse is a `parse` gap on every base.
+ * not compared: their targets and cardinality need the resolved graph, so only `ia floor --verify` (which validates on
+ * each base) proves them. A source that does not parse is a `parse` gap on every base.
  */
-import { matchesType } from '@inventarch/compliance';
+import { matchesForm, matchesType } from '@inventarch/compliance';
 import { REQUIREMENT_KINDS, isRequirementId, parse } from '@inventarch/language';
-import type { CompiledValue, FieldNode, FieldType, RecordNode, Value } from '@inventarch/language';
+import type { CompiledValue, FieldNode, FieldType, RecordNode, TextForm, Value } from '@inventarch/language';
 import { compareVersions } from './codec.js';
 
 export interface CatalogueWord {
   closed: boolean;
   sections: { name: string; required: boolean }[];
-  fields: { path: string; type: string; required: boolean; values?: string[]; target?: string }[];
-  edges: { predicate: string; direction: 'out' | 'in'; required: boolean }[];
+  /** `values` is an `id` field's closed set, `target` a `ref` field's discriminator, `form` a `text` field's form. */
+  fields: { path: string; type: string; required: boolean; values?: string[]; target?: string; form?: string }[];
+  /** `target` is the closed kind or discriminator the rule counts, `cardinality` one of `one`, `one-or-more`, `optional`. */
+  edges: { predicate: string; direction: 'out' | 'in'; target: string; required: boolean; cardinality: string }[];
 }
 export interface BaseCatalogue {
   version: string;
@@ -43,7 +46,7 @@ export interface Gap {
   record: string;
   word: string;
   /** `parse`: the source does not parse; `key` is `<diagnostic code> at line <n>`, and `record`/`word` are '' when no record owns the line. */
-  kind: 'word' | 'section' | 'field' | 'value' | 'type' | 'required-section' | 'required-field' | 'parse';
+  kind: 'word' | 'section' | 'field' | 'value' | 'form' | 'type' | 'required-section' | 'required-field' | 'parse';
   key: string;
 }
 
@@ -232,6 +235,10 @@ function recordGaps(record: UsedRecord, schema: CatalogueWord, gap: (kind: Gap['
           if ('text' in item && !rule.values.includes(item.text)) gap('value', `${word}.${rule.path}=${item.text}`);
       if (rule.target !== undefined && items.some((item) => item.kind === 'ref' && item.discriminator !== rule.target))
         gap('type', `${word}.${rule.path}`);
+      if (rule.form !== undefined)
+        for (const item of items)
+          if ('text' in item && !matchesForm(item.text, rule.form as TextForm))
+            gap('form', `${word}.${rule.path}=${item.text}`);
     }
   }
 }
