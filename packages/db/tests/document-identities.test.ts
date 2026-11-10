@@ -80,10 +80,10 @@ const documents = [
 ] as const;
 
 it.each(documents)('%s: reads the released shape and the plain shape, each as written', (name, body, decode) => {
-  const released = decode({ formatVersion: 1, ...body } as never) as Record<string, unknown>;
+  const released = decode({ formatVersion: 1, ...body } as never) as unknown as Record<string, unknown>;
   expect(Object.keys(released)[0]).toBe('formatVersion');
   expect(Object.hasOwn(released, 'format')).toBe(false);
-  const plain = decode({ format: name, formatVersion: 1, ...body } as never) as Record<string, unknown>;
+  const plain = decode({ format: name, formatVersion: 1, ...body } as never) as unknown as Record<string, unknown>;
   expect(Object.keys(plain).slice(0, 2)).toEqual(['format', 'formatVersion']);
   expect(plain['format']).toBe(name);
   // Everything but the identity decodes to the same value.
