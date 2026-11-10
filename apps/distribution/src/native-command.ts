@@ -40,7 +40,7 @@ import {
   resolveCatalog,
   writeWorkOutput,
 } from './services.js';
-import { bytes, fail, utf8, workspace } from './files.js';
+import { bytes, fail, utf8, workspace, writeIdentity } from './files.js';
 import { registryAdd, registryWithdraw } from './registry-build.js';
 import { HomeLockedError, HomeLockLeftError } from './home-lock.js';
 import { refreshUpdates, UPDATE_CHANNELS } from './updates.js';
@@ -313,7 +313,12 @@ export async function runNative(argv: readonly string[]): Promise<{ result: unkn
       const generation = need('generation');
       if (!/^[a-f0-9]{64}$/.test(generation)) fail('INPUT-INVALID', 'Invalid retained generation');
       lock = decodeDistributionLock(decode(`${INSTALL_PATHS.generations}/${generation}/lock.json`));
-      const retained = readInstalledGeneration(root, { formatVersion: 1, generation, previous: null, counter: 1 });
+      const retained = readInstalledGeneration(root, {
+        ...writeIdentity('activation-pointer', 1, { formatVersion: 1 } as const),
+        generation,
+        previous: null,
+        counter: 1,
+      });
       if (!retained) fail('INPUT-INVALID', 'Retained generation is unavailable');
     }
     const plan = planInstallation(root, lock, command.slice(5) as 'install' | 'update' | 'remove' | 'rollback');

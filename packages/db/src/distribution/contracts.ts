@@ -532,6 +532,14 @@ export function decodeActivationPointer(input: unknown): ActivationPointer {
     counter: integer(row['counter'], Number.MAX_SAFE_INTEGER, 1),
   });
 }
+/**
+ * Whether two generation inputs name the same membership, whichever shape each was written in: a generation a later
+ * release wrote in the plain shape is read by a build that still derives the released one (decision dec-008).
+ */
+export function sameGenerationInputs(derived: GenerationInputs, stored: GenerationInputs): boolean {
+  const body = ({ format: _format, ...rest }: GenerationInputs) => canonicalDistributionJson(rest);
+  return body(derived) === body(stored);
+}
 export function generationDigest(lock: DistributionLock, inputs: GenerationInputs, workspace: string | null): string {
   const files = [
     { path: 'inputs.json', text: canonicalDistributionJson(decodeGenerationInputs(inputs)) },

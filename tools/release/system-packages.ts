@@ -25,6 +25,7 @@ import { decodeDistributionLock } from '@inventarch/db/distribution';
 import { distributionSnapshot, packSnapshotSet } from '../../apps/distribution/src/snapshot.js';
 import { contained } from '../../apps/distribution/src/files.js';
 import { isEntry } from '../entry/is-entry.mjs';
+import { WRITE_PLAIN_NAMES } from '../shared/written-names.mjs';
 import { child } from './shared/paths.mjs';
 import { systemArchivePartitions, type NativeSystemOwner } from './system-partitions.js';
 import {
@@ -319,7 +320,7 @@ export function bundleSystemPackages(
   );
   const packed = packSnapshotSet(snapshot, partitions);
   const lock = decodeDistributionLock({
-    formatVersion: 1,
+    ...(WRITE_PLAIN_NAMES ? { format: 'distribution-lock', formatVersion: 1 } : { formatVersion: 1 }),
     engine: '^0.1.0',
     requests: packed
       .map((row) => ({ id: row.manifest.id, range: row.manifest.version }))

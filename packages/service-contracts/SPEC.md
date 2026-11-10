@@ -30,6 +30,8 @@ Objects reject unknown fields. Four fields accept any JSON value, which the host
 
 `./marketplace`: a `packageId` is a lowercase `<scope>/<name>` of at most 256 characters. A `releaseDescriptor` has `formatVersion` 1 and language `1.0`. `releaseTerms.text` admits 1–16,384 characters, enough for the complete Apache-2.0 text; `license` and `revision` admit 1–128. A `distributionLock` holds 1–100 requests and 1–100 packages. An artifact read asks for at most 96 KiB, and a chunk's `data` holds at most 128 KiB of text. The registry indexes are read as `registry-kit` and `registry-workspace`, each declaring `formatVersion` 1, or as the released literals `ia.registry-kit.v1` and `ia.registry-workspace.v1` with none; the released literals are written until the follow-up release flips the distribution's switch (dec-008, A15). Each has at most 1,000 releases.
 
+The `distributionLock`, `releaseDescriptor` and `installationPointer` schemas accept an optional plain `format` beside `formatVersion` 1 (`distribution-lock`, `release-descriptor`, `activation-pointer`), as the released documents carry `formatVersion` alone (decision dec-008).
+
 `./installation`: a plan request names `install`, `update` or `remove`. A review states a non-blank rationale of at most 4,096 characters, and an apply names the reviewed plan, digest and decision. An `installationPointer` has `formatVersion` 1 and a counter of at least 1. Inspection reads the `current` installation or one `plan`.
 
 ## Release qualification

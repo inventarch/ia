@@ -15,7 +15,8 @@
  * IA-COMP-NOT-EVALUATED through into `diagnostics` and `counts.notEvaluated`; that result is never rolled into a
  * pass, never suppressed and never omitted from --json.
  */
-import { CAPTURE_CURRENT } from '@inventarch/db';
+import { CAPTURE_CURRENT, identityOf } from '@inventarch/db';
+import { WRITE_PLAIN_NAMES } from './written-names.js';
 import { json, LANGUAGE_IDENTITY, sha256 } from '@inventarch/distribution/services';
 import { findingCounts, orderFindings, runCapture } from './capture.js';
 import { findCommand } from './commands.js';
@@ -39,6 +40,8 @@ export interface CompileCounts {
   readonly notEvaluated: number;
 }
 export interface CompiledArtifact {
+  /** `compiled` once the switch flips (decision dec-008); the released artifact carries `formatVersion` alone. */
+  readonly format?: 'compiled';
   readonly formatVersion: 1;
   readonly artifact: typeof ARTIFACT;
   readonly language: string;
@@ -66,7 +69,7 @@ export function buildArtifact(root: string, session: Session): CompileView {
     .map(({ digest: _digest, ...record }) => record);
   const diagnostics = orderFindings(admission.findings);
   const artifact: CompiledArtifact = {
-    formatVersion: 1,
+    ...identityOf(WRITE_PLAIN_NAMES, 'compiled', 1, { formatVersion: 1 } as const),
     artifact: ARTIFACT,
     language: LANGUAGE_IDENTITY.language,
     kernelDigest: LANGUAGE_IDENTITY.kernelDigest,

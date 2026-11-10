@@ -16,7 +16,7 @@ import {
 } from '@inventarch/db/distribution';
 import type { ActivationPointer, DistributionLock, GenerationInputs } from '@inventarch/db/distribution';
 import { verifySelectedArchiveClosure, type VerifiedArchive } from './archive.js';
-import { fail } from './files.js';
+import { fail, writeIdentity } from './files.js';
 import { distributionSnapshot, verifyDistributionSnapshot, type DistributionSnapshot } from './snapshot.js';
 
 export type InstallOperation = 'install' | 'update' | 'remove' | 'restore' | 'rollback';
@@ -32,7 +32,9 @@ export interface NativeInstallationInput {
   readonly archives: ReadonlyMap<string, Uint8Array>;
   readonly operation: InstallOperation;
 }
+/** Private to the build that approves it, so it names itself in the plain shape already (decision dec-008). */
 export interface NativeInstallationPlan {
+  readonly format: 'native-installation-plan';
   readonly formatVersion: 1;
   readonly operation: InstallOperation;
   readonly engine: string;
@@ -115,7 +117,7 @@ export function planInstallationSnapshot(input: NativeInstallationInput): Native
   const releases = selectedArchives(row['archives'], lock),
     inputs = deriveGenerationInputs(lock, releases);
   const pointer = decodeActivationPointer({
-    formatVersion: 1,
+    ...writeIdentity('activation-pointer', 1, { formatVersion: 1 } as const),
     generation: generationDigest(lock, inputs, installationWorkspace(lock, inputs, releases)),
     previous: previous?.generation ?? null,
     counter: (previous?.counter ?? 0) + 1,
@@ -154,6 +156,7 @@ export function planInstallationSnapshot(input: NativeInstallationInput): Native
       shadowed,
     };
   const body = {
+    format: 'native-installation-plan' as const,
     formatVersion: 1 as const,
     operation: op,
     engine: DISTRIBUTION_ENGINE_VERSION,
@@ -169,6 +172,7 @@ export function planInstallationSnapshot(input: NativeInstallationInput): Native
 
 function decodePlan(input: unknown): NativeInstallationPlan {
   const row = object(input, [
+    'format',
     'formatVersion',
     'operation',
     'engine',
@@ -180,7 +184,11 @@ function decodePlan(input: unknown): NativeInstallationPlan {
     'changes',
     'digest',
   ]);
-  if (row['formatVersion'] !== 1 || row['engine'] !== DISTRIBUTION_ENGINE_VERSION)
+  if (
+    row['format'] !== 'native-installation-plan' ||
+    row['formatVersion'] !== 1 ||
+    row['engine'] !== DISTRIBUTION_ENGINE_VERSION
+  )
     fail('INPUT-INVALID', 'Invalid installation plan version/engine');
   const binding = object(row['binding'], ['source', 'active', 'lock']);
   if (typeof binding['source'] !== 'string' || !/^[a-f0-9]{64}$/.test(binding['source']))
@@ -208,6 +216,7 @@ function decodePlan(input: unknown): NativeInstallationPlan {
     return [...value] as string[];
   };
   const body = {
+    format: 'native-installation-plan' as const,
     formatVersion: 1 as const,
     operation: operation(row['operation']),
     engine: DISTRIBUTION_ENGINE_VERSION,
