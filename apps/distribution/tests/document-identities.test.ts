@@ -21,7 +21,7 @@ import { resolveReleases } from '../src/resolve.js';
 import { UPDATE_CHECK, readUpdateCheck, refreshUpdates } from '../src/updates.js';
 import type { Sources } from '../src/updates.js';
 
-// Decision dec-008 (A14, A15). The update check, the decisions and the home marker live in the IA home, which a
+// Decision dec-008. The update check, the decisions and the home marker live in the IA home, which a
 // separately released CLI and the plugin hook also read; the installation records live in users' repositories. This
 // release reads the plain `format` name with `formatVersion` and keeps writing the released shapes until the switch flips.
 const made: string[] = [];
