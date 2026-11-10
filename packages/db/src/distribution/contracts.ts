@@ -28,6 +28,7 @@ import {
   version,
   DISTRIBUTION_LIMITS,
 } from './codec.js';
+import { readIdentity } from '../document-identity.js';
 
 export interface Dependency {
   readonly id: string;
@@ -56,6 +57,8 @@ export interface ReleaseSource {
   readonly epoch: number;
 }
 interface CommonRelease {
+  /** The plain name of the document, present when it was written in the plain shape (decision dec-008). */
+  readonly format?: string;
   readonly formatVersion: 1;
   readonly id: string;
   readonly version: string;
@@ -118,6 +121,7 @@ export type LockEntry = PackageEntry;
 /** The entry kinds this engine reads; any other kind is an engine this reader is not. */
 export const LOCK_ENTRY_KINDS: readonly LockEntry['kind'][] = Object.freeze(['package']);
 export interface DistributionLock {
+  readonly format?: 'distribution-lock';
   readonly formatVersion: 1;
   readonly engine: string;
   readonly requests: readonly Dependency[];
@@ -126,6 +130,7 @@ export interface DistributionLock {
   readonly entries?: readonly LockEntry[];
 }
 export interface GenerationInputs {
+  readonly format?: 'generation-inputs';
   readonly formatVersion: 1;
   readonly bundles: readonly { readonly id: string; readonly archive: string }[];
   readonly systems: readonly {
@@ -138,24 +143,30 @@ export interface GenerationInputs {
   }[];
 }
 export interface ActivationPointer {
+  readonly format?: 'activation-pointer';
   readonly formatVersion: 1;
   readonly generation: string;
   readonly previous: string | null;
   readonly counter: number;
 }
-const commonKeys = [
-  'formatVersion',
-  'id',
-  'version',
-  'distribution',
-  'engine',
-  'language',
-  'source',
-  'license',
-  'description',
-];
-function format(row: Record<string, unknown>): void {
-  if (row['formatVersion'] !== 1) refuse('Unsupported distribution format');
+type Stamp = { readonly format?: string; readonly formatVersion: 1 };
+const commonKeys = ['id', 'version', 'distribution', 'engine', 'language', 'source', 'license', 'description'];
+/**
+ * A shared document names itself with `format` and `formatVersion` 1, or with the released shape that carries
+ * `formatVersion` alone (decision dec-008). The row's own keys must be exact for whichever it carries, so the closed
+ * shape is checked before the version, as it always was. The identity a document was read under is kept: a writer of a
+ * later release chooses the shape, and a document is digested and compared as it was written.
+ */
+function stamped(
+  value: unknown,
+  name: string,
+  keys: readonly string[],
+): { readonly row: Record<string, unknown>; readonly stamp: Stamp } {
+  const named = value !== null && typeof value === 'object' && Object.hasOwn(value, 'format');
+  const row = object(value, [...(named ? ['format'] : []), 'formatVersion', ...keys]);
+  if (!readIdentity(row, name, [1], [{ key: 'formatVersion', value: 1, version: 1 }]))
+    refuse('Unsupported distribution format');
+  return { row, stamp: named ? { format: name, formatVersion: 1 } : { formatVersion: 1 } };
 }
 function url(value: unknown): string {
   const v = text(value, 2048);
@@ -170,8 +181,7 @@ function url(value: unknown): string {
   return v;
 }
 /** The fields both documents share; `distribution` is decoded whenever the row carries the key. */
-function common(row: Record<string, unknown>): CommonRelease & { readonly distribution?: string } {
-  format(row);
+function common(row: Record<string, unknown>, stamp: Stamp): CommonRelease & { readonly distribution?: string } {
   const source = object(row['source'], ['repository', 'commit', 'recipe', 'epoch']);
   const local = source['repository'] === null && source['commit'] === null,
     commit = local ? null : text(source['commit'], 64);
@@ -182,7 +192,7 @@ function common(row: Record<string, unknown>): CommonRelease & { readonly distri
   if (distribution !== undefined && !distribution.includes('/distribution/'))
     refuse('Expected a native distribution identity');
   return {
-    formatVersion: 1,
+    ...stamp,
     id: packageId(row['id']),
     version: version(row['version']),
     ...(distribution === undefined ? {} : { distribution }),
@@ -229,8 +239,12 @@ export function decodeReleaseDescriptor(input: unknown): ReleaseDescriptor {
   // `distribution` is the one optional key; every other key stays exact.
   const value = data(input),
     named = value !== null && typeof value === 'object' && Object.hasOwn(value, 'distribution');
-  const row = object(value, [...commonKeys.filter((key) => named || key !== 'distribution'), 'dependencies', 'assets']),
-    body = common(row);
+  const { row, stamp } = stamped(value, 'release-descriptor', [
+      ...commonKeys.filter((key) => named || key !== 'distribution'),
+      'dependencies',
+      'assets',
+    ]),
+    body = common(row, stamp);
   const dependencies = sorted(
     array(row['dependencies'], DISTRIBUTION_LIMITS.bundles).map((v) => {
       const r = object(v, ['id', 'range', 'systems']);
@@ -258,8 +272,14 @@ export function decodeReleaseDescriptor(input: unknown): ReleaseDescriptor {
   return frozen({ ...body, dependencies, assets });
 }
 export function decodeBundleManifest(input: unknown): BundleManifest {
-  const row = object(data(input), [...commonKeys, 'roots', 'systems', 'dependencies', 'files']),
-    body = common(row),
+  const { row, stamp } = stamped(data(input), 'bundle-manifest', [
+      ...commonKeys,
+      'roots',
+      'systems',
+      'dependencies',
+      'files',
+    ]),
+    body = common(row, stamp),
     roots = names(row['roots'], identity);
   if (!roots.length) refuse('Empty native roots');
   const systems = sorted(
@@ -309,7 +329,7 @@ export function decodeBundleManifest(input: unknown): BundleManifest {
   // A manifest's keys are exact, `distribution` included, so common() decoded it; it keeps its place among the keys.
   return frozen({ ...body, distribution: body.distribution!, roots, systems, dependencies: deps, files });
 }
-const LOCK_KEYS: readonly string[] = ['formatVersion', 'engine', 'requests', 'packages'];
+const LOCK_KEYS: readonly string[] = ['engine', 'requests', 'packages'];
 /** An npm package name: lowercase, optionally scoped, at most 214 bytes. */
 const NPM_NAME = /^(?:@[a-z0-9][a-z0-9._~-]*\/)?[a-z0-9][a-z0-9._~-]*$/;
 /** npm's `dist.integrity` of a published tarball: SRI SHA-512. */
@@ -412,10 +432,13 @@ function lockEntries(value: unknown, engine: string, packages: readonly LockedPa
 export function decodeDistributionLock(input: unknown, reader: string = DISTRIBUTION_ENGINE_VERSION): DistributionLock {
   const value = data(input);
   const plain = value !== null && typeof value === 'object' && !Array.isArray(value);
-  if (plain && Reflect.ownKeys(value).some((key) => !LOCK_KEYS.includes(key as string)))
+  if (plain && Reflect.ownKeys(value).some((key) => !['format', 'formatVersion', ...LOCK_KEYS].includes(key as string)))
     admitExtension(value as Record<string, unknown>, reader);
-  const row = object(value, plain && Object.hasOwn(value, 'entries') ? [...LOCK_KEYS, 'entries'] : LOCK_KEYS);
-  format(row);
+  const { row, stamp } = stamped(
+    value,
+    'distribution-lock',
+    plain && Object.hasOwn(value, 'entries') ? [...LOCK_KEYS, 'entries'] : LOCK_KEYS,
+  );
   const engine = range(row['engine']),
     requests = dependencies(row['requests']);
   const packages = sorted(
@@ -458,12 +481,11 @@ export function decodeDistributionLock(input: unknown, reader: string = DISTRIBU
   requests.forEach((r) => visit(r.id));
   for (const kit of (entries ?? []).flatMap((entry) => entry.kits)) kit.dependencies.forEach(visit);
   if ([...reached].filter((id) => byId.has(id)).length !== packages.length) refuse('Unreachable locked package');
-  if (entries === undefined) return frozen({ formatVersion: 1, engine, requests, packages });
-  return frozen({ formatVersion: 1, engine, requests, packages, entries });
+  if (entries === undefined) return frozen({ ...stamp, engine, requests, packages } as DistributionLock);
+  return frozen({ ...stamp, engine, requests, packages, entries } as DistributionLock);
 }
 export function decodeGenerationInputs(input: unknown): GenerationInputs {
-  const row = object(data(input), ['formatVersion', 'bundles', 'systems']);
-  format(row);
+  const { row, stamp } = stamped(data(input), 'generation-inputs', ['bundles', 'systems']);
   const bundles = sorted(
       array(row['bundles'], DISTRIBUTION_LIMITS.bundles).map((v) => {
         const r = object(v, ['id', 'archive']);
@@ -499,13 +521,12 @@ export function decodeGenerationInputs(input: unknown): GenerationInputs {
     (s) => s.name,
   );
   if (!bundles.length !== !systems.length) refuse('Empty generation mismatch');
-  return frozen({ formatVersion: 1, bundles, systems });
+  return frozen({ ...stamp, bundles, systems } as GenerationInputs);
 }
 export function decodeActivationPointer(input: unknown): ActivationPointer {
-  const row = object(data(input), ['formatVersion', 'generation', 'previous', 'counter']);
-  format(row);
+  const { row, stamp } = stamped(data(input), 'activation-pointer', ['generation', 'previous', 'counter']);
   return frozen({
-    formatVersion: 1,
+    ...(stamp as Pick<ActivationPointer, 'format' | 'formatVersion'>),
     generation: hash(row['generation']),
     previous: row['previous'] === null ? null : hash(row['previous']),
     counter: integer(row['counter'], Number.MAX_SAFE_INTEGER, 1),

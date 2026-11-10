@@ -14,6 +14,7 @@ import {
   refuse,
   unique,
   versioned,
+  descriptorIdentity,
 } from './codec.js';
 import type { DescriptorResult, Scope } from './codec.js';
 import { bindResource, readInput, resolveEnvelope, scopeOf, snapshotEnvelope, snapshotResources } from './envelope.js';
@@ -79,7 +80,9 @@ export interface DefinitionDigests {
   readonly definition: string;
 }
 export interface CompiledDomainModel {
-  readonly format: 1;
+  /** `1` as released; `compiled-domain-descriptor` with `formatVersion` 1 once the switch flips (decision dec-008). */
+  readonly format: 1 | 'compiled-domain-descriptor';
+  readonly formatVersion?: 1;
   readonly kind: 'domain-model';
   readonly owner: string;
   readonly source: string;
@@ -119,7 +122,7 @@ export function compileDomainModel(input: DomainInput): DescriptorResult<Compile
       const registry = requireRegistry(given['registry']);
       scope = { owner: envelope.owner, source: envelope.source, resource: envelope.resource.key };
       const decoded = bindResource(envelope, snapshotResources(given['resources']));
-      const row = versioned(decoded.value, [
+      const row = versioned(decoded.value, 'domain-descriptor', [
         'format',
         'model',
         'version',
@@ -242,7 +245,7 @@ export function compileDomainModel(input: DomainInput): DescriptorResult<Compile
         (item) => item.name,
       );
       const body = {
-        format: 1 as const,
+        ...descriptorIdentity('compiled-domain-descriptor'),
         kind: 'domain-model' as const,
         owner: envelope.owner,
         source: envelope.source,

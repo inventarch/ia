@@ -1,3 +1,5 @@
+export { identityOf, readIdentity } from './document-identity.js';
+export type { DocumentIdentity, ReleasedIdentity } from './document-identity.js';
 export { DB_CODES, DbError } from './errors.js';
 export type { DbCode } from './errors.js';
 export { adoptedBindings, readInputs, systemMember } from './inputs.js';
