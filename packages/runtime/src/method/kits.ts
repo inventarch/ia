@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, lstatSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { readIdentity } from '@inventarch/db';
 import { ENTRIES } from './bindings.js';
 import { MethodError } from './errors.js';
 import { compareVersions, readReleases } from './releases.js';
@@ -326,6 +327,13 @@ const readSidecar = (kit: Pick<Kit, 'dir'>, name: string): Record<string, unknow
   return existsSync(path) ? (JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>) : undefined;
 };
 
+/**
+ * A kit sidecar names itself with the released integer `format` 1 or, in the plain identity (decision dec-008), the
+ * `format` name `name` with `formatVersion` 1. Any other value is not that document.
+ */
+const sidecarIdentity = (parsed: Record<string, unknown>, name: string): boolean =>
+  readIdentity(parsed, name, [1], [{ key: 'format', value: 1, version: 1 }]) !== undefined;
+
 /** The checks a kit's runner may run (`checks.json`); a name that is not a @check record of the kit is dropped into `undeclared`. */
 export function kitChecks(kit: Pick<Kit, 'dir'>): {
   readonly checks: Readonly<Record<string, KitCheck>>;
@@ -334,8 +342,11 @@ export function kitChecks(kit: Pick<Kit, 'dir'>): {
   const path = join(kit.dir, 'checks.json');
   const parsed = readSidecar(kit, 'checks.json');
   if (parsed === undefined) return { checks: {}, undeclared: [] };
-  if (parsed['format'] !== 1 || !plainObject(parsed['checks']))
-    throw new MethodError(`${path} is malformed (format 1 with a checks object)`, 'IA-CORE-KIT');
+  if (!sidecarIdentity(parsed, 'kit-checks') || !plainObject(parsed['checks']))
+    throw new MethodError(
+      `${path} is malformed (format 1, or kit-checks with formatVersion 1, with a checks object)`,
+      'IA-CORE-KIT',
+    );
   const declared = new Set(
     kitRecordNames(kit.dir)
       .filter((r) => r.word === 'check')
@@ -379,11 +390,14 @@ export function kitDelivery(kit: Pick<Kit, 'dir'>): {
   if (parsed === undefined) return { whole: [], undeclared: [] };
   const listed = parsed['whole'];
   if (
-    parsed['format'] !== 1 ||
+    !sidecarIdentity(parsed, 'kit-delivery') ||
     !Array.isArray(listed) ||
     !listed.every((name) => typeof name === 'string' && name !== '')
   )
-    throw new MethodError(`${path} is malformed (format 1 with a whole list of capability names)`, 'IA-CORE-KIT');
+    throw new MethodError(
+      `${path} is malformed (format 1, or kit-delivery with formatVersion 1, with a whole list of capability names)`,
+      'IA-CORE-KIT',
+    );
   const declared = new Set(
     kitRecordNames(kit.dir)
       .filter((r) => r.word === 'capability')
@@ -415,13 +429,13 @@ export function kitBindings(kit: Pick<Kit, 'dir' | 'id'>): {
   const keyPattern = new RegExp(`^(?:${ENTRIES.join('|')})\\.(?:[a-z][a-z0-9-]*|\\*)$`);
   const listed = parsed['unbound'];
   if (
-    parsed['format'] !== 1 ||
+    !sidecarIdentity(parsed, 'kit-bindings') ||
     !plainObject(parsed['recommend']) ||
     (listed !== undefined &&
       !(Array.isArray(listed) && listed.every((name) => typeof name === 'string' && name !== '')))
   )
     throw new MethodError(
-      `${path} is malformed (format 1 with a recommend object and an optional unbound list of capability names)`,
+      `${path} is malformed (format 1, or kit-bindings with formatVersion 1, with a recommend object and an optional unbound list of capability names)`,
       'IA-CORE-KIT',
     );
   const names = kitRecordNames(kit.dir);

@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { readIdentity } from '@inventarch/db';
 import { MethodError } from './errors.js';
 
 /**
@@ -9,6 +10,10 @@ import { MethodError } from './errors.js';
  * Format 2: `releases.json` is an index `{ format: 2, kit, latest, releases }` whose rows keep every format 1 field in
  * order but name `releases/<version>.json` in `file` where `records` was, and each per-version file is
  * `{ format: 2, kit, version, archive, records, offers? }`. Expanding an index rebuilds the format 1 document.
+ *
+ * Decision dec-008 gives each document a plain identity beside those: `releases.json` is `kit-releases` and a per-version
+ * file is `kit-release`, each `{ format: "<name>", formatVersion: N }` with the same members. The released shapes (no
+ * identity key at all for format 1, an integer `format` of 2 otherwise) stay read; any other identity is refused.
  */
 export const RELEASES_FORMAT = 2;
 
@@ -21,17 +26,27 @@ export interface ReleaseRow {
   readonly [field: string]: unknown;
 }
 export interface ReleaseIndex {
-  readonly format?: number;
+  /** Absent in format 1; the integer 2, or the plain name `kit-releases` beside `formatVersion` (decision dec-008). */
+  readonly format?: number | string;
+  readonly formatVersion?: number;
   readonly kit: string;
   readonly latest?: string;
   readonly releases: readonly ReleaseRow[];
 }
 interface ReleaseFile {
-  readonly format: number;
+  readonly format: number | string;
+  readonly formatVersion?: number;
   readonly kit: string;
   readonly version: string;
   readonly archive: string;
   readonly records: readonly unknown[];
+}
+
+/** The version a `releases.json` document stands for: 1 (no identity at all) or 2, in either shape; undefined for any other. */
+function indexVersion(index: object): 1 | 2 | undefined {
+  if (!Object.hasOwn(index, 'format') && !Object.hasOwn(index, 'formatVersion')) return 1;
+  return readIdentity(index, 'kit-releases', [1, 2], [{ key: 'format', value: RELEASES_FORMAT, version: 2 }])
+    ?.version as 1 | 2 | undefined;
 }
 
 export const releaseFile = (version: string): string => `releases/${version}.json`;
@@ -39,7 +54,7 @@ const readJson = (path: string): unknown => JSON.parse(readFileSync(path, 'utf8'
 
 /** Checks a format 2 index: its latest is its last row, and every row names its own file. */
 export function checkIndex(index: ReleaseIndex): ReleaseIndex {
-  if (index.format !== RELEASES_FORMAT || typeof index.kit !== 'string' || !Array.isArray(index.releases))
+  if (indexVersion(index) !== RELEASES_FORMAT || typeof index.kit !== 'string' || !Array.isArray(index.releases))
     throw new MethodError('not a format 2 releases.json index', 'IA-CORE-RELEASES');
   if (index.latest !== (index.releases.at(-1)?.version ?? null))
     throw new MethodError(
@@ -59,7 +74,10 @@ export function checkIndex(index: ReleaseIndex): ReleaseIndex {
 export function checkFile(index: ReleaseIndex, row: ReleaseRow, file: unknown): ReleaseFile {
   const value = file as Partial<ReleaseFile> | null;
   if (
-    value?.format !== RELEASES_FORMAT ||
+    value === null ||
+    typeof value !== 'object' ||
+    readIdentity(value, 'kit-release', [RELEASES_FORMAT], [{ key: 'format', value: RELEASES_FORMAT, version: 2 }]) ===
+      undefined ||
     value.kit !== index.kit ||
     value.version !== row.version ||
     value.archive !== row.archive ||
@@ -90,12 +108,13 @@ export function readReleases(kitDir: string): ReleaseIndex {
   if (!existsSync(path)) throw new MethodError(`${kitDir} carries no releases.json`, 'IA-CORE-KIT');
   const releases = readJson(path) as ReleaseIndex;
   if (!releases.kit || !Array.isArray(releases.releases)) throw new MethodError(`${path} is malformed`, 'IA-CORE-KIT');
-  if (releases.format !== undefined && releases.format !== RELEASES_FORMAT)
+  const version = indexVersion(releases);
+  if (version === undefined)
     throw new MethodError(
-      `${path} has format ${releases.format}; this core reads formats 1 and ${RELEASES_FORMAT}`,
+      `${path} has format ${String(releases.format)}; this core reads formats 1 and ${RELEASES_FORMAT}`,
       'IA-CORE-KIT',
     );
-  if (releases.format === RELEASES_FORMAT)
+  if (version === RELEASES_FORMAT)
     try {
       checkIndex(releases);
     } catch (error) {
@@ -127,7 +146,7 @@ export function releaseRecords(kitDir: string, release: ReleaseRow): readonly un
 export function expandReleases(kitDir: string): ReleaseIndex {
   const index = readReleases(kitDir);
   try {
-    return index.format === RELEASES_FORMAT ? expandIndex(index, (path) => readJson(join(kitDir, path))) : index;
+    return indexVersion(index) === RELEASES_FORMAT ? expandIndex(index, (path) => readJson(join(kitDir, path))) : index;
   } catch (error) {
     throw error instanceof MethodError && error.code === 'IA-CORE-KIT'
       ? error
