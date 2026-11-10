@@ -15,6 +15,7 @@ import {
   snapshot,
   unique,
   versioned,
+  descriptorIdentity,
 } from './codec.js';
 import type { ContractRef, DescriptorResult } from './codec.js';
 
@@ -46,7 +47,9 @@ export interface RegisteredContract {
   readonly isolation?: boolean;
 }
 export interface DescriptorRegistry {
-  readonly format: 1;
+  /** `1` as released; `descriptor-registry` with `formatVersion` 1 once the switch flips (decision dec-008). */
+  readonly format: 1 | 'descriptor-registry';
+  readonly formatVersion?: 1;
   readonly targets: readonly string[];
   readonly contracts: readonly RegisteredContract[];
   /** Digest of the canonical registry data; compiled definitions record it. */
@@ -81,7 +84,13 @@ const scope = { owner: 'registry', source: 'registry' };
  */
 export function createDescriptorRegistry(data: unknown): DescriptorResult<DescriptorRegistry> {
   return attempt(scope, () => {
-    const row = versioned(snapshot(data, 'DESC-REGISTRY-INVALID', ''), ['format', 'targets', 'contracts'], [], false);
+    const row = versioned(
+      snapshot(data, 'DESC-REGISTRY-INVALID', ''),
+      'descriptor-registry',
+      ['format', 'targets', 'contracts'],
+      [],
+      false,
+    );
     const targets = unique(
       list(row['targets'], 'targets', 1).map((entry, index) => id(entry, `targets[${index}]`)),
       'targets',
@@ -138,7 +147,7 @@ export function createDescriptorRegistry(data: unknown): DescriptorResult<Descri
       return contract as unknown as RegisteredContract;
     });
     unique(contracts, 'contracts', (contract) => `${contract.kind}:${contract.id}@${contract.version}`, '');
-    const value = { format: 1 as const, targets, contracts };
+    const value = { ...descriptorIdentity('descriptor-registry'), targets, contracts };
     const registry = deepFreeze({ ...value, digest: digestOf(value) });
     trusted.add(registry);
     return registry;
