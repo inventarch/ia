@@ -1248,6 +1248,7 @@
       "files": [
         "tests/check-admission.test.ts",
         "tests/decline.test.ts",
+        "tests/format-refresh.test.ts",
         "tests/next.test.ts",
         "tests/position.test.ts",
         "tests/project.test.ts",
