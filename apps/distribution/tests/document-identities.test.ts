@@ -161,25 +161,27 @@ let packed: ReturnType<typeof packDistribution>,
   base: string,
   sequence = 0;
 const repository = resolve(import.meta.dirname, '../../..');
+/** The release descriptor in the released shape, `formatVersion` alone. */
+const descriptor = {
+  formatVersion: 1,
+  id: 'test/foundation',
+  version: '0.1.0',
+  distribution: 'workspace-system/definition/distribution/public-language',
+  engine: '^0.1.0',
+  language: ['1.0'],
+  dependencies: [],
+  assets: [{ path: 'guide.md', role: 'documentation' }],
+  source: { repository: 'https://example.com/fixture', commit: 'a'.repeat(40), recipe: 'ustar-v1', epoch: 0 },
+  license: 'UNLICENSED',
+  description: 'Original fixture',
+};
 beforeAll(() => {
   base = temp();
   const root = join(base, 'source');
   mkdirSync(root);
   copyPublicLanguageFixture(repository, root);
   put(root, 'guide.md', '# Original installed guide\n');
-  packed = packDistribution(root, {
-    formatVersion: 1,
-    id: 'test/foundation',
-    version: '0.1.0',
-    distribution: 'workspace-system/definition/distribution/public-language',
-    engine: '^0.1.0',
-    language: ['1.0'],
-    dependencies: [],
-    assets: [{ path: 'guide.md', role: 'documentation' }],
-    source: { repository: 'https://example.com/fixture', commit: 'a'.repeat(40), recipe: 'ustar-v1', epoch: 0 },
-    license: 'UNLICENSED',
-    description: 'Original fixture',
-  });
+  packed = packDistribution(root, descriptor);
 }, 30000);
 const resolved = () =>
   resolveReleases(
@@ -245,6 +247,19 @@ it('installation records: are written in the plain shape once the switch flips, 
   recoverInstallation(root);
   expect(read(root, '.ia/distributions/active.json')).toMatchObject({ format: 'activation-pointer' });
   expect(read(root, '.ia/distributions.lock.json')).toMatchObject({ format: 'distribution-lock' });
+}, 60000);
+it('release descriptor: packs from the plain shape as from the released one; the bundle manifest follows the switch', () => {
+  const root = join(base, 'source'),
+    plain = { format: 'release-descriptor', ...descriptor };
+  // The descriptor's own identity does not reach the bundle manifest: the same archive in the released shape.
+  const fromPlain = packDistribution(root, plain);
+  expect(fromPlain.archiveDigest).toBe(packed.archiveDigest);
+  expect(Object.hasOwn(fromPlain.manifest, 'format')).toBe(false);
+  // Once the switch flips, the manifest names itself `bundle-manifest`, whichever shape the descriptor has.
+  flip.plain = true;
+  const flipped = packDistribution(root, plain);
+  expect(flipped.manifest).toMatchObject({ format: 'bundle-manifest', formatVersion: 1 });
+  expect(packDistribution(root, descriptor).archiveDigest).toBe(flipped.archiveDigest);
 }, 60000);
 it('installation plan: is private, so only the plain shape applies and an earlier plan is asked to be made again', () => {
   selected = resolved();
