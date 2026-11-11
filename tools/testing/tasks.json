@@ -2377,7 +2377,7 @@
         },
         {
           "case": "tests/host-plugin-node.test.ts > a node planted in the project or behind a relative PATH entry never starts the hook, and sh runs the recorded Node as written (crowncodes/ia#436)",
-          "reason": "On Windows the plugin hook keeps the earlier node command, which looks node up on PATH (host plugin distribution spec \u00a76.1); the injected-platform Windows rendering case checks that command byte for byte on every platform.",
+          "reason": "On Windows the plugin hook keeps the earlier node command, which looks node up on PATH (host plugin distribution spec 00a76.1); the injected-platform Windows rendering case checks that command byte for byte on every platform.",
           "platforms": [
             "windows"
           ]
@@ -3842,6 +3842,12 @@
       "resourceClass": "io",
       "covers": [
         "vitest run --config vitest.tools.config.mts --maxWorkers=1"
+      ],
+      "skips": [
+        {
+          "case": "tools/native/language-bases.test.ts > fetching a published base records a seeded version from the seeded bytes, under the seed source",
+          "reason": "The case applies only while this tree builds the published 3.2.1 base byte for byte; the tree now builds the unreleased 3.3.0 base, and the seeded bytes are still verified by the ledger cases, which run everywhere."
+        }
       ]
     },
     {
