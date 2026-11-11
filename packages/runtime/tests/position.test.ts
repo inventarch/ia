@@ -841,3 +841,33 @@ it('reads only through an explicit scope token', () => {
     expect.objectContaining({ code: 'IA-DB-SCOPE-UNAVAILABLE' }),
   );
 });
+
+// #281: `rules` honours activation as `ia context` does (R04). A blocking law that activates on a phase alone applies
+// only at that phase, and is listed in `omittedRules` with the contradictory term elsewhere; one that names an axis the
+// key cannot bind (move) stays reserved, marked with the groups it waits on.
+it('reserves a blocking rule only where its activation admits the coordinate, and names the rest', () => {
+  const root = workspace(),
+    planOnly = 'governance-system/governance/law/plan-only',
+    onMove = 'governance-system/governance/law/on-move';
+  put(root, `${records}/plan-only.ia`, law('plan-only', 'blocking', '  activation\n    activate when phase is plan\n'));
+  put(
+    root,
+    `${records}/on-move.ia`,
+    law('on-move', 'blocking', '  activation\n    activate when move is Execution and phase is act\n'),
+  );
+  const db = database(root),
+    within = db.resolveScope().token;
+  expect(db.report.findings.filter((f) => f.severity === 'error')).toEqual([]);
+  const plan = bodyOf(db, within, { seat: governanceSystem, shape: 'governance', phase: 'plan' });
+  expect(ids(plan.rules)).toContain(planOnly);
+  expect(plan.rules.find((r) => r.identity === planOnly)?.activation).toBeUndefined();
+  expect(plan.omittedRules).toEqual([{ identity: onMove, detail: 'phase is act, request is plan' }]);
+  const act = bodyOf(db, within, { seat: governanceSystem, shape: 'governance', phase: 'act' });
+  expect(ids(act.rules)).not.toContain(planOnly);
+  expect(act.omittedRules).toEqual([{ identity: planOnly, detail: 'phase is plan, request is act' }]);
+  expect(act.rules.find((r) => r.identity === onMove)?.activation).toBe('phase is act and move is Execution');
+  // Left out by activation, a rule is neither loaded, pointed to nor on the frontier.
+  expect(ids(act.loaded)).not.toContain(planOnly);
+  expect(act.pointers.some((p) => p.identity === planOnly)).toBe(false);
+  expect(act.counts.rules).toBe(act.rules.length);
+});

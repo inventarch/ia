@@ -257,7 +257,29 @@ export function renderPosition(output: PositionOutput, caps: Capabilities, roote
         'No playbook cell.',
         caps,
       ),
-      section('Rules (reserved outside the budget)', body.rules, recordFacts, 'No blocking rule.', caps),
+      section(
+        'Rules (reserved outside the budget)',
+        body.rules,
+        (rule) => [
+          ...recordFacts(rule),
+          ...(rule.activation === undefined
+            ? []
+            : [[atom('applies only when', 'yellow', 0), ...words(rule.activation, null, 2)]]),
+        ],
+        'No blocking rule.',
+        caps,
+      ),
+      ...(body.omittedRules.length === 0
+        ? []
+        : [
+            section(
+              'Rules left out by activation',
+              body.omittedRules,
+              (rule) => [[atom(rule.identity, 'cyan', 0)], words(rule.detail, 'dim')],
+              '',
+              caps,
+            ),
+          ]),
       section('Mandates', body.mandates, recordFacts, 'No mandate governs the seat.', caps),
       section('Frontier', body.frontier, (t) => [words(tallyText(t, `of kind ${t.kind}`))], 'No frontier.', caps),
       section(
