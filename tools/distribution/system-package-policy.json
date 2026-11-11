@@ -32,7 +32,7 @@
       "native": {
         "system": "agent-system",
         "id": "inventarch/agent-system",
-        "version": "3.1.4",
+        "version": "3.1.5",
         "distribution": "workspace-system/definition/distribution/package-agent-system"
       }
     },
@@ -54,7 +54,7 @@
       "native": {
         "system": "compliance-system",
         "id": "inventarch/compliance-system",
-        "version": "3.1.4",
+        "version": "3.1.5",
         "distribution": "workspace-system/definition/distribution/package-compliance-system"
       }
     },
@@ -65,7 +65,7 @@
       "native": {
         "system": "governance-system",
         "id": "inventarch/governance-system",
-        "version": "3.2.0",
+        "version": "3.2.1",
         "distribution": "workspace-system/definition/distribution/package-governance-system"
       }
     },
@@ -98,7 +98,7 @@
       "native": {
         "system": "session-system",
         "id": "inventarch/session-system",
-        "version": "3.2.1",
+        "version": "3.2.2",
         "distribution": "workspace-system/definition/distribution/package-session-system"
       }
     },
@@ -120,7 +120,7 @@
       "native": {
         "system": "work-system",
         "id": "inventarch/work-system",
-        "version": "3.3.0",
+        "version": "3.3.1",
         "distribution": "workspace-system/definition/distribution/package-work-system"
       }
     },
@@ -131,7 +131,7 @@
       "native": {
         "system": "workspace-system",
         "id": "inventarch/workspace-system",
-        "version": "3.1.4",
+        "version": "3.1.5",
         "distribution": "workspace-system/definition/distribution/package-workspace-system"
       }
     }
