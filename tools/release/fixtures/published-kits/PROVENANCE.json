@@ -1,0 +1,20 @@
+{
+  "format": "ia.fixture-provenance.v1",
+  "license": "Apache-2.0",
+  "source": {
+    "package": "@inventarch/public-kits@1.0.4",
+    "integrity": "sha512-vwCVltAXqL88V7HUcSdKhCMoLZjH5Q5VPMdLST8iKmVNjaa+AdAu5wXOBPt1p9/sCiGaWOGM790NZwmxTjTloA==",
+    "paths": ["kits/ia-authoring", "kits/ia-kb", "kits/ia-method"]
+  },
+  "generator": {
+    "script": "generate.mjs",
+    "steps": [
+      "npm pack @inventarch/public-kits@1.0.4 (in a scratch folder)",
+      "tar -xzf inventarch-public-kits-1.0.4.tgz",
+      "node tools/release/fixtures/published-kits/generate.mjs <scratch>/package"
+    ]
+  },
+  "files": {
+    "kits.json.gz": "A gzipped JSON object from each path under kits/<kit>/ to its UTF-8 text, unchanged (the whole kit folder, since the kit manifest refuses a missing declared asset), for the three published public kits: inventarch/ia-authoring-kit 0.1.4, inventarch/ia-kb-kit 0.9.4 and inventarch/ia-method-kit 0.7.3, each locked on language 3.2.0. The language compatibility gate runs ia floor --verify on each."
+  }
+}

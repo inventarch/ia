@@ -16,7 +16,7 @@ Section numbers are stable because source comments cite them; retired sections k
 
 ## 3 IA home
 
-The IA home holds the materialized host payloads (`hosts/`), the Claude plugin marketplace (`claude/marketplace`), the initialization decisions (`state/decisions.json`), the cached update check (`state/update-check.json`), the optional `config.json` and the `home.json` marker that names the directory as an IA home. It is `IA_HOME`, or `~/.ia` when that is unset; `IA_HOST_HOME` is still read and doctor warns that it is deprecated.
+The IA home holds the materialized host payloads (`hosts/`), the Claude plugin marketplace (`claude/marketplace`), the initialization decisions (`state/decisions.json`), the cached update check (`state/update-check.json`), the tracked workspace list (`tracked-workspaces.json`), the lock files `tracked-workspaces.json.lock` and `state/update-check.json.lock` that serialize changes to those two stores (`home-lock.ts`), the optional `config.json` and the `home.json` marker that names the directory as an IA home. It is `IA_HOME`, or `~/.ia` when that is unset; `IA_HOST_HOME` is still read and doctor warns that it is deprecated.
 
 A relative home refuses with `IA-DIST-INPUT-INVALID`. A home that contains `src/` refuses with `IA-DIST-PATH-UNSAFE`, because it must never look like a workspace, and the IA home and a workspace may not contain each other. Doctor reports a registration that pins a payload outside the current home as a warning naming `ia host <host> --apply`; it does not rewrite the registration.
 

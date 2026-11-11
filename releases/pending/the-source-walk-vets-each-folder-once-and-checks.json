@@ -1,0 +1,13 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "The source walk vets each folder once and checks each source's final path",
+  "summary": "The corpus source walk now lstats each folder once per walk instead of once per read: 60% fewer lstat calls on a 19,700-record tree (21,609 to 8,587), with byte-identical output. After reading a source it also checks the source's final path, so a parent folder replaced by a link or junction between two reads is refused with IA-DB-PATH-UNSAFE at that folder rather than read through. On macOS, and on a Linux without /proc, a source that another file is renamed over, or that is removed, while the walk reads it is now refused with IA-DB-SOURCE-CHANGED `Source replaced during read`, as on Windows, because the platform cannot say which file an open descriptor holds; on Linux the walk keeps the bytes it read, as before.",
+  "packages": [
+    "@inventarch/db"
+  ],
+  "paths": [
+    "packages/db/",
+    "tools/"
+  ]
+}

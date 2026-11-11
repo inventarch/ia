@@ -1,9 +1,11 @@
 import { createHash } from 'node:crypto';
+import type { KitBaseUse } from './kit-base.js';
 
 /**
  * The method packet and its canonical digest. The digest covers what the agent acts on (closure, scope, instructions,
  * references, role, requested operations, evidence and effective operations), serialized with sorted keys; the
- * envelope (host, CLI, kit root, latency) and the binding are excluded, so one resolution digests the same everywhere.
+ * envelope (host, CLI, kit root, the language base the kit root was restored with, latency) and the binding are
+ * excluded, so one resolution digests the same everywhere.
  */
 export const PACKET_CONTRACT = 1;
 export const EVIDENCE_STATES = ['proposed', 'attempted', 'executed', 'verified', 'accepted'] as const;
@@ -56,7 +58,8 @@ export interface MethodPacket {
   missing: readonly unknown[];
   evidence: { readonly required: readonly string[]; readonly states: readonly string[] };
   kitUpdateAvailable: unknown;
-  envelope: Record<string, unknown>;
+  /** Not digested. `base` is the language base the kit's read root was restored with, against the one its lock pins. */
+  envelope: Record<string, unknown> & { base?: KitBaseUse };
   digest?: string;
 }
 
