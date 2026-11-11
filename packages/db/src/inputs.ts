@@ -621,7 +621,8 @@ function workspaceRoot(root: string): string {
  * open, and a read that fails answer with the filesystem's error, which the walk refuses as before. Where the open
  * follows a final link (`OPENS_THROUGH_LINKS`, Windows), the name must still name the file read once it is read, as
  * package source capture checks: a link there is refused as the listing refuses one, a link to what is not a regular
- * file included, and a name that names nothing or another file is IA-DB-SOURCE-CHANGED.
+ * file included, and a name that names nothing or another file is IA-DB-SOURCE-CHANGED. Within a walk, every platform
+ * then checks the source's final path and that the file there is the file opened (`checkFinalPath`).
  */
 interface Walk {
   /** Folders this walk has found to be real directories (`safePath`). */
@@ -638,28 +639,25 @@ const fold = (path: string): string =>
  * path. If not, a folder on the way was replaced by a link since the walk vetted it: the refusal names the first such
  * folder, as `safePath` names a link it meets. The final path is resolved by name, after the read, so a folder swapped
  * for a link and swapped back before the check would pass it: the opened file must also be the file at that path, by
- * device and inode, and on Linux the descriptor's own path (`/proc/self/fd`) must be it too. What stays possible is a
- * writer who swaps a folder away and back faster than these checks; IA does not guard a workspace against its own
- * writers. The identity check of the name against the opened file (`OPENS_THROUGH_LINKS`) stays as it was.
+ * device and inode. When it is not, the name passed to another file or to nothing once the file was opened. On Linux
+ * the descriptor says which file it holds (`/proc/self/fd`): one the walk opened inside the workspace keeps its bytes,
+ * as a file renamed over or removed once it is opened always has. Where the platform cannot say (macOS, or a Linux
+ * without /proc), that case cannot be told from a folder swapped away and back, so it is IA-DB-SOURCE-CHANGED, as on
+ * Windows. What stays possible is a writer who swaps a folder away and back faster than these checks; IA does not
+ * guard a workspace against its own writers. The identity check of the name against the opened file
+ * (`OPENS_THROUGH_LINKS`) stays as it was.
  */
 function checkFinalPath(root: string, child: string, file: string, walk: Walk, fd: number, opened: BigIntStats): void {
   const segments = child.split('/'),
-    expected = join(walk.real, ...segments);
-  if (fold(realpathSync.native(file)) === fold(expected)) {
-    const reached = statSync(expected, { bigint: true, throwIfNoEntry: false });
-    if (reached?.isFile() !== true || reached.dev !== opened.dev || reached.ino !== opened.ino)
-      throw new DbError('IA-DB-SOURCE-CHANGED', `Source replaced during read: ${child}`);
-    if (process.platform === 'linux') {
-      let descriptor: string | undefined;
-      try {
-        descriptor = readlinkSync(`/proc/self/fd/${fd}`);
-      } catch {
-        descriptor = undefined;
-      }
-      if (descriptor !== undefined && descriptor !== expected)
-        throw new DbError('IA-DB-SOURCE-CHANGED', `Source replaced during read: ${child}`);
+    expected = join(walk.real, ...segments),
+    final = finalPath(file);
+  if (final === undefined || fold(final) === fold(expected)) {
+    if (final !== undefined) {
+      const reached = statSync(expected, { bigint: true, throwIfNoEntry: false });
+      if (reached?.isFile() === true && reached.dev === opened.dev && reached.ino === opened.ino) return;
     }
-    return;
+    if (holds(fd, expected)) return;
+    throw new DbError('IA-DB-SOURCE-CHANGED', `Source replaced during read: ${child}`);
   }
   for (let length = 1; length <= segments.length; length++) {
     const named = join(root, ...segments.slice(0, length));
@@ -677,6 +675,31 @@ function checkFinalPath(root: string, child: string, file: string, walk: Walk, f
       );
   }
   throw new DbError('IA-DB-SOURCE-CHANGED', `Source replaced during read: ${child}`);
+}
+/** The final path of `file`, or undefined when nothing is there any more. */
+function finalPath(file: string): string | undefined {
+  try {
+    return realpathSync.native(file);
+  } catch {
+    return undefined;
+  }
+}
+/**
+ * Whether the descriptor holds the file that was at `expected` when it was opened: the file still there, or, once
+ * another file is renamed over the name or the name is removed, that same file with no name left. Only Linux says
+ * (`/proc/self/fd`, which marks a file with no name left ` (deleted)`); everywhere else, and when /proc cannot be read,
+ * the answer is no.
+ */
+function holds(fd: number, expected: string): boolean {
+  if (process.platform !== 'linux') return false;
+  let held: string;
+  try {
+    held = readlinkSync(`/proc/self/fd/${fd}`);
+  } catch {
+    return false;
+  }
+  if (held === expected) return true;
+  return held === `${expected} (deleted)` && fstatSync(fd, { bigint: true }).nlink === 0n;
 }
 function readSource(root: string, child: string, walk?: Walk): Buffer {
   const file = safePath(root, child, walk?.vetted),

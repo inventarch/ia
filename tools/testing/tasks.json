@@ -2502,9 +2502,34 @@
         },
         {
           "case": "tests/inputs.test.ts > keeps the bytes of a corpus source whose name passes to another file once it is opened, where the open refuses links",
-          "reason": "Windows defines no O_NOFOLLOW flag, so there the reader checks the name again once it has read the file, as tests/open-follows-links.test.ts covers; Linux and macOS run the case.",
+          "reason": "Only Linux says which file a descriptor holds (/proc/self/fd), which keeping the bytes needs; Windows checks the name again once it has read the file, as tests/open-follows-links.test.ts covers, and macOS refuses, as its own case covers.",
           "platforms": [
-            "windows"
+            "windows",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/inputs.test.ts > keeps the bytes of a corpus source removed once it is opened",
+          "reason": "Only Linux says which file a descriptor holds (/proc/self/fd), which keeping the bytes needs; Windows and macOS refuse a removed source as changed.",
+          "platforms": [
+            "windows",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/inputs.test.ts > refuses as changed a corpus source whose name passes to another file once it is opened, when the descriptor cannot say what it holds",
+          "reason": "The case hides Linux's /proc/self/fd to test the fallback; Windows and macOS have no /proc, and their own cases cover the refusal.",
+          "platforms": [
+            "windows",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/inputs.test.ts > refuses as changed a corpus source whose name passes to another file once it is opened, where the platform cannot say which file a descriptor holds",
+          "reason": "Only macOS opens with a no-follow flag and cannot say which file a descriptor holds; Linux keeps the bytes through /proc/self/fd, and Windows checks the name again once it has read the file, as tests/open-follows-links.test.ts covers.",
+          "platforms": [
+            "windows",
+            "linux"
           ]
         },
         {
