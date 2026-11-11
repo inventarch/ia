@@ -489,7 +489,7 @@ export function kitInstallation(root: string, kitId: string): KitInstallation | 
  * which ship in the `@inventarch/public-kits` npm package, are named by the package route (contract C7b).
  */
 function kitNotInstalledMessage(kitId: string): string {
-  return `kit ${kitId} is bound by this repository but its lock does not install it; install the npm package that carries it with ia install --package <name> --apply (the public kits ship in @inventarch/public-kits), or ia install ${kitId} --apply where a registry serves it, or kit.mjs add ${kitId}; then resolve again`;
+  return `kit ${kitId} is bound by this repository but its lock does not install it; install the npm package that carries it with ia install --package <name> --apply --yes (the public kits ship in @inventarch/public-kits), or ia install ${kitId} --apply --yes where a registry serves it, or kit.mjs add ${kitId} --apply; then resolve again`;
 }
 
 /**

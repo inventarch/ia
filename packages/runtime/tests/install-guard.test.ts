@@ -132,7 +132,7 @@ describe('requireKitInstalled', () => {
     expect(error.kit).toBe(KIT);
     expect(methodRefusal(error).error).toEqual({ code: 'IA-CORE-KIT-NOT-INSTALLED', message: error.message, kit: KIT });
     expect(error.message).toBe(
-      `kit ${KIT} is bound by this repository but its lock does not install it; install the npm package that carries it with ia install --package <name> --apply (the public kits ship in @inventarch/public-kits), or ia install ${KIT} --apply where a registry serves it, or kit.mjs add ${KIT}; then resolve again`,
+      `kit ${KIT} is bound by this repository but its lock does not install it; install the npm package that carries it with ia install --package <name> --apply --yes (the public kits ship in @inventarch/public-kits), or ia install ${KIT} --apply --yes where a registry serves it, or kit.mjs add ${KIT} --apply; then resolve again`,
     );
   });
   it('the remedy leads with the package route, since ia install <id> does not resolve the public kits (#301)', () => {
