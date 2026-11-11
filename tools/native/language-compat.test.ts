@@ -37,11 +37,9 @@ interface VocabularyWord {
 
 describe('language compatibility index', () => {
   it('catalogue of 3.2.0 and 3.2.1 have identical words', () => {
-    expect(built.pin.version).toBe('3.2.1');
     const previous = ledgerCatalogue('3.2.0'),
-      next = baseCatalogue(built.bytes, built.pin.archive);
+      next = ledgerCatalogue('3.2.1');
     expect(next.version).toBe('3.2.1');
-    expect(next.archive).toBe(built.pin.archive);
     expect(Object.keys(next.words).length).toBe(44);
     expect(next.words).toEqual(previous.words);
     expect(next.languageRecord).toBe(previous.languageRecord);
@@ -106,9 +104,9 @@ describe('language compatibility index', () => {
   it('refuses a ledger row whose archive carries another version', () => {
     const catalogue = baseCatalogue(built.bytes, built.pin.archive);
     expect(() => compatIndexOf(3, [{ version: '3.2.0', catalogue }])).toThrow(
-      `Base 3.2.0 names archive ${built.pin.archive}, which carries 3.2.1`,
+      `Base 3.2.0 names archive ${built.pin.archive}, which carries ${built.pin.version}`,
     );
-    expect(compatIndexOf(3, [{ version: '3.2.1', catalogue }]).bases).toEqual([catalogue]);
+    expect(compatIndexOf(3, [{ version: built.pin.version, catalogue }]).bases).toEqual([catalogue]);
   });
 
   it('covers every ledger base, then the built base when it is newer', () => {
