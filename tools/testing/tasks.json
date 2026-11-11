@@ -4992,6 +4992,7 @@
         "tests/foundation.test.ts",
         "tests/installation.test.ts",
         "tests/package.test.ts",
+        "tests/batch-reads.test.ts",
         "tests/local.test.ts",
         "tests/protocol.test.ts",
         "tests/limits.test.ts"
