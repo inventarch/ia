@@ -12,24 +12,9 @@
       "summary": "Installed catalog entries carry the contract version as a positive integer, and compileHarness accepts aliases that send an old contract name to its plain replacement; provenance.aliases records each alias used."
     },
     {
-      "id": "inventarch/agent-system",
-      "bump": "patch",
-      "summary": "Temporary: the archive is rebuilt with the plain format names for compiler, runtime, kb and workspace-runtime documents; no change of its own. The change that writes the released names again restores the published bytes and removes this note."
-    },
-    {
       "id": "inventarch/authoring-system",
       "bump": "minor",
       "summary": "Rebuilt on agent-composition-system's contract versions and catalog aliases; no change of its own."
-    },
-    {
-      "id": "inventarch/compliance-system",
-      "bump": "patch",
-      "summary": "Temporary: the archive is rebuilt with the plain format names for compiler, runtime, kb and workspace-runtime documents; no change of its own. The change that writes the released names again restores the published bytes and removes this note."
-    },
-    {
-      "id": "inventarch/governance-system",
-      "bump": "patch",
-      "summary": "Temporary: the archive is rebuilt with the plain format names for compiler, runtime, kb and workspace-runtime documents; no change of its own. The change that writes the released names again restores the published bytes and removes this note."
     },
     {
       "id": "inventarch/hook-authoring-system",
@@ -47,24 +32,9 @@
       "summary": "Rebuilt on agent-composition-system's contract versions and catalog aliases; no change of its own."
     },
     {
-      "id": "inventarch/session-system",
-      "bump": "patch",
-      "summary": "Temporary: the archive is rebuilt with the plain format names for compiler, runtime, kb and workspace-runtime documents; no change of its own. The change that writes the released names again restores the published bytes and removes this note."
-    },
-    {
       "id": "inventarch/template-system",
       "bump": "minor",
       "summary": "Rebuilt on agent-composition-system's contract versions and catalog aliases; no change of its own."
-    },
-    {
-      "id": "inventarch/work-system",
-      "bump": "patch",
-      "summary": "Temporary: the archive is rebuilt with the plain format names for compiler, runtime, kb and workspace-runtime documents; no change of its own. The change that writes the released names again restores the published bytes and removes this note."
-    },
-    {
-      "id": "inventarch/workspace-system",
-      "bump": "patch",
-      "summary": "Temporary: the archive is rebuilt with the plain format names for compiler, runtime, kb and workspace-runtime documents; no change of its own. The change that writes the released names again restores the published bytes and removes this note."
     }
   ]
 }

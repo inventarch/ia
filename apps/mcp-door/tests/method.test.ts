@@ -128,8 +128,9 @@ const normalized = (value: unknown): unknown => {
 };
 /**
  * The retained digest names the retained manifest's bytes. The goldens are what the published plugin printed, whose
- * manifest carries the original `inventarch.method-bytes/1` literal, and the door retains under the plain format, so each
- * side's retained digest is masked here and the door's is checked against its own stored manifest.
+ * manifest carries the original `inventarch.method-bytes/1` literal, and the door retains under the plain format once the
+ * written names flip (until then under the same literal), so each side's retained digest is masked here and the door's
+ * is checked against its own stored manifest.
  */
 const masked = (value: unknown): unknown => {
   if (Array.isArray(value)) return value.map(masked);
@@ -204,7 +205,7 @@ it('resolves the packet resolve.mjs prints, field for field, and writes the same
     expect({ ...mine, digest: packetDigest(mine) }).toEqual({ ...theirs, digest: packetDigest(theirs) });
     for (const retained of retainedDigests(same)) {
       expect(retained).toMatch(/^[a-f0-9]{64}$/);
-      expect(storedManifest(retained)).toMatchObject({ format: 'method-bytes', formatVersion: 1 });
+      expect(storedManifest(retained)).toMatchObject({ format: 'inventarch.method-bytes/1' });
     }
   }
   const { createdAt, ...pin } = JSON.parse(
@@ -213,7 +214,7 @@ it('resolves the packet resolve.mjs prints, field for field, and writes the same
   expect(typeof createdAt).toBe('string');
   expect(masked(normalized(pin))).toEqual(masked(golden('golden-pin.json')));
   for (const retained of retainedDigests(pin))
-    expect(storedManifest(retained)).toMatchObject({ format: 'method-bytes', formatVersion: 1 });
+    expect(storedManifest(retained)).toMatchObject({ format: 'inventarch.method-bytes/1' });
 }, 120_000);
 
 it('refuses an unbound key with the resolver payload and the kits that recommend it', () => {
