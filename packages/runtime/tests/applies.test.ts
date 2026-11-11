@@ -461,6 +461,79 @@ it('keeps rules in the governance order, each once and never the seat, a rule re
   expect(k0.counts.rules).toBe(1);
 });
 
+it('matches blocking subjects against every candidate, activation-omitted ones included, and advisory ones against delivered rules only', () => {
+  const claimed = 'governance-system/governance/law/claimed-at-plan',
+    guard = 'governance-system/governance/law/law-guard',
+    lawBook = 'governance-system/definition/procedure/law-book',
+    seat = { path: 'src/billing/invoice.ts' };
+  /** The corpus with a blocking law claiming `src/billing/**` at plan only, and `more` laws or playbooks. */
+  const corpus = (more: Readonly<Record<string, string>>): Handle => {
+    const root = workspace();
+    put(
+      root,
+      `${records}/claimed-at-plan.ia`,
+      law(
+        'claimed-at-plan',
+        'blocking',
+        '  subject\n    covers ["src/billing/**"]\n  activation\n    activate when phase is plan\n',
+      ),
+    );
+    for (const [name, text] of Object.entries(more)) put(root, `${records}/${name}.ia`, text);
+    const db = database(root);
+    expect(db.report.findings.filter((f) => f.severity === 'error')).toEqual([]);
+    return db;
+  };
+  const at = (db: Handle, phase: 'plan' | 'act') =>
+    bodyOf(db, { seat, shape: 'governance', phase, depth: 0, budget: 0 });
+  const onClaimed = [{ field: 'subject.subject-word', value: 'law', record: claimed }];
+
+  // (a) A blocker reserved by word stays in `rules` when the only candidate it matches is left out by activation: the
+  // omitted law is still a candidate of its word, and skipping it would let a filter hide a blocker (R15).
+  const guarded = corpus({ 'law-guard': law('law-guard', 'blocking', '  subject\n    subject-word law\n') }),
+    act = at(guarded, 'act');
+  expect(act.omittedRules).toEqual([{ identity: claimed, detail: 'phase is plan, request is act' }]);
+  expect(act.rules.map((rule) => [rule.identity, rule.via])).toEqual([
+    [guard, { by: 'subject', label: field, matches: onClaimed }],
+  ]);
+  expect(act.rules[0]!.activation).toBeUndefined();
+
+  // (b) A blocker reserved by word alone is subject to its own activation: contradicted, it leaves `rules` for
+  // `omittedRules`; undecided, it stays with the groups it waits on.
+  const gated = (activation: string) =>
+    corpus({
+      'law-guard': law('law-guard', 'blocking', `  subject\n    subject-word law\n  activation\n    ${activation}\n`),
+    });
+  const contradicted = at(gated('activate when phase is learn'), 'plan');
+  expect(ids(contradicted.rules)).toEqual([claimed]);
+  expect(contradicted.omittedRules).toEqual([{ identity: guard, detail: 'phase is learn, request is plan' }]);
+  const undecided = at(gated('activate when move is Execution'), 'plan');
+  expect(ids(undecided.rules)).toEqual([claimed, guard]);
+  expect(undecided.rules.find((rule) => rule.identity === guard)?.activation).toBe('move is Execution');
+  expect(undecided.omittedRules).toEqual([]);
+
+  // (c) An advisory subject applies by word to delivered rules only: where its only match is omitted it is neither in
+  // `appliesByWord` nor delivers a cell, and at the phase where that rule applies it does both.
+  const advised = corpus({
+    'law-book': playbook(
+      'law-book',
+      '  subject\n    subject-word law\n',
+      '    plan\n      primary Inference\n      Inference means "law-book plan."\n',
+    ),
+  });
+  const omitted = at(advised, 'act'),
+    applying = at(advised, 'plan');
+  expect(ids(omitted.rules)).toEqual([]);
+  expect(ids(omitted.appliesByWord)).not.toContain(lawBook);
+  expect(omitted.cells.some((cell) => cell.playbook === lawBook)).toBe(false);
+  expect(ids(applying.rules)).toEqual([claimed]);
+  expect(applying.appliesByWord.find((entry) => entry.identity === lawBook)?.via.matches).toEqual(onClaimed);
+  expect(applying.cells).toContainEqual({
+    playbook: lawBook,
+    address: `${lawBook}#plan/Inference`,
+    text: 'law-book plan.',
+  });
+});
+
 it("reads no subject or mandate of another workspace's root: none applies by word, is reserved by word or governs", () => {
   const foreign = 'governance-system/governance/law/foreign-blocker';
   /** The foundation workspace capturing `.ia/src`, and with `others`, two workspaces declaring two systems' folders. */
