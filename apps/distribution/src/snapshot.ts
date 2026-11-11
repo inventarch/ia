@@ -23,7 +23,7 @@ import {
   verifySelectedArchiveClosure,
   type VerifiedArchive,
 } from './archive.js';
-import { fail } from './files.js';
+import { fail, writeIdentity } from './files.js';
 
 export type DistributionSourceInput = Pick<InputSnapshot, 'sources' | 'folders' | 'floorOrigin' | 'activation'>;
 /** A snapshot is verified in the process that built it, so it names itself in the plain shape already (decision dec-008). */
@@ -450,8 +450,10 @@ function preparePack(
         version: textField(record, 'version'),
       };
     });
-    const { assets: _assets, dependencies, ...common } = descriptor;
+    // The descriptor's own identity stays with the descriptor: the manifest names itself as this release writes it.
+    const { assets: _assets, dependencies, format: _format, formatVersion: _version, ...common } = descriptor;
     const manifest = decodeBundleManifest({
+      ...writeIdentity('bundle-manifest', 1, { formatVersion: 1 }),
       ...common,
       roots: [...new Set(roots.map((r) => r.identity))].sort(),
       systems,
