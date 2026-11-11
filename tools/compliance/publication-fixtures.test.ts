@@ -11,8 +11,8 @@ import fs, {
 import { syncBuiltinESMExports } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { afterEach, expect, it, vi } from 'vitest';
-import { PUBLICATION_CODES } from '../../packages/runtime/src/index.js';
+import { afterEach, beforeAll, expect, it, vi } from 'vitest';
+import { PUBLICATION_CODES, qualifyPublicationRoot } from '../../packages/runtime/src/index.js';
 import { fileSymlinksAvailable } from '../testing/report.js';
 import { runBounded } from '../testing/subprocess.js';
 import { contents, publicationFixtureCodes, runPublicationFixtures } from './publication-fixtures.js';
@@ -22,6 +22,31 @@ afterEach(() => {
   vi.restoreAllMocks();
   syncBuiltinESMExports();
 });
+// As in tools/systems/execute.test.ts: a slow Windows runner can take longer than the publication probe's own bounded
+// 30 s, and the fixtures below then observe IA-PUBLICATION-UNAVAILABLE where they expect another refusal (CI 43112020588,
+// busy). The probe caches a success for this loaded module and never a failure, so qualify the temporary drive up front
+// and retry a probe the runner was too slow to finish. Best effort: a failed attempt is only logged, and if every attempt
+// fails, the fixtures probe again and report the refusal themselves, as before.
+beforeAll(
+  () => {
+    if (process.platform !== 'win32') return;
+    const drive = mkdtempSync(resolve(tmpdir(), 'ia-publication-probe-'));
+    try {
+      const root = fs.realpathSync.native(drive);
+      for (let attempt = 1; attempt <= 3; attempt++)
+        try {
+          qualifyPublicationRoot(root);
+          return;
+        } catch (error) {
+          // Not cached: the next attempt probes again under its own bound.
+          console.warn(`Publication probe attempt ${attempt} of 3 failed: ${(error as Error).message}`);
+        }
+    } finally {
+      rmSync(drive, { recursive: true, force: true });
+    }
+  },
+  3 * 30_000 + 30_000,
+);
 
 /** Writes a file and a directory holding a file in `root`, and returns the snapshot's entries for them. */
 function regularEntries(root: string): [string, string | null][] {
