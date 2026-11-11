@@ -10,14 +10,20 @@ import {
   readFileSync,
   readSync,
   readdirSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { isAbsolute, relative, resolve } from 'node:path';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { inspectPublication, portableDraftPath, preparePublication } from '../src/publication.js';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import {
+  inspectPublication,
+  portableDraftPath,
+  preparePublication,
+  qualifyPublicationRoot,
+} from '../src/publication.js';
 
 vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>();
@@ -88,6 +94,31 @@ it('refuses unqualified filesystem roots', () => {
   );
 });
 describe.skipIf(process.platform !== 'win32')('qualified local NTFS publication', () => {
+  // As in tools/systems/execute.test.ts: a slow runner can take longer than the probe's own bounded 30 s, and the first
+  // real publication below then fails (11-09, 11-10 and 11-11: killed at 30 s, and the next test, probing again, took 8
+  // to 26 s). The probe caches a success for this loaded module and never a failure, so qualify the temporary drive up
+  // front and retry a probe the runner was too slow to finish. Best effort: a failed attempt is only logged, and if every
+  // attempt fails, the tests below probe again and report the refusal themselves, as before. The mocked-probe cases
+  // re-import a fresh module, so this cache doesn't reach them.
+  beforeAll(
+    () => {
+      const drive = mkdtempSync(resolve(tmpdir(), 'ia-publication-probe-'));
+      try {
+        const root = realpathSync.native(drive);
+        for (let attempt = 1; attempt <= 3; attempt++)
+          try {
+            qualifyPublicationRoot(root);
+            return;
+          } catch (error) {
+            // Not cached: the next attempt probes again under its own bound.
+            console.warn(`Publication probe attempt ${attempt} of 3 failed: ${(error as Error).message}`);
+          }
+      } finally {
+        rmSync(drive, { recursive: true, force: true });
+      }
+    },
+    3 * 30_000 + 30_000,
+  );
   it.each(['timeout', 'invalid-json', 'remote', 'non-ntfs'] as const)(
     'refuses %s volume qualification without creating output or caching failure',
     async (failure) => {
@@ -123,7 +154,7 @@ describe.skipIf(process.platform !== 'win32')('qualified local NTFS publication'
       }
     },
   );
-  // The first publication includes the bounded 30s cold external NTFS probe;
+  // Unless beforeAll qualified the drive, the first publication includes the bounded 30 s external NTFS probe;
   // leave time for publication assertions and cleanup after qualification.
   it('publishes exact bytes and inventory only after an exclusive final directory claim', async () => {
     const root = temp(),

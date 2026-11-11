@@ -6,14 +6,16 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { isAbsolute, relative, resolve } from 'node:path';
-import { afterAll, afterEach, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, expect, it, vi } from 'vitest';
 import { open, readInputs } from '../../packages/db/src/index.js';
+import { qualifyPublicationRoot } from '../../packages/runtime/src/index.js';
 import { execute, executeWithContext } from './execute.js';
 import * as execution from './execute.js';
 import { publish } from './publish.js';
@@ -30,6 +32,36 @@ const repository = resolve(import.meta.dirname, '../..'),
   root = fixture.root,
   temporary: string[] = [];
 afterAll(() => fixture.close());
+// A slow Windows runner can take longer than the publication probe's own bounded 30 s, and the first publication in
+// this file then fails (CI 43090318641: 34 s against 9 s). The probe caches a success for this loaded module and never
+// a failure, so qualify the temporary drive up front and retry a probe the runner was too slow to finish: when
+// packages/runtime/tests/publication.test.ts failed this way on 11-09, 11-10 and 11-11, the next test, probing again,
+// took 8 to 26 s. Best effort: a failed attempt is only logged, and if every attempt fails, each publication below
+// probes again and reports the refusal itself, as before. The probe and its bound are unchanged, and a child process
+// this file starts probes on its own.
+const SUBPROCESS = Number(process.env['IA_TEST_SUBPROCESS_TIMEOUT_MS']) || 120_000,
+  PROBE_ATTEMPTS = 3,
+  PROBE_BOUND = 30_000;
+beforeAll(
+  () => {
+    if (process.platform !== 'win32') return;
+    const drive = mkdtempSync(resolve(tmpdir(), 'ia-publication-probe-'));
+    try {
+      const root = realpathSync.native(drive);
+      for (let attempt = 1; attempt <= PROBE_ATTEMPTS; attempt++)
+        try {
+          qualifyPublicationRoot(root);
+          return;
+        } catch (error) {
+          // Not cached: the next attempt probes again under its own bound.
+          console.warn(`Publication probe attempt ${attempt} of ${PROBE_ATTEMPTS} failed: ${(error as Error).message}`);
+        }
+    } finally {
+      rmSync(drive, { recursive: true, force: true });
+    }
+  },
+  PROBE_ATTEMPTS * PROBE_BOUND + 60_000,
+);
 const agent = {
   path: '.ia/src/systems/agent-system/records/generated-expert.ia',
   text: '#! ia 1.0\n@agent generated-expert\n  meaning\n    says "An inert format fixture."\n    answers "Which draft is checked?"\n  governance\n    applies [agent]\n',
@@ -174,6 +206,8 @@ it.each(['parameters', 'lines'])(
 it('observes every platform-reachable executable refusal code through real handlers and isolated publication', () => {
   const result = runExecutionFixtures(repository);
   expect(result).toHaveLength(8);
+  // Names the cause, such as a publication probe refusal, when an assessment fails.
+  expect(result.flatMap((r) => r.assessment.findings)).toEqual([]);
   expect(result.every((r) => r.assessment.outcome === 'pass')).toBe(true);
   expect([...new Set(result.flatMap((r) => r.observedCodes))].sort()).toEqual([...executionFixtureCodes()].sort());
 });
@@ -423,11 +457,11 @@ it('runs the actual command with stdin, fixed host code and bounded optional pub
   const base = temp();
   put(base, '.ia/src/systems/authoring-system/execute.ts', 'throw new Error("Never load code from --root")');
   const before = readInputs(base).fingerprint;
-  const call = (args: string[], input?: string) =>
+  const call = (args: string[], input?: string, timeout = 15000) =>
     spawnSync(
       process.execPath,
       ['--conditions=development', '--import', 'tsx', resolve(repository, 'tools/systems/run.ts'), ...args],
-      { cwd: repository, ...(input === undefined ? {} : { input }), encoding: 'utf8', timeout: 15000 },
+      { cwd: repository, ...(input === undefined ? {} : { input }), encoding: 'utf8', timeout },
     );
   const stderr = (text: string) =>
     text.replace(
@@ -446,7 +480,9 @@ it('runs the actual command with stdin, fixed host code and bounded optional pub
   expect(draft).not.toHaveProperty('published');
   expect(existsSync(resolve(base, '.ia/work'))).toBe(false);
   expect(stderr(result.stderr)).toBe('');
-  const publication = call([...args, '--out', 'command-review'], JSON.stringify(agent)),
+  // This call publishes, so its child probes the drive itself under the probe's own 30 s: give it the repository's
+  // subprocess bound.
+  const publication = call([...args, '--out', 'command-review'], JSON.stringify(agent), SUBPROCESS),
     output = JSON.parse(publication.stdout);
   expect(stderr(publication.stderr)).toBe('');
   if (process.platform === 'win32') {
