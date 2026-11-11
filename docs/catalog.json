@@ -9,7 +9,7 @@
       "genre": "spec",
       "title": "Consumer CLI contract",
       "status": "implemented",
-      "sourceDigest": "c25c7430737a92baa1066109c152e6919612d485a2375489927cddade57f1ae6"
+      "sourceDigest": "c81dc7cc82108820e146b8f26ec6c4914ab31f67ac2b67adeb231bd8c708e7cd"
     },
     {
       "id": "spec-host-plugin-distribution",
@@ -18,7 +18,7 @@
       "genre": "spec",
       "title": "Host plugin distribution",
       "status": "implemented",
-      "sourceDigest": "f46b231c5088a623779b7d1dd9918834f908305e42b85fca381831e427b6644e"
+      "sourceDigest": "c86d0c74af32f9525d6269f6f56f82b6ee5c372394f59a5f64819a9081e16cf4"
     },
     {
       "id": "spec-host-registration",
@@ -36,7 +36,7 @@
       "genre": "spec",
       "title": "Kit runtime",
       "status": "implemented",
-      "sourceDigest": "717c0c6864b4427e0d260130b75ddb6c1563d49fcb1ee0e53be5bd463683c091"
+      "sourceDigest": "42333d8eae65294d36cf77c5c7603fbb96dafec02471a854b18d78cf3d7667f5"
     },
     {
       "id": "spec-registry",
@@ -45,7 +45,7 @@
       "genre": "spec",
       "title": "Distribution registry",
       "status": "implemented",
-      "sourceDigest": "b9b925739d7c2914f4afb2de11fbae3d55828e20debb2af13088b41cc184a43e"
+      "sourceDigest": "70b7f1ecafc42dfc7a4c16e490422fbc30626df53ba1eb1dfd4d70098336bd28"
     },
     {
       "id": "spec-workspace-initialization-apply",

@@ -139,11 +139,14 @@ export function packageFromCommit(request: PackageRequest): KnowledgePackage {
     : request.selection;
   portablePath(selectionPath);
   const selection = verifySelection(git.read(selectionPath).text);
+  // Every native file in one batched read; each is still checked in path order, and the running total refuses at
+  // the same file as before.
+  const nativeLimit = 16 * 1024 * 1024;
   let total = 0;
-  const native = git.nativePaths().map((path) => {
-    const file = git.read(path);
+  const native = git.readMany(git.nativePaths(), nativeLimit).map((next) => {
+    const file = next();
     total += file.bytes;
-    if (total > 16 * 1024 * 1024) fail('Native discovery byte limit exceeded');
+    if (total > nativeLimit) fail('Native discovery byte limit exceeded');
     return file;
   });
   const sources = [
@@ -188,7 +191,7 @@ export function packageFromCommit(request: PackageRequest): KnowledgePackage {
   }
   const files = [
     ...native.filter((f) => selected.has(f.path)),
-    ...selection.resources.map((path) => git.read(path)),
+    ...git.readMany(selection.resources).map((next) => next()),
   ].sort((a, b) => (a.path < b.path ? -1 : 1));
   verifyFiles(files, false, true);
   const base = {

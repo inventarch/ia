@@ -337,7 +337,11 @@ export function resolveMethod(request: MethodRequest, context: MethodContext): M
 
   const readerInfo = { version: VERSION, source: 'in-process' };
   assertReadable(kit, readerInfo);
-  const kitRoot = kitReadRoot(kit, context.restore, context.cache === undefined ? { env } : { base: context.cache });
+  const { root: kitRoot, base } = kitReadRoot(
+    kit,
+    context.restore,
+    context.cache === undefined ? { env } : { base: context.cache },
+  );
   const key = scopeKey(request.entry, request.activity, { shape: request.shape, phase: request.phase });
   if (request.seat)
     note(
@@ -547,6 +551,7 @@ export function resolveMethod(request: MethodRequest, context: MethodContext): M
         cliVersion: readerInfo.version,
         cliSource: readerInfo.source,
         kitRoot,
+        base,
         kitInstalled: Boolean(installed),
         run: request.run ?? null,
         latencyMs: 0,

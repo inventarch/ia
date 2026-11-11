@@ -143,7 +143,7 @@ it('renders this repository as its position packet: CLAUDE.md and both skills, n
     expect(line).toMatch(/^- `agent-system\/binding\/agent\/public-[a-z-]+-system-steward`: /);
   expect(claude).not.toContain('Host note');
   // The catalog retains the nine existing commands and adds seven KB command/mode entries.
-  // The file renders one entry per list item and table row, and the provenance line: 86 with the four SPEC lines,
+  // The file renders one entry per list item and table row, and the provenance line: 87 with the four SPEC lines,
   // the fourth naming the door's method tools.
   const db = open(root, { cache: false });
   try {
@@ -152,8 +152,8 @@ it('renders this repository as its position packet: CLAUDE.md and both skills, n
       [packet.participants, packet.mandates, packet.systems, packet.tallies, packet.commands].map(
         (rows) => rows.length,
       ),
-    ).toEqual([12, 12, 11, 20, 16]);
-    expect(entryCount(packet)).toBe(86);
+    ).toEqual([12, 12, 11, 21, 16]);
+    expect(entryCount(packet)).toBe(87);
   } finally {
     db.close();
   }
@@ -162,7 +162,7 @@ it('renders this repository as its position packet: CLAUDE.md and both skills, n
       (line, index) => line.startsWith('| ') && !line.startsWith('| ---') && !lines[index + 1]?.startsWith('| ---'),
     );
   expect(lines.filter((line) => line.startsWith('- ') || line.startsWith('ia-generated ')).length + rows.length).toBe(
-    86,
+    87,
   );
   expect(rows).toContain(
     '| `ia project` | effect | Execution | a file without the generated marker at a path it writes, which its plan names; --apply writes nothing | `ia project <host>` |',

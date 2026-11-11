@@ -133,10 +133,21 @@ export function load(records: readonly CompiledRecord[], registry: FrozenRegistr
   const cells = new Map<string, CellRef[]>(),
     selectors = new Map<string, Map<string, string[]>>(),
     conditions = new Map<string, string[]>();
+  // Each posting list keeps its identities once, in first-posted order. The set beside each list makes the membership
+  // check constant time; scanning the list made building a bucket of n identities quadratic. The lists stay plain
+  // arrays: they are what the Graph holds and serializes.
+  const posted = new WeakMap<string[], Set<string>>();
   const post = (map: Map<string, string[]>, key: string, identity: string): void => {
-    const list = map.get(key) ?? [];
-    if (!list.includes(identity)) list.push(identity);
-    map.set(key, list);
+    let list = map.get(key);
+    if (list === undefined) {
+      list = [];
+      map.set(key, list);
+      posted.set(list, new Set());
+    }
+    const members = posted.get(list)!;
+    if (members.has(identity)) return;
+    members.add(identity);
+    list.push(identity);
   };
   for (const node of nodes.values()) {
     post(byName, node.name, node.identity);

@@ -215,10 +215,15 @@ describe('resolveMethod with a bound kit', () => {
         { entry: 'knowledge', activity: 'find', root: dir, pin: true, ...extra },
         {
           kits: { bundled, ...sources },
-          restore: (_root, kit) => {
-            restored++;
-            restoredKit = kit;
-            throw new Error(REACHED);
+          restore: {
+            select: (kit) => {
+              restored++;
+              restoredKit = kit;
+              throw new Error(REACHED);
+            },
+            apply: () => {
+              throw new Error(REACHED);
+            },
           },
           env: { IA_HOME: home, IA_CORE_RUN_ROOT: runRoot },
           store,
@@ -397,8 +402,13 @@ describe('resolveMethod with a bound kit', () => {
         { entry: 'knowledge', activity: 'find', root: join(dir, '..'), kit: KIT, capability: 'kb-retrieve' },
         {
           kits: { bundled, home: null },
-          restore: () => {
-            throw new Error(REACHED);
+          restore: {
+            select: () => {
+              throw new Error(REACHED);
+            },
+            apply: () => {
+              throw new Error(REACHED);
+            },
           },
           env: { IA_HOME: home },
           store,

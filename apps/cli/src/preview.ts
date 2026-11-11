@@ -271,19 +271,22 @@ function rootsOf(snapshot: Snapshot, within: string, workspace: string | undefin
 /**
  * Why `path` is not an owned authored path of the workspace, or undefined when it is: the workspace must declare, at
  * authored placement, the longest declared root that holds the path. Several workspaces may declare that root (a
- * shared root, db D02b); the workspace owns it as any one of its declarers, whatever its identity sorts after.
+ * shared root, db D02b); the workspace owns it as any one of its declarers, whatever its identity sorts after. Roots
+ * are compared in their exact canonical spelling, as native membership compares them.
  */
 function unowned(roots: Roots, path: string): string | undefined {
   if (!pathKey(path).startsWith('.ia/src/') || !path.endsWith('.ia')) return `${path} is no .ia file inside .ia/src`;
   if (pathKey(path).startsWith('.ia/src/floor/')) return `${path} is floor source`;
-  const longest = roots.declared.find((root) => contains(root.root, path))?.root;
-  const owned = roots.declared.some(
-    (root) =>
-      longest !== undefined &&
-      pathKey(root.root) === pathKey(longest) &&
-      root.workspace === roots.workspace &&
-      root.placement === 'authored',
+  // Native membership compares canonical root spellings exactly, even on a case-insensitive volume.
+  const holder = roots.declared.find(
+    (root) => root.root === '' || path === root.root || path.startsWith(`${root.root}/`),
   );
+  // Membership is shared by every declarer of the winning root; an ancestor is not an owner of it.
+  const owned =
+    holder !== undefined &&
+    roots.declared.some(
+      (root) => root.root === holder.root && root.workspace === roots.workspace && root.placement === 'authored',
+    );
   if (!owned)
     return roots.workspace === undefined
       ? `${path} lies under no authored root: this repository authors no @workspace`
@@ -369,8 +372,8 @@ function targetFile(
  * `path` as the volume spells it. Each component that exists is named by its directory entry, matched exactly; a
  * component another spelling answers (a case variant on a case-insensitive volume, or an 8.3 short name) is replaced by
  * the entry's own name, found by a case-insensitive match or the volume's real path. Components below the first one
- * that does not exist are kept as typed. A mandate's covers and the authored roots are spelled as the volume spells
- * them, so a path is judged only in that spelling.
+ * that does not exist are kept as typed. A path is judged in the volume's spelling; authored root declarations are
+ * compared exactly as native membership compares them, and mandate covers retain their own matching rules.
  */
 function onDisk(root: string, path: string): string {
   const parts = path.split('/'),

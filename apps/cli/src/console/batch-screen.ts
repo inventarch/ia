@@ -42,7 +42,7 @@ export const BASE_NOTE =
   'The offers were read from each local checkout, but each worktree starts from that base: a change the checkout has and the base lacks is not in it, and a repository whose workspace the base does not hold is refused.';
 /** How the batch's install runs (package-manager.ts `batchInstallArgv`), said once under the repositories. */
 export const INSTALL_NOTE =
-  'The install runs no lifecycle script and, where git tracks the lockfile, is frozen to it: npm ci --ignore-scripts, pnpm install --frozen-lockfile --ignore-scripts, yarn install --frozen-lockfile --ignore-scripts (Yarn 2 and later: --immutable --mode=skip-build) or bun install --frozen-lockfile --ignore-scripts. A step listed under it may still run scripts: a package-manager step such as npm install -D runs as shown. A commit afterwards holds what it and the steps write.';
+  'The install runs no lifecycle script and, for pnpm, no pnpmfile hook (Yarn 2 and later yarnPath and plugins, and .npmrc settings, still apply) and, where git tracks the lockfile, is frozen to it: npm ci --ignore-scripts, pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile, yarn install --frozen-lockfile --ignore-scripts (Yarn 2 and later: --immutable --mode=skip-build) or bun install --frozen-lockfile --ignore-scripts. A step listed under it may still run scripts: a package-manager step such as npm install -D runs as shown. A commit afterwards holds what it and the steps write.';
 
 /** The preview as the confirmation shows it: nothing cut, the install included, since its output is committed too. */
 export function previewLines(preview: BatchPreview): readonly string[] {

@@ -144,8 +144,13 @@ it('says to run ia restore when the store lacks a kit the lock installs, and ref
         { entry: 'knowledge', activity, root },
         {
           kits: { bundled, home: null },
-          restore: () => {
-            throw new Error('no read root is restored for a refused binding');
+          restore: {
+            select: () => {
+              throw new Error('no read root is restored for a refused binding');
+            },
+            apply: () => {
+              throw new Error('no read root is restored for a refused binding');
+            },
           },
           env: env(),
           store: join(dir, 'store'),

@@ -26,7 +26,7 @@ Read/search/traverse/resolve share source identity, snapshot or commit package d
 
 ## Adapter effects
 
-CLI read operations require Observation; check and export preview require Verification; export apply requires Execution. Export takes an exact full commit and committed selector. It writes only an explicit new output outside authored/native/selected-body paths, rejects unsafe ancestors and different existing bytes, and returns unchanged for an identical existing package. Apply rechecks current authority after interactive confirmation. MCP exposes the five read operations using its original Door membership and matching native graph revision, with no root or export-path arguments.
+CLI read operations require Observation; check and export preview require Verification; export apply requires Execution. Export takes an exact full commit and committed selector. It writes only an explicit new output outside authored/native/selected-body paths, rejects unsafe ancestors and different existing bytes, and returns unchanged for an identical existing package. Apply rechecks current authority after interactive confirmation. MCP exposes the five read operations using its original Door membership and matching native graph revision, with no root or export-path arguments. Export reads its commit with a fixed number of Git processes, whatever the number of files: one listing for `.ia/src`, one for the selection's other paths, and one batched read for each. Every path is still checked in path order, with the refusals a per-path read gives, and the running native byte total refuses at the same file (`tests/batch-reads.test.ts`).
 
 ## Refusal codes and transport limits
 
