@@ -2451,6 +2451,7 @@
         "tests/editor.test.ts",
         "tests/handle.test.ts",
         "tests/inputs.test.ts",
+        "tests/vetted-walk.test.ts",
         "tests/language-floor.test.ts",
         "tests/membership.test.ts",
         "tests/open-follows-links.test.ts",
