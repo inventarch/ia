@@ -1,8 +1,8 @@
 {
   "format": "ia.npm-change-note.v1",
   "bump": "patch",
-  "title": "Console batch: a Ctrl-C during Commit leaves Commit to choose again",
-  "summary": "In the console's batch screen, stopping the Commit or Commit, push and open PRs choice with Ctrl-C no longer removes it from the next list. The repositories read not committed: stopped, and the same choice is offered again, so a stopped commit can be finished without leaving the worktrees uncommitted.",
+  "title": "Console batch: a Ctrl-C before a repository's commit runs leaves Commit to choose again",
+  "summary": "In the console's batch screen, a Ctrl-C during the Commit, or Commit, push and open PRs, choice leaves each repository whose `git commit` had not started, including one whose `git add` was running, reading `not committed: stopped`; while any does, the same choice is offered again instead of leaving the next list, so those commits can still be made. A repository whose `git commit` was running when the Ctrl-C came still reads failed.",
   "packages": [
     "@inventarch/cli"
   ],
