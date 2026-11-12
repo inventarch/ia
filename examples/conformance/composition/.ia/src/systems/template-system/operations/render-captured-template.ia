@@ -9,5 +9,5 @@
     effects draft-only
     input captured-template-input
     output draft-result
-    profile governed-v1
+    profile governed
     recovery repeatable

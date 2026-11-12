@@ -21,8 +21,14 @@ export interface OutOfProfileSuite {
   readonly reason: string;
   readonly codes: readonly string[];
 }
+/** The conformance profile id carries no version. `package-v1` is the original spelling, accepted for compatibility. */
+export const CONFORMANCE_PROFILE = 'package' as const;
+export type ConformanceProfile = typeof CONFORMANCE_PROFILE | 'package-v1';
+export function isConformanceProfile(value: unknown): value is ConformanceProfile {
+  return value === CONFORMANCE_PROFILE || value === 'package-v1';
+}
 export interface ConformanceInventory {
-  readonly profile: 'package-v1';
+  readonly profile: ConformanceProfile;
   readonly fixtures: readonly InventoryFixture[];
   /** The conformance corpus the boundary suites run over, as `KERNEL_SOURCES` carries the floor. */
   readonly corpus: readonly { readonly path: string; readonly text: string }[];

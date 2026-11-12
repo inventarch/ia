@@ -9,7 +9,7 @@
     effects read-only
     input draft-text
     output draft-result
-    profile governed-v1
+    profile governed
     recovery repeatable
   relationships
     uses @playbook authoring-system-method

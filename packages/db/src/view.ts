@@ -308,7 +308,7 @@ export interface ViewOptions {
    */
   readonly checks?: 'strict' | 'structural';
   /**
-   * D10: `verify` runs compliance's `package-v1` conformance profile in-process (C31) and binds its COMP-KERNEL and
+   * D10: `verify` runs compliance's `package` conformance profile in-process (C31) and binds its COMP-KERNEL and
    * COMP-FIXTURES evidence to each view's graph, so their verdicts are verified instead of not-evaluated; without it,
    * as for every existing reader, nothing runs. Only the report differs: D14 evidence is admitted from the unverified
    * report (`View.unverified`), so admission, the evidence read and the graph are the same.

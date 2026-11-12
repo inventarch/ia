@@ -1,6 +1,6 @@
 # Workspace runtime specification
 
-Captured `structured-v1` templates render their selected JSON resource. Legacy `parameters` and `lines` may be omitted or present as empty lists; nonempty, repeated or conditional legacy fields are refused. Scalar rendering still requires both fields through its own renderer contract. Resource disclosure, current scope and output validation remain mandatory in either form.
+Captured `structured` templates render their selected JSON resource. The original profile spelling `structured-v1` is still accepted on read, as compatibility for at least one major release; rendered output reports `structured`. Legacy `parameters` and `lines` may be omitted or present as empty lists; nonempty, repeated or conditional legacy fields are refused. Scalar rendering still requires both fields through its own renderer contract. Resource disclosure, current scope and output validation remain mandatory in either form.
 
 ## Boundary
 

@@ -36,7 +36,7 @@ mkdirSync(resolve(temp, 'templates'));
 writeFileSync(resolve(temp, 'templates/tool.json'), tree);
 const { revision: _revision, ...body } = base;
 const native =
-  '#! ia 1.0\n@template tool-note\n  meaning\n    says "Render the original engine fixture."\n    answers "What is rendered?"\n  template\n    filename "docs/tool-note.md"\n    parameters []\n    lines []\n    profile structured-v1\n    resource "templates/tool.json"\n';
+  '#! ia 1.0\n@template tool-note\n  meaning\n    says "Render the original engine fixture."\n    answers "What is rendered?"\n  template\n    filename "docs/tool-note.md"\n    parameters []\n    lines []\n    profile structured\n    resource "templates/tool.json"\n';
 const source = {
   ...base.sources.find((s) => s.path === '.ia/src/systems/template-system/system.ia')!,
   path: '.ia/src/systems/template-system/records/tool-note.ia',

@@ -1,6 +1,7 @@
 import { copy, digest } from '@inventarch/session-system';
 import type { CausalReferences, Json, Limits, ReviewContract, Run, Session } from '@inventarch/session-system';
 import { check, validateShape } from './action.js';
+import { COMPLETION_EVALUATOR, INDEPENDENT_REVIEW_RULE, OPERATOR_REVIEW_RULE } from './types.js';
 import type {
   ArtifactRequirement,
   Grant,
@@ -62,7 +63,7 @@ export function taskContract(profile: Profile, task: Json, artifact?: ArtifactRe
     inputs: copy(inputs),
     outcomes: [...profile.outcomes],
     completion: profile.completion,
-    evaluator: 'ia.completion.v1',
+    evaluator: COMPLETION_EVALUATOR,
     escalation: 'persist-required-wait',
     artifact: artifact ? copy(artifact) : null,
   };
@@ -172,7 +173,7 @@ export function offerReview(
   );
   return {
     reviewer: policy?.reviewer ?? state.principal,
-    rule: policy?.rule ?? 'operator-exact-candidate-v1',
+    rule: policy ? INDEPENDENT_REVIEW_RULE : OPERATOR_REVIEW_RULE,
     ...(policy ? { authority: { mandate: policy.mandate, policyRevision: policy.policyRevision } } : {}),
     expiresAt: expiry,
     operation: operation.id,

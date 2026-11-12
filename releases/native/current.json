@@ -9,8 +9,8 @@
     {
       "id": "inventarch/agent-composition-system",
       "version": "3.2.0",
-      "archive": "4e01a6de5b8c90637ad638d531fd0a59f213bb519634967a85717bf210d2be0e",
-      "manifest": "a1c1cb975ca5b7fb5a922bcac38169fe9f9aeedbc233db13c3079f62ddc50431",
+      "archive": "23694b7b634ddf8b0903300613368f59297d55d4824854f3dc6dd39f3806d06b",
+      "manifest": "cb1caf15b1049a4342e7059a30b7a10f8fa9b3c38fb0cd512a5580db22a0f0ce",
       "dependencies": [
         "inventarch/agent-system",
         "inventarch/authoring-system",
@@ -32,8 +32,8 @@
     {
       "id": "inventarch/authoring-system",
       "version": "3.3.0",
-      "archive": "352c3db2890a9ba7bec9d650b35158c6aff1222a062792349e762e2b56dea448",
-      "manifest": "9e8298470c8cad746a239e1f5ce9dcfcffe9747cff2bd93b9791d028c1ead71c",
+      "archive": "cc91abbb4f463a0aeb71a46eaaef7cefb42da60f20d0fae897296544196fa8a1",
+      "manifest": "6b2d6d3cfad4e6147a0fc275883fe43964b5fc18ddaf672acaa8ac744b9221b4",
       "dependencies": [
         "inventarch/agent-composition-system",
         "inventarch/agent-system",
@@ -84,8 +84,8 @@
     {
       "id": "inventarch/language",
       "version": "3.3.0",
-      "archive": "fb31aba34399a80e2b3c75f2f723ce1826ea8ebc084cb925320027bc96552fad",
-      "manifest": "94c7566aff46c890f3dfa7e839e158ad348f9241389b9ea2701710d1ffa7f165",
+      "archive": "3ada760ec07848770957538a8562ec94c6f3a9ceb6f1e29d2739b217f9234728",
+      "manifest": "133e0ec85c27c457ba088623c2f753cb7618d531d1412fa957ad6c6ee7b700ee",
       "dependencies": [
         "inventarch/agent-composition-system",
         "inventarch/agent-system",
@@ -127,8 +127,8 @@
     {
       "id": "inventarch/template-system",
       "version": "3.3.0",
-      "archive": "56df054bb5526d9d6d042370ea59043cd3e2b45597c52a938ef66178a01a1e82",
-      "manifest": "1b04166b81c7d2ea78ac0d6f66b00764576964c77338454eced0674dd8d4ad09",
+      "archive": "0916bcb100936f67e5a76ccda5e613e1f9cd53a7b40c71e6c656da5986562cf1",
+      "manifest": "2c018aff18de852eafda2e9ce5efcc58cb724ad467340c14dbf11b11f697220c",
       "dependencies": [
         "inventarch/agent-system",
         "inventarch/authoring-system",

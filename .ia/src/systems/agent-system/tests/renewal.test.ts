@@ -48,7 +48,7 @@ function fixture(actions: ModelAction[] = [question, answer]) {
       limits: { durationMs },
       delegation: id === 'root' ? [{ profile: 'child', limits: { durationMs: 120 } }] : [],
       checks: [],
-      completionEvaluator: 'ia.completion.v1',
+      completionEvaluator: 'completion',
       repairAttempts: 1,
       maxAttempts: 2,
     },
@@ -307,7 +307,7 @@ it.each([
           decisionId: null,
           review: {
             reviewer: 'alice',
-            rule: 'operator-exact-candidate-v1',
+            rule: 'operator-exact-candidate',
             expiresAt: f.now() - 1,
             operation: 'write',
             bindingDigest: digest('write'),

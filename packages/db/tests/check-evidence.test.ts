@@ -242,6 +242,27 @@ it('admits an unknown evaluator only structurally, and binds it unavailable, rev
       status: 'unavailable',
       reason: expect.stringContaining('Not installed'),
     });
+    // The current shape ({format, formatVersion}, {id, version} codec references) binds the same way as the legacy one.
+    const { inputSchemaId: _in, outputSchemaId: _out, ...rest } = entry('acme-strict-typing', { status: 'supported' });
+    const modern: CheckCatalog = {
+      status: 'present',
+      evaluators: {
+        format: 'evaluator-catalog',
+        formatVersion: 2,
+        entries: [
+          {
+            ...rest,
+            inputCodec: { id: 'acme-typing-input', version: 1 },
+            outputCodec: { id: 'acme-typing-result', version: 1 },
+          },
+        ],
+      },
+    };
+    expect(byName(db, modern)['typing-check']).toMatchObject({
+      status: 'bound',
+      implementation: 'acme-strict-typing@2.1.0',
+      outcome: 'not-evaluated',
+    });
     // A catalog compliance does not accept is unavailable, not revoked: it vouches for nothing.
     expect(byName(db, present({ id: 'acme-strict-typing' }))['typing-check']).toMatchObject({
       status: 'unavailable',
