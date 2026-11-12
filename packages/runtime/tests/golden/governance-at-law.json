@@ -26,6 +26,7 @@
     }
   ],
   "rules": [],
+  "omittedRules": [],
   "pointers": [
     {
       "identity": "governance-system/definition/procedure/sample-procedure",
