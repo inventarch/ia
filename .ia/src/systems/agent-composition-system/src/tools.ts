@@ -6,7 +6,7 @@ import type { Manifest, OperationAdapter, OperationContext } from '@inventarch/a
 import { canonical, copy, digest, SessionError } from '@inventarch/session-system';
 import type { Json } from '@inventarch/session-system';
 import { installed } from './catalog.js';
-import type { CompositionCatalog } from './catalog.js';
+import type { CatalogAliases, CompositionCatalog } from './catalog.js';
 
 import { verifyCapture } from '@inventarch/workspace-runtime/corpus';
 import type { Capture } from '@inventarch/workspace-runtime/corpus';
@@ -20,29 +20,66 @@ export const DRAFT_TOOL_IDS = Object.freeze({
   format: prefix + 'format-draft',
   render: prefix + 'render-captured-template',
 });
+/** An operation has one name, used as its catalog key and as its handler. */
 const profiles = [
   {
     id: DRAFT_TOOL_IDS.validate,
-    name: 'draft-validate-v1',
-    handler: 'ia.draft.validate.v1',
+    name: 'draft-validate',
+    handler: 'draft-validate',
     owner: 'authoring-system',
-    input: 'draft-text-v1',
+    input: 'draft-text',
+    output: 'draft-result',
+    legacy: {
+      name: 'draft-validate-v1',
+      handler: 'ia.draft.validate.v1',
+      input: 'draft-text-v1',
+      output: 'draft-result-v1',
+    },
   },
   {
     id: DRAFT_TOOL_IDS.format,
-    name: 'draft-format-v1',
-    handler: 'ia.draft.format.v1',
+    name: 'draft-format',
+    handler: 'draft-format',
     owner: 'authoring-system',
-    input: 'draft-text-v1',
+    input: 'draft-text',
+    output: 'draft-result',
+    legacy: {
+      name: 'draft-format-v1',
+      handler: 'ia.draft.format.v1',
+      input: 'draft-text-v1',
+      output: 'draft-result-v1',
+    },
   },
   {
     id: DRAFT_TOOL_IDS.render,
-    name: 'captured-template-render-v1',
-    handler: 'ia.template.render.v1',
+    name: 'captured-template-render',
+    handler: 'captured-template-render',
     owner: 'template-system',
-    input: 'captured-template-input-v1',
+    input: 'captured-template-input',
+    output: 'draft-result',
+    legacy: {
+      name: 'captured-template-render-v1',
+      handler: 'ia.template.render.v1',
+      input: 'captured-template-input-v1',
+      output: 'draft-result-v1',
+    },
   },
 ] as const;
+/**
+ * Each name the draft tools shipped under before names stopped carrying their version, mapped to its plain name. The
+ * catalog still installs the original entries, byte for byte, for harnesses already pinned to them; a host passes this
+ * table to `compileHarness` so records that still name them compile to the plain entries.
+ */
+export function draftToolAliases(): CatalogAliases {
+  const operations: Record<string, string> = {},
+    validators: Record<string, string> = {};
+  for (const profile of profiles) {
+    operations[profile.legacy.name] = profile.name;
+    validators[profile.legacy.input] = profile.input;
+    validators[profile.legacy.output] = profile.output;
+  }
+  return { operations, validators };
+}
 const object = (properties: Record<string, Json>): Json => ({
   type: 'object',
   properties,
@@ -91,6 +128,12 @@ export function draftToolCatalog(
     entries: {},
     mappings: {},
   };
+  const textInput = installed({ schema: object({ path: string(), text: string(49152) }) }),
+    templateInput = installed({ schema: object({ template: string(), values: string(49152) }) }),
+    result = installed({ schema: output });
+  catalog.validators['draft-text'] = textInput;
+  catalog.validators['captured-template-input'] = templateInput;
+  catalog.validators['draft-result'] = result;
   catalog.validators['draft-text-v1'] = installed({ schema: object({ path: string(), text: string(49152) }) });
   catalog.validators['captured-template-input-v1'] = installed({
     schema: object({ template: string(), values: string(49152) }),
@@ -103,19 +146,23 @@ export function draftToolCatalog(
       : null,
   });
   for (const profile of profiles)
-    catalog.operations[profile.name] = installed({
-      identity: profile.id,
-      owner: profile.owner,
-      handler: profile.handler,
-      implementationDigest: profile.id === DRAFT_TOOL_IDS.render ? renderPin : implementationDigest,
-      input: profile.input,
-      output: 'draft-result-v1',
-      effects: ['read'],
-      recovery: 'repeatable',
-      timeoutMs: 10000,
-      maxOutputBytes: 65536,
-      preflight: 'captured-workspace',
-    });
+    for (const names of [
+      { name: profile.name, handler: profile.handler, input: profile.input, output: profile.output },
+      { ...profile.legacy },
+    ])
+      catalog.operations[names.name] = installed({
+        identity: profile.id,
+        owner: profile.owner,
+        handler: names.handler,
+        implementationDigest: profile.id === DRAFT_TOOL_IDS.render ? renderPin : implementationDigest,
+        input: names.input,
+        output: names.output,
+        effects: ['read' as const],
+        recovery: 'repeatable' as const,
+        timeoutMs: 10000,
+        maxOutputBytes: 65536,
+        preflight: 'captured-workspace' as const,
+      });
   return catalog;
 }
 export interface DraftToolOptions {
@@ -184,15 +231,17 @@ export function draftToolAdapters(
     for (const profile of profiles) {
       const definition = manifest.operations[profile.id];
       if (!definition) continue;
-      const descriptor = catalog.operations[profile.name]!.value,
-        expectedInput = catalog.validators[profile.input]!.value.schema;
+      // A harness compiled before names stopped carrying a version pinned the original entry and its handler.
+      const names = definition.handler === profile.legacy.handler ? profile.legacy : profile;
+      const descriptor = catalog.operations[names.name]!.value,
+        expectedInput = catalog.validators[names.input]!.value.schema;
       const pins = (
         manifest.provenance as {
           compiled?: { provenance?: { installed?: { group: string; id: string; digest: string }[] } };
         }
       ).compiled?.provenance?.installed;
       if (
-        definition.handler !== profile.handler ||
+        definition.handler !== names.handler ||
         canonical(definition.effects) !== canonical(['read']) ||
         definition.recovery !== 'repeatable' ||
         definition.timeoutMs !== descriptor.timeoutMs ||
@@ -202,8 +251,8 @@ export function draftToolAdapters(
         !pins?.some(
           (pin) =>
             pin.group === 'operations' &&
-            pin.id === profile.name &&
-            pin.digest === catalog.operations[profile.name]!.digest,
+            pin.id === names.name &&
+            pin.digest === catalog.operations[names.name]!.digest,
         )
       )
         denied('Draft operation differs from the installed descriptor');
@@ -230,8 +279,8 @@ export function draftToolAdapters(
         if (!(await current())) denied('Draft source, resource or implementation selection changed');
         context.signal.throwIfAborted();
       };
-      operations[profile.handler] = {
-        id: profile.handler,
+      const adapter = (id: string): OperationAdapter => ({
+        id,
         execute: async (args, context) => {
           await authorize(context);
           if (!validateShape(expectedInput, args) || Buffer.byteLength(canonical(args)) > 65536)
@@ -314,7 +363,10 @@ export function draftToolAdapters(
           await authorize(context);
           return { effect: 'none', output: result };
         },
-      };
+      });
+      // Both keys dispatch the same tool: a manifest pinned before the rename names the old handler.
+      operations[profile.handler] = adapter(profile.handler);
+      operations[profile.legacy.handler] = adapter(profile.legacy.handler);
     }
     return { operations, close: () => reader.close() };
   } catch (error) {

@@ -22,6 +22,9 @@ export {
   folderKits,
   homeKits,
   iaHome,
+  homeFolder,
+  HOME_FOLDERS,
+  AUTHORITATIVE_MARKER,
   identityOf,
   implementationDigest,
   installedKit,
@@ -38,6 +41,7 @@ export {
   sourcesDigest,
 } from './kits.js';
 export type {
+  HomeFolderKind,
   Kit,
   KitCheck,
   KitInstallation,

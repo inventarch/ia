@@ -51,6 +51,29 @@ export function iaHome(env: NodeJS.ProcessEnv = process.env, home: string = home
   return resolve(value);
 }
 
+/**
+ * The IA home's folders, each by its plain name and the `*-v1` folder that holds it today. A later release performs
+ * the cutover (copy, verify, write the `authoritative` marker in the plain folder, then remove the `*-v1` folder) once
+ * every participant that writes these homes understands the marker; this release only reads and writes the place
+ * `homeFolder` names, and creates neither the plain folder nor the marker.
+ */
+export const HOME_FOLDERS = {
+  work: 'work-v1',
+  sessions: 'sessions-v1',
+  'kit-roots': 'kit-roots-v1',
+  'installed-kits': 'installed-kits-v1',
+  'method-closures': 'method-closures-v1',
+} as const;
+export type HomeFolderKind = keyof typeof HOME_FOLDERS;
+/** The file whose presence in a plain home folder makes that folder the authoritative one. */
+export const AUTHORITATIVE_MARKER = 'authoritative';
+
+/** The authoritative folder of one IA home folder: `<home>/<kind>` when it holds the marker, else `<home>/<kind>-v1`. */
+export function homeFolder(home: string, kind: HomeFolderKind): string {
+  const plain = join(home, kind);
+  return existsSync(join(plain, AUTHORITATIVE_MARKER)) ? plain : join(home, HOME_FOLDERS[kind]);
+}
+
 export function walk(dir: string): string[] {
   return readdirSync(dir)
     .sort()

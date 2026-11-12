@@ -21,7 +21,7 @@
       "native": {
         "system": "agent-composition-system",
         "id": "inventarch/agent-composition-system",
-        "version": "3.1.4",
+        "version": "3.2.0",
         "distribution": "workspace-system/definition/distribution/package-agent-composition-system"
       }
     },
@@ -43,7 +43,7 @@
       "native": {
         "system": "authoring-system",
         "id": "inventarch/authoring-system",
-        "version": "3.2.1",
+        "version": "3.3.0",
         "distribution": "workspace-system/definition/distribution/package-authoring-system"
       }
     },
@@ -76,7 +76,7 @@
       "native": {
         "system": "hook-authoring-system",
         "id": "inventarch/hook-authoring-system",
-        "version": "3.1.4",
+        "version": "3.2.0",
         "distribution": "workspace-system/definition/distribution/package-hook-authoring-system"
       }
     },
@@ -87,7 +87,7 @@
       "native": {
         "system": "learning-system",
         "id": "inventarch/learning-system",
-        "version": "3.1.4",
+        "version": "3.2.0",
         "distribution": "workspace-system/definition/distribution/package-learning-system"
       }
     },
@@ -109,7 +109,7 @@
       "native": {
         "system": "template-system",
         "id": "inventarch/template-system",
-        "version": "3.2.1",
+        "version": "3.3.0",
         "distribution": "workspace-system/definition/distribution/package-template-system"
       }
     },

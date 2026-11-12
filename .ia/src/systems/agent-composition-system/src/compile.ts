@@ -11,6 +11,7 @@ import type { OutcomeKind } from '@inventarch/agent-system';
 import { verifyCapture } from '@inventarch/workspace-runtime/corpus';
 import type { Capture } from '@inventarch/workspace-runtime/corpus';
 import type {
+  CatalogAliases,
   CatalogGroup,
   CompositionCatalog,
   EffectClass,
@@ -43,6 +44,8 @@ export interface CompileOptions {
   harness: string;
   entry: string;
   catalog: CompositionCatalog;
+  /** Old contract names the catalogue resolves to their plain replacements. */
+  aliases?: CatalogAliases;
   /** Service-owned executable definitions may differ from the captured task corpus. */
   definitions?: Capture;
 }
@@ -54,6 +57,7 @@ class Compiler {
   readonly components = new Map<string, ComponentPin>();
   readonly sources = new Map<string, string>();
   readonly implementations = new Map<string, { group: string; id: string; digest: string }>();
+  readonly aliases = new Map<string, { group: string; from: string; to: string }>();
   readonly provenance: Record<string, string[]> = {};
   readonly capabilities: CompiledHarness['capabilities'] = {};
   readonly operations: CompiledHarness['operations'] = {};
@@ -168,23 +172,37 @@ class Compiler {
       fail('IA-COMPOSITION-CONFLICT', 'Duplicate component reference', node, `${section}.${key}`);
     return found;
   }
+  /** The installed name a record's written name resolves to. An alias used is recorded in the provenance. */
+  named(group: CatalogGroup, id: string, node: CompiledRecord, path: string): string {
+    const table = this.options.aliases?.[group];
+    const alias = table && Object.hasOwn(table, id) ? table[id] : undefined;
+    if (
+      alias !== undefined &&
+      (typeof alias !== 'string' || alias === id || (table !== undefined && Object.hasOwn(table, alias)))
+    )
+      fail('IA-COMPOSITION-CONFLICT', `Invalid ${group} alias: ${id}`, node, path);
+    if (alias !== undefined) this.aliases.set(`${group}:${id}`, { group, from: id, to: alias });
+    return alias ?? id;
+  }
   use<G extends CatalogGroup>(group: G, id: string, node: CompiledRecord, path: string): CatalogValue<G> {
+    const target = this.named(group, id, node, path);
     const entries = this.options.catalog[group];
-    const descriptor = entries && Object.hasOwn(entries, id) ? entries[id] : undefined;
+    const descriptor = entries && Object.hasOwn(entries, target) ? entries[target] : undefined;
     if (!descriptor)
-      fail('IA-COMPOSITION-UNAVAILABLE', `Installed ${group} contract is unavailable: ${id}`, node, path);
+      fail('IA-COMPOSITION-UNAVAILABLE', `Installed ${group} contract is unavailable: ${target}`, node, path);
     let valid = false;
     try {
       valid =
-        descriptor.version === 1 &&
+        Number.isSafeInteger(descriptor.version) &&
+        descriptor.version >= 1 &&
         descriptor.digest === digest({ version: descriptor.version, value: descriptor.value });
     } catch {
       /* non-serializable descriptors refuse */
     }
     if (!valid)
       fail('IA-COMPOSITION-CONFLICT', `Installed ${group} contract digest/version mismatch: ${id}`, node, path);
-    const address = `${group}:${id}`;
-    this.implementations.set(address, { group, id, digest: descriptor.digest });
+    const address = `${group}:${target}`;
+    this.implementations.set(address, { group, id: target, digest: descriptor.digest });
     this.provenance[`${node.identity}:${path}`] = unique([
       ...(this.provenance[`${node.identity}:${path}`] ?? []),
       address,
@@ -315,8 +333,8 @@ class Compiler {
       fail('IA-COMPOSITION-CONFLICT', 'Candidate validation must use a read-only installed contract', node);
     if (
       canonical(nativeEffects) !== canonical(contractEffects) ||
-      field(node, 'execution', 'input') !== descriptor.input ||
-      field(node, 'execution', 'output') !== descriptor.output ||
+      this.named('validators', field(node, 'execution', 'input'), node, 'execution.input') !== descriptor.input ||
+      this.named('validators', field(node, 'execution', 'output'), node, 'execution.output') !== descriptor.output ||
       field(node, 'execution', 'recovery') !== descriptor.recovery
     )
       fail('IA-COMPOSITION-CONFLICT', 'Native operation contract differs from its installed descriptor', node);
@@ -802,7 +820,7 @@ class Compiler {
       fail('IA-COMPOSITION-UNAVAILABLE', 'Entry target contract is unsupported', entry);
     const mapping = field(entry, 'binding', 'mapping', entryContract.mapping);
     this.mapping(mapping, entry);
-    if (mapping !== entryContract.mapping)
+    if (this.named('mappings', mapping, entry, 'binding.mapping') !== entryContract.mapping)
       fail('IA-COMPOSITION-CONFLICT', 'Entry mapping differs from the installed transport', entry);
     const target = this.reference(value(entry, 'binding', 'target', true), entry, 'binding.target', 'agent-profile');
     if (!this.profileNodes.has(target.identity))
@@ -837,13 +855,16 @@ class Compiler {
         [...this.sources].map(([path, hash]) => ({ path, digest: hash })),
         (s) => s.path,
       ),
-      installed = sort([...this.implementations.values()], (c) => `${c.group}:${c.id}`);
+      installed = sort([...this.implementations.values()], (c) => `${c.group}:${c.id}`),
+      aliases = sort([...this.aliases.values()], (a) => `${a.group}:${a.from}`);
+    // `aliases` appears only when one was used, so a compilation that uses none is unchanged.
     const provenance = {
       executableDigest: digest({ components, sources, installed }),
       components,
       sources,
       installed,
       fields: this.provenance,
+      ...(aliases.length ? { aliases } : {}),
     };
     const body = {
       format: 'ia.compiled-harness.v1' as const,

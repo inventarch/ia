@@ -5,10 +5,10 @@
     says "Fixture format-draft text 1."
     answers "Fixture format-draft text 2."
   execution
-    handler draft-format-v1
+    handler draft-format
     effects draft-only
-    input draft-text-v1
-    output draft-result-v1
+    input draft-text
+    output draft-result
     profile governed-v1
     recovery repeatable
   relationships
