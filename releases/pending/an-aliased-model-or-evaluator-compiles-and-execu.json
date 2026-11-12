@@ -1,0 +1,12 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "Aliased model, evaluator, context and operation names compile and run as their installed entries",
+  "summary": "compileHarness compares a profile's model with the host's and its contracts' model lists by installed name. A record may name a model by a name the alias table renames, and a host or contract may list such a name; an alias a list relies on is recorded as a record's is, so compiledAliases still rebuilds the harness. An operation record and its binding may name two generations of one handler, such as a workspace's own binding that still names captured-source-read-v1. A compiled profile stores each check and context under the installed name the compilation pins, so executionManifest and the runner use the pinned evaluator and context, and a host's evaluate receives the installed evaluator name. executionManifest also resolves a check stored under a renamed name through the harness's own alias table, and refuses an evaluator the harness does not pin.",
+  "packages": [
+    "@inventarch/agent-composition-system"
+  ],
+  "paths": [
+    ".ia/src/systems/agent-composition-system/"
+  ]
+}
