@@ -1,7 +1,9 @@
+import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { compare } from './compare.mjs';
 import { selection, syntheticFiles } from './generate.mjs';
 import { normalise } from './normalise.mjs';
+import { unexpectedExits } from './probe.mjs';
 
 const declared = (text: string) =>
   [...text.matchAll(/^@(\w[\w-]*) ([\w-]+)$/gm)].map(([, word, name]) => `${word} ${name}`);
@@ -11,6 +13,16 @@ const referenced = (text: string) =>
 describe('the synthetic generator', () => {
   it('writes the same files, byte for byte, for the same size and seed', () => {
     expect(syntheticFiles({ records: 437, seed: 7 })).toEqual(syntheticFiles({ records: 437, seed: 7 }));
+  });
+
+  it('writes the files the 3.7.0 reference was captured on, so a change to the generator cannot move it', () => {
+    // packages/db/tests/fixtures/reference-3.7.0/synthetic-200.json and synthetic-2000.json were captured on these.
+    const digest = (records: number) =>
+      createHash('sha256')
+        .update(JSON.stringify(syntheticFiles({ records, seed: 1 })))
+        .digest('hex');
+    expect(digest(200)).toBe('78349e641ecde4225a327bdfb3b0807dd8a51c68c0e8c61ca3f5ef6978a3c0fb');
+    expect(digest(2000)).toBe('c6f130f9692cb3088bd7fefc9927256cc7b83d93ea95a5521a575aa152b35100');
   });
 
   it('writes different text for a different seed, with the same record names', () => {
@@ -106,8 +118,40 @@ describe('the comparison', () => {
     expect(compare(one(run('a', [100], [100])), one(run('a', [100], [200]))).rows[0]).toMatchObject({ larger: true });
   });
 
+  it('fails two captures of different trees under the same name', () => {
+    const at = (commit: string) => ({ ...run('a', [1]), tree: { name: 't', recipe: { kind: 'git' }, commit } });
+    expect(compare(one(at('c1')), one(at('c2'))).rows).toEqual([{ tree: 't', command: '*', outputs: 'tree differs' }]);
+  });
+
+  it('refuses a comparison with nothing in it', () => {
+    expect(() => compare(new Map(), new Map())).toThrow(/nothing to compare/);
+  });
+
+  it('fails an output whose standard error differs', () => {
+    const said = (stderr: string) => ({ outputs: { validate: { exit: 0, digest: 'a', stderr, files: {} } } });
+    expect(compare(one(said('e3')), one(said('f4'))).rows[0]!.outputs).toBe('differ');
+    expect(compare(one(said('e3')), one(said('e3'))).rows[0]!.outputs).toBe('equal');
+  });
+
   it('compares outputs alone when asked, whatever the times', () => {
     expect(compare(one(run('a', [1000])), one(run('a', [9000])), { outputsOnly: true }).failed).toBe(0);
+  });
+});
+
+describe("the probe's expected exits", () => {
+  const result = { outputs: { validate: { exit: 0 }, 'kb-check': { exit: 1 } }, skipped: ['kb-pack'] };
+
+  it('names each command that exits otherwise than the tree expects, or did not run', () => {
+    expect(unexpectedExits({ validate: 0, 'kb-check': 0, 'kb-pack': 0, records: 0 }, result)).toEqual([
+      'kb-check: 0 -> 1',
+      'kb-pack: 0 -> skipped',
+      'records: 0 -> missing',
+    ]);
+  });
+
+  it('accepts the expected exits, refusals included, and a tree that expects nothing', () => {
+    expect(unexpectedExits({ validate: 0, 'kb-check': 1 }, result)).toEqual([]);
+    expect(unexpectedExits(undefined, result)).toEqual([]);
   });
 });
 
@@ -151,6 +195,25 @@ describe('the normaliser', () => {
 
   it("keeps a field named like capture's prior-state fields in any other command", () => {
     expect(normalise('validate', { new: 1, changed: 2 }, root)).toEqual({ new: 1, changed: 2 });
+  });
+
+  it('leaves a longer name that starts with the root, and a path that only ends with it', () => {
+    const out = normalise('validate', { a: 'C:\\work\\tree2\\x', b: 'D:\\old\\C:\\work\\tree' }, root);
+    expect(out).toEqual({ a: 'C:\\work\\tree2\\x', b: 'D:\\old\\C:\\work\\tree' });
+  });
+
+  it('turns separators to slashes only in the path that follows the root', () => {
+    expect(normalise('validate', { a: 'at C:\\work\\tree\\a.ia; then x\\y' }, root)).toEqual({
+      a: 'at <root>/a.ia; then x\\y',
+    });
+  });
+
+  it("blanks the observed and captured times in a written evidence file's text", () => {
+    const text =
+      '@observation a\n  evidence\n    observed-at "2026-11-12T03:52:42.694Z"\n    captured-at "2026-11-12T03:52:42.694Z"\n    verdict success\n';
+    expect(normalise('validate', text, root)).toBe(
+      '@observation a\n  evidence\n    observed-at "<time>"\n    captured-at "<time>"\n    verdict success\n',
+    );
   });
 
   it('drops cache state, cache observations and timings', () => {

@@ -9,10 +9,26 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { capture } from './capture.mjs';
+import { captureAll } from './capture.mjs';
 import { generate } from './generate.mjs';
 
 const TREES = fileURLToPath(new URL('./trees.json', import.meta.url));
+
+/**
+ * The commands whose exit code differs from the tree's `expect` map, as `command: expected -> actual`. A tree
+ * without `expect` expects nothing.
+ * @param {Record<string, number> | undefined} expect
+ * @param {{ outputs: Record<string, { exit: number }>, skipped: string[] }} result
+ */
+export function unexpectedExits(expect, result) {
+  if (!expect) return [];
+  const out = [];
+  for (const [command, exit] of Object.entries(expect)) {
+    const actual = result.outputs[command]?.exit ?? (result.skipped.includes(command) ? 'skipped' : 'missing');
+    if (actual !== exit) out.push(`${command}: ${exit} -> ${actual}`);
+  }
+  return out;
+}
 
 /** Builds one tree from its recipe under `work`, and returns its root. */
 export function build(tree, { initCli, work, repository = process.cwd() }) {
@@ -49,6 +65,7 @@ function main(argv) {
     else if (arg === '--only') o.only = new Set(argv[++i].split(','));
     else if (arg === '--synthetic') o.synthetic = argv[++i].split(',').map(Number);
     else if (arg === '--runs') o.runs = Number(argv[++i]);
+    else if (arg === '--commands') o.commands = argv[++i].split(',');
     else if (arg === '--no-measure') o.measure = false;
     else if (arg === '--work') o.work = argv[++i];
     else if (arg === '--out') o.out = argv[++i];
@@ -69,27 +86,36 @@ function main(argv) {
     for (const tree of trees) {
       const root = build(tree, { initCli: o.initCli, work });
       try {
+        // `expect` and `covers` describe the tree; the recipe is what builds it.
+        const { name, expect, covers, ...recipe } = tree;
+        const captures = captureAll({
+          clis: o.clis,
+          root,
+          name,
+          recipe,
+          runs: o.runs,
+          commands: o.commands,
+          measure: o.measure,
+        });
         for (const cli of o.clis) {
-          const { name, ...recipe } = tree;
-          const result = capture({
-            cli: cli.bin,
-            label: cli.label,
-            root,
-            name,
-            recipe,
-            runs: o.runs,
-            measure: o.measure,
-          });
+          const result = captures[cli.label];
           const dir = join(o.out, cli.label);
           mkdirSync(dir, { recursive: true });
           writeFileSync(join(dir, `${name}.json`), `${JSON.stringify(result, null, 2)}\n`);
           const unstable = Object.entries(result.outputs)
             .filter(([, v]) => !v.stable)
             .map(([k]) => k);
+          // A command that exits otherwise than the tree expects ran into something other than what the tree is
+          // there to exercise, such as a missing tool, even if both CLIs fail the same way.
+          const asked =
+            expect && o.commands
+              ? Object.fromEntries(Object.entries(expect).filter(([c]) => o.commands.includes(c)))
+              : expect;
+          const unexpected = unexpectedExits(asked, result);
           process.stdout.write(
-            `${JSON.stringify({ tree: name, cli: cli.label, commands: Object.keys(result.outputs).length, skipped: result.skipped, unstable })}\n`,
+            `${JSON.stringify({ tree: name, cli: cli.label, commands: Object.keys(result.outputs).length, skipped: result.skipped, unstable, unexpected })}\n`,
           );
-          if (unstable.length) process.exitCode = 1;
+          if (unstable.length || unexpected.length) process.exitCode = 1;
         }
       } finally {
         rmSync(root, { recursive: true, force: true });

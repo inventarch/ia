@@ -17,6 +17,7 @@
       "exit": 1,
       "digest": "9622f7c061498484dcf07c38a0079f1ffab3d7eb0a44b0d0ea3ecf8d6a2b2b49",
       "bytes": 5013,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "summary": {
         "status": "refused",
         "reportOutcome": "fail",
@@ -37,6 +38,7 @@
       "exit": 3,
       "digest": "72627c59cdeaa441ddac8896009d348ae9803b54a1f0d7b17431466b9f213b0b",
       "bytes": 346,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "summary": {
         "ok": false,
         "code": "IA-DB-ROOT-INVALID",
@@ -49,20 +51,20 @@
       "exit": 3,
       "digest": "72627c59cdeaa441ddac8896009d348ae9803b54a1f0d7b17431466b9f213b0b",
       "bytes": 346,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "summary": {
         "ok": false,
         "code": "IA-DB-ROOT-INVALID",
         "exit": 3
       },
-      "files": {
-        ".ia/work/snapshot/current.json": null
-      },
+      "files": {},
       "stable": true
     },
     "inspect": {
       "exit": 0,
       "digest": "f716ed306fe9523aee34a3e4375ea9597a1891817866688a737df150864d1a42",
       "bytes": 321,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "summary": {
         "revision": "88c15b4cd985bb759434800edc777e52d815af5a16e9b7e2f90ae1338979e350",
         "records": 0
@@ -74,6 +76,7 @@
       "exit": 0,
       "digest": "d8818569bb2fd130f3fbc7479094d46065404ebb45d16811cbbae1873cff4a80",
       "bytes": 159745,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "summary": {
         "ok": true
       },
@@ -84,6 +87,7 @@
       "exit": 3,
       "digest": "0a2790248f9f231dfa176d5d9ff340138dca5d11fa31f280aa65bd167e586fa5",
       "bytes": 258,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "summary": {
         "ok": false,
         "code": "IA-DIST-CLOSURE-INCOMPLETE",
@@ -96,6 +100,7 @@
       "exit": 0,
       "digest": "a76a1fa9948586bd90196a1501bb60411ed6c7fd49e9437cfdb49e4e1186cd71",
       "bytes": 347,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "summary": {
         "ok": true
       },

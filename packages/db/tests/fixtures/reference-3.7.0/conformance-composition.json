@@ -17,6 +17,7 @@
       "exit": 1,
       "digest": "267c96afa7684826db4565ca26483da0d703fb7a024cfff0b0b1bc6d587190f5",
       "bytes": 1015,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "summary": {
         "ok": false,
         "code": "IA-RUNTIME-REQUEST-INVALID",
@@ -29,6 +30,7 @@
       "exit": 1,
       "digest": "267c96afa7684826db4565ca26483da0d703fb7a024cfff0b0b1bc6d587190f5",
       "bytes": 1015,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "summary": {
         "ok": false,
         "code": "IA-RUNTIME-REQUEST-INVALID",
@@ -41,20 +43,20 @@
       "exit": 1,
       "digest": "267c96afa7684826db4565ca26483da0d703fb7a024cfff0b0b1bc6d587190f5",
       "bytes": 1015,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "summary": {
         "ok": false,
         "code": "IA-RUNTIME-REQUEST-INVALID",
         "exit": 1
       },
-      "files": {
-        ".ia/work/snapshot/current.json": null
-      },
+      "files": {},
       "stable": true
     },
     "inspect": {
       "exit": 0,
       "digest": "a52fe3dc01d2ebb4212ac006432b7a73c2d6dddf64a57ab99bb359a1fc5847d6",
       "bytes": 321,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "summary": {
         "revision": "e336006f927e1ab6f4f923c9bd90d7d2d1fae2bb7137239f88e0920bb2101dd9",
         "records": 0
@@ -66,6 +68,7 @@
       "exit": 0,
       "digest": "9cfa3f5e29e848cefa3a4d8e02a52048ab3fc2c9655caf0aa7b3191f313b1eab",
       "bytes": 159745,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "summary": {
         "ok": true
       },
@@ -76,6 +79,7 @@
       "exit": 3,
       "digest": "0a2790248f9f231dfa176d5d9ff340138dca5d11fa31f280aa65bd167e586fa5",
       "bytes": 258,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "summary": {
         "ok": false,
         "code": "IA-DIST-CLOSURE-INCOMPLETE",
@@ -88,6 +92,7 @@
       "exit": 1,
       "digest": "267c96afa7684826db4565ca26483da0d703fb7a024cfff0b0b1bc6d587190f5",
       "bytes": 1015,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "summary": {
         "ok": false,
         "code": "IA-RUNTIME-REQUEST-INVALID",

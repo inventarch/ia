@@ -1,17 +1,111 @@
 {
   "format": "ia.scale-probe.trees.v1",
   "trees": [
-    { "name": "synthetic-200", "kind": "synthetic", "records": 200, "seed": 1 },
-    { "name": "synthetic-2000", "kind": "synthetic", "records": 2000, "seed": 1 },
-    { "name": "ia-language-3.7.0", "kind": "git", "commit": "ae43a8e496a2db5ecf05c4439c094f1fba6a8a73", "path": ".", "include": [".ia"] },
-    { "name": "compliance-loop", "kind": "git", "commit": "f766ff05b93e30ff6a2d6256dca93a68c77c39f8", "path": "packages/compliance/fixtures/loop" },
-    { "name": "conformance-composition", "kind": "git", "commit": "f766ff05b93e30ff6a2d6256dca93a68c77c39f8", "path": "examples/conformance/composition" },
-    { "name": "systems-native", "kind": "git", "commit": "f766ff05b93e30ff6a2d6256dca93a68c77c39f8", "path": "tools/systems/fixtures/native" },
-    { "name": "product-structure", "kind": "git", "commit": "f766ff05b93e30ff6a2d6256dca93a68c77c39f8", "path": "distributions/product-structure" },
-    { "name": "cli-composition-workspace", "kind": "git", "commit": "f766ff05b93e30ff6a2d6256dca93a68c77c39f8", "path": "apps/cli/tests/fixtures/composition-workspace" },
-    { "name": "cli-workspace-1.1.0", "kind": "git", "commit": "f766ff05b93e30ff6a2d6256dca93a68c77c39f8", "path": "apps/cli/tests/fixtures/workspace-1.1.0" },
-    { "name": "cli-workspace-1.1.0-collision", "kind": "git", "commit": "f766ff05b93e30ff6a2d6256dca93a68c77c39f8", "path": "apps/cli/tests/fixtures/workspace-1.1.0-collision" },
-    { "name": "projections-synthetic-review", "kind": "git", "commit": "f766ff05b93e30ff6a2d6256dca93a68c77c39f8", "path": "tools/projections/fixtures/synthetic-review" },
-    { "name": "knowledge-example", "kind": "git", "commit": "f766ff05b93e30ff6a2d6256dca93a68c77c39f8", "path": "examples/knowledge" }
+    {
+      "name": "synthetic-200",
+      "kind": "synthetic",
+      "records": 200,
+      "seed": 1,
+      "covers": "Admitted: every command, kb check and kb pack included.",
+      "expect": { "validate": 0, "capture-preview": 0, "capture": 0, "inspect": 0, "records": 0, "format-check": 0, "kb-check": 0, "kb-pack": 0 }
+    },
+    {
+      "name": "synthetic-2000",
+      "kind": "synthetic",
+      "records": 2000,
+      "seed": 1,
+      "covers": "Admitted: every command; kb check refuses the selection as past its capture budget.",
+      "expect": { "validate": 0, "capture-preview": 0, "capture": 0, "inspect": 0, "records": 0, "format-check": 0, "kb-check": 1, "kb-pack": 0 }
+    },
+    {
+      "name": "ia-language-3.7.0",
+      "kind": "git",
+      "commit": "ae43a8e496a2db5ecf05c4439c094f1fba6a8a73",
+      "path": ".",
+      "include": [".ia"],
+      "covers": "Admitted, with evidence written by validate; kb check reports records it cannot reach.",
+      "expect": { "validate": 0, "capture-preview": 0, "capture": 0, "inspect": 0, "records": 0, "format-check": 0, "kb-check": 1 }
+    },
+    {
+      "name": "ia-language-f766ff05",
+      "kind": "git",
+      "commit": "f766ff05b93e30ff6a2d6256dca93a68c77c39f8",
+      "path": ".",
+      "include": [".ia"],
+      "covers": "Admitted: the same language workspace, later.",
+      "expect": { "validate": 0, "capture-preview": 0, "capture": 0, "inspect": 0, "records": 0, "format-check": 0, "kb-check": 1 }
+    },
+    {
+      "name": "compliance-loop",
+      "kind": "git",
+      "commit": "f766ff05b93e30ff6a2d6256dca93a68c77c39f8",
+      "path": "packages/compliance/fixtures/loop",
+      "covers": "Loaded and reported with errors: validate and capture refuse after admission; format refuses an incomplete closure.",
+      "expect": { "validate": 1, "capture-preview": 1, "capture": 1, "inspect": 0, "records": 0, "format-check": 3, "kb-check": 0 }
+    },
+    {
+      "name": "conformance-composition",
+      "kind": "git",
+      "commit": "f766ff05b93e30ff6a2d6256dca93a68c77c39f8",
+      "path": "examples/conformance/composition",
+      "covers": "Refused early: the mandate profile cannot be read, so it pins that refusal, not admission.",
+      "expect": { "validate": 1, "capture-preview": 1, "capture": 1, "inspect": 0, "records": 0, "format-check": 3, "kb-check": 1 }
+    },
+    {
+      "name": "systems-native",
+      "kind": "git",
+      "commit": "f766ff05b93e30ff6a2d6256dca93a68c77c39f8",
+      "path": "tools/systems/fixtures/native",
+      "covers": "Loaded and refused by validate; capture refuses the root.",
+      "expect": { "validate": 1, "capture-preview": 3, "capture": 3, "inspect": 0, "records": 0, "format-check": 3, "kb-check": 0 }
+    },
+    {
+      "name": "product-structure",
+      "kind": "git",
+      "commit": "f766ff05b93e30ff6a2d6256dca93a68c77c39f8",
+      "path": "distributions/product-structure",
+      "covers": "Loaded and refused by validate; capture refuses the root.",
+      "expect": { "validate": 1, "capture-preview": 3, "capture": 3, "inspect": 0, "records": 0, "format-check": 3, "kb-check": 0 }
+    },
+    {
+      "name": "cli-composition-workspace",
+      "kind": "git",
+      "commit": "f766ff05b93e30ff6a2d6256dca93a68c77c39f8",
+      "path": "apps/cli/tests/fixtures/composition-workspace",
+      "covers": "Refused early: the mandate profile cannot be read, so it pins that refusal, not admission.",
+      "expect": { "validate": 1, "capture-preview": 1, "capture": 1, "inspect": 0, "records": 0, "format-check": 3, "kb-check": 1 }
+    },
+    {
+      "name": "cli-workspace-1.1.0",
+      "kind": "git",
+      "commit": "f766ff05b93e30ff6a2d6256dca93a68c77c39f8",
+      "path": "apps/cli/tests/fixtures/workspace-1.1.0",
+      "covers": "A 1.1.0 starter: loaded and refused by validate; capture refuses the root.",
+      "expect": { "validate": 1, "capture-preview": 3, "capture": 3, "inspect": 0, "records": 0, "format-check": 3, "kb-check": 0 }
+    },
+    {
+      "name": "cli-workspace-1.1.0-collision",
+      "kind": "git",
+      "commit": "f766ff05b93e30ff6a2d6256dca93a68c77c39f8",
+      "path": "apps/cli/tests/fixtures/workspace-1.1.0-collision",
+      "covers": "A 1.1.0 starter with a collision: loaded and refused by validate; capture refuses the root.",
+      "expect": { "validate": 1, "capture-preview": 3, "capture": 3, "inspect": 0, "records": 0, "format-check": 3, "kb-check": 0 }
+    },
+    {
+      "name": "projections-synthetic-review",
+      "kind": "git",
+      "commit": "f766ff05b93e30ff6a2d6256dca93a68c77c39f8",
+      "path": "tools/projections/fixtures/synthetic-review",
+      "covers": "Refused early: the mandate profile cannot be read, so it pins that refusal, not admission.",
+      "expect": { "validate": 1, "capture-preview": 1, "capture": 1, "inspect": 0, "records": 0, "format-check": 3, "kb-check": 1 }
+    },
+    {
+      "name": "knowledge-example",
+      "kind": "git",
+      "commit": "f766ff05b93e30ff6a2d6256dca93a68c77c39f8",
+      "path": "examples/knowledge",
+      "covers": "Loaded and refused by validate; capture refuses the root.",
+      "expect": { "validate": 1, "capture-preview": 3, "capture": 3, "inspect": 0, "records": 0, "format-check": 3, "kb-check": 0 }
+    }
   ]
 }

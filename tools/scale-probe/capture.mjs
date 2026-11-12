@@ -5,7 +5,7 @@
 import '../temp/physical-temp.mjs';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -15,13 +15,13 @@ const MEASURE = fileURLToPath(new URL('./measure.mjs', import.meta.url));
 export const FORMAT = 'ia.scale-probe.capture.v1';
 
 /**
- * The probe's commands. `files` are outputs the command writes, digested after normalisation; `needs` names what
- * the tree must have for the command to run.
+ * The probe's commands. `needs` names what the tree must have for the command to run. Every file a command adds,
+ * changes or removes in its copy is digested after it runs, whatever the command.
  */
 export const COMMANDS = {
   validate: { args: () => ['validate', '--json'] },
   'capture-preview': { args: () => ['capture', '--preview', '--json'] },
-  capture: { args: () => ['capture', '--json'], files: ['.ia/work/snapshot/current.json'] },
+  capture: { args: () => ['capture', '--json'] },
   inspect: { args: () => ['inspect', '--json'] },
   records: { args: () => ['records'] },
   'format-check': { args: () => ['format', '--check', '--json'] },
@@ -41,7 +41,6 @@ export const COMMANDS = {
       '--yes',
       '--json',
     ],
-    files: ['probe-pack.json'],
   },
 };
 
@@ -85,9 +84,42 @@ function summary(json) {
   return out;
 }
 
+/** Every file under a tree but its `.git` folder, as workspace-relative path to the SHA-256 of its bytes. */
+export function treeFiles(root) {
+  const files = new Map();
+  const walk = (dir, prefix) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))) {
+      if (!prefix && entry.name === '.git') continue;
+      const path = join(dir, entry.name),
+        rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) walk(path, rel);
+      else files.set(rel, createHash('sha256').update(readFileSync(path)).digest('hex'));
+    }
+  };
+  walk(root, '');
+  return files;
+}
+
 /**
- * Runs one command on a fresh copy of the tree.
- * @returns {{ exit: number | null, digest: string, bytes: number, summary: unknown, files: Record<string, string>, measure: unknown, kept?: unknown }}
+ * The files a run added, changed or removed, as path to the digest of the normalised content (`removed` for a
+ * file that is gone). Binary content is digested as it is.
+ */
+function written(command, copy, before) {
+  const after = treeFiles(copy),
+    out = {};
+  for (const [path, hash] of after) {
+    if (before.get(path) === hash) continue;
+    const bytes = readFileSync(join(copy, path));
+    out[path] = bytes.includes(0) ? sha256(bytes) : digestOf(command, bytes.toString('utf8'), copy).digest;
+  }
+  for (const path of before.keys()) if (!after.has(path)) out[path] = 'removed';
+  return Object.fromEntries(Object.entries(out).sort(([a], [b]) => (a < b ? -1 : 1)));
+}
+
+/**
+ * Runs one command on a fresh copy of the tree. A run that cannot start, overflows its buffer or is killed throws:
+ * it has no output to compare.
+ * @returns {{ exit: number, digest: string, bytes: number, stderr: string, summary: unknown, files: Record<string, string>, measure: unknown, kept?: unknown }}
  */
 function runOnce({ cli, tree, name, work, measure }) {
   const parent = mkdtempSync(join(work, `${name}-`));
@@ -102,19 +134,18 @@ function runOnce({ cli, tree, name, work, measure }) {
       maxBuffer: 1 << 30,
       windowsHide: true,
     });
+    if (run.error || run.status === null)
+      throw new Error(`${name} did not finish: ${run.error?.message ?? `signal ${run.signal}`}`);
     const probe = (run.stderr ?? '').match(/^@@PROBE (\{.*\})$/m);
     const out = digestOf(name, run.stdout ?? '', copy);
-    const files = {};
-    for (const file of COMMANDS[name].files ?? []) {
-      const path = join(copy, file);
-      files[file] = existsSync(path) ? digestOf(name, readFileSync(path, 'utf8'), copy).digest : null;
-    }
+    const stderr = String(normalise(name, (run.stderr ?? '').replace(/^\n?@@PROBE \{.*\}\n?$/m, ''), copy));
     return {
       exit: run.status,
       digest: out.digest,
       bytes: out.bytes,
+      stderr: sha256(stderr),
       summary: summary(out.json),
-      files,
+      files: written(name, copy, tree.files),
       measure: measure && probe ? JSON.parse(probe[1]) : null,
       kept: out.json,
     };
@@ -124,13 +155,14 @@ function runOnce({ cli, tree, name, work, measure }) {
 }
 
 /**
- * Captures every applicable command on one tree.
- * @param {{ cli: string, label: string, root: string, name?: string, recipe?: unknown, runs?: number,
+ * Captures every applicable command on one tree under each CLI. Within each command the runs alternate between
+ * the CLIs (A, B, A, B, ...), so a burst of load on the machine falls on both sides rather than on one side's runs.
+ * @param {{ clis: { bin: string, label: string }[], root: string, name?: string, recipe?: unknown, runs?: number,
  *   commands?: string[], keep?: string, measure?: boolean, work?: string }} options
+ * @returns {Record<string, object>} one capture per CLI label
  */
-export function capture({
-  cli,
-  label,
+export function captureAll({
+  clis,
   root,
   name,
   recipe = null,
@@ -146,51 +178,73 @@ export function capture({
       encoding: 'utf8',
       windowsHide: true,
     }).trim();
+  tree.files = treeFiles(tree.root);
   const scratch = work ?? mkdtempSync(join(tmpdir(), 'ia-scale-probe-'));
-  const outputs = {},
-    measurements = {},
-    skipped = [];
+  const captures = Object.fromEntries(
+    clis.map(({ label }) => [
+      label,
+      {
+        format: FORMAT,
+        label,
+        platform: process.platform,
+        node: process.version,
+        tree: { name: name ?? null, recipe, commit: tree.commit },
+        outputs: {},
+        skipped: [],
+        ...(measure ? { measurements: {} } : {}),
+      },
+    ]),
+  );
   try {
     for (const command of commands) {
       if (!COMMANDS[command]) throw new Error(`unknown command ${command}`);
       if (COMMANDS[command].needs === 'commit' && !tree.commit) {
-        skipped.push(command);
+        for (const c of Object.values(captures)) c.skipped.push(command);
         continue;
       }
-      const results = [];
-      for (let i = 0; i < runs; i++) results.push(runOnce({ cli, tree, name: command, work: scratch, measure }));
-      const [first] = results;
-      const stable = results.every(
-        (r) =>
-          r.exit === first.exit && r.digest === first.digest && JSON.stringify(r.files) === JSON.stringify(first.files),
-      );
-      outputs[command] = {
-        exit: first.exit,
-        digest: first.digest,
-        bytes: first.bytes,
-        summary: first.summary,
-        files: first.files,
-        stable,
-      };
-      if (measure) measurements[command] = results.map((r) => r.measure);
-      if (keep) {
-        mkdirSync(keep, { recursive: true });
-        writeFileSync(join(keep, `${command}.json`), `${JSON.stringify(first.kept ?? null, null, 2)}\n`);
+      const results = Object.fromEntries(clis.map(({ label }) => [label, []]));
+      for (let i = 0; i < runs; i++)
+        for (const { bin, label } of clis)
+          results[label].push(runOnce({ cli: bin, tree, name: command, work: scratch, measure }));
+      for (const { label } of clis) {
+        const [first] = results[label];
+        const stable = results[label].every(
+          (r) =>
+            r.exit === first.exit &&
+            r.digest === first.digest &&
+            r.stderr === first.stderr &&
+            JSON.stringify(r.files) === JSON.stringify(first.files),
+        );
+        captures[label].outputs[command] = {
+          exit: first.exit,
+          digest: first.digest,
+          bytes: first.bytes,
+          stderr: first.stderr,
+          summary: first.summary,
+          files: first.files,
+          stable,
+        };
+        if (measure) captures[label].measurements[command] = results[label].map((r) => r.measure);
+        if (keep) {
+          const dir = clis.length > 1 ? join(keep, label) : keep;
+          mkdirSync(dir, { recursive: true });
+          writeFileSync(join(dir, `${command}.json`), `${JSON.stringify(first.kept ?? null, null, 2)}\n`);
+        }
       }
     }
   } finally {
     if (!work) rmSync(scratch, { recursive: true, force: true });
   }
-  return {
-    format: FORMAT,
-    label,
-    platform: process.platform,
-    node: process.version,
-    tree: { name: name ?? null, recipe, commit: tree.commit },
-    outputs,
-    skipped,
-    ...(measure ? { measurements } : {}),
-  };
+  return captures;
+}
+
+/**
+ * Captures every applicable command on one tree under one CLI.
+ * @param {{ cli: string, label: string, root: string, name?: string, recipe?: unknown, runs?: number,
+ *   commands?: string[], keep?: string, measure?: boolean, work?: string }} options
+ */
+export function capture({ cli, label, ...options }) {
+  return captureAll({ clis: [{ bin: cli, label }], ...options })[label];
 }
 
 function main(argv) {

@@ -1,5 +1,6 @@
 // Builds a synthetic IA workspace from public IA only: a fresh `ia init` workspace, then seeded work records.
 // Usage: node tools/scale-probe/generate.mjs --cli <bin.js> --records <n> [--seed <n>] [--git] <out>
+import '../temp/physical-temp.mjs';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
@@ -165,6 +166,11 @@ export function generate({ cli, out, records, seed, git = false }) {
             'commit.gpgsign=false',
             '-c',
             'core.autocrlf=false',
+            // A global ignore file or template would change what is committed, and so the commit.
+            '-c',
+            `core.excludesFile=${join(tree, '.git', 'no-excludes')}`,
+            '-c',
+            'init.templateDir=',
             '-C',
             tree,
             ...args,

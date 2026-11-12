@@ -27,26 +27,31 @@ const median = (values) => {
   return sorted.length % 2 ? sorted[mid] : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
 };
 
-/** One row per tree and command. */
+/** One row per tree and command. Refuses two empty sides: a comparison of nothing is no evidence. */
 export function compare(before, after, { outputsOnly = false, slower = 1.1, larger = 1.1 } = {}) {
+  if (before.size === 0 && after.size === 0) throw new Error('nothing to compare: neither side holds a capture');
   const rows = [];
   for (const [file, a] of before) {
     const b = after.get(file);
     const tree = a.tree?.name ?? file.replace(/\.json$/, '');
+    // Two captures under one name must be of one tree, or their outputs say nothing about each other.
+    const of = (c) => JSON.stringify({ recipe: c?.tree?.recipe ?? null, commit: c?.tree?.commit ?? null });
+    if (b && of(a) !== of(b)) {
+      rows.push({ tree, command: '*', outputs: 'tree differs' });
+      continue;
+    }
     const commands = new Set([...Object.keys(a.outputs), ...Object.keys(b?.outputs ?? {})]);
     for (const command of commands) {
       const x = a.outputs[command],
         y = b?.outputs?.[command];
-      const row = {
-        tree,
-        command,
-        outputs:
-          !x || !y
-            ? 'missing'
-            : x.exit === y.exit && x.digest === y.digest && JSON.stringify(x.files) === JSON.stringify(y.files)
-              ? 'equal'
-              : 'differ',
-      };
+      const same =
+        x &&
+        y &&
+        x.exit === y.exit &&
+        x.digest === y.digest &&
+        x.stderr === y.stderr &&
+        JSON.stringify(x.files) === JSON.stringify(y.files);
+      const row = { tree, command, outputs: !x || !y ? 'missing' : same ? 'equal' : 'differ' };
       if (!outputsOnly && a.measurements?.[command] && b?.measurements?.[command]) {
         for (const key of ['wallMs', 'maxRssMB']) {
           row[`${key}Before`] = median(a.measurements[command].map((m) => m?.[key]));

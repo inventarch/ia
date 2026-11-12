@@ -17,6 +17,7 @@
       "exit": 0,
       "digest": "f646f0095bb956ec97d5cd4715260e9962c94b3da41911c0dbcd0eedb12f182b",
       "bytes": 835,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "summary": {
         "status": "admitted",
         "reportOutcome": "not-evaluated",
@@ -37,6 +38,7 @@
       "exit": 0,
       "digest": "67830319f27e7f40868cf8a9f46c2c690a8d4e51ce91c86d2b465b2c48373998",
       "bytes": 11586,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "summary": {
         "revision": "6887eac06c59c2dc53707dfbe8a1bb793eb6d02d7248bdc70ce47f12de59fdd3",
         "digest": "98e9b3fcb04568aade2c6ac2df9fab32ea1442a40c8c82955628459208fd2eb1",
@@ -49,13 +51,15 @@
       "exit": 0,
       "digest": "558b34c31ec47c1038228afe0587a4e708e733540349c91455d4d3e6cd921b82",
       "bytes": 375,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "summary": {
         "revision": "6887eac06c59c2dc53707dfbe8a1bb793eb6d02d7248bdc70ce47f12de59fdd3",
         "digest": "98e9b3fcb04568aade2c6ac2df9fab32ea1442a40c8c82955628459208fd2eb1",
         "records": 374
       },
       "files": {
-        ".ia/work/snapshot/current.json": "516c2764b8a2e0424112db094f1552bcd1649e3916dfdbcad5eea377997471a7"
+        ".ia/work/snapshot/current.json": "516c2764b8a2e0424112db094f1552bcd1649e3916dfdbcad5eea377997471a7",
+        ".ia/work/snapshot/previous.json": "1b0b9144893ab7f1d0ef6e76803b6e20ca52f9faf9a9ee78826b94bde52a5ae4"
       },
       "stable": true
     },
@@ -63,6 +67,7 @@
       "exit": 0,
       "digest": "035f48b213ba5cc4b63f57aff3f325dbbf9185085190fa6571202da51faf0666",
       "bytes": 459,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "summary": {
         "revision": "6887eac06c59c2dc53707dfbe8a1bb793eb6d02d7248bdc70ce47f12de59fdd3",
         "records": 0
@@ -74,6 +79,7 @@
       "exit": 0,
       "digest": "34c71357420baafdc15765f73f5035f956222f2f90e78bf44008b46f5500bf1f",
       "bytes": 723476,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "summary": {
         "ok": true
       },
@@ -84,6 +90,7 @@
       "exit": 0,
       "digest": "9fe643acdc8ad32cb5823ace7bcd6f9baf1191ea62aee874a86ea45c3cc03bdd",
       "bytes": 6846,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "summary": {},
       "files": {},
       "stable": true
@@ -92,6 +99,7 @@
       "exit": 0,
       "digest": "1fb71414305db64bfecc0d89293238b93464e2ee91ed29dde33a1d858e1f6dcb",
       "bytes": 349,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "summary": {
         "ok": true
       },
@@ -102,6 +110,7 @@
       "exit": 0,
       "digest": "6090efc5e31a1e17678a8cb6014dc1af564b6a29bb41987e4507dfb1fd6812d2",
       "bytes": 176,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "summary": {
         "ok": true
       },

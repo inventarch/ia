@@ -17,6 +17,7 @@
       "exit": 1,
       "digest": "7e68c9477aaa9ff19be1fecf6846927bce1644e23fcc657e44ac81c8948fbd09",
       "bytes": 3309,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "summary": {
         "status": "refused",
         "reportOutcome": "fail",
@@ -37,6 +38,7 @@
       "exit": 1,
       "digest": "a443c6ef14eb5e4ae619917ff43d2ea552839074440694b2aed9fb88c328b7aa",
       "bytes": 6933,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "summary": {
         "revision": "7891e3b497ee471e46d1bda39354f2287653aa3dec1a75ae79797b84d41ecfba",
         "digest": "fe4474da3af202f828b34b79a10c0dc59b7f47e1e069a824bba394c922498cfb",
@@ -49,6 +51,7 @@
       "exit": 1,
       "digest": "8b3b367ec5be24aa69fe41a059db63d251a877c29866ceaabe389dda4dc6606a",
       "bytes": 372,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "summary": {
         "revision": "7891e3b497ee471e46d1bda39354f2287653aa3dec1a75ae79797b84d41ecfba",
         "digest": "fe4474da3af202f828b34b79a10c0dc59b7f47e1e069a824bba394c922498cfb",
@@ -63,6 +66,7 @@
       "exit": 0,
       "digest": "73b11dc0bc040fa810d37e089796a95f1905ae33829e92979352af3a55f2ec71",
       "bytes": 470,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "summary": {
         "revision": "7891e3b497ee471e46d1bda39354f2287653aa3dec1a75ae79797b84d41ecfba",
         "records": 0
@@ -74,6 +78,7 @@
       "exit": 0,
       "digest": "cb4f4b0e0f10c00badb52e015f4d194e9bb1b4ec2a17dfa41202f15ce4a8b689",
       "bytes": 235986,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "summary": {
         "ok": true
       },
@@ -84,6 +89,7 @@
       "exit": 3,
       "digest": "0a2790248f9f231dfa176d5d9ff340138dca5d11fa31f280aa65bd167e586fa5",
       "bytes": 258,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "summary": {
         "ok": false,
         "code": "IA-DIST-CLOSURE-INCOMPLETE",
@@ -96,6 +102,7 @@
       "exit": 0,
       "digest": "34937ff8efa745129879060505831a0bd07be70658cb6652c055550ad6004e6a",
       "bytes": 348,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "summary": {
         "ok": true
       },
