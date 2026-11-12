@@ -5,7 +5,6 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
-  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -13,43 +12,16 @@ import {
 import { rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { beforeAll, expect, it } from 'vitest';
+import { expect, it } from 'vitest';
 import { checkCompliance, readFixtures } from './check.js';
 import { checkInventory } from './inventory.js';
 import { EVIDENCE_CODES, fixtureCoverage } from '../../packages/compliance/src/index.js';
 import { KERNEL_DIGEST, LANGUAGE_VERSION } from '../../packages/language/src/index.js';
 import { load } from '../../packages/graph/src/index.js';
-import { qualifyPublicationRoot } from '../../packages/runtime/src/index.js';
 import { inputs, records, registry } from '../../packages/compliance/tests/native.js';
 import { runEvidenceFixtures } from './evidence-fixtures.js';
 
 const root = resolve(import.meta.dirname, '../..');
-// As in publication-fixtures.test.ts: checkCompliance runs the publication and execution fixtures in-process, and a slow
-// Windows runner can take longer than the publication probe's own bounded 30 s, so a fixture observes
-// IA-PUBLICATION-UNAVAILABLE where it expects another refusal (CI 43112020588). The probe caches a success for this
-// loaded module and never a failure, so qualify the temporary drive up front and retry a probe the runner was too slow
-// to finish. Best effort: a failed attempt is only logged, and if every attempt fails, the fixtures probe again and
-// report the refusal themselves, as before.
-beforeAll(
-  () => {
-    if (process.platform !== 'win32') return;
-    const drive = mkdtempSync(resolve(tmpdir(), 'ia-publication-probe-'));
-    try {
-      const qualified = realpathSync.native(drive);
-      for (let attempt = 1; attempt <= 3; attempt++)
-        try {
-          qualifyPublicationRoot(qualified);
-          return;
-        } catch (error) {
-          // Not cached: the next attempt probes again under its own bound.
-          console.warn(`Publication probe attempt ${attempt} of 3 failed: ${(error as Error).message}`);
-        }
-    } finally {
-      rmSync(drive, { recursive: true, force: true });
-    }
-  },
-  3 * 30_000 + 30_000,
-);
 it('binds kernel evidence to the floor used by the evaluated graph', () => {
   const { report } = checkCompliance(root);
   expect(report.verdicts.find((v) => v.check === 'COMP-KERNEL')).toMatchObject({ outcome: 'pass', basis: 'verified' });
