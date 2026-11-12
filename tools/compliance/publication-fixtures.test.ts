@@ -121,6 +121,7 @@ for (const platform of ['linux', 'darwin'] as const)
     }
   });
 
+// The fixtures pay the cold external NTFS probe, up to two bounded 30s tries when the first times out.
 it.skipIf(process.platform !== 'win32')(
   'observes every publication refusal through the actual qualified Windows primitive',
   () => {
@@ -130,6 +131,7 @@ it.skipIf(process.platform !== 'win32')(
     expect(results.flatMap((result) => result.observedCodes).sort()).toEqual([...PUBLICATION_CODES].sort());
     expect(publicationFixtureCodes()).toEqual(PUBLICATION_CODES);
   },
+  120_000,
 );
 
 it('records a link as null even where the open follows links, as it does on Windows', (context) => {

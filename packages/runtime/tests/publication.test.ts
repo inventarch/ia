@@ -110,12 +110,15 @@ describe.skipIf(process.platform !== 'win32')('qualified local NTFS publication'
           expect(() => prepare(root, destination, files, metadata)).toThrow(
             expect.objectContaining({ code: 'IA-PUBLICATION-UNAVAILABLE' }),
           );
-        expect(probe).toHaveBeenCalledTimes(2);
-        expect(probe).toHaveBeenCalledWith(
-          'powershell.exe',
-          expect.any(Array),
-          expect.objectContaining({ timeout: 30_000, windowsHide: true }),
-        );
+        // A timed-out probe gets one more try, under the same bound, per qualification; other failures refuse at once.
+        expect(probe).toHaveBeenCalledTimes(failure === 'timeout' ? 4 : 2);
+        for (let call = 1; call <= probe.mock.calls.length; call++)
+          expect(probe).toHaveBeenNthCalledWith(
+            call,
+            'powershell.exe',
+            expect.any(Array),
+            expect.objectContaining({ timeout: 30_000, windowsHide: true }),
+          );
         expect(existsSync(resolve(root, '.ia'))).toBe(false);
       } finally {
         vi.doUnmock('node:child_process');
@@ -123,8 +126,28 @@ describe.skipIf(process.platform !== 'win32')('qualified local NTFS publication'
       }
     },
   );
-  // The first publication includes the bounded 30s cold external NTFS probe;
-  // leave time for publication assertions and cleanup after qualification.
+  it('qualifies on a second probe after the first timed out, and caches the success', async () => {
+    vi.resetModules();
+    const root = temp();
+    let calls = 0;
+    const probe = vi.fn(() => {
+      calls++;
+      if (calls === 1) throw Object.assign(new Error('spawnSync powershell.exe ETIMEDOUT'), { code: 'ETIMEDOUT' });
+      return JSON.stringify({ DriveType: 3, FileSystem: 'NTFS' });
+    });
+    vi.doMock('node:child_process', () => ({ execFileSync: probe }));
+    try {
+      const { qualifyPublicationRoot: qualify } = await import('../src/publication.js');
+      expect(qualify(root)).toBe(resolve(root));
+      expect(qualify(root)).toBe(resolve(root));
+      expect(probe).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.doUnmock('node:child_process');
+      vi.resetModules();
+    }
+  });
+  // The first publication includes the cold external NTFS probe, up to two bounded 30s tries when the first
+  // times out; leave time for publication assertions and cleanup after qualification.
   it('publishes exact bytes and inventory only after an exclusive final directory claim', async () => {
     const root = temp(),
       prepared = preparePublication(root, destination, files, metadata);
@@ -143,7 +166,7 @@ describe.skipIf(process.platform !== 'win32')('qualified local NTFS publication'
     expect(() => preparePublication(root, destination, files, metadata)).toThrow(
       expect.objectContaining({ code: 'IA-PUBLICATION-CONFLICT' }),
     );
-  }, 60_000);
+  }, 120_000);
   it('distinguishes absence, partial bytes, different provenance and tampering', async () => {
     const root = temp(),
       inspect = () => inspectPublication(root, destination, files, metadata, current);
