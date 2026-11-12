@@ -485,6 +485,14 @@ export function kitInstallation(root: string, kitId: string): KitInstallation | 
 }
 
 /**
+ * The refusal's remedy names routes that resolve: `ia install <id>` reaches only a registry release, so the public kits,
+ * which ship in the `@inventarch/public-kits` npm package, are named by the package route (contract C7b).
+ */
+function kitNotInstalledMessage(kitId: string): string {
+  return `kit ${kitId} is bound by this repository but its lock does not install it; install the npm package that carries it with ia install --package <name> --apply --yes (the public kits ship in @inventarch/public-kits), or ia install ${kitId} --apply --yes where a registry serves it, or kit.mjs add ${kitId} --apply; then resolve again`;
+}
+
+/**
  * Presence: a repository-bound method runs a kit only while the repository's own lock installs it. Any row naming the
  * kit counts, at any version and archive: a task pin runs its own retained bytes, which may be older than the version
  * the lock now installs. A kit no row names refuses before anything is retained or run, and nothing answers for it from
@@ -492,11 +500,7 @@ export function kitInstallation(root: string, kitId: string): KitInstallation | 
  */
 export function requireKitInstalled(root: string, kit: { readonly id: string }): void {
   if (kitInstallation(root, kit.id) === null)
-    throw new MethodError(
-      `kit ${kit.id} is bound by this repository but its lock does not install it; run ia install ${kit.id} (or kit.mjs add ${kit.id}), then resolve again`,
-      'IA-CORE-KIT-NOT-INSTALLED',
-      { kit: kit.id },
-    );
+    throw new MethodError(kitNotInstalledMessage(kit.id), 'IA-CORE-KIT-NOT-INSTALLED', { kit: kit.id });
 }
 
 /**
