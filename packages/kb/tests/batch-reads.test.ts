@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { committedReader } from '../src/git.js';
 import { createLegacyFoundation } from '../src/legacy.js';
 import { packageFromCommit } from '../src/package.js';
 
@@ -124,8 +125,13 @@ describe('kb pack keeps its refusals and their order when it reads in batches', 
       Buffer.from('.ia\0'),
     ]);
     execFileSync('git', ['-C', repo.root, 'update-index', '-z', '--index-info'], { input: entries, windowsHide: true });
-    const { outcome } = pack(repo.root, repo.commit(true));
-    expect(outcome).toMatchObject({ format: 'ia.kb.package.v1' });
+    const revision = repo.commit(true);
+    expect(pack(repo.root, revision).outcome).toMatchObject({ format: 'ia.kb.package.v1' });
+    // Which blob the name reads: the real file's, in a batch as path by path, never the 0xff name's.
+    const reader = committedReader(repo.root, revision),
+      name = '.ia/src/more/gamma-\uFFFD.ia';
+    expect(reader.readMany([name])[0]!().text).toBe(spec('gamma'));
+    expect(reader.read(name).text).toBe(spec('gamma'));
   });
   it('refuses at the first faulty native file in path order', () => {
     const repo = repository(0);
