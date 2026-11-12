@@ -104,7 +104,7 @@ ia inspect work-system/definition/task/review-schema
 ia vocabulary decision --schema
 ```
 
-`ia position` prints the key it used, whether the capture is current, the body's digest, the loaded records, pointers, rules and playbooks that apply, mandates, frontier and unknowns, and ends with two `ia position` commands that widen the view. `--word` narrows the loaded records and pointers to one word but never hides a blocking rule or a mandate. A shape, phase, depth or budget outside its set or cap exits 2 and names the same call with the set or cap. With `--json` it prints `{version, ok, body, digest, hostNote}`.
+`ia position` prints the key it used, whether the capture is current, the body's digest, the loaded records, pointers, blocking rules (a rule whose activation waits on an unbound axis says `applies only when`, and rules the coordinate contradicts are listed under `Rules left out by activation`), rules and playbooks that apply, mandates, frontier and unknowns, and ends with two `ia position` commands that widen the view. `--word` narrows the loaded records and pointers to one word but never hides a blocking rule or a mandate. A shape, phase, depth or budget outside its set or cap exits 2 and names the same call with the set or cap. With `--json` it prints `{version, ok, body, digest, hostNote}`.
 
 `ia next` computes each verdict from declared prerequisites and exit evidence: a success `@observation` on the task at its current digest. It prints `work.status` as self-declared and never uses it as the basis. In a workspace with no `@plan`, it names `ia preview plan`. The view ends with the `ia position` command for the next unblocked task.
 
