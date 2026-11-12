@@ -2,7 +2,7 @@
   "format": "ia.npm-change-note.v1",
   "bump": "patch",
   "title": "Console batch: a Ctrl-C before a repository's commit runs leaves Commit to choose again",
-  "summary": "In the console's batch screen, a Ctrl-C during the Commit, or Commit, push and open PRs, choice leaves each repository whose `git commit` had not started, including one whose `git add` was running, reading `not committed: stopped`; while any does, the same choice is offered again instead of leaving the next list, so those commits can still be made. A repository whose `git commit` was running when the Ctrl-C came still reads failed.",
+  "summary": "In the console's batch screen, a Ctrl-C during the Commit, or Commit, push and open PRs, choice leaves each repository whose `git commit` had not started, including one whose `git add` was running, reading `not committed: stopped`; while any does, the same choice is offered again instead of leaving the next list, so those commits can still be made. If the Ctrl-C interrupts a repository's `git commit` and it doesn't finish successfully, that repository still reads failed.",
   "packages": [
     "@inventarch/cli"
   ],
