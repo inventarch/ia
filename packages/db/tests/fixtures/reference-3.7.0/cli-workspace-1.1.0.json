@@ -1,0 +1,109 @@
+{
+  "format": "ia.scale-probe.capture.v1",
+  "label": "3.7.0",
+  "platform": "win32",
+  "node": "v22.23.4",
+  "tree": {
+    "name": "cli-workspace-1.1.0",
+    "recipe": {
+      "kind": "git",
+      "commit": "f766ff05b93e30ff6a2d6256dca93a68c77c39f8",
+      "path": "apps/cli/tests/fixtures/workspace-1.1.0"
+    },
+    "commit": null
+  },
+  "outputs": {
+    "validate": {
+      "exit": 1,
+      "digest": "4a77d922ebe7f45fbb040f88b1795b00431168caacb00abe5d90388f7a05409e",
+      "bytes": 2638,
+      "summary": {
+        "status": "refused",
+        "reportOutcome": "fail",
+        "revision": "d5aea9f8299602370cbdb8219a4e6cc390218f69836252900a795ebb4971eff0",
+        "authoredRevision": "d5aea9f8299602370cbdb8219a4e6cc390218f69836252900a795ebb4971eff0",
+        "counts": {
+          "errors": 7,
+          "warnings": 2,
+          "notEvaluated": 2,
+          "lawsPending": 0,
+          "lawsSuspended": 0
+        }
+      },
+      "files": {},
+      "stable": true
+    },
+    "capture-preview": {
+      "exit": 3,
+      "digest": "72627c59cdeaa441ddac8896009d348ae9803b54a1f0d7b17431466b9f213b0b",
+      "bytes": 346,
+      "summary": {
+        "ok": false,
+        "code": "IA-DB-ROOT-INVALID",
+        "exit": 3
+      },
+      "files": {},
+      "stable": true
+    },
+    "capture": {
+      "exit": 3,
+      "digest": "72627c59cdeaa441ddac8896009d348ae9803b54a1f0d7b17431466b9f213b0b",
+      "bytes": 346,
+      "summary": {
+        "ok": false,
+        "code": "IA-DB-ROOT-INVALID",
+        "exit": 3
+      },
+      "files": {
+        ".ia/work/snapshot/current.json": null
+      },
+      "stable": true
+    },
+    "inspect": {
+      "exit": 0,
+      "digest": "d99134bf952f70b0a80d9a0874a8a82442e3c0db7609743f14a1a8a3ce7453c1",
+      "bytes": 321,
+      "summary": {
+        "revision": "d5aea9f8299602370cbdb8219a4e6cc390218f69836252900a795ebb4971eff0",
+        "records": 0
+      },
+      "files": {},
+      "stable": true
+    },
+    "records": {
+      "exit": 0,
+      "digest": "92399c25eae5c3abb38f161333dca52c3b285e0ba21fb4e188b310ebdeb5f65a",
+      "bytes": 159745,
+      "summary": {
+        "ok": true
+      },
+      "files": {},
+      "stable": true
+    },
+    "format-check": {
+      "exit": 3,
+      "digest": "0a2790248f9f231dfa176d5d9ff340138dca5d11fa31f280aa65bd167e586fa5",
+      "bytes": 258,
+      "summary": {
+        "ok": false,
+        "code": "IA-DIST-CLOSURE-INCOMPLETE",
+        "exit": 3
+      },
+      "files": {},
+      "stable": true
+    },
+    "kb-check": {
+      "exit": 0,
+      "digest": "286459b3cb7ab6c7416cd880a64fdf1c444033d59116f3c0811f1a018fb9ae73",
+      "bytes": 347,
+      "summary": {
+        "ok": true
+      },
+      "files": {},
+      "stable": true
+    }
+  },
+  "skipped": [
+    "kb-pack"
+  ]
+}

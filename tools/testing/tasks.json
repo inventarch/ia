@@ -5198,6 +5198,32 @@
       ]
     },
     {
+      "id": "tools:test-scale-probe",
+      "kind": "vitest",
+      "project": ".",
+      "files": [
+        "tools/scale-probe/scale-probe.test.ts"
+      ],
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "repository-inventory",
+      "dependsOn": [],
+      "outputs": [
+        "artifacts/tests/tools-test-scale-probe"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "pure",
+      "covers": [
+        "vitest run --config vitest.tools.config.mts --maxWorkers=1"
+      ]
+    },
+    {
       "id": "tools:typecheck-js",
       "kind": "command",
       "project": ".",

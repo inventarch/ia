@@ -1,0 +1,108 @@
+{
+  "format": "ia.scale-probe.capture.v1",
+  "label": "3.7.0",
+  "platform": "win32",
+  "node": "v22.23.4",
+  "tree": {
+    "name": "ia-language-3.7.0",
+    "recipe": {
+      "kind": "git",
+      "commit": "ae43a8e496a2db5ecf05c4439c094f1fba6a8a73",
+      "path": ".",
+      "include": [
+        ".ia"
+      ]
+    },
+    "commit": null
+  },
+  "outputs": {
+    "validate": {
+      "exit": 0,
+      "digest": "3a614263f816f1e7b93fd8ae3d64c4f5e12235dca77f46a6fdc8534f6752d181",
+      "bytes": 6577,
+      "summary": {
+        "status": "admitted",
+        "reportOutcome": "not-evaluated",
+        "revision": "ddc31c616c8462e627e20e8f32426a44110170543ac8e1a7c130ad7912b8ddcc",
+        "authoredRevision": "ddc31c616c8462e627e20e8f32426a44110170543ac8e1a7c130ad7912b8ddcc",
+        "counts": {
+          "errors": 0,
+          "warnings": 2,
+          "notEvaluated": 2,
+          "lawsPending": 4,
+          "lawsSuspended": 0
+        }
+      },
+      "files": {},
+      "stable": true
+    },
+    "capture-preview": {
+      "exit": 0,
+      "digest": "1713ac6be02698c30904ab235b1bb5060824a1267b8460ffde24e166a02e6e08",
+      "bytes": 18884,
+      "summary": {
+        "revision": "ddc31c616c8462e627e20e8f32426a44110170543ac8e1a7c130ad7912b8ddcc",
+        "digest": "0ffd0e8c7e49f44016bb866b031218af4f24ba24fd0cb12d938be2956362fbb6",
+        "records": 346
+      },
+      "files": {},
+      "stable": true
+    },
+    "capture": {
+      "exit": 0,
+      "digest": "0a898a9d64ee333d2bfb7d14ee39f34e812efd3c184733e4a1aefef6df1a70eb",
+      "bytes": 373,
+      "summary": {
+        "revision": "ddc31c616c8462e627e20e8f32426a44110170543ac8e1a7c130ad7912b8ddcc",
+        "digest": "0ffd0e8c7e49f44016bb866b031218af4f24ba24fd0cb12d938be2956362fbb6",
+        "records": 346
+      },
+      "files": {
+        ".ia/work/snapshot/current.json": "7889d46dfb85b283eb64b76d44e0dc2bdd6b562fc7b56fd7dc9b68899a2b8155"
+      },
+      "stable": true
+    },
+    "inspect": {
+      "exit": 0,
+      "digest": "ae9b1731587c54bf9abfbfa905cefff72b6e783faf4587d2e6eefd1e01831f90",
+      "bytes": 546,
+      "summary": {
+        "revision": "ddc31c616c8462e627e20e8f32426a44110170543ac8e1a7c130ad7912b8ddcc",
+        "records": 0
+      },
+      "files": {},
+      "stable": true
+    },
+    "records": {
+      "exit": 0,
+      "digest": "d1c630bb6e933d89f4060e65518e5ed3bd185ba71676f225dd9bbc87fe208060",
+      "bytes": 718790,
+      "summary": {
+        "ok": true
+      },
+      "files": {},
+      "stable": true
+    },
+    "format-check": {
+      "exit": 0,
+      "digest": "8d364d7f276d7fd01d057e6ada302b343be447b604f4a3c287a328631cddba41",
+      "bytes": 32534,
+      "summary": {},
+      "files": {},
+      "stable": true
+    },
+    "kb-check": {
+      "exit": 1,
+      "digest": "5682bc2a4703d30d19a4ffab53f306ad701786d3b0be4fd08ba99f76b4fb36e1",
+      "bytes": 6856,
+      "summary": {
+        "ok": false
+      },
+      "files": {},
+      "stable": true
+    }
+  },
+  "skipped": [
+    "kb-pack"
+  ]
+}

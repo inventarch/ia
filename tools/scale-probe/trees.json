@@ -1,0 +1,17 @@
+{
+  "format": "ia.scale-probe.trees.v1",
+  "trees": [
+    { "name": "synthetic-200", "kind": "synthetic", "records": 200, "seed": 1 },
+    { "name": "synthetic-2000", "kind": "synthetic", "records": 2000, "seed": 1 },
+    { "name": "ia-language-3.7.0", "kind": "git", "commit": "ae43a8e496a2db5ecf05c4439c094f1fba6a8a73", "path": ".", "include": [".ia"] },
+    { "name": "compliance-loop", "kind": "git", "commit": "f766ff05b93e30ff6a2d6256dca93a68c77c39f8", "path": "packages/compliance/fixtures/loop" },
+    { "name": "conformance-composition", "kind": "git", "commit": "f766ff05b93e30ff6a2d6256dca93a68c77c39f8", "path": "examples/conformance/composition" },
+    { "name": "systems-native", "kind": "git", "commit": "f766ff05b93e30ff6a2d6256dca93a68c77c39f8", "path": "tools/systems/fixtures/native" },
+    { "name": "product-structure", "kind": "git", "commit": "f766ff05b93e30ff6a2d6256dca93a68c77c39f8", "path": "distributions/product-structure" },
+    { "name": "cli-composition-workspace", "kind": "git", "commit": "f766ff05b93e30ff6a2d6256dca93a68c77c39f8", "path": "apps/cli/tests/fixtures/composition-workspace" },
+    { "name": "cli-workspace-1.1.0", "kind": "git", "commit": "f766ff05b93e30ff6a2d6256dca93a68c77c39f8", "path": "apps/cli/tests/fixtures/workspace-1.1.0" },
+    { "name": "cli-workspace-1.1.0-collision", "kind": "git", "commit": "f766ff05b93e30ff6a2d6256dca93a68c77c39f8", "path": "apps/cli/tests/fixtures/workspace-1.1.0-collision" },
+    { "name": "projections-synthetic-review", "kind": "git", "commit": "f766ff05b93e30ff6a2d6256dca93a68c77c39f8", "path": "tools/projections/fixtures/synthetic-review" },
+    { "name": "knowledge-example", "kind": "git", "commit": "f766ff05b93e30ff6a2d6256dca93a68c77c39f8", "path": "examples/knowledge" }
+  ]
+}

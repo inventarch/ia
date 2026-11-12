@@ -1,0 +1,115 @@
+{
+  "format": "ia.scale-probe.capture.v1",
+  "label": "3.7.0",
+  "platform": "win32",
+  "node": "v22.23.4",
+  "tree": {
+    "name": "synthetic-200",
+    "recipe": {
+      "kind": "synthetic",
+      "records": 200,
+      "seed": 1
+    },
+    "commit": "06ed2e4cf47dcbb33bb1d4d09b57696f13c83404"
+  },
+  "outputs": {
+    "validate": {
+      "exit": 0,
+      "digest": "f646f0095bb956ec97d5cd4715260e9962c94b3da41911c0dbcd0eedb12f182b",
+      "bytes": 835,
+      "summary": {
+        "status": "admitted",
+        "reportOutcome": "not-evaluated",
+        "revision": "6887eac06c59c2dc53707dfbe8a1bb793eb6d02d7248bdc70ce47f12de59fdd3",
+        "authoredRevision": "6887eac06c59c2dc53707dfbe8a1bb793eb6d02d7248bdc70ce47f12de59fdd3",
+        "counts": {
+          "errors": 0,
+          "warnings": 2,
+          "notEvaluated": 2,
+          "lawsPending": 0,
+          "lawsSuspended": 0
+        }
+      },
+      "files": {},
+      "stable": true
+    },
+    "capture-preview": {
+      "exit": 0,
+      "digest": "67830319f27e7f40868cf8a9f46c2c690a8d4e51ce91c86d2b465b2c48373998",
+      "bytes": 11586,
+      "summary": {
+        "revision": "6887eac06c59c2dc53707dfbe8a1bb793eb6d02d7248bdc70ce47f12de59fdd3",
+        "digest": "98e9b3fcb04568aade2c6ac2df9fab32ea1442a40c8c82955628459208fd2eb1",
+        "records": 374
+      },
+      "files": {},
+      "stable": true
+    },
+    "capture": {
+      "exit": 0,
+      "digest": "558b34c31ec47c1038228afe0587a4e708e733540349c91455d4d3e6cd921b82",
+      "bytes": 375,
+      "summary": {
+        "revision": "6887eac06c59c2dc53707dfbe8a1bb793eb6d02d7248bdc70ce47f12de59fdd3",
+        "digest": "98e9b3fcb04568aade2c6ac2df9fab32ea1442a40c8c82955628459208fd2eb1",
+        "records": 374
+      },
+      "files": {
+        ".ia/work/snapshot/current.json": "516c2764b8a2e0424112db094f1552bcd1649e3916dfdbcad5eea377997471a7"
+      },
+      "stable": true
+    },
+    "inspect": {
+      "exit": 0,
+      "digest": "035f48b213ba5cc4b63f57aff3f325dbbf9185085190fa6571202da51faf0666",
+      "bytes": 459,
+      "summary": {
+        "revision": "6887eac06c59c2dc53707dfbe8a1bb793eb6d02d7248bdc70ce47f12de59fdd3",
+        "records": 0
+      },
+      "files": {},
+      "stable": true
+    },
+    "records": {
+      "exit": 0,
+      "digest": "34c71357420baafdc15765f73f5035f956222f2f90e78bf44008b46f5500bf1f",
+      "bytes": 723476,
+      "summary": {
+        "ok": true
+      },
+      "files": {},
+      "stable": true
+    },
+    "format-check": {
+      "exit": 0,
+      "digest": "9fe643acdc8ad32cb5823ace7bcd6f9baf1191ea62aee874a86ea45c3cc03bdd",
+      "bytes": 6846,
+      "summary": {},
+      "files": {},
+      "stable": true
+    },
+    "kb-check": {
+      "exit": 0,
+      "digest": "1fb71414305db64bfecc0d89293238b93464e2ee91ed29dde33a1d858e1f6dcb",
+      "bytes": 349,
+      "summary": {
+        "ok": true
+      },
+      "files": {},
+      "stable": true
+    },
+    "kb-pack": {
+      "exit": 0,
+      "digest": "6090efc5e31a1e17678a8cb6014dc1af564b6a29bb41987e4507dfb1fd6812d2",
+      "bytes": 176,
+      "summary": {
+        "ok": true
+      },
+      "files": {
+        "probe-pack.json": "6289b2bba913ff7455c0b2315423d20b86640d3a54afbfafdd8b53ffd91cb445"
+      },
+      "stable": true
+    }
+  },
+  "skipped": []
+}

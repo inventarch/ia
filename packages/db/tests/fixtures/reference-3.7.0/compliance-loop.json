@@ -1,0 +1,109 @@
+{
+  "format": "ia.scale-probe.capture.v1",
+  "label": "3.7.0",
+  "platform": "win32",
+  "node": "v22.23.4",
+  "tree": {
+    "name": "compliance-loop",
+    "recipe": {
+      "kind": "git",
+      "commit": "f766ff05b93e30ff6a2d6256dca93a68c77c39f8",
+      "path": "packages/compliance/fixtures/loop"
+    },
+    "commit": null
+  },
+  "outputs": {
+    "validate": {
+      "exit": 1,
+      "digest": "7e68c9477aaa9ff19be1fecf6846927bce1644e23fcc657e44ac81c8948fbd09",
+      "bytes": 3309,
+      "summary": {
+        "status": "refused",
+        "reportOutcome": "fail",
+        "revision": "7891e3b497ee471e46d1bda39354f2287653aa3dec1a75ae79797b84d41ecfba",
+        "authoredRevision": "7891e3b497ee471e46d1bda39354f2287653aa3dec1a75ae79797b84d41ecfba",
+        "counts": {
+          "errors": 1,
+          "warnings": 5,
+          "notEvaluated": 5,
+          "lawsPending": 1,
+          "lawsSuspended": 0
+        }
+      },
+      "files": {},
+      "stable": true
+    },
+    "capture-preview": {
+      "exit": 1,
+      "digest": "a443c6ef14eb5e4ae619917ff43d2ea552839074440694b2aed9fb88c328b7aa",
+      "bytes": 6933,
+      "summary": {
+        "revision": "7891e3b497ee471e46d1bda39354f2287653aa3dec1a75ae79797b84d41ecfba",
+        "digest": "fe4474da3af202f828b34b79a10c0dc59b7f47e1e069a824bba394c922498cfb",
+        "records": 158
+      },
+      "files": {},
+      "stable": true
+    },
+    "capture": {
+      "exit": 1,
+      "digest": "8b3b367ec5be24aa69fe41a059db63d251a877c29866ceaabe389dda4dc6606a",
+      "bytes": 372,
+      "summary": {
+        "revision": "7891e3b497ee471e46d1bda39354f2287653aa3dec1a75ae79797b84d41ecfba",
+        "digest": "fe4474da3af202f828b34b79a10c0dc59b7f47e1e069a824bba394c922498cfb",
+        "records": 158
+      },
+      "files": {
+        ".ia/work/snapshot/current.json": "584857e23490c0b6e129e7227cc15ba28590a1fc4c3c52e3e69086a4d304a889"
+      },
+      "stable": true
+    },
+    "inspect": {
+      "exit": 0,
+      "digest": "73b11dc0bc040fa810d37e089796a95f1905ae33829e92979352af3a55f2ec71",
+      "bytes": 470,
+      "summary": {
+        "revision": "7891e3b497ee471e46d1bda39354f2287653aa3dec1a75ae79797b84d41ecfba",
+        "records": 0
+      },
+      "files": {},
+      "stable": true
+    },
+    "records": {
+      "exit": 0,
+      "digest": "cb4f4b0e0f10c00badb52e015f4d194e9bb1b4ec2a17dfa41202f15ce4a8b689",
+      "bytes": 235986,
+      "summary": {
+        "ok": true
+      },
+      "files": {},
+      "stable": true
+    },
+    "format-check": {
+      "exit": 3,
+      "digest": "0a2790248f9f231dfa176d5d9ff340138dca5d11fa31f280aa65bd167e586fa5",
+      "bytes": 258,
+      "summary": {
+        "ok": false,
+        "code": "IA-DIST-CLOSURE-INCOMPLETE",
+        "exit": 3
+      },
+      "files": {},
+      "stable": true
+    },
+    "kb-check": {
+      "exit": 0,
+      "digest": "34937ff8efa745129879060505831a0bd07be70658cb6652c055550ad6004e6a",
+      "bytes": 348,
+      "summary": {
+        "ok": true
+      },
+      "files": {},
+      "stable": true
+    }
+  },
+  "skipped": [
+    "kb-pack"
+  ]
+}
