@@ -1,0 +1,13 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "ia workspaces runs in the running copy",
+  "summary": "ia workspaces is now answered by the running ia and never handed to the copy the workspace lists, like the session hook, bare ia, --user and extension commands.",
+  "packages": [
+    "@inventarch/cli"
+  ],
+  "paths": [
+    "apps/cli/",
+    "docs/"
+  ]
+}
