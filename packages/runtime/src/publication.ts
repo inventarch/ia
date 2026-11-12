@@ -102,9 +102,10 @@ export function qualifyPublicationRoot(root: string): string {
       // The only interpolation is a validated drive letter, never authored/model text.
       // Query the drive directly; CIM adds a cold WMI service dependency to every CLI process.
       const script = `$ErrorActionPreference='Stop'; $drive=[System.IO.DriveInfo]::new('${drive}\\'); @{DriveType=[int]$drive.DriveType; FileSystem=$drive.DriveFormat} | ConvertTo-Json -Compress`;
-      // Cold PowerShell startup exceeded 10s on Windows CI (35559311967), and on a slow runner a cold start can still
-      // outlast 30 s. Keep each probe bounded and fail closed, but give a probe that timed out one more try; any other
-      // failure refuses at once, and only successful probes are cached.
+      // Cold PowerShell startup exceeded 10s on Windows CI (35559311967), and on a slow runner a cold-start stall has
+      // outlasted two 30 s tries, each a new process (43231185301). Keep each probe bounded and fail closed, but give a
+      // probe that timed out up to two more tries; any other failure refuses at once, and only successful probes are
+      // cached.
       const probe = () =>
         execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
           encoding: 'utf8',
@@ -112,11 +113,13 @@ export function qualifyPublicationRoot(root: string): string {
           timeout: 30_000,
         });
       let output: string;
-      try {
-        output = probe();
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== 'ETIMEDOUT') throw error;
-        output = probe();
+      for (let tries = 1; ; tries++) {
+        try {
+          output = probe();
+          break;
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'ETIMEDOUT' || tries === 3) throw error;
+        }
       }
       const info = JSON.parse(output.trim()) as { DriveType?: number; FileSystem?: string };
       if (info?.DriveType !== 3 || info.FileSystem !== 'NTFS')

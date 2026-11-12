@@ -3110,7 +3110,7 @@
           ]
         },
         {
-          "case": "tests/publication.test.ts > qualified local NTFS publication qualifies on a second probe after the first timed out, and caches the success",
+          "case": "tests/publication.test.ts > qualified local NTFS publication qualifies on a third probe after two timed out, and caches the success",
           "reason": "Exercises the Windows PowerShell volume probe after Windows root qualification; Linux and macOS refuse the unsupported platform before reaching the probe.",
           "platforms": [
             "linux",

@@ -116,8 +116,10 @@ describe.skipIf(process.platform !== 'win32')('qualified local NTFS publication'
           expect(() => prepare(root, destination, files, metadata)).toThrow(
             expect.objectContaining({ code: 'IA-PUBLICATION-UNAVAILABLE' }),
           );
-        // A timed-out probe gets one more try, under the same bound, per qualification; other failures refuse at once.
-        expect(probe).toHaveBeenCalledTimes(failure === 'timeout' || failure === 'timeout-then-invalid-json' ? 4 : 2);
+        // Each qualification gives a timed-out probe up to two more tries, under the same bound; other failures refuse
+        // at once.
+        const probesPerQualification = failure === 'timeout' ? 3 : failure === 'timeout-then-invalid-json' ? 2 : 1;
+        expect(probe).toHaveBeenCalledTimes(2 * probesPerQualification);
         for (let call = 1; call <= probe.mock.calls.length; call++)
           expect(probe).toHaveBeenNthCalledWith(
             call,
@@ -132,13 +134,13 @@ describe.skipIf(process.platform !== 'win32')('qualified local NTFS publication'
       }
     },
   );
-  it('qualifies on a second probe after the first timed out, and caches the success', async () => {
+  it('qualifies on a third probe after two timed out, and caches the success', async () => {
     vi.resetModules();
     const root = temp();
     let calls = 0;
     const probe = vi.fn(() => {
       calls++;
-      if (calls === 1) throw Object.assign(new Error('spawnSync powershell.exe ETIMEDOUT'), { code: 'ETIMEDOUT' });
+      if (calls <= 2) throw Object.assign(new Error('spawnSync powershell.exe ETIMEDOUT'), { code: 'ETIMEDOUT' });
       return JSON.stringify({ DriveType: 3, FileSystem: 'NTFS' });
     });
     vi.doMock('node:child_process', () => ({ execFileSync: probe }));
@@ -146,14 +148,14 @@ describe.skipIf(process.platform !== 'win32')('qualified local NTFS publication'
       const { qualifyPublicationRoot: qualify } = await import('../src/publication.js');
       expect(qualify(root)).toBe(resolve(root));
       expect(qualify(root)).toBe(resolve(root));
-      expect(probe).toHaveBeenCalledTimes(2);
+      expect(probe).toHaveBeenCalledTimes(3);
     } finally {
       vi.doUnmock('node:child_process');
       vi.resetModules();
     }
   });
-  // The first publication includes the cold external NTFS probe, up to two bounded 30s tries when the first
-  // times out; leave time for publication assertions and cleanup after qualification.
+  // The first publication includes the cold external NTFS probe, up to three bounded 30s tries while they time
+  // out; leave time for publication assertions and cleanup after qualification.
   it('publishes exact bytes and inventory only after an exclusive final directory claim', async () => {
     const root = temp(),
       prepared = preparePublication(root, destination, files, metadata);

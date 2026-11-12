@@ -121,7 +121,7 @@ for (const platform of ['linux', 'darwin'] as const)
     }
   });
 
-// The fixtures pay the cold external NTFS probe, up to two bounded 30s tries when the first times out.
+// The fixtures pay the cold external NTFS probe, up to three bounded 30s tries while they time out.
 it.skipIf(process.platform !== 'win32')(
   'observes every publication refusal through the actual qualified Windows primitive',
   () => {

@@ -22,7 +22,7 @@ import { inputs, records, registry } from '../../packages/compliance/tests/nativ
 import { runEvidenceFixtures } from './evidence-fixtures.js';
 
 const root = resolve(import.meta.dirname, '../..');
-// The first compliance run pays the cold external NTFS probe on Windows, up to two bounded 30s tries.
+// The first compliance run pays the cold external NTFS probe on Windows, up to three bounded 30s tries.
 it('binds kernel evidence to the floor used by the evaluated graph', () => {
   const { report } = checkCompliance(root);
   expect(report.verdicts.find((v) => v.check === 'COMP-KERNEL')).toMatchObject({ outcome: 'pass', basis: 'verified' });
