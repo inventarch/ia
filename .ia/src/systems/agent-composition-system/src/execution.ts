@@ -1,10 +1,17 @@
-import { manifestDigest } from '@inventarch/agent-system';
+import { COMPLETION_EVALUATOR, manifestDigest } from '@inventarch/agent-system';
 import type { Manifest, Profile } from '@inventarch/agent-system';
 import { copy, digest } from '@inventarch/session-system';
 import type { Json } from '@inventarch/session-system';
-import type { CompositionCatalog } from './catalog.js';
+import type { CatalogAliases, CompositionCatalog } from './catalog.js';
 import { CompositionError } from './compiled.js';
 import type { CompiledHarness } from './compiled.js';
+
+/** The aliases a compilation used, as the table that reproduces it: recompile with these to rebuild the same harness. */
+export function compiledAliases(compiled: CompiledHarness): CatalogAliases {
+  const table: Record<string, Record<string, string>> = {};
+  for (const alias of compiled.provenance.aliases ?? []) (table[alias.group] ??= {})[alias.from] = alias.to;
+  return table as CatalogAliases;
+}
 
 /** Explicit P2 bridge. Hosts still verify current executable pins and issue current grants. */
 export function executionManifest(compiled: CompiledHarness, catalog: CompositionCatalog): Manifest {
@@ -17,7 +24,7 @@ export function executionManifest(compiled: CompiledHarness, catalog: Compositio
   for (const pin of compiled.provenance.installed) {
     const entry = (
       catalog[pin.group as keyof CompositionCatalog] as
-        | Record<string, { version: 1; digest: string; value: unknown }>
+        | Record<string, { version: number; digest: string; value: unknown }>
         | undefined
     )?.[pin.id];
     if (!entry || entry.digest !== pin.digest || digest({ version: entry.version, value: entry.value }) !== pin.digest)
@@ -41,7 +48,7 @@ export function executionManifest(compiled: CompiledHarness, catalog: Compositio
           if (!evaluator || !evaluator.value.phases.length) return refuse(`Required evaluator unavailable: ${check}`);
           return { id: check, phases: [...evaluator.value.phases] };
         }),
-        completionEvaluator: 'ia.completion.v1',
+        completionEvaluator: COMPLETION_EVALUATOR,
         repairAttempts: 1,
         maxAttempts: 2,
       },

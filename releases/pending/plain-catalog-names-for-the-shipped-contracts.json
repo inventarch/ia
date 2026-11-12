@@ -1,0 +1,25 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "Plain catalog names for the shipped contracts",
+  "summary": "The installed read, draft tools and runner contracts are installed under plain names (captured-source-read, draft-validate, draft-format, captured-template-render, draft-text, captured-template-input, draft-result, runner-task, runner-local, runner-read and the rest), each operation with one name for key and handler. The original -v1 entries stay installed byte for byte so existing pins verify and old handlers still dispatch; installedReadAliases(), draftToolAliases() and runnerAliases() send records that still name an old contract to its plain entry, and compiledAliases() rebuilds a harness's alias table.",
+  "packages": [
+    "@inventarch/agent-composition-system",
+    "@inventarch/cli",
+    "@inventarch/mcp-door",
+    "@inventarch/runner",
+    "@inventarch/workspace-runtime"
+  ],
+  "paths": [
+    ".ia/authoring.resources.json",
+    ".ia/src/systems/agent-composition-system/",
+    "CLAUDE.md",
+    "apps/cli/",
+    "apps/mcp-door/",
+    "apps/runner/",
+    "docs/",
+    "examples/",
+    "packages/workspace-runtime/",
+    "tools/"
+  ]
+}

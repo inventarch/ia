@@ -9,8 +9,9 @@ import { Engine, manifestDigest } from '@inventarch/agent-system';
 import type { EngineHost, Grant, ModelAction, OperationContext } from '@inventarch/agent-system';
 import { copy, digest, memoryStore } from '@inventarch/session-system';
 import { compileHarness, Corpus, executionManifest } from '../src/index.js';
+import type { CatalogAliases, Capture } from '../src/index.js';
 import { captureResources, resourceOccurrences } from '@inventarch/workspace-runtime/resources';
-import { draftToolAdapters, DRAFT_TOOL_IDS } from '../src/tools.js';
+import { draftToolAdapters, draftToolAliases, DRAFT_TOOL_IDS } from '../src/tools.js';
 import type { DraftToolOptions } from '../src/tools.js';
 
 // Cases rebuild captured native views for several tool setups; under full-suite load one case nears the 5 s default.
@@ -35,7 +36,7 @@ mkdirSync(resolve(temp, 'templates'));
 writeFileSync(resolve(temp, 'templates/tool.json'), tree);
 const { revision: _revision, ...body } = base;
 const native =
-  '#! ia 1.0\n@template tool-note\n  meaning\n    says "Render the original engine fixture."\n    answers "What is rendered?"\n  template\n    filename "docs/tool-note.md"\n    parameters []\n    lines []\n    profile structured-v1\n    resource "templates/tool.json"\n';
+  '#! ia 1.0\n@template tool-note\n  meaning\n    says "Render the original engine fixture."\n    answers "What is rendered?"\n  template\n    filename "docs/tool-note.md"\n    parameters []\n    lines []\n    profile structured\n    resource "templates/tool.json"\n';
 const source = {
   ...base.sources.find((s) => s.path === '.ia/src/systems/template-system/system.ia')!,
   path: '.ia/src/systems/template-system/records/tool-note.ia',
@@ -126,12 +127,34 @@ function declaredDraftCase(name: string, operation: string): string {
   }
 }
 
-function setup(kind = 'draft', additions: Partial<DraftToolOptions> = {}) {
+interface Shape {
+  /** Records as written before names stopped carrying their version. */
+  capture?: Capture;
+  aliases?: CatalogAliases;
+  /** Compile against a catalog that has only the original entries, then bridge against the full one. */
+  originalOnly?: boolean;
+}
+const plainName =
+  /^(draft-validate|draft-format|captured-template-render|draft-text|captured-template-input|draft-result)$/;
+function setup(kind = 'draft', additions: Partial<DraftToolOptions> = {}, shape: Shape = {}) {
   const catalog = draftToolCatalog('test', code, additions.resources),
-    compiled = compileHarness(capture, { harness: `native-${kind}-tools`, entry: `${kind}-tools-entry`, catalog });
+    chosen = shape.originalOnly
+      ? {
+          ...catalog,
+          operations: Object.fromEntries(Object.entries(catalog.operations).filter(([name]) => !plainName.test(name))),
+          validators: Object.fromEntries(Object.entries(catalog.validators).filter(([name]) => !plainName.test(name))),
+        }
+      : catalog,
+    used = shape.capture ?? capture,
+    compiled = compileHarness(used, {
+      harness: `native-${kind}-tools`,
+      entry: `${kind}-tools-entry`,
+      catalog: chosen,
+      ...(shape.aliases ? { aliases: shape.aliases } : {}),
+    });
   if (!compiled.ok) throw Error(JSON.stringify(compiled.diagnostics));
   const manifest = executionManifest(compiled.manifest, catalog),
-    tools = draftToolAdapters(capture, {
+    tools = draftToolAdapters(used, {
       manifest,
       principal: 'alice',
       implementationDigest: code,
@@ -145,7 +168,7 @@ function setup(kind = 'draft', additions: Partial<DraftToolOptions> = {}) {
     workspace: manifest.workspace,
     profiles: Object.keys(manifest.profiles),
     operations: Object.keys(manifest.operations),
-    sources: [capture.revision],
+    sources: [used.revision],
     models: ['test'],
     effects: ['read'],
     expiresAt: Date.now() + 600000,
@@ -290,7 +313,7 @@ it('refuses forged model root/actor/binding fields at the engine schema before d
 });
 it('refuses wrong principal, manifest, grant, cancellation and missing engine authority', async () => {
   const f = setup(),
-    adapter = f.tools.operations['ia.draft.format.v1']!;
+    adapter = f.tools.operations['draft-format']!;
   const changed = copy(f.manifest);
   changed.workspace = 'forged';
   changed.digest = manifestDigest(changed);
@@ -314,21 +337,21 @@ it('refuses wrong principal, manifest, grant, cancellation and missing engine au
 it('rechecks source and refreshed grants before returning any artifact', async () => {
   let checks = 0;
   const f = setup('draft', { current: () => ++checks === 1 }),
-    adapter = f.tools.operations['ia.draft.format.v1']!;
+    adapter = f.tools.operations['draft-format']!;
   await expect(adapter.execute({ path, text }, f.context)).rejects.toThrow('selection changed');
   const next = setup();
   next.context.assertCurrent = async () => {
     next.context.grant = { ...next.grant, sources: [] };
   };
-  await expect(next.tools.operations['ia.draft.format.v1']!.execute({ path, text }, next.context)).rejects.toThrow(
+  await expect(next.tools.operations['draft-format']!.execute({ path, text }, next.context)).rejects.toThrow(
     'authority',
   );
 });
 it('refuses narrow contextual previews and independently excluded template resources', async () => {
   const f = setup('draft', { identities: [owner.identity] });
   for (const [operation, handler] of [
-    ['validate-draft', 'ia.draft.validate.v1'],
-    ['format-draft', 'ia.draft.format.v1'],
+    ['validate-draft', 'draft-validate'],
+    ['format-draft', 'draft-format'],
   ] as const) {
     const result = await f.tools.operations[handler]!.execute({ path, text }, f.context);
     expect(result.output).toMatchObject({
@@ -346,7 +369,7 @@ it('refuses narrow contextual previews and independently excluded template resou
     { resources: resourceSelection(), identities: [] },
   ]) {
     const scoped = setup('template', options);
-    const result = await scoped.tools.operations['ia.template.render.v1']!.execute(
+    const result = await scoped.tools.operations['captured-template-render']!.execute(
       { template: owner.identity, values: '{"title":"Private"}' },
       scoped.context,
     );
@@ -356,7 +379,7 @@ it('refuses narrow contextual previews and independently excluded template resou
 });
 it('refuses unavailable catalogs, changed implementation/resource pins and forged operation contracts', () => {
   const catalog = draftToolCatalog('test', code);
-  delete catalog.operations['draft-format-v1'];
+  delete catalog.operations['draft-format'];
   expect(compileHarness(capture, { harness: 'native-draft-tools', entry: 'draft-tools-entry', catalog })).toMatchObject(
     { ok: false },
   );
@@ -388,4 +411,177 @@ it('refuses unavailable catalogs, changed implementation/resource pins and forge
       resources: { ...resourceSelection(), allowed: [] },
     }),
   ).toThrow('installed descriptor');
+});
+
+// A contract's version is its entry's `version`, so the draft tools have plain names. The original entries stay, byte
+// for byte, for harnesses pinned before that; records that still name them compile to the plain entries by the aliases.
+const originalPaths = [
+  '.ia/src/systems/agent-composition-system/records/validate-draft-binding.ia',
+  '.ia/src/systems/agent-composition-system/records/format-draft-binding.ia',
+  '.ia/src/systems/agent-composition-system/records/render-captured-template-binding.ia',
+  '.ia/src/systems/authoring-system/operations/validate-draft.ia',
+  '.ia/src/systems/authoring-system/operations/format-draft.ia',
+  '.ia/src/systems/template-system/operations/render-captured-template.ia',
+];
+const withVersions = (text: string) =>
+  text.replace(
+    /^(\s+(?:handler|input|output|implementation) (?:draft-validate|draft-format|captured-template-render|draft-text|captured-template-input|draft-result))$/gm,
+    '$1-v1',
+  );
+const { revision: _plainRevision, ...plainBody } = capture;
+const originalBody = {
+    ...plainBody,
+    sources: capture.sources.map((row) =>
+      originalPaths.includes(row.path) ? { ...row, text: withVersions(row.text) } : row,
+    ),
+  },
+  originalCapture: Capture = { ...originalBody, revision: digest(originalBody) };
+// Resource envelopes are bound to the capture revision and its physical sources, so the original-name capture has its
+// own directory and envelope.
+const tempOriginal = mkdtempSync(resolve(tmpdir(), 'ia-engine-tools-'));
+mkdirSync(resolve(tempOriginal, 'templates'));
+writeFileSync(resolve(tempOriginal, 'templates/tool.json'), tree);
+for (const item of originalCapture.sources.filter(
+  (row) =>
+    row.path.startsWith('.ia/src/') &&
+    (originalCapture.floorOrigin === 'local' || !row.path.startsWith('.ia/src/floor/')),
+)) {
+  const target = resolve(tempOriginal, item.path);
+  mkdirSync(dirname(target), { recursive: true });
+  writeFileSync(target, item.text);
+}
+afterAll(() => rmSync(tempOriginal, { recursive: true, force: true }));
+// Resource envelopes are bound to the capture revision, so the original-name capture needs its own.
+const originalOwner = resourceOccurrences(originalCapture).occurrences.find((o) => o.identity.endsWith('/tool-note'))!;
+const originalKey = { source: originalOwner.source, revision: originalOwner.revision, path: 'templates/tool.json' };
+const originalResources = captureResources(originalCapture, {
+  roots: [{ source: originalOwner.source, revision: originalOwner.revision, root: tempOriginal }],
+  files: [
+    {
+      key: originalKey,
+      bytes: Buffer.byteLength(tree),
+      sha256: createHash('sha256').update(tree).digest('hex'),
+      mediaType: 'application/json',
+      encoding: 'utf8',
+    },
+  ],
+  associations: [
+    {
+      owner: originalOwner,
+      resources: [{ key: originalKey, role: 'template', required: true, order: 0, delivery: 'installed-reference' }],
+    },
+  ],
+});
+const pinned = (kind: string, shape: Shape = {}) =>
+  setup(
+    kind,
+    kind === 'template'
+      ? {
+          resources: shape.capture
+            ? {
+                envelope: originalResources,
+                digest: originalResources.digest,
+                allowed: [originalKey],
+                templates: [originalOwner.identity],
+              }
+            : resourceSelection(),
+        }
+      : {},
+    shape,
+  );
+const toolPins = (f: ReturnType<typeof setup>) =>
+  (
+    f.manifest.provenance as { compiled: { provenance: { installed: { group: string; id: string }[] } } }
+  ).compiled.provenance.installed
+    .filter((pin) => pin.group === 'operations' && /draft|captured-template/.test(pin.id))
+    .map((pin) => pin.id)
+    .sort();
+const toolOperations = (f: ReturnType<typeof setup>) =>
+  Object.values(f.manifest.operations).filter((op) => Object.values(DRAFT_TOOL_IDS).includes(op.id));
+const toolIds = [
+  ['validate', 'draft-validate', 'ia.draft.validate.v1', 'draft-text'],
+  ['format', 'draft-format', 'ia.draft.format.v1', 'draft-text'],
+  ['render', 'captured-template-render', 'ia.template.render.v1', 'captured-template-input'],
+] as const;
+
+it('keeps the original draft tool entries byte for byte beside the plain ones', () => {
+  const selection = { digest: digest('r'), allowed: [], templates: [] };
+  const catalog = draftToolCatalog('test', code, selection);
+  const render = digest({ implementationDigest: code, resources: selection });
+  for (const [which, plain, handler, input] of toolIds) {
+    const identity = DRAFT_TOOL_IDS[which],
+      owner = which === 'render' ? 'template-system' : 'authoring-system',
+      implementationDigest = which === 'render' ? render : code;
+    const value = {
+      identity,
+      owner,
+      handler,
+      implementationDigest,
+      input: input + '-v1',
+      output: 'draft-result-v1',
+      effects: ['read'],
+      recovery: 'repeatable',
+      timeoutMs: 10000,
+      maxOutputBytes: 65536,
+      preflight: 'captured-workspace',
+    };
+    const original = catalog.operations[plain + '-v1']!;
+    expect(original.version).toBe(1);
+    expect(original.value).toEqual(value);
+    expect(original.digest).toBe(digest({ version: 1, value }));
+    expect(catalog.operations[plain]!.value).toEqual({ ...value, handler: plain, input, output: 'draft-result' });
+  }
+  for (const name of ['draft-text', 'captured-template-input', 'draft-result'])
+    expect(catalog.validators[name + '-v1']).toEqual(catalog.validators[name]);
+  expect(draftToolAliases()).toEqual({
+    operations: {
+      'draft-validate-v1': 'draft-validate',
+      'draft-format-v1': 'draft-format',
+      'captured-template-render-v1': 'captured-template-render',
+    },
+    validators: {
+      'draft-text-v1': 'draft-text',
+      'captured-template-input-v1': 'captured-template-input',
+      'draft-result-v1': 'draft-result',
+    },
+  });
+});
+it('compiles records with the plain names, pinning the plain entries and handlers', () => {
+  for (const [kind, plain] of [
+    ['draft', ['draft-format', 'draft-validate']],
+    ['template', ['captured-template-render']],
+  ] as const) {
+    const f = pinned(kind);
+    expect(toolPins(f)).toEqual(plain);
+    for (const op of toolOperations(f)) expect(plain).toContain(op.handler);
+    for (const [, name, handler] of toolIds)
+      if (plain.some((p) => p === name))
+        expect([f.tools.operations[name]?.id, f.tools.operations[handler]?.id]).toEqual([name, handler]);
+  }
+});
+it('compiles records that still name the original ids through the aliases to the plain entries', () => {
+  for (const kind of ['draft', 'template']) {
+    const f = pinned(kind, { capture: originalCapture, aliases: draftToolAliases() }),
+      plain = pinned(kind);
+    expect(toolPins(f)).toEqual(toolPins(plain));
+    const compiled = (f.manifest.provenance as { compiled: { provenance: { aliases?: { group: string }[] } } })
+      .compiled;
+    expect(compiled.provenance.aliases?.some((row) => row.group === 'operations')).toBe(true);
+    expect(compiled.provenance.aliases?.some((row) => row.group === 'validators')).toBe(true);
+    for (const op of toolOperations(f)) expect(op.handler).not.toContain('.');
+  }
+});
+it('keeps a harness pinned to the original entries valid and dispatching by the original handlers', async () => {
+  for (const kind of ['draft', 'template']) {
+    const f = pinned(kind, { capture: originalCapture, originalOnly: true });
+    expect(toolPins(f).every((id) => id.endsWith('-v1'))).toBe(true);
+    for (const op of toolOperations(f)) expect(op.handler).toMatch(/^ia\./);
+  }
+  const f = pinned('draft', { capture: originalCapture, originalOnly: true });
+  const result = await f.tools.operations['ia.draft.format.v1']!.execute({ path, text }, f.context);
+  expect(result.effect).toBe('none');
+  expect(result.output).toMatchObject({ status: 'draft' });
+  expect(f.tools.operations['ia.draft.format.v1']!.id).toBe('ia.draft.format.v1');
+  const renderer = pinned('template', { capture: originalCapture, originalOnly: true });
+  expect(renderer.tools.operations['ia.template.render.v1']).toBeDefined();
 });

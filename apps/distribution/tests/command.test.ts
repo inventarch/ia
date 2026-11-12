@@ -168,7 +168,7 @@ it('renders a captured structured template through the explicit-root command', (
   mkdirSync(dirname(join(project, path)), { recursive: true });
   writeFileSync(
     join(project, path),
-    '#! ia 1.0\n\n@template structured-test\n  meaning\n    says "Render an original example."\n    answers "What is rendered?"\n  template\n    filename "docs/example.md"\n    parameters []\n    lines []\n    profile structured-v1\n    resource "tree.json"\n',
+    '#! ia 1.0\n\n@template structured-test\n  meaning\n    says "Render an original example."\n    answers "What is rendered?"\n  template\n    filename "docs/example.md"\n    parameters []\n    lines []\n    profile structured\n    resource "tree.json"\n',
   );
   const tree = JSON.stringify({
     format: 'ia.structured-template.v1',

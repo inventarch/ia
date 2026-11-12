@@ -83,6 +83,8 @@ export interface CompiledHarness {
     components: ComponentPin[];
     sources: { path: string; digest: string }[];
     installed: { group: string; id: string; digest: string }[];
+    /** Each old contract name a record used, and the plain entry it compiled to. Absent when none was used. */
+    aliases?: { group: string; from: string; to: string }[];
     fields: Record<string, string[]>;
   };
 }

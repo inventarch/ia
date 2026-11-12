@@ -8,7 +8,7 @@
  * Per repository: refuse when planning did; `git fetch origin` and the base (`origin/HEAD`, then `origin/main`, then
  * `origin/master`); refuse a workspace whose `.ia/src` the base does not hold; refuse an existing worktree path or branch; `git worktree add --no-track -b <branch> <path> <base>`
  * (no upstream, ever), and when that fails, remove what it made (`undoAdd`); the package manager's install when the worktree holds a `package.json`, built for the worktree,
- * with no lifecycle script and frozen to a tracked lockfile (`batchInstallArgv`);
+ * with no lifecycle script, no pnpmfile under pnpm, and frozen to a tracked lockfile (`batchInstallArgv`; Yarn 2+ `yarnPath` and plugins and `.npmrc` settings still run);
  * then each step. Before the install and before every step the real filesystem is checked (`containedStep`): the
  * step's `cwd` and each path it names must lead, through any link, into the worktree. An `ia` step runs on the copy
  * the worktree has at that step, found again before each one, or on the running copy when there is none; the batch
@@ -18,6 +18,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, lstatSync, realpathSync, statSync } from 'node:fs';
 import { basename, delimiter, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { unidentified } from '@inventarch/db/internal/paths';
 import { confirmedArgv, displayFix } from '../fix.js';
 import { NO_HANDOFF } from '../handoff.js';
 import type { LocalCli } from '../local-cli.js';
@@ -566,7 +567,6 @@ export interface Pinned {
   readonly dev: bigint;
   readonly ino: bigint;
 }
-const ALL_ONES = 2n ** 64n - 1n;
 /** The worktree's identity now, or null when it cannot be read. */
 export function pinWorktree(path: string): Pinned | null {
   try {
@@ -583,7 +583,6 @@ export function pinWorktree(path: string): Pinned | null {
  */
 export function checkPinned(path: string, pinned: Pinned | undefined | null): string | null {
   const now = pinWorktree(path);
-  const unidentified = (id: bigint): boolean => id === 0n || id === ALL_ONES;
   const same =
     pinned !== undefined &&
     pinned !== null &&
@@ -929,7 +928,7 @@ async function runRepo(
         `the first step installs with ${first}, but the base is locked by ${manager}; run this offer from that workspace's own view instead`,
       );
     if (first === null) {
-      // No lifecycle script runs, and a tracked lockfile is never rewritten: the install is frozen to it.
+      // No lifecycle script or pnpmfile runs (Yarn 2+ yarnPath/plugins and .npmrc settings still do), and a tracked lockfile is never rewritten.
       const install: Step = {
         program: 'external',
         argv: [...batchInstallArgv(manager, manifest, workspace, lockTracked(manifest, manager, listing))],

@@ -7,7 +7,8 @@ export type EffectClass = OperationDefinition['effects'][number];
 /** Relative duration is compiled; the execution host establishes the absolute deadline. */
 export type ResourceLimits = Partial<Omit<Limits, 'deadline'>> & { durationMs?: number };
 export interface Installed<T> {
-  version: 1;
+  /** The contract's version, a positive integer. It is part of the digest, so a pin on the digest pins it. */
+  version: number;
   digest: string;
   value: T;
 }
@@ -67,7 +68,15 @@ export interface CompositionCatalog {
   mappings: Record<string, Installed<{ kind: 'identity' }>>;
 }
 export type CatalogGroup = keyof CompositionCatalog;
-export function installed<T>(value: T): Installed<T> {
-  const body = { version: 1 as const, value: copy(value) };
+/**
+ * Names a catalogue no longer installs, mapped to the plain name of the entry that replaces each one. A record that
+ * still names an old contract compiles to its replacement; the catalogue keeps the original entry, byte for byte, for
+ * harnesses already pinned to it.
+ */
+export type CatalogAliases = Partial<Record<CatalogGroup, Readonly<Record<string, string>>>>;
+export function installed<T>(value: T, version = 1): Installed<T> {
+  if (!Number.isSafeInteger(version) || version < 1)
+    throw new RangeError('An installed contract version is a positive integer');
+  const body = { version, value: copy(value) };
   return { ...body, digest: digest(body) };
 }

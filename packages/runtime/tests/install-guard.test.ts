@@ -132,8 +132,21 @@ describe('requireKitInstalled', () => {
     expect(error.kit).toBe(KIT);
     expect(methodRefusal(error).error).toEqual({ code: 'IA-CORE-KIT-NOT-INSTALLED', message: error.message, kit: KIT });
     expect(error.message).toBe(
-      `kit ${KIT} is bound by this repository but its lock does not install it; run ia install ${KIT} (or kit.mjs add ${KIT}), then resolve again`,
+      `kit ${KIT} is bound by this repository but its lock does not install it; install the npm package that carries it with ia install --package <name> --apply --yes (the public kits ship in @inventarch/public-kits), or ia install ${KIT} --apply --yes where a registry serves it, or kit.mjs add ${KIT} --apply; then resolve again`,
     );
+  });
+  it('the remedy leads with the package route, since ia install <id> does not resolve the public kits (#301)', () => {
+    writeLock(lockWith({}));
+    let message = '';
+    try {
+      requireKitInstalled(dir, { id: KIT });
+    } catch (error) {
+      message = (error as MethodError).message;
+    }
+    expect(message.indexOf('ia install --package')).toBeGreaterThan(-1);
+    expect(message.indexOf('ia install --package')).toBeLessThan(message.indexOf(`ia install ${KIT}`));
+    expect(message).toContain('@inventarch/public-kits');
+    expect(message).not.toContain(`run ia install ${KIT} (`);
   });
 });
 
@@ -215,10 +228,15 @@ describe('resolveMethod with a bound kit', () => {
         { entry: 'knowledge', activity: 'find', root: dir, pin: true, ...extra },
         {
           kits: { bundled, ...sources },
-          restore: (_root, kit) => {
-            restored++;
-            restoredKit = kit;
-            throw new Error(REACHED);
+          restore: {
+            select: (kit) => {
+              restored++;
+              restoredKit = kit;
+              throw new Error(REACHED);
+            },
+            apply: () => {
+              throw new Error(REACHED);
+            },
           },
           env: { IA_HOME: home, IA_CORE_RUN_ROOT: runRoot },
           store,
@@ -397,8 +415,13 @@ describe('resolveMethod with a bound kit', () => {
         { entry: 'knowledge', activity: 'find', root: join(dir, '..'), kit: KIT, capability: 'kb-retrieve' },
         {
           kits: { bundled, home: null },
-          restore: () => {
-            throw new Error(REACHED);
+          restore: {
+            select: () => {
+              throw new Error(REACHED);
+            },
+            apply: () => {
+              throw new Error(REACHED);
+            },
           },
           env: { IA_HOME: home },
           store,

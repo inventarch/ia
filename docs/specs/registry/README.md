@@ -69,7 +69,7 @@ Only the selected archives are fetched and verified, in id order: by artifact UR
 
 ### 6.2 Update
 
-`ia update <id>` without `--to` keeps the request's range and drops only that id's preferred pin, so the newest release the range permits wins. `--to` replaces the range. An id that is not a direct request is refused.
+`ia update <id>` without `--to` keeps the request's range and drops only that id's preferred pin, so the newest release the range permits wins. `--to` replaces the range. An id that is not a direct request is refused. The language bases the CLI carries are offered as candidates beside the registry's releases for `inventarch/language`, cold or warm, online or offline: the same major as the newest carried base, never below the locked version, admitted by the workspace's ranges. A registry's own `inventarch/language` releases are held to the same bound: one below the locked version, or below the minimum the workspace's records need when the plan computes it, is neither followed nor selected, so no plan moves the base down. A selected carried base is cached from the CLI's verified bytes, so a clone with no registry can move to it.
 
 ### 6.3 Restore
 

@@ -6,7 +6,7 @@ import { canonicalPath } from '@inventarch/language';
 
 /** How many floors' kernel evidence a process keeps: an editor that edits its local floor verifies each new one. */
 const KERNEL_FLOORS = 16;
-/** The package-v1 fixture evidence: the profile runs only the package's own files, so one run serves the process. */
+/** The package fixture evidence: the profile runs only the package's own files, so one run serves the process. */
 let fixtures: FixtureEvidence | undefined;
 /** Kernel evidence by the exact floor it verified, least recently used first. */
 const kernels = new Map<string, KernelEvidence>();

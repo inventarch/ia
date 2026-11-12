@@ -17,18 +17,18 @@
     {
       "owner": ".ia/src/systems/agent-composition-system",
       "kind": "compiled",
-      "npmVersion": "3.6.0",
+      "npmVersion": "3.7.0",
       "native": {
         "system": "agent-composition-system",
         "id": "inventarch/agent-composition-system",
-        "version": "3.1.4",
+        "version": "3.2.0",
         "distribution": "workspace-system/definition/distribution/package-agent-composition-system"
       }
     },
     {
       "owner": ".ia/src/systems/agent-system",
       "kind": "compiled",
-      "npmVersion": "3.6.0",
+      "npmVersion": "3.7.0",
       "native": {
         "system": "agent-system",
         "id": "inventarch/agent-system",
@@ -39,18 +39,18 @@
     {
       "owner": ".ia/src/systems/authoring-system",
       "kind": "compiled",
-      "npmVersion": "3.6.0",
+      "npmVersion": "3.7.0",
       "native": {
         "system": "authoring-system",
         "id": "inventarch/authoring-system",
-        "version": "3.2.1",
+        "version": "3.3.0",
         "distribution": "workspace-system/definition/distribution/package-authoring-system"
       }
     },
     {
       "owner": ".ia/src/systems/compliance-system",
       "kind": "native-only",
-      "npmVersion": "3.6.0",
+      "npmVersion": "3.7.0",
       "native": {
         "system": "compliance-system",
         "id": "inventarch/compliance-system",
@@ -61,7 +61,7 @@
     {
       "owner": ".ia/src/systems/governance-system",
       "kind": "native-only",
-      "npmVersion": "3.6.0",
+      "npmVersion": "3.7.0",
       "native": {
         "system": "governance-system",
         "id": "inventarch/governance-system",
@@ -72,29 +72,29 @@
     {
       "owner": ".ia/src/systems/hook-authoring-system",
       "kind": "native-only",
-      "npmVersion": "3.6.0",
+      "npmVersion": "3.7.0",
       "native": {
         "system": "hook-authoring-system",
         "id": "inventarch/hook-authoring-system",
-        "version": "3.1.4",
+        "version": "3.2.0",
         "distribution": "workspace-system/definition/distribution/package-hook-authoring-system"
       }
     },
     {
       "owner": ".ia/src/systems/learning-system",
       "kind": "native-only",
-      "npmVersion": "3.6.0",
+      "npmVersion": "3.7.0",
       "native": {
         "system": "learning-system",
         "id": "inventarch/learning-system",
-        "version": "3.1.4",
+        "version": "3.2.0",
         "distribution": "workspace-system/definition/distribution/package-learning-system"
       }
     },
     {
       "owner": ".ia/src/systems/session-system",
       "kind": "compiled",
-      "npmVersion": "3.6.0",
+      "npmVersion": "3.7.0",
       "native": {
         "system": "session-system",
         "id": "inventarch/session-system",
@@ -105,18 +105,18 @@
     {
       "owner": ".ia/src/systems/template-system",
       "kind": "compiled",
-      "npmVersion": "3.6.0",
+      "npmVersion": "3.7.0",
       "native": {
         "system": "template-system",
         "id": "inventarch/template-system",
-        "version": "3.2.1",
+        "version": "3.3.0",
         "distribution": "workspace-system/definition/distribution/package-template-system"
       }
     },
     {
       "owner": ".ia/src/systems/work-system",
       "kind": "native-only",
-      "npmVersion": "3.6.0",
+      "npmVersion": "3.7.0",
       "native": {
         "system": "work-system",
         "id": "inventarch/work-system",
@@ -127,7 +127,7 @@
     {
       "owner": ".ia/src/systems/workspace-system",
       "kind": "native-only",
-      "npmVersion": "3.6.0",
+      "npmVersion": "3.7.0",
       "native": {
         "system": "workspace-system",
         "id": "inventarch/workspace-system",

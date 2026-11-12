@@ -31,15 +31,15 @@
     },
     {
       "path": ".ia/src/systems/agent-composition-system/SPEC.md",
-      "bytes": 2706,
-      "sha256": "7444e91c671c031f7c3c9c38f00f30bd7b77c732e4c3c90d34c4e76930b0ff5c",
+      "bytes": 3451,
+      "sha256": "3ade344bb8087f5ea08dafa1a678f316a91ec6bc183edc46a6bd193f58f8983d",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
     {
       "path": ".ia/src/systems/agent-composition-system/references/installed-read.md",
-      "bytes": 6739,
-      "sha256": "69341e3eee8e5a6bfee1ae6a1cd64427575f94846a0f2b1250592db65b4371d4",
+      "bytes": 7572,
+      "sha256": "a20dea4777cb0d84eac0a4d68ded78544938959960a0a0e985d5b0090af1de16",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -388,8 +388,8 @@
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/template.md",
-      "bytes": 1529,
-      "sha256": "a05ecffd1af7fec7fff74740868cd2b3c55f0ee282de486aede53e1779669fbd",
+      "bytes": 1520,
+      "sha256": "757ab5b87643a2158b95361e54b603447c3792306be353b43a0d5551c8110075",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -535,8 +535,8 @@
     },
     {
       "path": ".ia/src/systems/template-system/SPEC.md",
-      "bytes": 1236,
-      "sha256": "1da8c02c7e5e166417ab87633de57a29553455997c400f35293348258b3950b5",
+      "bytes": 1335,
+      "sha256": "cbb323cf23af36861094bc388e8b78a69cdc97c05583732da7db00fd06bd6f6b",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },

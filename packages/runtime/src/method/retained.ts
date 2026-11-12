@@ -16,7 +16,7 @@ import {
 } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { MethodError } from './errors.js';
-import { findKit, folderKits, iaHome } from './kits.js';
+import { findKit, folderKits, homeFolder, iaHome } from './kits.js';
 import type { Kit } from './kits.js';
 import { canonical } from './packet.js';
 
@@ -34,7 +34,7 @@ const fail = (message: string): never => {
 
 /** The closure store: IA_CORE_CLOSURES_DIR, else `<IA home>/method-closures-v1`. */
 export const closureStore = (env: NodeJS.ProcessEnv = process.env): string =>
-  env['IA_CORE_CLOSURES_DIR'] ? env['IA_CORE_CLOSURES_DIR'] : join(iaHome(env), 'method-closures-v1');
+  env['IA_CORE_CLOSURES_DIR'] ? env['IA_CORE_CLOSURES_DIR'] : homeFolder(iaHome(env), 'method-closures');
 
 /** Read-only: NOFOLLOW refuses a final link and NONBLOCK keeps a FIFO from blocking the open; Windows has neither (zero). */
 const READ = constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0);

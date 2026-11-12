@@ -1,16 +1,16 @@
 {
   "format": "ia.native-release.v1",
   "baseline": {
-    "tag": "v3.6.0",
-    "commit": "ec5dec6d8b37ff15e0e5d2fa625d8de4b2838cc2"
+    "tag": "v3.7.0",
+    "commit": "ae43a8e496a2db5ecf05c4439c094f1fba6a8a73"
   },
-  "notesSha256": "3df4477370d16475cca4522c55e51604089669db892e7207499fddb6104e783c",
+  "notesSha256": "c0f023bf4deb9ce96629b12d790155171d801d55b1aecd2c7d6a2a3adaebbec2",
   "archives": [
     {
       "id": "inventarch/agent-composition-system",
-      "version": "3.1.4",
-      "archive": "5d68927987bfd7a84218eec4dfd7195514ca84c9627eda30085b068398e28121",
-      "manifest": "c7c2eb61ed35b953b960e3a09b1f56bae9a0d2bbd631f94372d13791cc0d51e9",
+      "version": "3.2.0",
+      "archive": "23694b7b634ddf8b0903300613368f59297d55d4824854f3dc6dd39f3806d06b",
+      "manifest": "cb1caf15b1049a4342e7059a30b7a10f8fa9b3c38fb0cd512a5580db22a0f0ce",
       "dependencies": [
         "inventarch/agent-system",
         "inventarch/authoring-system",
@@ -31,9 +31,9 @@
     },
     {
       "id": "inventarch/authoring-system",
-      "version": "3.2.1",
-      "archive": "98ccf2b40019192404ab19fbe08979b686a6aa9355e72a43590790d52d607b92",
-      "manifest": "7cced148c1e7c389d236a6093395605b3e0d01280461402667205337d479c93a",
+      "version": "3.3.0",
+      "archive": "cc91abbb4f463a0aeb71a46eaaef7cefb42da60f20d0fae897296544196fa8a1",
+      "manifest": "6b2d6d3cfad4e6147a0fc275883fe43964b5fc18ddaf672acaa8ac744b9221b4",
       "dependencies": [
         "inventarch/agent-composition-system",
         "inventarch/agent-system",
@@ -70,9 +70,9 @@
     },
     {
       "id": "inventarch/hook-authoring-system",
-      "version": "3.1.4",
-      "archive": "c46841ccce03d5d7dc401560fb4a60c5b0a11e4d4872b033b1bea77b43281443",
-      "manifest": "0482487395e186783a7b5821f71b6ef675d02b0f91a8774dcb1f19038ea27ee4",
+      "version": "3.2.0",
+      "archive": "f354fcf7b75511397440eeb9fc8da0719aa7b4381cfd31146d4cea34a32ec15e",
+      "manifest": "b26be4899d0d7950eabb75296770a2f532d50dcd968d61efcd17bb706870ae16",
       "dependencies": [
         "inventarch/agent-system",
         "inventarch/authoring-system",
@@ -83,9 +83,9 @@
     },
     {
       "id": "inventarch/language",
-      "version": "3.2.1",
-      "archive": "ee6e65018df2ebef705913d9da1947f040edf44c2e7ade6c9750c6fa0185985e",
-      "manifest": "b6c5e0cc9149b874c11898e63c19082c9742acaf71bde192a2ec9fa6dd3f9fab",
+      "version": "3.3.0",
+      "archive": "3ada760ec07848770957538a8562ec94c6f3a9ceb6f1e29d2739b217f9234728",
+      "manifest": "133e0ec85c27c457ba088623c2f753cb7618d531d1412fa957ad6c6ee7b700ee",
       "dependencies": [
         "inventarch/agent-composition-system",
         "inventarch/agent-system",
@@ -102,9 +102,9 @@
     },
     {
       "id": "inventarch/learning-system",
-      "version": "3.1.4",
-      "archive": "fe106d15d66a5e0a26e6e889ed86ed2cd5160fc0f41a8fe5b6c92e3d46606c5a",
-      "manifest": "2e4cf2d199b0c6d9f8da6fddd0ba98f629825664b54397e0fbdeea8f94edd429",
+      "version": "3.2.0",
+      "archive": "970dfecb71df680b7c2f65ec73503fe3a0d165087d9c768f5ec0805fa1137ebf",
+      "manifest": "ab2f1e0e781fb101d493f6402d4392be842fc2bb4f2b14acfeb751c757640539",
       "dependencies": [
         "inventarch/agent-system",
         "inventarch/authoring-system",
@@ -126,9 +126,9 @@
     },
     {
       "id": "inventarch/template-system",
-      "version": "3.2.1",
-      "archive": "730668565ad37249a6e89b786e32caac899bfc76019e1a787f0f027e36adfb78",
-      "manifest": "a852ef61a6e6941b3a25eb1944536fda7d98b8bd1ce9b8d41d25f454c6a04251",
+      "version": "3.3.0",
+      "archive": "0916bcb100936f67e5a76ccda5e613e1f9cd53a7b40c71e6c656da5986562cf1",
+      "manifest": "2c018aff18de852eafda2e9ce5efcc58cb724ad467340c14dbf11b11f697220c",
       "dependencies": [
         "inventarch/agent-system",
         "inventarch/authoring-system",

@@ -2,7 +2,7 @@
 
 Generated from the public contract corpus by `pnpm vocabulary:generate`. Required sections and fields are structural obligations; `id` is not an implicit enumeration. See [the language guide](README.md) for shared syntax, allowed values, relationship resolution, domain constraints and evaluator limits. The [JSON catalogue](vocabulary.json) carries the same machine-readable contract.
 
-This catalogue contains 44 words. Source digest: `56953848c899f9b29e39d697b477b178a4fc6d472d995a6177039fd383d55b20`.
+This catalogue contains 44 words. Source digest: `f535f2aa765ac0bbc1ed985e41cd7c03a3d2a092633b571933d6226e07bc66d6`.
 
 ## @agent
 
@@ -1091,8 +1091,8 @@ Required sections: meaning, template. Optional sections: relationships.
 | meaning.says | text | yes |  |
 | meaning.answers | text | yes |  |
 | template.filename | text | yes |  |
-| template.parameters | list of id | no | The scalar renderer requires declared parameters; structured-v1 may omit this field or retain an empty list. |
-| template.lines | list of text | no | The scalar renderer requires content lines; structured-v1 may omit this field or retain an empty list. |
+| template.parameters | list of id | no | The scalar renderer requires declared parameters; structured may omit this field or retain an empty list. |
+| template.lines | list of text | no | The scalar renderer requires content lines; structured may omit this field or retain an empty list. |
 | template.profile | id | no |  |
 | template.resource | text | no |  |
 

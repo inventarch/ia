@@ -1,0 +1,13 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "Contract versions and catalog aliases",
+  "summary": "An installed catalog entry's version is now the contract's version, a positive integer: installed(value, version) defaults to 1 and the compiler accepts any positive integer, pinned through the entry digest. Hosts may pass aliases with the catalog so a record naming an old contract compiles to its plain replacement; provenance.aliases lists each alias used and is absent when none is, so such compilations are unchanged.",
+  "packages": [
+    "@inventarch/agent-composition-system"
+  ],
+  "paths": [
+    ".ia/authoring.resources.json",
+    ".ia/src/systems/agent-composition-system/"
+  ]
+}

@@ -8,7 +8,14 @@ import { afterAll, expect, it } from 'vitest';
 import { displayFix, externalFix } from '../src/fix.js';
 import { isWorkspaceRoot } from '../src/local-cli.js';
 import type { PackageManager } from '../src/package-manager.js';
-import { installArgv, installCommand, pinArgv, pinCommand, yarnMajor } from '../src/package-manager.js';
+import {
+  batchInstallArgv,
+  installArgv,
+  installCommand,
+  pinArgv,
+  pinCommand,
+  yarnMajor,
+} from '../src/package-manager.js';
 import { cleanup, scratch } from './scratch-fixture.js';
 
 afterAll(cleanup);
@@ -115,4 +122,29 @@ it('the displayed pin and the structured argv take one -W rule, the root install
   const nohoist = project('pm-nohoist', { workspaces: { nohoist: ['**/foo'] }, packageManager: 'yarn@1.22.22' });
   expect(pinCommand('yarn', '3.5.0', nohoist)).toBe(`yarn add -D ${CLI}`);
   expect(pinArgv('yarn', '3.5.0', nohoist, nohoist)).toEqual(['yarn', 'add', '-D', CLI]);
+});
+
+it('a batch install under pnpm also ignores the repository pnpmfile, and no other manager gets that flag', () => {
+  const dir = project('pm-batch-pnpmfile', {});
+  expect(batchInstallArgv('pnpm', dir, dir, true)).toEqual([
+    'pnpm',
+    'install',
+    '--frozen-lockfile',
+    '--ignore-scripts',
+    '--ignore-pnpmfile',
+  ]);
+  expect(batchInstallArgv('pnpm', dir, dir, false)).toEqual([
+    'pnpm',
+    'install',
+    '--ignore-scripts',
+    '--ignore-pnpmfile',
+  ]);
+  expect(batchInstallArgv('npm', dir, dir, true)).toEqual(['npm', 'ci', '--ignore-scripts']);
+  expect(batchInstallArgv('yarn', dir, dir, true)).toEqual([
+    'yarn',
+    'install',
+    '--frozen-lockfile',
+    '--ignore-scripts',
+  ]);
+  expect(batchInstallArgv('bun', dir, dir, true)).toEqual(['bun', 'install', '--frozen-lockfile', '--ignore-scripts']);
 });

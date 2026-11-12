@@ -11,7 +11,7 @@ import {
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { MethodError, objectAt } from './errors.js';
-import { iaHome, kitAt, listKits, readLock } from './kits.js';
+import { homeFolder, iaHome, kitAt, listKits, readLock } from './kits.js';
 import type { Kit, KitSources, LockedPackage } from './kits.js';
 
 /**
@@ -24,6 +24,7 @@ import type { Kit, KitSources, LockedPackage } from './kits.js';
  * `.ia/distributions.lock.json` pinning its dependencies exactly as the workspace lock does. A kit the lock names that
  * the store lacks is not installed yet: a fresh clone runs `ia restore`.
  */
+/** The legacy folder name; the authoritative folder is `homeFolder(home, 'installed-kits')`. */
 export const INSTALLED_KITS_DIRECTORY = 'installed-kits-v1';
 export const STORE = join('.ia', 'distributions', 'store');
 /** What a session and a refusal say when the lock names kits the store lacks. */
@@ -143,7 +144,7 @@ function materialize(root: string, kit: LockedKit, home: string): string {
   if (manifest['id'] !== kit.id || manifest['version'] !== kit.version)
     throw new MethodError(`installed kit ${kit.id}: its manifest names another release`, 'IA-CORE-CLOSURE-INTEGRITY');
   const pins = pinsOf(manifest);
-  const parent = join(home, INSTALLED_KITS_DIRECTORY);
+  const parent = homeFolder(home, 'installed-kits');
   const target = join(parent, kit.archive);
   const intact = (dir: string): boolean =>
     existsSync(join(dir, COMPLETE)) &&

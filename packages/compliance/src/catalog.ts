@@ -4,10 +4,20 @@ import { assess } from './types.js';
 import type { Assessment, EvidenceCode, Finding } from './types.js';
 
 /**
- * Current catalog format (C25). Any minor of major 1 is accepted but must use exactly the v1 fields, so a minor
- * that adds behavior is refused rather than ignored; the declared minor is part of the catalog digest.
+ * Current catalog format (C25): `{format: 'evaluator-catalog', formatVersion: 2, entries}`. The version is an
+ * integer field, never part of the name; an unsupported version is refused, and it is part of the catalog digest.
  */
-export const EVALUATOR_CATALOG_FORMAT = 'ia-evaluator-catalog/1.0';
+export const EVALUATOR_CATALOG_FORMAT = 'evaluator-catalog';
+/** The catalog format versions this package reads in the current shape. */
+export const EVALUATOR_CATALOG_FORMAT_VERSIONS = Object.freeze([2] as const);
+/** The catalog format version new catalogs declare. */
+export const EVALUATOR_CATALOG_FORMAT_VERSION = 2;
+/**
+ * The legacy catalog format: `{format: 'ia-evaluator-catalog/1.<minor>', entries}`, whose entries name their codecs
+ * with `inputSchemaId` / `outputSchemaId` strings `name@major`. It is still read, by the explicit legacy reader
+ * below, and converted to the current entry shape; its digest stays the one computed over the declared legacy entries.
+ */
+export const LEGACY_EVALUATOR_CATALOG_FORMAT = 'ia-evaluator-catalog/1.0';
 /** Evaluator invocation-contract majors this package understands. */
 export const EVALUATOR_CONTRACT_MAJORS = Object.freeze([1] as const);
 
@@ -27,13 +37,19 @@ export interface EnvironmentProfile {
   readonly id: string;
   readonly credentials: 'none' | 'scoped';
 }
+/** A codec reference: a codec id and its integer version. The pair, never a joined string, names a codec. */
+export interface CodecRef {
+  readonly id: string;
+  readonly version: number;
+}
 export interface EvaluatorEntry {
   readonly id: string;
+  /** The version of the evaluator's invocation contract. */
   readonly contractVersion: string;
   readonly implementationVersion: string;
   readonly implementationDigest: string;
-  readonly inputSchemaId: string;
-  readonly outputSchemaId: string;
+  readonly inputCodec: CodecRef;
+  readonly outputCodec: CodecRef;
   readonly supportedScopes: readonly string[];
   readonly effects: readonly string[];
   readonly environmentProfile: EnvironmentProfile;
@@ -47,15 +63,18 @@ export interface EvaluatorEntry {
  */
 export interface EvaluatorCodec {
   readonly id: string;
+  readonly version: number;
   readonly validate: (value: unknown) => boolean;
   readonly normalize?: (value: unknown) => unknown;
 }
 export interface CatalogInput {
   readonly format: string;
+  /** Required in the current shape; absent in the legacy `ia-evaluator-catalog/1.x` shape. */
+  readonly formatVersion?: number;
   readonly entries: readonly unknown[];
 }
 export interface CatalogOptions {
-  readonly codecs: ReadonlyMap<string, EvaluatorCodec> | readonly EvaluatorCodec[];
+  readonly codecs: readonly EvaluatorCodec[];
   /**
    * Additional host-reserved ids (D4). They only block catalog overrides; they never pass COMP-CHECK and never
    * resolve as evaluators. Only CHECK_IDS are built in.
@@ -64,6 +83,8 @@ export interface CatalogOptions {
 }
 export interface EvaluatorCatalog {
   readonly format: string;
+  /** 2 for the current shape; 1 for a catalog read from the legacy `ia-evaluator-catalog/1.x` shape. */
+  readonly formatVersion: number;
   readonly digest: string;
   readonly entries: readonly EvaluatorEntry[];
   /** Always exactly CHECK_IDS. */
@@ -85,8 +106,8 @@ const ENTRY_KEYS = [
   'contractVersion',
   'implementationVersion',
   'implementationDigest',
-  'inputSchemaId',
-  'outputSchemaId',
+  'inputCodec',
+  'outputCodec',
   'supportedScopes',
   'effects',
   'environmentProfile',
@@ -96,13 +117,37 @@ const ENTRY_KEYS = [
 ] as const;
 export const EVALUATOR_ID = /^[a-z][a-z0-9]*(-[a-z0-9]+)+$/;
 const TOKEN = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
-const CODEC_ID = /^[a-z][a-z0-9]*(-[a-z0-9]+)*@[1-9][0-9]*$/;
+/** A codec id: a plain token. The version is a separate field, so an id never carries `@`. */
+const CODEC_ID = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
+/** The legacy codec id, read only by `legacyCodecRef`. */
+const LEGACY_CODEC_ID = /^([a-z][a-z0-9]*(?:-[a-z0-9]+)*)@([1-9][0-9]*)$/;
 const SEMVER = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/;
 export const DIGEST = /^sha256:[0-9a-f]{64}$/;
 const FORMAT = /^ia-evaluator-catalog\/([0-9]+)\.([0-9]+)$/;
 const RESERVED_ID = /^[A-Za-z][A-Za-z0-9]*(-[A-Za-z0-9]+)*$/;
 const catalogs = new WeakSet<object>();
 const catalogCodecs = new WeakMap<object, ReadonlyMap<string, EvaluatorCodec>>();
+const codecKey = (id: string, version: number): string => `${id}#${version}`;
+/** True for a `{id, version}` codec reference: a plain-token id and a positive safe-integer version. */
+export function isCodecRef(value: unknown): value is CodecRef {
+  return (
+    exactKeys(value, ['id', 'version']) &&
+    typeof value.id === 'string' &&
+    CODEC_ID.test(value.id) &&
+    positive(value.version)
+  );
+}
+/**
+ * The legacy reader for a codec id written `name@major` (catalogs `ia-evaluator-catalog/1.x`, evidence that
+ * recorded such ids): the one place that parses it. Returns undefined for anything else.
+ */
+export function legacyCodecRef(legacyId: unknown): CodecRef | undefined {
+  const match = typeof legacyId === 'string' ? LEGACY_CODEC_ID.exec(legacyId) : null;
+  if (match === null) return undefined;
+  const version = Number(match[2]);
+  return Number.isSafeInteger(version) ? Object.freeze({ id: match[1] as string, version }) : undefined;
+}
+const legacyCodecId = (ref: CodecRef): string => `${ref.id}@${ref.version}`;
 
 export function compareVersions(a: string, b: string): number {
   const x = a.split('.').map(Number),
@@ -131,20 +176,24 @@ function checkEntry(
   line: number,
   reserved: ReadonlySet<string>,
   codecs: ReadonlyMap<string, EvaluatorCodec>,
+  legacy: boolean,
 ): Checked {
   const invalid = (message: string, code: EvidenceCode = 'IA-COMP-CATALOG-ENTRY-INVALID'): Checked => ({
     finding: note(code, line, message),
   });
   if (!record(raw)) return invalid('Catalog entry must be an object');
+  const keys = ENTRY_KEYS.map((k) =>
+    legacy ? (k === 'inputCodec' ? 'inputSchemaId' : k === 'outputCodec' ? 'outputSchemaId' : k) : k,
+  );
   const unknown = Object.keys(raw)
-      .filter((k) => !(ENTRY_KEYS as readonly string[]).includes(k))
+      .filter((k) => !keys.includes(k as never))
       .sort(compareText),
-    missing = ENTRY_KEYS.filter((k) => !Object.hasOwn(raw, k));
+    missing = keys.filter((k) => !Object.hasOwn(raw, k));
   if (unknown.length > 0 || missing.length > 0)
     return invalid(
       `Catalog entry fields must be exactly the v1 set${unknown.length > 0 ? `; unknown: ${unknown.join(', ')}` : ''}${missing.length > 0 ? `; missing: ${missing.join(', ')}` : ''}`,
     );
-  const e = raw as Record<(typeof ENTRY_KEYS)[number], unknown>,
+  const e = raw as Record<(typeof ENTRY_KEYS)[number] | 'inputSchemaId' | 'outputSchemaId', unknown>,
     { id } = e;
   if (typeof id !== 'string') return invalid('Catalog entry id must be text');
   if (reserved.has(id.toUpperCase()) || id.toLowerCase().startsWith('comp-'))
@@ -165,12 +214,24 @@ function checkEntry(
     );
   if (typeof e.implementationDigest !== 'string' || !DIGEST.test(e.implementationDigest))
     return invalid(`${id}: implementationDigest must be sha256:<64 lowercase hex>`);
-  for (const key of ['inputSchemaId', 'outputSchemaId'] as const) {
-    const codec = e[key];
-    if (typeof codec !== 'string' || !CODEC_ID.test(codec))
-      return invalid(`${id}: ${key} must be a codec id such as name@1`);
-    if (!codecs.has(codec))
-      return invalid(`${id}: ${key} ${codec} is not a host-registered codec`, 'IA-COMP-CATALOG-CODEC-UNKNOWN');
+  const refs: CodecRef[] = [];
+  for (const key of legacy
+    ? (['inputSchemaId', 'outputSchemaId'] as const)
+    : (['inputCodec', 'outputCodec'] as const)) {
+    const declared = e[key],
+      ref = legacy ? legacyCodecRef(declared) : isCodecRef(declared) ? declared : undefined;
+    if (ref === undefined)
+      return invalid(
+        legacy
+          ? `${id}: ${key} must be a legacy codec id such as name@1`
+          : `${id}: ${key} must be {id, version}: a plain codec id and a positive integer version`,
+      );
+    if (!codecs.has(codecKey(ref.id, ref.version)))
+      return invalid(
+        `${id}: ${key} ${legacyCodecId(ref)} is not a host-registered codec`,
+        'IA-COMP-CATALOG-CODEC-UNKNOWN',
+      );
+    refs.push(Object.freeze({ id: ref.id, version: ref.version }));
   }
   const supportedScopes = tokens(e.supportedScopes, true),
     effects = tokens(e.effects, false);
@@ -228,8 +289,8 @@ function checkEntry(
       contractVersion: e.contractVersion as string,
       implementationVersion: e.implementationVersion as string,
       implementationDigest: e.implementationDigest,
-      inputSchemaId: e.inputSchemaId as string,
-      outputSchemaId: e.outputSchemaId as string,
+      inputCodec: refs[0] as CodecRef,
+      outputCodec: refs[1] as CodecRef,
       supportedScopes,
       effects,
       environmentProfile: { id: profile.id, credentials: profile.credentials },
@@ -246,21 +307,26 @@ function checkEntry(
 }
 function codecMap(codecs: CatalogOptions['codecs']): ReadonlyMap<string, EvaluatorCodec> {
   const map = new Map<string, EvaluatorCodec>();
-  for (const [key, codec] of Array.isArray(codecs)
-    ? codecs.map((c) => [c.id, c] as const)
-    : [...(codecs as ReadonlyMap<string, EvaluatorCodec>)]) {
+  if (!Array.isArray(codecs)) throw new TypeError('options.codecs must be a list of {id, version, validate} codecs');
+  for (const codec of codecs as readonly EvaluatorCodec[]) {
+    const key =
+      codec !== null && typeof codec === 'object' && isCodecRef({ id: codec.id, version: codec.version })
+        ? codecKey(codec.id, codec.version)
+        : undefined;
     if (
-      key !== codec.id ||
-      !CODEC_ID.test(key) ||
+      key === undefined ||
       typeof codec.validate !== 'function' ||
       (codec.normalize !== undefined && typeof codec.normalize !== 'function') ||
       map.has(key)
     )
-      throw new TypeError(`Invalid or duplicate host codec registration ${String(key)}`);
+      throw new TypeError(
+        `Invalid or duplicate host codec registration ${sanitized(String(codec?.id), 80) ? String(codec?.id) : '<id>'}`,
+      );
     map.set(
       key,
       Object.freeze({
         id: codec.id,
+        version: codec.version,
         validate: codec.validate,
         ...(codec.normalize === undefined ? {} : { normalize: codec.normalize }),
       }),
@@ -289,21 +355,32 @@ export function createEvaluatorCatalog(input: CatalogInput, options: CatalogOpti
   );
   const refuse = (findings: readonly Finding[]): CatalogResult =>
     Object.freeze({ ok: false as const, assessment: assess('COMP-CATALOG', 'catalog', findings) });
-  const raw: unknown = input,
-    format = exactKeys(raw, ['format', 'entries']) && typeof raw.format === 'string' ? FORMAT.exec(raw.format) : null;
-  if (format === null || format[1] !== '1' || !Array.isArray(input.entries))
+  const raw: unknown = input;
+  // The current shape declares `format` and an integer `formatVersion`; the legacy shape is `ia-evaluator-catalog/1.x`.
+  let legacy: boolean | undefined;
+  if (
+    exactKeys(raw, ['format', 'formatVersion', 'entries']) &&
+    raw.format === EVALUATOR_CATALOG_FORMAT &&
+    (EVALUATOR_CATALOG_FORMAT_VERSIONS as readonly unknown[]).includes(raw.formatVersion)
+  )
+    legacy = false;
+  else if (exactKeys(raw, ['format', 'entries']) && typeof raw.format === 'string') {
+    const match = FORMAT.exec(raw.format);
+    if (match !== null && match[1] === '1') legacy = true;
+  }
+  if (legacy === undefined || !Array.isArray(input.entries))
     return refuse([
       note(
         'IA-COMP-CATALOG-VERSION',
         1,
-        `Unsupported evaluator catalog; expected exactly {format: ${EVALUATOR_CATALOG_FORMAT.replace(/\.0$/, '.x')}, entries: [...]}`,
+        `Unsupported evaluator catalog; expected exactly {format: ${EVALUATOR_CATALOG_FORMAT}, formatVersion: ${EVALUATOR_CATALOG_FORMAT_VERSIONS.join(' | ')}, entries: [...]} or the legacy {format: ia-evaluator-catalog/1.x, entries: [...]}`,
       ),
     ]);
   const reservedUpper = new Set([...builtins, ...reserved].map((id) => id.toUpperCase())),
     findings: Finding[] = [],
     entries: { entry: EvaluatorEntry; line: number }[] = [];
   input.entries.forEach((item, index) => {
-    const checked = checkEntry(item, index + 1, reservedUpper, codecs);
+    const checked = checkEntry(item, index + 1, reservedUpper, codecs, legacy);
     if ('finding' in checked) findings.push(checked.finding);
     else entries.push({ entry: checked.entry, line: index + 1 });
   });
@@ -340,9 +417,24 @@ export function createEvaluatorCatalog(input: CatalogInput, options: CatalogOpti
   const sorted = [...byVersion.values()].sort(
     (a, b) => compareText(a.id, b.id) || compareVersions(a.implementationVersion, b.implementationVersion),
   );
+  // A legacy catalog keeps the digest over the entries as declared (`name@major` codec ids), so receipts and joins
+  // that recorded it still match; a current catalog's digest covers its format version and `{id, version}` codecs.
+  const digested = legacy
+    ? sha256({
+        format: input.format,
+        entries: sorted.map(({ inputCodec, outputCodec, ...rest }) => ({
+          ...rest,
+          inputSchemaId: legacyCodecId(inputCodec),
+          outputSchemaId: legacyCodecId(outputCodec),
+        })),
+        builtins,
+        reserved,
+      })
+    : sha256({ format: input.format, formatVersion: input.formatVersion, entries: sorted, builtins, reserved });
   const catalog: EvaluatorCatalog = deepFreeze({
     format: input.format,
-    digest: sha256({ format: input.format, entries: sorted, builtins, reserved }),
+    formatVersion: legacy ? 1 : (input.formatVersion as number),
+    digest: digested,
     entries: sorted,
     builtins,
     reserved,
@@ -359,8 +451,9 @@ export function assertCatalog(value: unknown): asserts value is EvaluatorCatalog
   if (!isEvaluatorCatalog(value))
     throw new TypeError('An evaluator catalog must be constructed by createEvaluatorCatalog');
 }
-export function codecOf(catalog: EvaluatorCatalog, id: string): EvaluatorCodec | undefined {
-  return catalogCodecs.get(catalog)?.get(id);
+/** The host codec registered for exactly this `{id, version}` pair, or undefined. */
+export function codecOf(catalog: EvaluatorCatalog, ref: CodecRef): EvaluatorCodec | undefined {
+  return catalogCodecs.get(catalog)?.get(codecKey(ref.id, ref.version));
 }
 /** The entry a check's evaluator id (checkRunner: check.implementation, else check.runs) selects: the supported implementation, else the highest listed version. */
 export function selectEvaluator(catalog: EvaluatorCatalog, id: string): EvaluatorEntry | undefined {
