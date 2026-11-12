@@ -88,15 +88,21 @@ it('refuses unqualified filesystem roots', () => {
   );
 });
 describe.skipIf(process.platform !== 'win32')('qualified local NTFS publication', () => {
-  it.each(['timeout', 'invalid-json', 'remote', 'non-ntfs'] as const)(
+  it.each(['timeout', 'invalid-json', 'remote', 'non-ntfs', 'spawn-error', 'timeout-then-invalid-json'] as const)(
     'refuses %s volume qualification without creating output or caching failure',
     async (failure) => {
       vi.resetModules();
       const root = temp();
+      let calls = 0;
       const probe = vi.fn(() => {
-        if (failure === 'timeout')
+        calls++;
+        // spawn-error fails for a reason other than a timeout. timeout-then-invalid-json times out on each
+        // qualification's first probe, and its retry answers '{'.
+        if (failure === 'timeout' || (failure === 'timeout-then-invalid-json' && calls % 2 === 1))
           throw Object.assign(new Error('spawnSync powershell.exe ETIMEDOUT'), { code: 'ETIMEDOUT' });
-        return failure === 'invalid-json'
+        if (failure === 'spawn-error')
+          throw Object.assign(new Error('spawnSync powershell.exe ENOENT'), { code: 'ENOENT' });
+        return failure === 'invalid-json' || failure === 'timeout-then-invalid-json'
           ? '{'
           : JSON.stringify({
               DriveType: failure === 'remote' ? 4 : 3,
@@ -111,7 +117,7 @@ describe.skipIf(process.platform !== 'win32')('qualified local NTFS publication'
             expect.objectContaining({ code: 'IA-PUBLICATION-UNAVAILABLE' }),
           );
         // A timed-out probe gets one more try, under the same bound, per qualification; other failures refuse at once.
-        expect(probe).toHaveBeenCalledTimes(failure === 'timeout' ? 4 : 2);
+        expect(probe).toHaveBeenCalledTimes(failure === 'timeout' || failure === 'timeout-then-invalid-json' ? 4 : 2);
         for (let call = 1; call <= probe.mock.calls.length; call++)
           expect(probe).toHaveBeenNthCalledWith(
             call,
