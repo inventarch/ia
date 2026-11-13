@@ -80,9 +80,12 @@ const hasCommit = (root) => {
 export function publicPackageInputs(root, { sealed = true } = {}) {
   if (!sealed) return currentPublicPackageInputs(root);
   const source = inputDescriptor(root);
-  for (const row of source.receipt.files)
-    if (sha(readFileSync(child(root, row.path))) !== row.sha256)
+  for (const row of source.receipt.files) {
+    // A deleted sealed input has changed too: refuse it the same way, not with a raw ENOENT.
+    const path = child(root, row.path);
+    if (!existsSync(path) || sha(readFileSync(path)) !== row.sha256)
       throw new Error('Changed public package input: ' + row.path + '; review and run pnpm npm:inputs');
+  }
   if (
     JSON.stringify(
       validateMembership(

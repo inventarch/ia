@@ -505,3 +505,45 @@ it('refreshes the pinned private VS Code extension without accepting identity ch
     put(PUBLIC_INPUTS, { ...migrated.receipt, source: { ...migrated.receipt.source, extra: 'unreviewed' } });
     expect(() => publicPackageInputs(directory)).toThrow(/Invalid public package input descriptor/);
   }));
+
+it('refuses a deleted sealed input as a changed public package input', () =>
+  inRepository(async (directory) => {
+    const put = (path: string, value: unknown) => {
+      mkdirSync(dirname(resolve(directory, path)), { recursive: true });
+      writeFileSync(resolve(directory, path), JSON.stringify(value));
+    };
+    const extension = { name: 'inventarch-ia', publisher: 'inventarch', private: true, version: '1.1.0' };
+    const path = 'apps/vscode/package.json';
+    const membershipPath = 'tools/distribution/public-content-policy.json';
+    put('package.json', { name: '@inventarch/workspace' });
+    put(path, extension);
+    put(membershipPath, {
+      format: 'ia.public-content-policy.v1',
+      packageNames: [{ root: 'apps/vscode', name: extension.name, private: true }],
+    });
+    const files = ['package.json', path, membershipPath]
+      .sort()
+      .map((path) => ({ path, sha256: sha(readFileSync(resolve(directory, path))) }));
+    put(PUBLIC_INPUTS, {
+      format: 'ia.public-package-inputs.v2',
+      source: {
+        repository: 'https://github.com/inventarch/ia',
+        commit: 'a'.repeat(40),
+        tree: 'b'.repeat(40),
+        dirty: false,
+      },
+      membership: { path: membershipPath, sha256: sha(readFileSync(resolve(directory, membershipPath))) },
+      npm: { [path]: extension.version },
+      files,
+      inputDigest: sha(JSON.stringify(files)),
+    });
+    await git(directory, 'add', '.');
+    await git(directory, 'commit', '--quiet', '-m', 'Sealed inputs');
+    expect(publicPackageInputs(directory).receipt.files.map((row) => row.path)).toContain(path);
+    // A sealed input that is gone has changed too: the sealed read refuses it with the same review step, whether the
+    // deletion is staged or not, and never as a raw ENOENT.
+    rmSync(resolve(directory, path));
+    expect(() => publicPackageInputs(directory)).toThrow(/Changed public package input: apps\/vscode\/package\.json/);
+    await git(directory, 'rm', '--quiet', '--cached', path);
+    expect(() => publicPackageInputs(directory)).toThrow(/Changed public package input: apps\/vscode\/package\.json/);
+  }));
