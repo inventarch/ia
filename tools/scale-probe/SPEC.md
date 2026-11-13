@@ -20,8 +20,8 @@ Build synthetic and public IA trees, run every probed command on them under one 
 No public pnpm entry. Each script takes its options as described below, writes one JSON line or a Markdown table on stdout, and exits 0 on success, 1 on an evaluated failure and 2 on a usage or runtime error.
 
 - `node tools/scale-probe/generate.mjs --cli <bin.js> --records <n> [--seed <n>] [--git] <out>` writes one synthetic tree. `--git` commits it with a fixed author and date and adds the `kb pack` selection.
-- `node tools/scale-probe/capture.mjs --cli <bin.js> --label <label> --tree <dir> [--runs <n>] [--commands <a,b>] [--keep <dir>] [--no-measure] --out <file>` captures one tree. It exits 1 when two runs of one command disagree, and 2 when a run does not finish.
-- `node tools/scale-probe/probe.mjs --init-cli <bin.js> --cli <label>=<bin.js>... [--only <names>] [--synthetic <n,n>] [--runs <n>] [--no-measure] [--work <dir>] --out <dir>` builds and captures the trees of `trees.json`, plus any extra synthetic sizes. Run it from the repository root. It exits 1 when two runs disagree or a command exits otherwise than its tree's `expect`. It exits 2, before building anything, when `<out>/<label>` already holds captures for one of its CLIs: a tree the run did not finish would keep the earlier capture, and a comparison would read it as this run's.
+- `node tools/scale-probe/capture.mjs --cli <bin.js> --label <label> --tree <dir> [--name <name>] [--runs <n>] [--commands <a,b>] [--keep <dir>] [--no-measure] --out <file>` captures one tree. It exits 1 when two runs of one command disagree, and 2 when a run does not finish.
+- `node tools/scale-probe/probe.mjs --init-cli <bin.js> --cli <label>=<bin.js>... [--trees <trees.json>] [--only <names>] [--synthetic <n,n>] [--runs <n>] [--commands <a,b>] [--no-measure] [--work <dir>] --out <dir>` builds and captures the trees of `trees.json`, plus any extra synthetic sizes. Run it from the repository root. It exits 1 when two runs disagree or a command exits otherwise than its tree's `expect`. It exits 2, before building anything, when `<out>/<label>` already holds captures for one of its CLIs: a tree the run did not finish would keep the earlier capture, and a comparison would read it as this run's.
 - `node tools/scale-probe/compare.mjs <before> <after> [--outputs-only] [--slower <ratio>] [--larger <ratio>] [--json <file>]` exits 1 when an output differs, is missing or was unstable in its capture, when two captures under one name are of different trees, or, without `--outputs-only`, when a median wall time or peak memory is past its ratio (default 1.1) by more than 150 ms or 16 MB. It exits 2 when there is nothing to compare: neither side holds a capture, or no capture holds a command output.
 
 The reference is written with `probe.mjs --init-cli <3.7.0> --cli 3.7.0=<3.7.0> --runs 2 --no-measure --out <dir>`, and its `3.7.0` folder becomes `packages/db/tests/fixtures/reference-3.7.0/`. A build is checked against it with `probe.mjs --init-cli <3.7.0> --cli <label>=<build> --no-measure` and `compare.mjs packages/db/tests/fixtures/reference-3.7.0 <out>/<label> --outputs-only`. Within each command, a probe alternates its runs between the CLIs, so a burst of load on the machine falls on both sides rather than on one side's runs. Run it with five or more runs when its times and memory matter. Peak memory moves by tens of megabytes between runs of one build with garbage collection, and on a shared or virtual machine wall time moves by tens of percent.
@@ -40,7 +40,7 @@ Capture files in the `ia.scale-probe.capture.v1` format. For each command they r
 - whether every run agreed;
 - with measurement, each run's wall time, CPU time and peak memory.
 
-Trees and copies are made under `--work` or the temporary directory and removed afterwards. A tree given through a link is copied from the folder the link names.
+Trees and copies are made under `--work` or the temporary directory and removed afterwards. A tree given through a link is copied from the folder the link names. Each copy is made at its folder's real path, the spelling IA reports, so its root is normalised even when `--work` is reached through a link, as `/tmp` is on macOS.
 
 ## Prerequisites
 
@@ -57,6 +57,7 @@ Task ownership: `tools:test-scale-probe`. The test covers:
 - the expected exits;
 - the probe's refusal of an `--out` that already holds captures;
 - the capture's copy and digest of a symbolic link;
+- that the probe makes its trees and copies under `--work`, even one reached through a link, with stable outputs, and leaves it empty;
 - the comparison's verdicts.
 
 Runs of the IA CLI are measurements and stay out of the suite; where a case needs a CLI, a stand-in script takes its place. The cases that create file links skip on Windows only when it denies their creation; the folder links are junctions, which Windows creates without that right.

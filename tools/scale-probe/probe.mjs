@@ -1,7 +1,9 @@
 // Builds each probe tree once and captures it under each CLI. Usage:
 //   node tools/scale-probe/probe.mjs --init-cli <bin.js> --cli <label>=<bin.js> [--cli <label>=<bin.js>]...
-//     [--trees <trees.json>] [--only <name,name>] [--synthetic <n,n>] [--runs <n>] [--no-measure] [--work <dir>] --out <dir>
+//     [--trees <trees.json>] [--only <name,name>] [--synthetic <n,n>] [--runs <n>] [--commands <a,b>] [--no-measure]
+//     [--work <dir>] --out <dir>
 // Writes <out>/<label>/<tree>.json for every CLI and tree, and refuses an <out>/<label> that already holds captures.
+// Builds each tree, and makes each copy a command runs on, under --work or a temporary folder, and removes them.
 // Run it from the repository root: git trees are archived from this repository's history.
 import '../temp/physical-temp.mjs';
 import { execFileSync } from 'node:child_process';
@@ -96,7 +98,7 @@ function main(argv) {
   }
   if (!o.initCli || !o.clis.length || o.clis.some((c) => !c.label || !c.bin) || !o.out || !(o.runs >= 1))
     throw new Error(
-      'usage: probe.mjs --init-cli <bin.js> --cli <label>=<bin.js>... [--only <names>] [--synthetic <n,n>] [--runs <n>] --out <dir>',
+      'usage: probe.mjs --init-cli <bin.js> --cli <label>=<bin.js>... [--trees <trees.json>] [--only <names>] [--synthetic <n,n>] [--runs <n>] [--commands <a,b>] [--no-measure] [--work <dir>] --out <dir>',
     );
   // Before anything is built, so a refusal costs nothing.
   refuseStaleOut(
@@ -124,6 +126,7 @@ function main(argv) {
           runs: o.runs,
           commands: o.commands,
           measure: o.measure,
+          work,
         });
         for (const cli of o.clis) {
           const result = captures[cli.label];

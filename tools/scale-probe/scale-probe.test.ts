@@ -5,12 +5,13 @@ import {
   readdirSync,
   readFileSync,
   readlinkSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { runBounded } from '../testing/subprocess.js';
@@ -415,6 +416,87 @@ describe("the probe's --out", () => {
       expect(run).toMatchObject({ status: 2, stdout: '', stderr: `${stale([join(out, 'a')])}\n` });
       expect(readdirSync(out)).toEqual(['a']);
       expect(readFileSync(join(out, 'a', 't.json'), 'utf8')).toBe('{}\n');
+    }));
+});
+
+describe("the probe's --work", () => {
+  it('makes its trees and copies under --work, even one reached through a link, with stable outputs, and leaves it empty', () =>
+    scratch(async (base) => {
+      const work = join(base, 'work'),
+        linked = join(base, 'linked'),
+        out = join(base, 'out'),
+        seen = join(base, 'seen.txt'),
+        init = join(base, 'init.mjs'),
+        cli = join(base, 'cli.mjs'),
+        trees = join(base, 'trees.json');
+      mkdirSync(work);
+      // --work is given through a link, as /tmp is on macOS. A junction needs no privilege on Windows.
+      symlinkSync(work, linked, 'junction');
+      // Stand-ins that record the folder each is given: `ia init` writes nothing, since the synthetic records need no
+      // more than the folder, and the CLI prints the real path of its root, as IA does.
+      writeFileSync(
+        init,
+        [
+          "import { appendFileSync } from 'node:fs';",
+          "appendFileSync(process.env.SCALE_PROBE_SEEN, 'tree ' + process.argv[3] + '\\n');",
+        ].join('\n'),
+      );
+      writeFileSync(
+        cli,
+        [
+          "import { appendFileSync, realpathSync } from 'node:fs';",
+          "const root = process.argv[process.argv.indexOf('--root') + 1];",
+          "appendFileSync(process.env.SCALE_PROBE_SEEN, 'copy ' + root + '\\n');",
+          'process.stdout.write(JSON.stringify({ root: realpathSync(root) }));',
+        ].join('\n'),
+      );
+      writeFileSync(trees, JSON.stringify({ format: 'ia.scale-probe.trees.v1', trees: [] }));
+      const run = await runBounded(
+        process.execPath,
+        [
+          PROBE,
+          '--init-cli',
+          init,
+          '--cli',
+          `x=${cli}`,
+          '--trees',
+          trees,
+          '--synthetic',
+          '1',
+          '--runs',
+          '2',
+          '--commands',
+          'validate',
+          '--no-measure',
+          '--work',
+          linked,
+          '--out',
+          out,
+        ],
+        { timeoutMs: bound, env: { ...process.env, SCALE_PROBE_SEEN: seen } },
+      );
+      expect(run.status, run.stdout + run.stderr).toBe(0);
+      expect(JSON.parse(run.stdout)).toEqual({
+        tree: 'synthetic-1',
+        cli: 'x',
+        commands: 1,
+        skipped: [],
+        unstable: [],
+        unexpected: [],
+      });
+      // The tree is built in a staging folder of its own under --work, as given, and each copy in a folder of its own
+      // at --work's real path, the spelling IA reports, so the normaliser finds the root it was given.
+      const seenBy = readFileSync(seen, 'utf8')
+        .trim()
+        .split('\n')
+        .map((line) => line.split(/ (.*)/s));
+      expect(seenBy.map(([what]) => what)).toEqual(['tree', 'copy', 'copy']);
+      const real = realpathSync.native(work);
+      for (const [what, folder] of seenBy) {
+        const parent = dirname(dirname(folder!));
+        expect(what === 'copy' ? parent : realpathSync.native(parent)).toBe(real);
+      }
+      expect(readdirSync(work)).toEqual([]);
     }));
 });
 

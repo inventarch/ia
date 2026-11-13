@@ -144,7 +144,9 @@ function written(command, copy, before) {
  * @returns {{ exit: number, digest: string, bytes: number, stderr: string, summary: unknown, files: Record<string, string>, measure: unknown, kept?: unknown }}
  */
 function runOnce({ cli, tree, name, work, measure }) {
-  const parent = mkdtempSync(join(work, `${name}-`));
+  // At its real path: IA reports the root it runs on by its real path, and the normaliser folds only the spelling
+  // it is given. A `work` reached through a link, as /tmp is on macOS, would leave the copy's random name in outputs.
+  const parent = realpathSync.native(mkdtempSync(join(work, `${name}-`)));
   const copy = join(parent, 'tree');
   try {
     // A link is copied as it is: resolved, a relative link would point back into the tree, and a write through it
@@ -289,7 +291,7 @@ function main(argv) {
   }
   if (!o.cli || !o.label || !o.root || !o.out || !(o.runs >= 1))
     throw new Error(
-      'usage: capture.mjs --cli <bin.js> --label <label> --tree <dir> [--runs <n>] [--commands <a,b>] [--keep <dir>] [--no-measure] --out <file>',
+      'usage: capture.mjs --cli <bin.js> --label <label> --tree <dir> [--name <name>] [--runs <n>] [--commands <a,b>] [--keep <dir>] [--no-measure] --out <file>',
     );
   const result = capture(o);
   mkdirSync(dirname(resolve(o.out)), { recursive: true });
