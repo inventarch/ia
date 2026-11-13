@@ -5,7 +5,18 @@
 import '../temp/physical-temp.mjs';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  readlinkSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -84,7 +95,13 @@ function summary(json) {
   return out;
 }
 
-/** Every file under a tree but its `.git` folder, as workspace-relative path to the SHA-256 of its bytes. */
+/** The digest of a symbolic link: `link:` and the SHA-256 of its target text, which no file's digest can equal. */
+const LINK = 'link:';
+
+/**
+ * Every file under a tree but its `.git` folder, as workspace-relative path to the SHA-256 of its bytes. A symbolic
+ * link is digested by its target text and never followed, so a link to a folder is not walked.
+ */
 export function treeFiles(root) {
   const files = new Map();
   const walk = (dir, prefix) => {
@@ -93,7 +110,8 @@ export function treeFiles(root) {
       const path = join(dir, entry.name),
         rel = prefix ? `${prefix}/${entry.name}` : entry.name;
       if (entry.isDirectory()) walk(path, rel);
-      else files.set(rel, createHash('sha256').update(readFileSync(path)).digest('hex'));
+      else if (entry.isSymbolicLink()) files.set(rel, `${LINK}${sha256(readlinkSync(path, { encoding: 'buffer' }))}`);
+      else files.set(rel, sha256(readFileSync(path)));
     }
   };
   walk(root, '');
@@ -102,13 +120,17 @@ export function treeFiles(root) {
 
 /**
  * The files a run added, changed or removed, as path to the digest of the normalised content (`removed` for a
- * file that is gone). Binary content is digested as it is.
+ * file that is gone). Binary content is digested as it is, and a symbolic link by its target text.
  */
 function written(command, copy, before) {
   const after = treeFiles(copy),
     out = {};
   for (const [path, hash] of after) {
     if (before.get(path) === hash) continue;
+    if (hash.startsWith(LINK)) {
+      out[path] = hash;
+      continue;
+    }
     const bytes = readFileSync(join(copy, path));
     out[path] = bytes.includes(0) ? sha256(bytes) : digestOf(command, bytes.toString('utf8'), copy).digest;
   }
@@ -125,7 +147,9 @@ function runOnce({ cli, tree, name, work, measure }) {
   const parent = mkdtempSync(join(work, `${name}-`));
   const copy = join(parent, 'tree');
   try {
-    cpSync(tree.root, copy, { recursive: true });
+    // A link is copied as it is: resolved, a relative link would point back into the tree, and a write through it
+    // would change the tree every later run copies.
+    cpSync(tree.root, copy, { recursive: true, verbatimSymlinks: true });
     const args = [...COMMANDS[name].args(tree, copy), '--root', copy];
     const run = spawnSync(process.execPath, ['--max-old-space-size=8192', MEASURE, ...args], {
       cwd: copy,
@@ -172,7 +196,8 @@ export function captureAll({
   measure = true,
   work,
 }) {
-  const tree = { root: resolve(root), commit: null };
+  // The real path: a copy of a link to the tree would be a link to it, and a run would write into the tree.
+  const tree = { root: realpathSync.native(resolve(root)), commit: null };
   if (existsSync(join(tree.root, '.git')))
     tree.commit = execFileSync('git', ['-C', tree.root, 'rev-parse', 'HEAD'], {
       encoding: 'utf8',

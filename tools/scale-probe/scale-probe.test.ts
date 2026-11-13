@@ -1,10 +1,20 @@
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  readlinkSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { runBounded } from '../testing/subprocess.js';
+import { capture, treeFiles } from './capture.mjs';
 import { compare } from './compare.mjs';
 import { contents, generate, selection, syntheticFiles } from './generate.mjs';
 import { normalise } from './normalise.mjs';
@@ -25,6 +35,19 @@ async function scratch(run: (base: string) => Promise<void> | void): Promise<voi
     await run(base);
   } finally {
     rmSync(base, { recursive: true, force: true });
+  }
+}
+
+const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
+
+/** Links a file. Windows grants file links only with a privilege (Developer Mode or elevation): without it, EPERM, and false. */
+function fileLink(target: string, path: string): boolean {
+  try {
+    symlinkSync(target, path, 'file');
+    return true;
+  } catch (error) {
+    if (process.platform === 'win32' && (error as NodeJS.ErrnoException).code === 'EPERM') return false;
+    throw error;
   }
 }
 
@@ -261,6 +284,87 @@ describe("the probe's expected exits", () => {
     expect(unexpectedExits({ validate: 0, 'kb-check': 1 }, result)).toEqual([]);
     expect(unexpectedExits(undefined, result)).toEqual([]);
   });
+});
+
+describe('the capture', () => {
+  it('digests a link by its target text without following it, a dangling one included', (context) =>
+    scratch((base) => {
+      writeFileSync(join(base, 'a.txt'), 'a');
+      if (!fileLink('a.txt', join(base, 'to-a'))) return context.skip('Windows denied file symlink creation (EPERM)');
+      fileLink('missing.txt', join(base, 'dangling'));
+      mkdirSync(join(base, 'sub'));
+      writeFileSync(join(base, 'sub', 'b.txt'), 'b');
+      // A junction needs no privilege on Windows, which stores its target as an absolute path, so the expected digest
+      // comes from what the link holds there.
+      symlinkSync(join(base, 'sub'), join(base, 'to-sub'), 'junction');
+      const toSub = createHash('sha256')
+        .update(readlinkSync(join(base, 'to-sub'), { encoding: 'buffer' }))
+        .digest('hex');
+      expect(Object.fromEntries(treeFiles(base))).toEqual({
+        'a.txt': sha256('a'),
+        dangling: `link:${sha256('missing.txt')}`,
+        'sub/b.txt': sha256('b'),
+        'to-a': `link:${sha256('a.txt')}`,
+        'to-sub': `link:${toSub}`,
+      });
+    }));
+
+  it('copies a relative link as a link, so a write through it changes the copy, not the tree', (context) =>
+    scratch((base) => {
+      const tree = join(base, 'tree'),
+        cli = join(base, 'cli.mjs');
+      mkdirSync(tree);
+      writeFileSync(join(tree, 'target.txt'), 'original\n');
+      if (!fileLink('target.txt', join(tree, 'link.txt')))
+        return context.skip('Windows denied file symlink creation (EPERM)');
+      // A stand-in CLI: it writes through the link in its copy and adds a dangling link there.
+      writeFileSync(
+        cli,
+        [
+          "import { symlinkSync, writeFileSync } from 'node:fs';",
+          "import { join } from 'node:path';",
+          "const root = process.argv[process.argv.indexOf('--root') + 1];",
+          "writeFileSync(join(root, 'link.txt'), 'changed\\n');",
+          "symlinkSync('missing.txt', join(root, 'added'), 'file');",
+          "process.stdout.write('{}');",
+        ].join('\n'),
+      );
+      const result = capture({ cli, label: 'x', root: tree, commands: ['validate'], measure: false }) as {
+        outputs: Record<string, { exit: number; files: Record<string, string> }>;
+      };
+      expect(readFileSync(join(tree, 'target.txt'), 'utf8')).toBe('original\n');
+      expect(result.outputs['validate']?.exit).toBe(0);
+      expect(result.outputs['validate']?.files).toEqual({
+        added: `link:${sha256('missing.txt')}`,
+        'target.txt': sha256('changed\n'),
+      });
+    }));
+
+  it('copies the tree a link names, not the link, so a write in the copy leaves the tree alone', () =>
+    scratch((base) => {
+      const tree = join(base, 'tree'),
+        named = join(base, 'named'),
+        cli = join(base, 'cli.mjs');
+      mkdirSync(tree);
+      writeFileSync(join(tree, 'a.txt'), 'a\n');
+      // A junction needs no privilege on Windows; elsewhere it is a symbolic link to the absolute path.
+      symlinkSync(tree, named, 'junction');
+      writeFileSync(
+        cli,
+        [
+          "import { writeFileSync } from 'node:fs';",
+          "import { join } from 'node:path';",
+          "writeFileSync(join(process.argv[process.argv.indexOf('--root') + 1], 'written.txt'), 'w\\n');",
+          "process.stdout.write('{}');",
+        ].join('\n'),
+      );
+      const result = capture({ cli, label: 'x', root: named, commands: ['validate'], measure: false }) as {
+        outputs: Record<string, { exit: number; files: Record<string, string> }>;
+      };
+      expect(readdirSync(tree)).toEqual(['a.txt']);
+      expect(result.outputs['validate']?.exit).toBe(0);
+      expect(result.outputs['validate']?.files).toEqual({ 'written.txt': sha256('w\n') });
+    }));
 });
 
 describe("the probe's --out", () => {

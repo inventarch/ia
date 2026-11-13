@@ -36,11 +36,11 @@ Capture files in the `ia.scale-probe.capture.v1` format. For each command they r
 - its exit code;
 - the SHA-256 digest and size of its normalised standard output, and the digest of its normalised standard error;
 - a short summary;
-- the digest of every file it added, changed or removed in its copy;
+- the digest of every file it added, changed or removed in its copy, a symbolic link's by its target text, never followed;
 - whether every run agreed;
 - with measurement, each run's wall time, CPU time and peak memory.
 
-Trees and copies are made under `--work` or the temporary directory and removed afterwards.
+Trees and copies are made under `--work` or the temporary directory and removed afterwards. A tree given through a link is copied from the folder the link names.
 
 ## Prerequisites
 
@@ -56,14 +56,15 @@ Task ownership: `tools:test-scale-probe`. The test covers:
 - the normaliser's rules;
 - the expected exits;
 - the probe's refusal of an `--out` that already holds captures;
+- the capture's copy and digest of a symbolic link;
 - the comparison's verdicts.
 
-The CLI runs themselves are measurements and stay out of the suite.
+Runs of the IA CLI are measurements and stay out of the suite; where a case needs a CLI, a stand-in script takes its place. The cases that create file links skip on Windows only when it denies their creation; the folder links are junctions, which Windows creates without that right.
 
 ## Invariants
 
 - No tree holds content from outside public IA. Synthetic trees start from `ia init` and generated text, and git trees come from this repository.
-- The two sides of a comparison run on separate fresh copies of the same tree, so evidence one run writes never reaches the other.
+- The two sides of a comparison run on separate fresh copies of the same tree, so evidence one run writes never reaches the other, unless it writes through a link whose target lies outside its copy: an absolute one, or a relative one that climbs out of the tree (see Limits).
 - Normalisation removes or blanks only these:
   - the workspace root, made relative where it stands alone in a string, with the separators of the path after it turned to slashes;
   - every `observedAt`, `capturedAt` and `timings` field;
@@ -82,3 +83,4 @@ The CLI runs themselves are measurements and stay out of the suite.
 - Several public fixtures are refused before admission. They pin those refusals and no more, and `trees.json` says what each tree covers.
 - `kb pack` runs only on trees with a commit, which the synthetic trees have.
 - A fixture holding a symbolic link may not extract on Windows without the right to create links.
+- A copy keeps each symbolic link's target text as it is, so a relative link that stays inside the tree resolves inside the copy. An absolute link still points where it did; a relative one that climbs out of the tree now points outside the copy. A write through either reaches outside the copy, where a later run may read it.

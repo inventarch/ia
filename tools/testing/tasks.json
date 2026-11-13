@@ -5245,6 +5245,24 @@
       "resourceClass": "subprocess",
       "covers": [
         "vitest run --config vitest.tools.config.mts --maxWorkers=1"
+      ],
+      "skips": [
+        {
+          "case": "tools/scale-probe/scale-probe.test.ts > the capture digests a link by its target text without following it, a dangling one included",
+          "reason": "The case skips only when Windows denies file-symlink creation with EPERM; it runs wherever creation is permitted, Windows included.",
+          "platforms": [
+            "windows"
+          ],
+          "when": "file-symlink-unavailable"
+        },
+        {
+          "case": "tools/scale-probe/scale-probe.test.ts > the capture copies a relative link as a link, so a write through it changes the copy, not the tree",
+          "reason": "The case skips only when Windows denies file-symlink creation with EPERM; it runs wherever creation is permitted, Windows included.",
+          "platforms": [
+            "windows"
+          ],
+          "when": "file-symlink-unavailable"
+        }
       ]
     },
     {
