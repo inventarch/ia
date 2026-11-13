@@ -52,6 +52,7 @@ Trees and copies are made under `--work` or the temporary directory and removed 
 
 Task ownership: `tools:test-scale-probe`. The test covers:
 - the generator: its determinism; a digest of what it gives the trees the reference was captured on (the `ia init` arguments, the files, the selection and the commit's message, author and date); the commit it makes around a stand-in `ia init`, which also pins the file names, how it calls `ia init`, and the message it commits with, and which a git template named in the environment does not move; counts, references and layout;
+- that the generator leaves alone a repository that `GIT_DIR` and `GIT_INDEX_FILE` name, as a git hook's do;
 - the `kb pack` selection;
 - the normaliser's rules;
 - the expected exits;
@@ -75,6 +76,7 @@ Runs of the IA CLI are measurements and stay out of the suite; where a case need
 
   Everything else in an output, its standard error and the files it writes is compared. An output or written file that parses as JSON is compared as its parsed value, so differences that parsing removes, such as whitespace, number spelling and string escapes, are not compared.
 - The same size and seed give the same files and the same commit, whatever a machine's global git ignore file or template says.
+- The generator's git gets none of `GIT_DIR`, `GIT_WORK_TREE`, `GIT_INDEX_FILE`, `GIT_OBJECT_DIRECTORY`, `GIT_ALTERNATE_OBJECT_DIRECTORIES` and `GIT_COMMON_DIR`, so a run started from a git hook, which hands such variables on, writes only into the tree it builds.
 
 ## Limits
 

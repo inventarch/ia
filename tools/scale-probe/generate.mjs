@@ -129,6 +129,19 @@ const GIT_ENV = {
 };
 
 /**
+ * Variables that point git at another repository than the tree's. Git hands its hooks such variables, so a run
+ * started from a hook would write into the hook's repository; they are dropped, and the rest of the environment kept.
+ */
+const ELSEWHERE = [
+  'GIT_DIR',
+  'GIT_WORK_TREE',
+  'GIT_INDEX_FILE',
+  'GIT_OBJECT_DIRECTORY',
+  'GIT_ALTERNATE_OBJECT_DIRECTORIES',
+  'GIT_COMMON_DIR',
+];
+
+/**
  * What the generator gives a tree beside what `ia init` writes: the arguments it passes `ia init`, the synthetic
  * files and, with `git`, the text of the `kb pack` selection and the commit's message, author and date. Pure: the
  * same options give the same value. Tests pin this value, and the commit generate() makes from it around a stand-in
@@ -171,6 +184,8 @@ export function generate({ cli, out, records, seed, git = false }) {
     if (content.selection !== null) writeFileSync(join(tree, 'selection.json'), content.selection);
     let commit = null;
     if (content.commit) {
+      const env = { ...process.env, ...content.commit.env };
+      for (const name of ELSEWHERE) delete env[name];
       const run = (...args) =>
         execFileSync(
           'git',
@@ -190,7 +205,7 @@ export function generate({ cli, out, records, seed, git = false }) {
           ],
           {
             encoding: 'utf8',
-            env: { ...process.env, ...content.commit.env },
+            env,
             windowsHide: true,
           },
         ).trim();

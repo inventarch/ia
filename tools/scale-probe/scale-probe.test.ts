@@ -130,6 +130,43 @@ describe('the synthetic generator', () => {
       }
     }));
 
+  it("leaves alone the repository a hook's git variables name, and commits its own tree", () =>
+    scratch(async (base) => {
+      // Git hands its hooks variables that locate its repository: a commit's hooks get GIT_INDEX_FILE, and git's hook
+      // documentation names GIT_DIR. A decoy repository with a staged file stands in for the hook's.
+      const decoy = join(base, 'decoy'),
+        index = join(decoy, '.git', 'index');
+      mkdirSync(decoy);
+      writeFileSync(join(decoy, 'staged.txt'), 'staged\n');
+      // The test's own git calls get no git variables, so they cannot reach another repository either.
+      const clean = Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith('GIT_')));
+      for (const args of [
+        ['init', '--quiet'],
+        ['add', 'staged.txt'],
+      ]) {
+        const run = await runBounded('git', ['-C', decoy, ...args], { timeoutMs: bound, env: clean });
+        expect(run.status, run.stderr).toBe(0);
+      }
+      const before = readFileSync(index);
+      const saved = { GIT_DIR: process.env['GIT_DIR'], GIT_INDEX_FILE: process.env['GIT_INDEX_FILE'] };
+      Object.assign(process.env, { GIT_DIR: join(decoy, '.git'), GIT_INDEX_FILE: index });
+      try {
+        const made = generate({
+          cli: recordingInit(base),
+          out: join(base, 'synthetic'),
+          records: 200,
+          seed: 1,
+          git: true,
+        });
+        expect(made.commit).toBe(PINNED);
+      } finally {
+        for (const [name, value] of Object.entries(saved))
+          if (value === undefined) delete process.env[name];
+          else process.env[name] = value;
+      }
+      expect(readFileSync(index).equals(before), 'the decoy index changed').toBe(true);
+    }));
+
   it('writes different text for a different seed, with the same record names', () => {
     const a = syntheticFiles({ records: 120, seed: 1 }),
       b = syntheticFiles({ records: 120, seed: 2 });
