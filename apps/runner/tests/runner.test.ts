@@ -781,6 +781,62 @@ it("opens a workspace's own read binding that names the original implementation"
   );
   expect(runner.manifest.operations[INSTALLED_READ.operation]!.handler).toBe('captured-source-read');
 });
+it('reads through a harness whose original read lists its original validators while only those are aliased', async () => {
+  const options = originalFixture(),
+    actions: ModelAction[] = [],
+    seen: ModelRequest[] = [];
+  // Only the read's validators are aliased, so the records still compile to the original read, whose installed
+  // descriptor lists the original validator names.
+  const runner = openRunner({
+    ...options,
+    catalog: runnerCatalog(),
+    aliases: {
+      validators: {
+        'captured-source-read-input-v1': 'captured-source-read-input',
+        'captured-source-read-output-v1': 'captured-source-read-output',
+      },
+    },
+    model: scripted(actions, seen),
+  });
+  cleanups.push(() => runner.close());
+  const provenance = installedPins(runner);
+  expect(provenance.aliases).toEqual([
+    { group: 'validators', from: 'captured-source-read-input-v1', to: 'captured-source-read-input' },
+    { group: 'validators', from: 'captured-source-read-output-v1', to: 'captured-source-read-output' },
+  ]);
+  expect(provenance.installed.filter((pin) => pin.group === 'operations').map((pin) => pin.id)).toEqual([
+    'captured-source-read-v1',
+  ]);
+  expect(runner.manifest.operations[INSTALLED_READ.operation]!.handler).toBe('ia.captured-source.read.v1');
+  actions.push(read(runner), done);
+  await runner.start('Read through the original read with aliased validators', 'validators-aliased-read');
+  const state = await runner.run();
+  expect(state.runs['root']?.status).toBe('completed');
+  expect(state.budget.operations).toBe(1);
+});
+it('opens a harness whose original entry lists the original mapping while the records name the plain one', () => {
+  const options = fixture(),
+    file = resolve(options.root, '.ia/src/systems/agent-composition-system/records/runner.ia');
+  writeFileSync(
+    file,
+    readFileSync(file, 'utf8').replace('    implementation runner-entry\n', '    implementation runner-entry-v1\n'),
+  );
+  expect(readFileSync(file, 'utf8')).toContain('implementation runner-entry-v1\n    mapping runner-identity\n');
+  // Only the mapping is aliased, so the entry keeps its original contract, which lists the original mapping name. The
+  // alias that contract relied on is recorded, so the runner's rebuild from the recorded aliases matches.
+  const runner = openRunner({
+    ...options,
+    catalog: runnerCatalog(),
+    aliases: { mappings: { 'runner-identity-v1': 'runner-identity' } },
+    model: scripted([], []),
+  });
+  cleanups.push(() => runner.close());
+  const provenance = installedPins(runner);
+  expect(provenance.aliases).toEqual([{ group: 'mappings', from: 'runner-identity-v1', to: 'runner-identity' }]);
+  expect(
+    provenance.installed.filter((pin) => pin.group === 'entries' || pin.group === 'mappings').map((pin) => pin.id),
+  ).toEqual(['runner-entry-v1', 'runner-identity']);
+});
 it('keeps a harness pinned to the original catalog valid and dispatching by the original handler', async () => {
   const options = originalFixture(),
     actions: ModelAction[] = [],

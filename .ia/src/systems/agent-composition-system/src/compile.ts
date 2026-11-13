@@ -194,6 +194,14 @@ class Compiler {
     this.aliases.set(`${group}:${id}`, { group, from: id, to: target });
     return true;
   }
+  /**
+   * Whether a record's name and the name an installed contract lists are one installed entry: a direct match first,
+   * then the listed name's own alias, which `listedAs` records.
+   */
+  sameEntry(group: CatalogGroup, written: string, listed: string, node: CompiledRecord, path: string): boolean {
+    const name = this.named(group, written, node, path);
+    return name === listed || this.listedAs(group, listed, name);
+  }
   use<G extends CatalogGroup>(group: G, id: string, node: CompiledRecord, path: string): CatalogValue<G> {
     const target = this.named(group, id, node, path);
     const entries = this.options.catalog[group];
@@ -346,8 +354,9 @@ class Compiler {
       fail('IA-COMPOSITION-CONFLICT', 'Candidate validation must use a read-only installed contract', node);
     if (
       canonical(nativeEffects) !== canonical(contractEffects) ||
-      this.named('validators', field(node, 'execution', 'input'), node, 'execution.input') !== descriptor.input ||
-      this.named('validators', field(node, 'execution', 'output'), node, 'execution.output') !== descriptor.output ||
+      // By installed name: a descriptor may still list a validator the alias table renames.
+      !this.sameEntry('validators', field(node, 'execution', 'input'), descriptor.input, node, 'execution.input') ||
+      !this.sameEntry('validators', field(node, 'execution', 'output'), descriptor.output, node, 'execution.output') ||
       field(node, 'execution', 'recovery') !== descriptor.recovery
     )
       fail('IA-COMPOSITION-CONFLICT', 'Native operation contract differs from its installed descriptor', node);
@@ -844,7 +853,8 @@ class Compiler {
       fail('IA-COMPOSITION-UNAVAILABLE', 'Entry target contract is unsupported', entry);
     const mapping = field(entry, 'binding', 'mapping', entryContract.mapping);
     this.mapping(mapping, entry);
-    if (this.named('mappings', mapping, entry, 'binding.mapping') !== entryContract.mapping)
+    // By installed name: an entry contract may still list a mapping the alias table renames.
+    if (!this.sameEntry('mappings', mapping, entryContract.mapping, entry, 'binding.mapping'))
       fail('IA-COMPOSITION-CONFLICT', 'Entry mapping differs from the installed transport', entry);
     const target = this.reference(value(entry, 'binding', 'target', true), entry, 'binding.target', 'agent-profile');
     if (!this.profileNodes.has(target.identity))

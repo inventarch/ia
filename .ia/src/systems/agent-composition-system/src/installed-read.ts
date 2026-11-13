@@ -150,10 +150,14 @@ export function installedReadAdapters(
   if (selected.length !== 1 || manifest.operations[INSTALLED_READ.operation]?.handler !== selected[0]!.handler)
     denied('Compiled installed read pin is unavailable');
   const ids = selected[0]!;
+  // Each validator the read lists, with the entry the harness pins for it: the same one, or the one its recorded aliases
+  // sent it to. The pinned entry must be the first-party validator the read lists.
+  const renamed = compiledAliases(compiled).validators,
+    validators = [ids.input, ids.output].map((listed) => [listed, renamed?.[listed] ?? listed] as const);
   const checkInstalled = (): void => {
     const current = installedReadCatalog();
-    for (const id of [ids.input, ids.output])
-      if (canonical(catalog.validators[id] ?? null) !== canonical(current.validators[id]))
+    for (const [listed, pinned] of validators)
+      if (canonical(catalog.validators[pinned] ?? null) !== canonical(current.validators[listed]))
         denied('Installed read validator changed');
     if (canonical(catalog.operations[ids.implementation] ?? null) !== canonical(current.operations[ids.implementation]))
       denied('Installed read contract or implementation bytes changed');
