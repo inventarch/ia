@@ -60,7 +60,7 @@ Each native system publishes its own package from its folder under `.ia/src/syst
 | Package | Guide | Contract | Public entry points |
 | --- | --- | --- | --- |
 | `@inventarch/agent-system` | [README](../../../.ia/src/systems/agent-system/README.md) | [SPEC](../../../.ia/src/systems/agent-system/SPEC.md) | Root |
-| `@inventarch/agent-composition-system` | [README](../../../.ia/src/systems/agent-composition-system/README.md) | [SPEC](../../../.ia/src/systems/agent-composition-system/SPEC.md) | Root; `./tools`, and deprecated aliases of `@inventarch/workspace-runtime` subpaths |
+| `@inventarch/agent-composition-system` | [README](../../../.ia/src/systems/agent-composition-system/README.md) | [SPEC](../../../.ia/src/systems/agent-composition-system/SPEC.md) | Root; `./tools` |
 | `@inventarch/authoring-system` | [README](../../../.ia/src/systems/authoring-system/README.md) | [SPEC](../../../.ia/src/systems/authoring-system/SPEC.md) | Root |
 | `@inventarch/session-system` | [README](../../../.ia/src/systems/session-system/README.md) | [SPEC](../../../.ia/src/systems/session-system/SPEC.md) | Root; `./sqlite` |
 | `@inventarch/template-system` | [README](../../../.ia/src/systems/template-system/README.md) | [SPEC](../../../.ia/src/systems/template-system/SPEC.md) | Root |
