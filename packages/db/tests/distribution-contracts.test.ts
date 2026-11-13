@@ -630,3 +630,19 @@ it('commonRange accepts exactly what both ranges accept, or refuses to say', () 
   expect(commonRange(majors('^1.0.111'), '>=1.0.111111111 <7.0.0')).toHaveLength(256);
   expect(commonRange(majors('^1.0.1111'), '>=1.0.111111111 <7.0.0')).toBeNull();
 });
+
+it('admits the plain installed-implementations format with formatVersion 1 beside the legacy literal and refuses others', () => {
+  const evaluators = { format: 'ia-evaluator-catalog/1.0', entries: [] };
+  const plain = { format: 'installed-implementations', formatVersion: 1, evaluators, operations: [] };
+  const legacy = { format: 'ia.installed-implementations.v1', evaluators, operations: [] };
+  expect(checkInstalledImplementations(plain)).toMatchObject({ ok: true, value: plain });
+  expect(checkInstalledImplementations(legacy)).toMatchObject({ ok: true, value: legacy });
+  for (const bad of [
+    { ...plain, formatVersion: 2 },
+    { ...legacy, formatVersion: 1 },
+    { format: 'installed-implementations', evaluators, operations: [] },
+    { ...plain, format: 'ia.installed-implementations.v2' },
+    { ...legacy, format: 'ia.installed-implementations.v2' },
+  ])
+    expect(checkInstalledImplementations(bad)).toMatchObject({ ok: false });
+});

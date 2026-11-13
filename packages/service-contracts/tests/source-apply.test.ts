@@ -141,3 +141,16 @@ it('bounds proposal discovery and exact candidate file reads independently of ge
   ])
     expect(() => sourceApplyInspectRequest.parse(request)).toThrow();
 });
+
+it('writes the plain format with formatVersion 1 and still reads the legacy literal', () => {
+  const plain = { ...candidate, format: 'source-change', formatVersion: 1 };
+  expect(sourceChangeCandidate.parse(plain)).toEqual(plain);
+  expect(sourceChangeCandidate.parse(candidate)).toEqual(candidate);
+  for (const value of [
+    { ...plain, formatVersion: 2 },
+    { ...plain, formatVersion: undefined },
+    { ...candidate, formatVersion: 1 },
+    { ...plain, format: 'ia.source-change.v2' },
+  ])
+    expect(() => sourceChangeCandidate.parse(value)).toThrow();
+});

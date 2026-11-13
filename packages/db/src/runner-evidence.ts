@@ -9,7 +9,10 @@ import { parseStrictJson } from './json.js';
 import { discard, staged, syncDirectory } from './retention.js';
 
 /** Local journal claims, not execution authorization or an attestation by an external observer. */
-export const RUNNER_EVIDENCE_FORMAT = 'ia.runner-evidence.v1';
+export const RUNNER_EVIDENCE_FORMAT = 'runner-evidence';
+export const RUNNER_EVIDENCE_FORMAT_VERSION = 1;
+/** The literal receipts carried before `formatVersion` existed; read as written, never produced. */
+const LEGACY_RUNNER_EVIDENCE_FORMATS: readonly string[] = ['ia.runner-evidence.v1'];
 const BYTES = 4 * 1024 * 1024;
 const EVENTS = 4096;
 const HEX = /^[a-f0-9]{64}$/;
@@ -54,7 +57,8 @@ interface JournalEvent {
   readonly mutation: Row;
 }
 interface Receipt {
-  readonly format: typeof RUNNER_EVIDENCE_FORMAT;
+  readonly format: string;
+  readonly formatVersion?: number;
   readonly authoredRevision: string;
   readonly events: readonly JournalEvent[];
 }
@@ -130,8 +134,13 @@ function data(value: unknown): unknown {
 /** Checks the journal envelope and hashes, never reimplements the session transition reducer. */
 function receipt(value: unknown): Receipt {
   const object = row(value);
-  exact(object, ['format', 'authoredRevision', 'events']);
-  if (object['format'] !== RUNNER_EVIDENCE_FORMAT) fail('unsupported receipt format');
+  if (object['format'] === RUNNER_EVIDENCE_FORMAT) {
+    exact(object, ['format', 'formatVersion', 'authoredRevision', 'events']);
+    if (object['formatVersion'] !== RUNNER_EVIDENCE_FORMAT_VERSION) fail('unsupported receipt format');
+  } else {
+    exact(object, ['format', 'authoredRevision', 'events']);
+    if (!LEGACY_RUNNER_EVIDENCE_FORMATS.includes(object['format'] as string)) fail('unsupported receipt format');
+  }
   hash(object['authoredRevision']);
   const events = object['events'];
   if (!Array.isArray(events) || events.length === 0 || events.length > EVENTS) fail('journal event limit');
@@ -238,7 +247,7 @@ export function writeRunnerEvidence(
 ): RunnerEvidenceWrite {
   const clean = row(data(input));
   exact(clean, ['authoredRevision', 'events']);
-  const value = receipt({ format: RUNNER_EVIDENCE_FORMAT, ...clean }),
+  const value = receipt({ format: RUNNER_EVIDENCE_FORMAT, formatVersion: RUNNER_EVIDENCE_FORMAT_VERSION, ...clean }),
     path = receiptPath(value),
     bytes = Buffer.from(canonical(value) + '\n'),
     last = value.events.at(-1)!;

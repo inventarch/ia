@@ -568,3 +568,33 @@ it('refreshes evidence through the normal editor reader and invalidates prior sc
     editor.close();
   }
 });
+
+it('writes the plain format with formatVersion 1, reads the legacy literal as written, and refuses other formats', () => {
+  const root = workspace(),
+    input = journal(root);
+  append(input.events, {
+    type: 'attempt.prepare',
+    attempt: { id: 'read', kind: 'operation', runId: 'root', target: 'fixture-read' },
+  });
+  append(input.events, { type: 'attempt.observe', attemptId: 'read', effect: 'none', error: null });
+  const written = writeRunnerEvidence(root, input),
+    original = readFileSync(resolve(root, written.path), 'utf8');
+  expect(JSON.parse(original)).toMatchObject({ format: 'runner-evidence', formatVersion: 1 });
+  const projected = () => using(root, true, (db) => db.records().filter((node) => node.band === 0).length);
+  const withEvidence = projected();
+  expect(withEvidence).toBeGreaterThan(0);
+  const plain = '"format":"runner-evidence","formatVersion":1';
+  expect(original).toContain(plain);
+  // The same journal under the pre-versioning literal still projects; its event hashes do not include the format.
+  put(root, written.path, original.replace(plain, '"format":"ia.runner-evidence.v1"'));
+  expect(projected()).toBe(withEvidence);
+  for (const refused of [
+    original.replace(plain, '"format":"runner-evidence","formatVersion":2'),
+    original.replace(plain, '"format":"runner-evidence"'),
+    original.replace(plain, '"format":"ia.runner-evidence.v1","formatVersion":1'),
+    original.replace(plain, '"format":"ia.runner-evidence.v2"'),
+  ]) {
+    put(root, written.path, refused);
+    expect(projected()).toBeLessThan(withEvidence);
+  }
+});

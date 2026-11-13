@@ -9,6 +9,7 @@ import {
 import type { EvaluatorCatalog, EvaluatorCodec, EvaluatorEntry } from '../catalog.js';
 import {
   EVIDENCE_RECEIPT_FORMAT,
+  EVIDENCE_RECEIPT_FORMAT_VERSION,
   acceptEvaluatorOutput,
   admitTransition,
   evidenceDigest,
@@ -113,6 +114,7 @@ export function runEvidenceFixtures(graph: Graph): readonly FixtureResult[] {
   const now = '2026-09-28T10:30:00Z';
   const receipt = (selected: Obligation = obligation, overrides: Partial<EvidenceReceipt> = {}): EvidenceReceipt => ({
     format: EVIDENCE_RECEIPT_FORMAT,
+    formatVersion: EVIDENCE_RECEIPT_FORMAT_VERSION,
     receiptId: 'fixture-receipt',
     attemptId: context.attemptId,
     obligationId: selected.obligationId,

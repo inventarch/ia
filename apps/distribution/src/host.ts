@@ -27,6 +27,8 @@ import {
   syncDirectory,
   unaliased,
   utf8,
+  versionedDocument,
+  versionedObject,
   workspace,
 } from './files.js';
 import { reconcileConfig } from './config.js';
@@ -53,7 +55,8 @@ interface Cache {
 /** What the pure planners need of a cache: a verified one, or the v2 payload a caller is about to materialize. */
 export type HostCacheTarget = Pick<Cache, 'directory' | 'release' | 'name' | 'host' | 'launcher'>;
 interface State {
-  format: 'ia.host-state.v1';
+  format: 'host-state';
+  formatVersion: 1;
   host: Host;
   id: string;
   cache: string;
@@ -63,7 +66,8 @@ interface State {
   existing?: readonly JsonPath[];
 }
 export interface HostPlan {
-  format: 'ia.host-plan.v1';
+  format: 'host-plan';
+  formatVersion: 1;
   root: string;
   host: Host;
   id: string;
@@ -75,7 +79,8 @@ export interface HostPlan {
   digest: string;
 }
 interface Pending {
-  format: 'ia.host-pending.v1';
+  format: 'host-pending';
+  formatVersion: 1;
   host: Host;
   id: string;
   before: { config: string | null; state: string | null };
@@ -174,8 +179,7 @@ function plain(value: unknown): Record<string, unknown> {
 export function saved(value: string | null, host: Host, name: string): State | null {
   if (value === null) return null;
   const data = plain(decodeDistributionJson(value)),
-    row = object(data, [
-      'format',
+    { row } = versionedObject(data, { format: 'host-state', version: 1, legacy: ['ia.host-state.v1'] }, [
       'host',
       'id',
       'cache',
@@ -185,7 +189,6 @@ export function saved(value: string | null, host: Host, name: string): State | n
       ...(Object.hasOwn(data, 'existing') ? ['existing'] : []),
     ]);
   if (
-    row['format'] !== 'ia.host-state.v1' ||
     row['host'] !== host ||
     row['id'] !== name ||
     typeof row['cache'] !== 'string' ||
@@ -202,9 +205,14 @@ export function verifyHostCache(input: string): Cache {
   const directory = workspace(input),
     releaseBytes = read(directory, 'release.json');
   if (releaseBytes === null) fail('ARTIFACT-UNAVAILABLE', 'Missing host release');
-  const release = object(decodeDistributionJson(releaseBytes), ['format', 'inventory', 'launcher']),
-    v2 = release['format'] === 'ia.host-release.v2';
-  if (!v2 && release['format'] !== 'ia.host-release.v1') fail('INPUT-INVALID', 'Unknown host release');
+  // Plain `host-release` declares its version (1 or 2); the exact legacy literals stand for versions 1 and 2.
+  const { row: release, version: releaseVersion } = versionedDocument(
+    decodeDistributionJson(releaseBytes),
+    { format: 'host-release', versions: [1, 2], legacy: { 'ia.host-release.v1': 1, 'ia.host-release.v2': 2 } },
+    ['inventory', 'launcher'],
+    'Unknown host release',
+  );
+  const v2 = releaseVersion === 2;
   const inventoryText = read(directory, 'inventory.json', 4 * 1024 * 1024),
     launcher = bytes(directory, 'scripts/ia.mjs');
   if (
@@ -214,14 +222,14 @@ export function verifyHostCache(input: string): Cache {
     sha256(launcher) !== hash(release['launcher'])
   )
     fail('INTEGRITY-MISMATCH', 'Host release inventory/launcher changed');
-  const inventory = object(
+  const { row: inventory, version: inventoryVersion } = versionedDocument(
     decodeDistributionJson(inventoryText),
-    v2
-      ? ['format', 'version', 'packages', 'files']
-      : ['format', 'host', 'name', 'version', 'native', 'packages', 'files'],
+    { format: 'host-cache', versions: [releaseVersion], legacy: { 'ia.host-cache.v1': 1, 'ia.host-cache.v2': 2 } },
+    v2 ? ['version', 'packages', 'files'] : ['host', 'name', 'version', 'native', 'packages', 'files'],
+    'Invalid host cache inventory',
   );
   if (
-    inventory['format'] !== (v2 ? 'ia.host-cache.v2' : 'ia.host-cache.v1') ||
+    inventoryVersion !== releaseVersion ||
     typeof inventory['version'] !== 'string' ||
     inventory['version'].length > 128 ||
     !Array.isArray(inventory['packages']) ||
@@ -442,7 +450,8 @@ function planHostWith(root: string, host: Host, cache: HostCacheTarget | null, r
   }
   const afterState = cache
     ? json({
-        format: 'ia.host-state.v1',
+        format: 'host-state',
+        formatVersion: 1,
         host,
         id: name,
         cache: cache.directory,
@@ -454,7 +463,8 @@ function planHostWith(root: string, host: Host, cache: HostCacheTarget | null, r
     : null;
   if (Buffer.byteLength(next ?? '') > 1024 * 1024) fail('LIMIT-EXCEEDED', 'Host configuration exceeds 1 MiB');
   const body = {
-    format: 'ia.host-plan.v1' as const,
+    format: 'host-plan' as const,
+    formatVersion: 1 as const,
     root,
     host,
     id: name,
@@ -508,8 +518,12 @@ export function applyHost(
   value: unknown,
   checkpoint: (name: string) => void = () => {},
 ): { status: 'host-active' | 'host-removed'; id: string; host: Host } {
+  // A saved plan from before formatVersion carries a digest over its old body: it is recognised and asked to be made again.
+  if (value !== null && typeof value === 'object' && (value as Record<string, unknown>)['format'] === 'ia.host-plan.v1')
+    fail('PLAN-STALE', 'Host plan was made by an earlier version; plan again');
   const input = object(value, [
     'format',
+    'formatVersion',
     'root',
     'host',
     'id',
@@ -521,7 +535,8 @@ export function applyHost(
     'digest',
   ]);
   if (
-    input['format'] !== 'ia.host-plan.v1' ||
+    input['format'] !== 'host-plan' ||
+    input['formatVersion'] !== 1 ||
     typeof input['root'] !== 'string' ||
     !(input['cache'] === null || typeof input['cache'] === 'string')
   )
@@ -534,7 +549,7 @@ export function applyHost(
     const plan = planHost(root, host, input['cache'], name);
     if (json(plan) !== json(value)) fail('PLAN-STALE', 'Host plan no longer matches selected inputs');
     const before = { config: read(root, configFile(host)), state: read(root, stateFile(host, name)) },
-      pending: Pending = { format: 'ia.host-pending.v1', host, id: name, before, after: plan.after };
+      pending: Pending = { format: 'host-pending', formatVersion: 1, host, id: name, before, after: plan.after };
     replace(root, pendingFile, Buffer.from(json(pending)));
     checkpoint('pending');
     same(root, configFile(host), before.config);
@@ -567,8 +582,12 @@ export function recoverHost(rootInput: string): { status: 'host-recovered' | 'cu
       fail('RECOVERY-REQUIRED', 'Run recover-guard for the pending guard registration');
     const content = read(root, pendingFile, 8 * 1024 * 1024);
     if (content === null) return { status: 'current' };
-    const row = object(decodeDistributionJson(content), ['format', 'host', 'id', 'before', 'after']);
-    if (row['format'] !== 'ia.host-pending.v1') fail('INPUT-INVALID', 'Unknown host recovery');
+    const { row } = versionedObject(
+      decodeDistributionJson(content),
+      { format: 'host-pending', version: 1, legacy: ['ia.host-pending.v1'] },
+      ['host', 'id', 'before', 'after'],
+      'Unknown host recovery',
+    );
     const host = asHost(row['host']),
       name = id(row['id']);
     const side = (value: unknown): Pending['before'] => {

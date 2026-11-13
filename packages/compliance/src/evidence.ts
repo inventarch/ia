@@ -18,8 +18,13 @@ import {
 import { assess } from './types.js';
 import type { Assessment, EvidenceCode, Finding, Verdict } from './types.js';
 
-/** Current receipt format (C28). Any other value refuses. */
-export const EVIDENCE_RECEIPT_FORMAT = 'ia-evidence-receipt/1';
+/**
+ * Current receipt format (C28): the plain `evidence-receipt` with `formatVersion` 1. A receipt written as
+ * `evidence-receipt/1` (no `formatVersion`) is still read as written; any other value refuses.
+ */
+export const EVIDENCE_RECEIPT_FORMAT = 'evidence-receipt';
+export const EVIDENCE_RECEIPT_FORMAT_VERSION = 1;
+const LEGACY_EVIDENCE_RECEIPT_FORMATS: readonly string[] = ['evidence-receipt/1'];
 export const EVIDENCE_RESULTS = Object.freeze([
   'passed',
   'failed',
@@ -48,7 +53,9 @@ export interface EvaluatorIdentity {
   readonly implementationDigest: string;
 }
 export interface EvidenceReceipt {
-  readonly format: typeof EVIDENCE_RECEIPT_FORMAT;
+  /** `evidence-receipt` with `formatVersion` 1, or the legacy `evidence-receipt/1` literal (no `formatVersion`). */
+  readonly format: string;
+  readonly formatVersion?: number;
   readonly receiptId: string;
   readonly attemptId: string;
   readonly obligationId: string;
@@ -202,8 +209,17 @@ export function evidenceKey(
   });
 }
 function shape(receipt: unknown): string | undefined {
-  if (!exactKeys(receipt, RECEIPT_KEYS)) return 'Receipt fields must be exactly the v1 set';
-  if (receipt.format !== EVIDENCE_RECEIPT_FORMAT) return `Receipt format must be ${EVIDENCE_RECEIPT_FORMAT}`;
+  const declared =
+      typeof receipt === 'object' && receipt !== null ? (receipt as { format?: unknown }).format : undefined,
+    plain = declared === EVIDENCE_RECEIPT_FORMAT;
+  if (!exactKeys(receipt, plain ? [...RECEIPT_KEYS, 'formatVersion'] : RECEIPT_KEYS))
+    return 'Receipt fields must be exactly the v1 set';
+  if (
+    plain
+      ? receipt.formatVersion !== EVIDENCE_RECEIPT_FORMAT_VERSION
+      : !LEGACY_EVIDENCE_RECEIPT_FORMATS.includes(declared as string)
+  )
+    return `Receipt format must be ${EVIDENCE_RECEIPT_FORMAT} with formatVersion ${EVIDENCE_RECEIPT_FORMAT_VERSION}`;
   for (const key of ['receiptId', 'attemptId', 'obligationId', 'subject', 'issuer', 'policyRevision'] as const)
     if (!sanitized(receipt[key], 512)) return `Receipt ${key} must be sanitized single-line text`;
   for (const key of ['inputDigest', 'catalogDigest', 'evidenceDigest'] as const)

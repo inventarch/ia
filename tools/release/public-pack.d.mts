@@ -3,7 +3,8 @@ export interface PublicFilePin {
   sha256: string;
 }
 export interface PublicPackageInputs {
-  format: 'ia.public-package-inputs.v2';
+  format: 'public-package-inputs' | 'ia.public-package-inputs.v2';
+  formatVersion?: 2;
   source: { repository: 'https://github.com/inventarch/ia'; commit: string; tree: string; dirty: boolean };
   membership: { path: string; sha256: string };
   inputDigest: string;

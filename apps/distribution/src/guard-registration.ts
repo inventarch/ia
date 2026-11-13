@@ -27,6 +27,7 @@ import {
   replace,
   sha256,
   utf8,
+  versionedObject,
   workspace,
 } from './files.js';
 import { editJson, emptyJson, keptPaths, presentJson } from './json-edit.js';
@@ -65,7 +66,8 @@ export interface Group {
   }[];
 }
 interface State {
-  readonly format: 'ia.guard-registration-state.v1';
+  readonly format: 'guard-registration-state' | 'ia.guard-registration-state.v1';
+  readonly formatVersion?: 1;
   readonly id: string;
   readonly cache: string;
   readonly release: string;
@@ -74,7 +76,8 @@ interface State {
   readonly existing?: readonly JsonPath[];
 }
 export interface GuardPlan {
-  readonly format: 'ia.guard-registration-plan.v1';
+  readonly format: 'guard-registration-plan';
+  readonly formatVersion: 1;
   readonly root: string;
   readonly id: string;
   readonly request: GuardRequest;
@@ -130,17 +133,13 @@ export function guardGroup(launcher: string, root: string, platform: NodeJS.Plat
 export function saved(content: string | null, root: string, id: string, removal = false): State | null {
   if (content === null) return null;
   const value = plain(decodeDistributionJson(content)),
-    row = object(value, [
-      'format',
-      'id',
-      'cache',
-      'release',
-      'created',
-      'group',
-      ...(Object.hasOwn(value, 'existing') ? ['existing'] : []),
-    ]);
+    { row } = versionedObject(
+      value,
+      { format: 'guard-registration-state', version: 1, legacy: ['ia.guard-registration-state.v1'] },
+      ['id', 'cache', 'release', 'created', 'group', ...(Object.hasOwn(value, 'existing') ? ['existing'] : [])],
+      'Invalid guard ownership state',
+    );
   if (
-    row['format'] !== 'ia.guard-registration-state.v1' ||
     row['id'] !== id ||
     typeof row['cache'] !== 'string' ||
     !isAbsolute(row['cache']) ||
@@ -334,7 +333,7 @@ function publish(
       fail('LOCAL-MODIFICATION', `${what} configuration or ownership changed during publication`);
   };
   const before = now();
-  write(root, pendingPath, json({ format: pendingFormat, id: plan.id, before, after: plan.after }));
+  write(root, pendingPath, json({ format: pendingFormat, formatVersion: 1, id: plan.id, before, after: plan.after }));
   checkpoint('pending');
   unchanged(before);
   write(root, configPath, plan.after.config);
@@ -381,7 +380,8 @@ function planGuardWith(root: string, cache: HostCacheTarget | null, removeId: st
     state:
       cache && group
         ? json({
-            format: 'ia.guard-registration-state.v1',
+            format: 'guard-registration-state',
+            formatVersion: 1,
             id,
             cache: cache.directory,
             release: cache.release,
@@ -394,7 +394,8 @@ function planGuardWith(root: string, cache: HostCacheTarget | null, removeId: st
   if (Buffer.byteLength(after.config ?? '') > 1024 * 1024 || Buffer.byteLength(after.state ?? '') > 1024 * 1024)
     fail('LIMIT-EXCEEDED', 'Guard registration exceeds its publication bounds');
   const body = {
-    format: 'ia.guard-registration-plan.v1' as const,
+    format: 'guard-registration-plan' as const,
+    formatVersion: 1 as const,
     root,
     id,
     request: cache ? { cache: cache.directory } : { remove: id },
@@ -404,21 +405,36 @@ function planGuardWith(root: string, cache: HostCacheTarget | null, removeId: st
   };
   return { ...body, digest: digest(body) };
 }
+const isLegacyPlan = (input: unknown, literal: string): boolean =>
+  input !== null && typeof input === 'object' && (input as Record<string, unknown>)['format'] === literal;
 const write = (root: string, path: string, content: string | null): void =>
   replace(root, path, content === null ? null : Buffer.from(content));
 export function applyGuardRegistration(
   input: unknown,
   checkpoint: (stage: string) => void = () => {},
 ): { status: 'guard-registered' | 'guard-removed'; id: string } {
-  const row = object(input, ['format', 'root', 'id', 'request', 'release', 'before', 'after', 'digest']);
-  if (row['format'] !== 'ia.guard-registration-plan.v1' || typeof row['root'] !== 'string')
+  // A saved plan from before formatVersion digests its old body: it is recognised and asked to be made again.
+  if (isLegacyPlan(input, 'ia.guard-registration-plan.v1'))
+    fail('PLAN-STALE', 'Guard plan was made by an earlier version; plan again');
+  const row = object(input, [
+    'format',
+    'formatVersion',
+    'root',
+    'id',
+    'request',
+    'release',
+    'before',
+    'after',
+    'digest',
+  ]);
+  if (row['format'] !== 'guard-registration-plan' || row['formatVersion'] !== 1 || typeof row['root'] !== 'string')
     fail('INPUT-INVALID', 'Invalid guard registration plan');
   const root = workspace(row['root']),
     unlock = acquireHostRegistrationLock(root);
   try {
     const plan = planGuardRegistration(root, row['request'] as GuardRequest);
     if (json(plan) !== json(input)) fail('PLAN-STALE', 'Guard plan no longer matches its current inputs');
-    publish(root, plan, statePath(plan.id), 'ia.guard-registration-pending.v1', 'Guard', checkpoint);
+    publish(root, plan, statePath(plan.id), 'guard-registration-pending', 'Guard', checkpoint);
     return { status: 'cache' in plan.request ? 'guard-registered' : 'guard-removed', id: plan.id };
   } finally {
     unlock();
@@ -461,7 +477,8 @@ export interface OwnedHook {
   readonly paths: readonly string[];
 }
 export interface HookState {
-  readonly format: 'ia.hook-registration-state.v1';
+  readonly format: 'hook-registration-state' | 'ia.hook-registration-state.v1';
+  readonly formatVersion?: 1;
   readonly id: string;
   readonly cache: string;
   readonly release: string;
@@ -476,7 +493,8 @@ export interface HookAction {
   readonly action: 'create' | 'update' | 'unchanged' | 'remove';
 }
 export interface HookPlan {
-  readonly format: 'ia.hook-registration-plan.v1';
+  readonly format: 'hook-registration-plan';
+  readonly formatVersion: 1;
   readonly root: string;
   readonly id: string;
   /** The request as planned: rows in identity order, tools in matcher order. */
@@ -558,17 +576,13 @@ export function hookGroup(
 export function savedHooks(content: string | null, root: string, id: string, removal = false): HookState | null {
   if (content === null) return null;
   const value = plain(decodeDistributionJson(content)),
-    row = object(value, [
-      'format',
-      'id',
-      'cache',
-      'release',
-      'created',
-      'groups',
-      ...(Object.hasOwn(value, 'existing') ? ['existing'] : []),
-    ]);
+    { row } = versionedObject(
+      value,
+      { format: 'hook-registration-state', version: 1, legacy: ['ia.hook-registration-state.v1'] },
+      ['id', 'cache', 'release', 'created', 'groups', ...(Object.hasOwn(value, 'existing') ? ['existing'] : [])],
+      'Invalid hook ownership state',
+    );
   if (
-    row['format'] !== 'ia.hook-registration-state.v1' ||
     row['id'] !== id ||
     typeof row['cache'] !== 'string' ||
     !isAbsolute(row['cache']) ||
@@ -729,7 +743,8 @@ function planHooksWith(
       wanted.size === 0
         ? null
         : json({
-            format: 'ia.hook-registration-state.v1',
+            format: 'hook-registration-state',
+            formatVersion: 1,
             id,
             cache: cache!.directory,
             release: cache!.release,
@@ -758,7 +773,8 @@ function planHooksWith(
   if (disabled && actions.some((row) => row.action === 'create' || row.action === 'update'))
     fail('HOST-UNSUPPORTED', 'Project hooks are explicitly disabled by disableAllHooks');
   const body = {
-    format: 'ia.hook-registration-plan.v1' as const,
+    format: 'hook-registration-plan' as const,
+    formatVersion: 1 as const,
     root,
     id,
     request: cache ? { cache: cache.directory, hooks: [...desired] } : { remove: id },
@@ -824,8 +840,21 @@ export function applyHookRegistration(
   input: unknown,
   checkpoint: (stage: string) => void = () => {},
 ): { status: 'hooks-registered' | 'hooks-removed' | 'hooks-unchanged'; id: string } {
-  const row = object(input, ['format', 'root', 'id', 'request', 'release', 'hooks', 'before', 'after', 'digest']);
-  if (row['format'] !== 'ia.hook-registration-plan.v1' || typeof row['root'] !== 'string')
+  if (isLegacyPlan(input, 'ia.hook-registration-plan.v1'))
+    fail('PLAN-STALE', 'Hook plan was made by an earlier version; plan again');
+  const row = object(input, [
+    'format',
+    'formatVersion',
+    'root',
+    'id',
+    'request',
+    'release',
+    'hooks',
+    'before',
+    'after',
+    'digest',
+  ]);
+  if (row['format'] !== 'hook-registration-plan' || row['formatVersion'] !== 1 || typeof row['root'] !== 'string')
     fail('INPUT-INVALID', 'Invalid hook registration plan');
   const root = workspace(row['root']),
     unlock = acquireHostRegistrationLock(root);
@@ -834,7 +863,7 @@ export function applyHookRegistration(
     if (json(plan) !== json(input)) fail('PLAN-STALE', 'Hook plan no longer matches its current inputs');
     if (pin(plan.after.config) === plan.before.config && pin(plan.after.state) === plan.before.state)
       return { status: 'hooks-unchanged', id: plan.id };
-    publish(root, plan, hookStatePath(plan.id), 'ia.hook-registration-pending.v1', 'Hook', checkpoint);
+    publish(root, plan, hookStatePath(plan.id), 'hook-registration-pending', 'Hook', checkpoint);
     return { status: plan.after.state === null ? 'hooks-removed' : 'hooks-registered', id: plan.id };
   } finally {
     unlock();
@@ -850,11 +879,19 @@ export function recoverGuardRegistration(rootInput: string): { status: 'guard-re
       fail('RECOVERY-REQUIRED', 'Run recover-lifecycle for the pending context registration');
     const content = read(root, pendingPath, 8 * 1024 * 1024);
     if (content === null) return { status: 'current' };
-    const row = object(decodeDistributionJson(content), ['format', 'id', 'before', 'after']);
     // One journal serves both registrations this module publishes: the retired steward guard's and the hook groups'.
-    const hooks = row['format'] === 'ia.hook-registration-pending.v1';
-    if (row['format'] !== 'ia.guard-registration-pending.v1' && !hooks)
-      fail('INPUT-INVALID', 'Unknown guard recovery format');
+    const journal = decodeDistributionJson(content),
+      declared =
+        journal !== null && typeof journal === 'object' ? (journal as Record<string, unknown>)['format'] : undefined,
+      hooks = declared === 'hook-registration-pending' || declared === 'ia.hook-registration-pending.v1',
+      { row } = versionedObject(
+        journal,
+        hooks
+          ? { format: 'hook-registration-pending', version: 1, legacy: ['ia.hook-registration-pending.v1'] }
+          : { format: 'guard-registration-pending', version: 1, legacy: ['ia.guard-registration-pending.v1'] },
+        ['id', 'before', 'after'],
+        'Unknown guard recovery format',
+      );
     const id = identity(row['id']),
       state = hooks ? hookStatePath(id) : statePath(id);
     const side = (value: unknown): Side => {

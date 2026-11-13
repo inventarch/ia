@@ -9,7 +9,7 @@ import {
   satisfies,
   version,
 } from '@inventarch/db/distribution';
-import { fail, object, portable } from './files.js';
+import { fail, object, portable, versionedObject } from './files.js';
 import type { Registry } from './registry-source.js';
 
 export type RegistryKind = 'release' | 'kit' | 'workspace';
@@ -29,10 +29,19 @@ export interface WorkspaceRelease {
   readonly files: readonly WorkspaceFile[];
 }
 export interface CollectionIndex<K extends 'kit' | 'workspace'> {
-  readonly format: `ia.registry-${K}.v1`;
+  readonly format: `registry-${K}`;
+  readonly formatVersion: 1;
   readonly id: string;
   readonly releases: readonly (K extends 'kit' ? KitRelease : WorkspaceRelease)[];
 }
+/** What a caller may hand the builder: the plain shape, or the legacy literal it still holds. It is always written plain. */
+export type CollectionIndexInput<K extends 'kit' | 'workspace'> = Omit<
+  CollectionIndex<K>,
+  'format' | 'formatVersion'
+> & {
+  readonly format: `registry-${K}` | `ia.registry-${K}.v1`;
+  readonly formatVersion?: 1;
+};
 export const collectionIndexPath = (kind: 'kit' | 'workspace', id: string): string =>
   `${kind === 'kit' ? 'kits' : 'workspaces'}/${packageId(id)}/index.json`;
 
@@ -105,10 +114,16 @@ export function decodeCollectionIndex<K extends 'kit' | 'workspace'>(
   kind: K,
   expected: string,
 ): CollectionIndex<K> {
-  const row = object(decodeDistributionJson(content), ['format', 'id', 'releases']);
-  const id = packageId(expected),
-    format = `ia.registry-${kind}.v1` as const;
-  if (row['format'] !== format || row['id'] !== id || !Array.isArray(row['releases']) || row['releases'].length > 1000)
+  const format = `registry-${kind}` as const;
+  // The legacy literal is an explicit allow-list entry: the exact name written before formatVersion existed.
+  const { row } = versionedObject(
+    decodeDistributionJson(content),
+    { format, version: 1, legacy: [kind === 'kit' ? 'ia.registry-kit.v1' : 'ia.registry-workspace.v1'] },
+    ['id', 'releases'],
+    `Invalid ${kind} index for ${packageId(expected)}`,
+  );
+  const id = packageId(expected);
+  if (row['id'] !== id || !Array.isArray(row['releases']) || row['releases'].length > 1000)
     fail('INPUT-INVALID', `Invalid ${kind} index for ${id}`);
   const versions = new Set<string>();
   const releases = row['releases'].map((entry) => {
@@ -138,7 +153,12 @@ export function decodeCollectionIndex<K extends 'kit' | 'workspace'>(
     if (r['revision'] !== revision) fail('INTEGRITY-MISMATCH', 'Workspace source revision differs');
     return Object.freeze({ version: v, withdrawn: r['withdrawn'], revision, files });
   });
-  return Object.freeze({ format, id, releases: Object.freeze(releases) }) as CollectionIndex<K>;
+  return Object.freeze({
+    format,
+    formatVersion: 1 as const,
+    id,
+    releases: Object.freeze(releases),
+  }) as CollectionIndex<K>;
 }
 export async function selectCollection<K extends 'kit' | 'workspace'>(
   registry: Registry,

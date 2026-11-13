@@ -84,3 +84,29 @@ it('bounds publication, acquisition and protected artifact selectors independent
         .success,
     ).toBe(false);
 });
+
+it('writes plain registry formats with formatVersion 1 and still reads the legacy literals (obligation tests stay)', () => {
+  const kit = {
+    format: 'registry-kit',
+    formatVersion: 1,
+    id: 'example/kit',
+    releases: [{ version: '1.0.0', withdrawn: false, distributions: [{ id: 'example/base', range: '1.0.0' }] }],
+  };
+  expect(registryKitIndex.safeParse(kit).success).toBe(true);
+  expect(registryKitIndex.safeParse({ ...kit, formatVersion: 2 }).success).toBe(false);
+  expect(registryKitIndex.safeParse({ ...kit, formatVersion: undefined }).success).toBe(false);
+  expect(registryKitIndex.safeParse({ ...kit, format: 'ia.registry-kit.v2' }).success).toBe(false);
+  expect(registryKitIndex.safeParse({ ...kit, format: 'ia.registry-kit.v1' }).success).toBe(false);
+  const workspace = {
+    format: 'registry-workspace',
+    formatVersion: 1,
+    id: 'example/workspace',
+    releases: [
+      { version: '1.0.0', withdrawn: false, revision: hash, files: [{ path: '.ia/src/work.ia', text: '#! ia 1.0\n' }] },
+    ],
+  };
+  expect(registryWorkspaceIndex.safeParse(workspace).success).toBe(true);
+  expect(registryWorkspaceIndex.safeParse({ ...workspace, formatVersion: 2 }).success).toBe(false);
+  expect(registryWorkspaceIndex.safeParse({ ...workspace, format: 'ia.registry-workspace.v1' }).success).toBe(false);
+  expect(registryWorkspaceIndex.safeParse({ ...workspace, format: 'registry-kit' }).success).toBe(false);
+});

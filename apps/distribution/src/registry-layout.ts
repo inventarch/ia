@@ -6,12 +6,13 @@ import {
   text,
   version,
 } from '@inventarch/db/distribution';
-import { DistributionError, fail, object } from './files.js';
+import { DistributionError, fail, object, versionedObject } from './files.js';
 
 /** Registry spec §3 and §5.1 bounds. */
 export const REGISTRY_LIMITS = Object.freeze({ indexBytes: 4 * 1024 * 1024, releases: 1000, reads: 256 });
 export interface RegistryInfo {
-  readonly format: 'ia.registry.v1';
+  readonly format: 'registry';
+  readonly formatVersion: 1;
   readonly name: string;
 }
 export interface RegistryDependency {
@@ -30,7 +31,8 @@ export interface RegistryRelease {
   readonly artifact?: string;
 }
 export interface PackageIndex {
-  readonly format: 'ia.registry-package.v1';
+  readonly format: 'registry-package';
+  readonly formatVersion: 1;
   readonly id: string;
   readonly releases: readonly RegistryRelease[];
 }
@@ -92,9 +94,17 @@ export function packageIndexPath(id: string): string {
 }
 export function decodeRegistryInfo(content: string): RegistryInfo {
   return dbDecode(() => {
-    const row = object(decodeDistributionJson(content), ['format', 'name']);
-    if (row['format'] !== 'ia.registry.v1') fail('INPUT-INVALID', 'Not an ia.registry.v1 registry');
-    return frozen({ format: 'ia.registry.v1' as const, name: field('name', undefined, () => text(row['name'], 128)) });
+    const { row } = versionedObject(
+      decodeDistributionJson(content),
+      { format: 'registry', version: 1, legacy: ['ia.registry.v1'] },
+      ['name'],
+      'Not a registry file',
+    );
+    return frozen({
+      format: 'registry' as const,
+      formatVersion: 1 as const,
+      name: field('name', undefined, () => text(row['name'], 128)),
+    });
   });
 }
 export function decodePackageIndex(content: string, expectedId: string): PackageIndex {
@@ -105,8 +115,12 @@ export function decodePackageIndex(content: string, expectedId: string): Package
         value !== null && typeof value === 'object' && Object.hasOwn(value, 'signatures')
           ? ['format', 'id', 'releases', 'signatures']
           : ['format', 'id', 'releases'];
-    const row = object(value, keys);
-    if (row['format'] !== 'ia.registry-package.v1') fail('INPUT-INVALID', 'Not an ia.registry-package.v1 index');
+    const { row } = versionedObject(
+      value,
+      { format: 'registry-package', version: 1, legacy: ['ia.registry-package.v1'] },
+      keys.filter((key) => key !== 'format'),
+      'Not a registry-package index',
+    );
     if (row['id'] !== id) fail('INPUT-INVALID', `Registry index names a different package than ${id}`);
     if (!Array.isArray(row['releases'])) fail('INPUT-INVALID', 'Registry releases must be an array');
     if (row['releases'].length > REGISTRY_LIMITS.releases)
@@ -166,6 +180,6 @@ export function decodePackageIndex(content: string, expectedId: string): Package
         ...(licensed ? {} : { artifact: r['artifact'] as string }),
       };
     });
-    return frozen({ format: 'ia.registry-package.v1' as const, id, releases });
+    return frozen({ format: 'registry-package' as const, formatVersion: 1 as const, id, releases });
   });
 }

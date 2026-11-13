@@ -104,6 +104,7 @@ interface Finding {
 }
 interface SnapshotFile {
   readonly format: string;
+  readonly formatVersion: number;
   readonly language: string;
   readonly kernelDigest: string;
   readonly revision: string;
@@ -212,6 +213,7 @@ it('writes the first capture with per-record digests and membership, and compare
     'version',
     'snapshot',
     'format',
+    'formatVersion',
     'revision',
     'digest',
     'records',
@@ -229,6 +231,7 @@ it('writes the first capture with per-record digests and membership, and compare
     version: 1,
     snapshot: resolve(realpathSync(root), CURRENT),
     format: SNAPSHOT_FORMAT,
+    formatVersion: 1,
     changed: 0,
     unchanged: 0,
     removed: 0,
@@ -247,6 +250,7 @@ it('writes the first capture with per-record digests and membership, and compare
   expect(sha256(bytes)).toBe(first.digest);
   const snapshot = snapshotAt(root);
   expect(snapshot.format).toBe(SNAPSHOT_FORMAT);
+  expect(snapshot.formatVersion).toBe(1);
   expect(snapshot.language).toBe('1.0');
   expect(snapshot.kernelDigest).toMatch(/^[0-9a-f]{64}$/);
   expect(snapshot.revision).toBe(first.revision);
@@ -428,9 +432,12 @@ it('replaces a current.json that is no capture and retains no previous capture b
   for (const [text, reason] of [
     ['not json\n', 'is not JSON'],
     ['{"format":"ia.compiled.v1"}\n', `is not an ${SNAPSHOT_FORMAT} document`],
-    [`{"format":"${SNAPSHOT_FORMAT}","revision":"r","membership":[]}\n`, 'has no revision or membership rows'],
     [
-      `{"format":"${SNAPSHOT_FORMAT}","revision":"${'a'.repeat(64)}","membership":[{"identity":"x"}]}\n`,
+      `{"format":"${SNAPSHOT_FORMAT}","formatVersion":1,"revision":"r","membership":[]}\n`,
+      'has no revision or membership rows',
+    ],
+    [
+      `{"format":"${SNAPSHOT_FORMAT}","formatVersion":1,"revision":"${'a'.repeat(64)}","membership":[{"identity":"x"}]}\n`,
       'has a malformed membership row',
     ],
   ] as const) {
@@ -923,6 +930,7 @@ it('previews exactly the edited record as changed and writes nothing: both snaps
     'preview',
     'snapshot',
     'format',
+    'formatVersion',
     'revision',
     'digest',
     'records',

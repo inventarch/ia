@@ -26,7 +26,14 @@ import { bytes, fail, replace, sha256, utf8, workspace } from './files.js';
 
 export const KIT_COLLECTIONS = '.ia/kit-collections.json';
 export const KIT_COLLECTIONS_JOURNAL = '.ia/distributions/kit-collections.journal.json';
-export const KIT_COLLECTIONS_FORMAT = 'ia-kit-collections-1';
+export const KIT_COLLECTIONS_FORMAT = 'kit-collections';
+export const KIT_COLLECTIONS_FORMAT_VERSION = 1;
+/** The literal a record committed before `formatVersion` existed carries; still read, never written. */
+const LEGACY_KIT_COLLECTIONS_FORMATS: readonly string[] = ['ia-kit-collections-1'];
+const KIT_COLLECTIONS_HEADER = {
+  format: KIT_COLLECTIONS_FORMAT,
+  formatVersion: KIT_COLLECTIONS_FORMAT_VERSION,
+} as const;
 
 export interface CollectionMember {
   readonly id: string;
@@ -47,6 +54,7 @@ export interface UnknownCollection {
 }
 export interface KitCollections {
   readonly format: typeof KIT_COLLECTIONS_FORMAT;
+  readonly formatVersion: typeof KIT_COLLECTIONS_FORMAT_VERSION;
   /** The sha256 of the portable lock bytes this record describes. */
   readonly lock: string;
   readonly collections: readonly CollectionRow[];
@@ -114,7 +122,11 @@ export function decodeKitCollections(input: string): KitCollections {
     return fail('INPUT-INVALID', `${KIT_COLLECTIONS} is not valid JSON`);
   }
   if (!isRecord(value)) return fail('INPUT-INVALID', `${KIT_COLLECTIONS} is not an object`);
-  if (value['format'] !== KIT_COLLECTIONS_FORMAT)
+  const current =
+      value['format'] === KIT_COLLECTIONS_FORMAT && value['formatVersion'] === KIT_COLLECTIONS_FORMAT_VERSION,
+    legacy =
+      LEGACY_KIT_COLLECTIONS_FORMATS.includes(value['format'] as string) && !Object.hasOwn(value, 'formatVersion');
+  if (!current && !legacy)
     return fail('UNSUPPORTED-FORMAT', `${KIT_COLLECTIONS} has format ${String(value['format'])}`);
   const collections = value['collections'],
     unknown = value['unknown'] ?? [],
@@ -124,7 +136,7 @@ export function decodeKitCollections(input: string): KitCollections {
   if (!Array.isArray(named) || !named.every(distributionId))
     return fail('INPUT-INVALID', `${KIT_COLLECTIONS} names a direct request that is not a distribution id`);
   return {
-    format: KIT_COLLECTIONS_FORMAT,
+    ...KIT_COLLECTIONS_HEADER,
     lock: value['lock'] as string,
     collections: collections.map((row): CollectionRow => {
       if (!isRecord(row) || !distributionId(row['id']) || !text(row['version']) || !text(row['registry']))
@@ -154,6 +166,7 @@ export function decodeKitCollections(input: string): KitCollections {
 export function serializeKitCollections(record: KitCollections): string {
   const ordered = {
     format: record.format,
+    formatVersion: record.formatVersion,
     lock: record.lock,
     collections: [...record.collections].sort(byId).map((row) => ({
       id: row.id,
@@ -238,8 +251,8 @@ const decodeOrNull = (content: string | null): KitCollections | null => {
   }
 };
 const sameRow = (a: CollectionRow, b: CollectionRow): boolean =>
-  serializeKitCollections({ format: KIT_COLLECTIONS_FORMAT, lock: '0'.repeat(64), collections: [a], unknown: [] }) ===
-  serializeKitCollections({ format: KIT_COLLECTIONS_FORMAT, lock: '0'.repeat(64), collections: [b], unknown: [] });
+  serializeKitCollections({ ...KIT_COLLECTIONS_HEADER, lock: '0'.repeat(64), collections: [a], unknown: [] }) ===
+  serializeKitCollections({ ...KIT_COLLECTIONS_HEADER, lock: '0'.repeat(64), collections: [b], unknown: [] });
 /**
  * The record a journal leaves when the activation pointer is neither side's: the collections both sides agree on byte
  * for byte, and every other collection unknown, with the member ids either side recorded. `lock` is the side whose
@@ -274,7 +287,7 @@ export function undecidedRecord(journal: CollectionsJournal, currentLock: string
   // Either side's direct requests stay direct: one compared as a string refuses where it might have narrowed.
   const named = [...new Set(sides.flatMap((side) => side.named ?? []))].sort();
   return {
-    format: KIT_COLLECTIONS_FORMAT,
+    ...KIT_COLLECTIONS_HEADER,
     lock: currentLock !== null && locks.includes(currentLock) ? currentLock : locks[locks.length - 1]!,
     collections,
     unknown,
@@ -438,7 +451,7 @@ export function mergeKitCollections(
     .filter((id) => listed.has(id) && afterLock.requests.some((request) => request.id === id))
     .sort();
   return {
-    format: KIT_COLLECTIONS_FORMAT,
+    ...KIT_COLLECTIONS_HEADER,
     lock: sha256(afterLockBytes),
     collections,
     unknown,
@@ -572,7 +585,7 @@ function unstableCollections(root: string, lockSha: string | null): CurrentColle
   if (members.size === 0 || lockSha === null) return { record: null, source: 'unstable', problems };
   return {
     record: {
-      format: KIT_COLLECTIONS_FORMAT,
+      ...KIT_COLLECTIONS_HEADER,
       lock: lockSha,
       collections: [],
       unknown: [...members].map(([id, ids]) => ({ id, members: [...ids].sort() })).sort(byId),

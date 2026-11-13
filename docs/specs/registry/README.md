@@ -16,13 +16,13 @@ A registry is a read-only source of release, kit and workspace indexes and of th
 
 Section numbers are stable because source comments cite them; retired sections keep their numbers unused.
 
-A registry base is a credential-free HTTPS URL or a local directory. Opening one reads `ia-registry.json` once; a base without it is not a registry. That file is exactly `{format, name}`, with `format` `ia.registry.v1`. A registry exposes `base`, the decoded `info`, `index(id)` (also spelled `index('release', id)`), `index('kit', id)`, `index('workspace', id)`, `artifactUrl(digest)` and `artifactBytes(digest)`.
+A registry base is a credential-free HTTPS URL or a local directory. Opening one reads `ia-registry.json` once; a base without it is not a registry. That file is exactly `{format, formatVersion, name}`, with `format` `registry` and `formatVersion` 1; the earlier `{format, name}` shape with `format` `ia.registry.v1` is still read. A registry exposes `base`, the decoded `info`, `index(id)` (also spelled `index('release', id)`), `index('kit', id)`, `index('workspace', id)`, `artifactUrl(digest)` and `artifactBytes(digest)`.
 
 | Path | Holds |
 | --- | --- |
-| `packages/<provider>/<name>.json` | A release index (`ia.registry-package.v1`) of at most 1,000 releases |
-| `kits/<provider>/<name>/index.json` | A kit index (`ia.registry-kit.v1`) of at most 1,000 releases |
-| `workspaces/<provider>/<name>/index.json` | A workspace index (`ia.registry-workspace.v1`) of at most 1,000 releases |
+| `packages/<provider>/<name>.json` | A release index (`registry-package`, `formatVersion` 1; `ia.registry-package.v1` is still read) of at most 1,000 releases |
+| `kits/<provider>/<name>/index.json` | A kit index (`registry-kit`, `formatVersion` 1; `ia.registry-kit.v1` is still read) of at most 1,000 releases |
+| `workspaces/<provider>/<name>/index.json` | A workspace index (`registry-workspace`, `formatVersion` 1; `ia.registry-workspace.v1` is still read) of at most 1,000 releases |
 | `artifacts/<sha256>.ia.tgz` | One archive, named by its validated SHA-256 |
 
 A release index is `{format, id, releases}`, with an optional reserved `signatures` key. A release is exactly `{version, archive, manifest, engine, language, dependencies, withdrawn, access}`: its version, archive and manifest digests, engine range, syntax versions (`language`, exactly `["1.0"]`), dependencies, `withdrawn` and `access`. A `public` release adds `artifact`, which is `artifacts/<archive>.ia.tgz`; a `licensed` one names none (§7). An unknown field refuses. Indexes are append-only: a published version's digests never change, and a registry that changes them is a conflict. Each index call reads fresh metadata, and an absent index means no releases. HTTPS registries expose artifact URLs; directory registries expose bounded artifact bytes and refuse links and hard links.
@@ -39,7 +39,7 @@ One chooser per command picks each id's registry by its provider. Each level is 
 | 4 | `registries.json` in the user configuration directory (`IA_CONFIG_HOME`, else the platform's) | Absolute only |
 | 5 | The built-in default, which maps provider `inventarch` to `https://api.inventarch.dev/registry` | None |
 
-Levels 3 and 4 are files of the form `{"format": "ia.registries.v1", "registries": {"<provider>|*": "<base>"}}`; an exact provider beats `*`. Every entry is checked, so one invalid entry refuses every provider that reaches that level. The user file lives in `IA_CONFIG_HOME`, which must be absolute; otherwise in `%APPDATA%\ia` on Windows, `~/Library/Preferences/ia` on macOS, and `$XDG_CONFIG_HOME/ia` or `~/.config/ia` elsewhere. A provider no level maps refuses with `IA-DIST-REGISTRY-UNMAPPED`, naming `.ia/registries.json`. HTTPS bases must carry no credentials, query or fragment, and other URL schemes refuse with `IA-DIST-INPUT-INVALID`. `--registry` cannot be combined with `--catalog` or `--offline`.
+Levels 3 and 4 are files of the form `{"format": "registries", "formatVersion": 1, "registries": {"<provider>|*": "<base>"}}`; an exact provider beats `*`. Every entry is checked, so one invalid entry refuses every provider that reaches that level. The user file lives in `IA_CONFIG_HOME`, which must be absolute; otherwise in `%APPDATA%\ia` on Windows, `~/Library/Preferences/ia` on macOS, and `$XDG_CONFIG_HOME/ia` or `~/.config/ia` elsewhere. A provider no level maps refuses with `IA-DIST-REGISTRY-UNMAPPED`, naming `.ia/registries.json`. HTTPS bases must carry no credentials, query or fragment, and other URL schemes refuse with `IA-DIST-INPUT-INVALID`. `--registry` cannot be combined with `--catalog` or `--offline`.
 
 `ia doctor` adds a `registry-<provider>` row for each provider the lock names, with the base and the level that chose it. A provider that no level maps, or whose configuration refuses, is a `warn` row naming the refusal code, and no registry rows appear while an apply is interrupted. Doctor reads only the portable lock and the configuration files, so it reports a fresh clone, or an installation whose activation is missing, and it never contacts a registry. Choosing a registry or acquiring an archive never grants executable or host authority.
 

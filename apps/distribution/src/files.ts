@@ -233,3 +233,53 @@ export function object(value: unknown, keys: readonly string[]): Record<string, 
     fail('INPUT-INVALID', 'Unexpected managed object fields');
   return value as Record<string, unknown>;
 }
+/**
+ * A document that declares a plain `format` name and an integer `formatVersion` (decision dec-005), or one of the exact
+ * legacy literals written before that change (no `formatVersion`; an explicit allow-list mapping each literal to the
+ * version it stood for, never suffix parsing). `keys` are the fields besides `format`/`formatVersion`. Returns the row,
+ * the version it carries and the legacy literal read (null for the plain shape); a different format, or a plain format
+ * with a version not in `versions`, refuses with `message`.
+ */
+export function versionedDocument(
+  value: unknown,
+  spec: {
+    readonly format: string;
+    readonly versions: readonly number[];
+    readonly legacy: Readonly<Record<string, number>>;
+  },
+  keys: readonly string[],
+  message = 'Unexpected managed object fields',
+): { readonly row: Record<string, unknown>; readonly version: number; readonly legacy: string | null } {
+  const declared =
+    value !== null && typeof value === 'object' && !Array.isArray(value)
+      ? (value as Record<string, unknown>)['format']
+      : undefined;
+  if (declared === spec.format) {
+    const row = object(value, ['format', 'formatVersion', ...keys]),
+      version = row['formatVersion'];
+    if (typeof version !== 'number' || !spec.versions.includes(version)) fail('INPUT-INVALID', message);
+    return { row, version, legacy: null };
+  }
+  const literal = typeof declared === 'string' && Object.hasOwn(spec.legacy, declared) ? declared : undefined;
+  if (literal === undefined) fail('INPUT-INVALID', message);
+  return { row: object(value, ['format', ...keys]), version: spec.legacy[literal]!, legacy: literal };
+}
+/** `versionedDocument` for a format that has only one version. */
+export function versionedObject(
+  value: unknown,
+  spec: { readonly format: string; readonly version: number; readonly legacy: readonly string[] },
+  keys: readonly string[],
+  message?: string,
+): { readonly row: Record<string, unknown>; readonly legacy: string | null } {
+  const { row, legacy } = versionedDocument(
+    value,
+    {
+      format: spec.format,
+      versions: [spec.version],
+      legacy: Object.fromEntries(spec.legacy.map((literal) => [literal, spec.version])),
+    },
+    keys,
+    message,
+  );
+  return { row, legacy };
+}

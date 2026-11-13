@@ -57,7 +57,8 @@ function lock(root: string, packages: ReturnType<typeof pkg>[], requests: string
 }
 const COLLECTION = (lockText: string) =>
   serializeKitCollections({
-    format: 'ia-kit-collections-1',
+    format: 'kit-collections',
+    formatVersion: 1,
     lock: sha256(lockText),
     collections: [
       {

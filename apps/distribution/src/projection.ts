@@ -8,11 +8,11 @@ import {
   fail,
   json,
   locate,
-  object,
   portable,
   replace,
   sha256,
   utf8,
+  versionedObject,
   workspace,
 } from './files.js';
 import { acquireHostRegistrationLock } from './host.js';
@@ -37,7 +37,8 @@ export type ProjectionDrift = {
   readonly drift: 'changed' | 'missing' | 'outdated' | 'unmanaged' | 'unowned';
 };
 export interface ProjectionPlan {
-  readonly format: 'ia.host-projection-plan.v1';
+  readonly format: 'host-projection-plan';
+  readonly formatVersion: 1;
   readonly root: string;
   readonly host: Host;
   readonly marker: string;
@@ -109,15 +110,14 @@ function handEditMessage(path: string, existing: string, accepted: Accepted | un
 function owned(root: string, host: Host): Record<string, Accepted> {
   const text = read(root, statePath(host));
   if (text === null) return {};
-  const row = object(decodeDistributionJson(text), ['format', 'host', 'files']),
+  const { row } = versionedObject(
+      decodeDistributionJson(text),
+      { format: 'host-projection-state', version: 1, legacy: ['ia.host-projection-state.v1'] },
+      ['host', 'files'],
+      'Invalid projection ownership state',
+    ),
     files = row['files'];
-  if (
-    row['format'] !== 'ia.host-projection-state.v1' ||
-    row['host'] !== host ||
-    files === null ||
-    typeof files !== 'object' ||
-    Array.isArray(files)
-  )
+  if (row['host'] !== host || files === null || typeof files !== 'object' || Array.isArray(files))
     fail('INPUT-INVALID', 'Invalid projection ownership state');
   const result: Record<string, Accepted> = {};
   for (const [path, value] of Object.entries(files as Record<string, unknown>)) {
@@ -328,7 +328,8 @@ export function planProjection(input: {
       });
   actions.push(...agentActions(root, host, files, input.marker, seen));
   const body = {
-    format: 'ia.host-projection-plan.v1' as const,
+    format: 'host-projection-plan' as const,
+    formatVersion: 1 as const,
     root,
     host,
     marker: input.marker,
@@ -366,7 +367,7 @@ export function applyProjection(
       replace(
         root,
         statePath(host),
-        Buffer.from(json({ format: 'ia.host-projection-state.v1', host, files: pending })),
+        Buffer.from(json({ format: 'host-projection-state', formatVersion: 1, host, files: pending })),
       );
       checkpoint('pending');
       for (const action of mutating) {
@@ -390,7 +391,9 @@ export function applyProjection(
     replace(
       root,
       statePath(host),
-      plan.artifacts.length ? Buffer.from(json({ format: 'ia.host-projection-state.v1', host, files })) : null,
+      plan.artifacts.length
+        ? Buffer.from(json({ format: 'host-projection-state', formatVersion: 1, host, files }))
+        : null,
     );
     checkpoint('complete');
     return {

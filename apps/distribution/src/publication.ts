@@ -14,6 +14,7 @@ import {
   sha256,
   syncDirectory,
   utf8,
+  versionedObject,
   workspace,
 } from './files.js';
 import { reconcileConfig } from './config.js';
@@ -30,7 +31,8 @@ interface Owned {
   config: string | null;
 }
 interface State {
-  format: 'ia.projection-publication.v1';
+  format: 'projection-publication';
+  formatVersion: 1;
   id: string;
   manifest: ProjectionManifest;
   files: Owned[];
@@ -41,7 +43,8 @@ interface Change {
   after: string | null;
 }
 interface Pending {
-  format: 'ia.projection-pending.v1';
+  format: 'projection-pending';
+  formatVersion: 1;
   id: string;
   before: string | null;
   after: string;
@@ -84,13 +87,13 @@ function decoded(value: unknown): Buffer | null {
 }
 function state(content: Buffer | null, id: string): State | null {
   if (content === null) return null;
-  const row = object(canonicalJson(content), ['format', 'id', 'manifest', 'files']);
-  if (
-    row['format'] !== 'ia.projection-publication.v1' ||
-    row['id'] !== id ||
-    !Array.isArray(row['files']) ||
-    row['files'].length > 256
-  )
+  const { row } = versionedObject(
+    canonicalJson(content),
+    { format: 'projection-publication', version: 1, legacy: ['ia.projection-publication.v1'] },
+    ['id', 'manifest', 'files'],
+    'Malformed projection publication state',
+  );
+  if (row['id'] !== id || !Array.isArray(row['files']) || row['files'].length > 256)
     fail('INPUT-INVALID', 'Malformed projection publication state');
   const seen = new Set<string>();
   let total = 0;
@@ -219,7 +222,9 @@ function prepare(
     if (encoded(before) !== encoded(after)) changes.push({ path, before: encoded(before), after: encoded(after) });
   }
   const manifest = result?.manifest ?? previous.value!.manifest;
-  const after = Buffer.from(json({ format: 'ia.projection-publication.v1', id, manifest, files } satisfies State));
+  const after = Buffer.from(
+    json({ format: 'projection-publication', formatVersion: 1, id, manifest, files } satisfies State),
+  );
   state(after, id);
   return { before: previous.content, after, changes };
 }
@@ -241,7 +246,8 @@ function transact(root: string, id: string, result: Compiled | null, options: Pu
     const plan = prepare(root, id, result);
     options.fresh?.();
     const pending: Pending = {
-      format: 'ia.projection-pending.v1',
+      format: 'projection-pending',
+      formatVersion: 1,
       id,
       before: encoded(plan.before),
       after: plan.after.toString('base64'),
@@ -294,9 +300,13 @@ export function recoverProjection(outputRoot: string, options: PublicationOption
   try {
     const content = bytes(root, pendingPath, ceiling);
     if (content === null) return { status: 'current', id: '', paths: [] };
-    const row = object(canonicalJson(content), ['format', 'id', 'before', 'after', 'changes']);
+    const { row } = versionedObject(
+      canonicalJson(content),
+      { format: 'projection-pending', version: 1, legacy: ['ia.projection-pending.v1'] },
+      ['id', 'before', 'after', 'changes'],
+      'Malformed pending publication',
+    );
     if (
-      row['format'] !== 'ia.projection-pending.v1' ||
       typeof row['id'] !== 'string' ||
       typeof row['after'] !== 'string' ||
       !Array.isArray(row['changes']) ||

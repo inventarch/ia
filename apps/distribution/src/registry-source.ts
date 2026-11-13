@@ -123,7 +123,7 @@ export async function openRegistry(
       const path = collectionIndexPath(kindOrId, id),
         content = await read(path);
       return decoded(
-        content ?? Buffer.from(JSON.stringify({ format: `ia.registry-${kindOrId}.v1`, id, releases: [] })),
+        content ?? Buffer.from(JSON.stringify({ format: `registry-${kindOrId}`, formatVersion: 1, id, releases: [] })),
         (text) => decodeCollectionIndex(text, kindOrId, id),
         '',
         `: ${at(path)}`,
@@ -132,7 +132,12 @@ export async function openRegistry(
     const path = packageIndexPath(id),
       content = await read(path);
     if (content === null)
-      return Object.freeze({ format: 'ia.registry-package.v1' as const, id, releases: Object.freeze([]) });
+      return Object.freeze({
+        format: 'registry-package' as const,
+        formatVersion: 1 as const,
+        id,
+        releases: Object.freeze([]),
+      });
     return decoded(content, (text) => decodePackageIndex(text, id), '', `: ${at(path)}`);
   }
   return {

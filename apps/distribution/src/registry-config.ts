@@ -2,7 +2,7 @@ import { closeSync, fstatSync, openSync, readSync, realpathSync } from 'node:fs'
 import { homedir } from 'node:os';
 import { isAbsolute, join, relative } from 'node:path';
 import { decodeDistributionJson, packageId } from '@inventarch/db/distribution';
-import { bytes, DistributionError, fail, locate, object, utf8, workspace } from './files.js';
+import { bytes, DistributionError, fail, locate, utf8, versionedObject, workspace } from './files.js';
 import { relabel } from './registry-layout.js';
 import { parseRegistryBase } from './registry-source.js';
 import type { RegistryBase } from './registry-source.js';
@@ -88,15 +88,20 @@ function userBytes(file: string): Buffer | null {
   }
 }
 type Mappings = ReadonlyMap<string, RegistryBase>;
-/** One `ia.registries.v1` file, or null when `content` is (the file is absent). Every entry is checked with the level's rule (`check`), not only the one a lookup picks: §4 forbids credentials and escaping directories anywhere in the file. */
+/** One `registries` file (`formatVersion` 1; the legacy `ia.registries.v1` literal is still read), or null when `content` is (the file is absent). Every entry is checked with the level's rule (`check`), not only the one a lookup picks: §4 forbids credentials and escaping directories anywhere in the file. */
 function mappings(content: Buffer | null, label: string, check: (value: string) => RegistryBase): Mappings | null {
   if (content === null) return null;
-  const row = relabel(
-    () => object(decodeDistributionJson(utf8(content)), ['format', 'registries']),
+  const { row } = relabel(
+    () =>
+      versionedObject(
+        decodeDistributionJson(utf8(content)),
+        { format: 'registries', version: 1, legacy: ['ia.registries.v1'] },
+        ['registries'],
+        'format must be registries with formatVersion 1',
+      ),
     `Invalid ${label}: `,
   );
   const registries = row['registries'];
-  if (row['format'] !== 'ia.registries.v1') fail('INPUT-INVALID', `Invalid ${label}: format must be ia.registries.v1`);
   if (registries === null || typeof registries !== 'object' || Array.isArray(registries))
     fail('INPUT-INVALID', `Invalid ${label}: registries must be an object`);
   const map = new Map<string, RegistryBase>();

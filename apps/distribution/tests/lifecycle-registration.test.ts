@@ -318,7 +318,7 @@ it('routes reviewable lifecycle removal and recovery through the public CLI', as
     '--out',
     '.ia/work/context-remove.json',
   ]);
-  expect(result?.result).toMatchObject({ format: 'ia.lifecycle-registration-plan.v1' });
+  expect(result?.result).toMatchObject({ format: 'lifecycle-registration-plan', formatVersion: 1 });
   expect((await runNative(['apply', '--root', root, '--plan', '.ia/work/context-remove.json']))?.result).toMatchObject({
     status: 'lifecycle-removed',
   });
@@ -347,7 +347,9 @@ it('upgrades or removes exact retained v1 single-handler ownership without decod
     const path = '.ia/distributions/hosts/claude-context-fixture.json';
     const state = JSON.parse(readFileSync(join(root, path), 'utf8')),
       config = JSON.parse(readFileSync(join(root, settings), 'utf8'));
+    // Retained v1 ownership was written under the legacy literal, which carries no formatVersion.
     state.format = 'ia.lifecycle-registration-state.v1';
+    delete state.formatVersion;
     const oldBinding = JSON.parse(readFileSync(join(root, bindingPath), 'utf8'));
     delete oldBinding.profile.maxContextCharacters;
     delete oldBinding.profile.maxContextParts;
@@ -373,7 +375,10 @@ it('upgrades or removes exact retained v1 single-handler ownership without decod
     );
     expect(result.status).toBe(upgrade ? 'lifecycle-registered' : 'lifecycle-removed');
     if (upgrade) {
-      expect(JSON.parse(readFileSync(join(root, path), 'utf8')).format).toBe('ia.lifecycle-registration-state.v2');
+      expect(JSON.parse(readFileSync(join(root, path), 'utf8'))).toMatchObject({
+        format: 'lifecycle-registration-state',
+        formatVersion: 2,
+      });
       expect(JSON.parse(readFileSync(join(root, settings), 'utf8')).hooks.SessionStart[0].hooks).toHaveLength(12);
     }
   }

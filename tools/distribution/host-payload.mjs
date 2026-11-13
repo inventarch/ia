@@ -382,7 +382,8 @@ export async function generateHostPayload({ repository, write, implementations =
   for (const implementation of [...located].sort((a, b) => (a.id < b.id ? -1 : 1)))
     operations.push(await operationRow(implementation, files));
   const catalog = installedImplementationsValue({
-    format: 'ia.installed-implementations.v1',
+    format: 'installed-implementations',
+    formatVersion: 1,
     evaluators: { format: 'ia-evaluator-catalog/1.0', entries: [] },
     operations,
   });
@@ -392,7 +393,8 @@ export async function generateHostPayload({ repository, write, implementations =
     throw Error(`Runtime closure of ${runtimeBytes} bytes exceeds the ${PAYLOAD_BYTES}-byte payload ceiling`);
   const version = JSON.parse(readFileSync(resolve(repository, 'apps/cli/package.json'), 'utf8')).version;
   const inventory = json({
-    format: 'ia.host-cache.v2',
+    format: 'host-cache',
+    formatVersion: 2,
     version,
     packages,
     files: [...files]
@@ -403,7 +405,12 @@ export async function generateHostPayload({ repository, write, implementations =
     '__INVENTORY_DIGEST__',
     hash(inventory),
   );
-  const release = json({ format: 'ia.host-release.v2', inventory: hash(inventory), launcher: hash(launcher) });
+  const release = json({
+    format: 'host-release',
+    formatVersion: 2,
+    inventory: hash(inventory),
+    launcher: hash(launcher),
+  });
   const tree = new Map([
     ...files,
     ['inventory.json', Buffer.from(inventory)],

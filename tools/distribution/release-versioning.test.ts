@@ -1083,7 +1083,8 @@ it('carries a native ledger unchanged since the published tag onto it and resets
       expect(result).toMatchObject({ action: 'version', version: '3.0.1', nativeLedgerCarried: true });
       const notes = readFileSync(resolve(root, 'releases/native/notes.json'));
       expect(JSON.parse(notes.toString('utf8'))).toEqual({
-        format: 'ia.native-release-notes.v1',
+        format: 'native-release-notes',
+        formatVersion: 1,
         baseline: source,
         changes: [],
       });
@@ -1781,3 +1782,38 @@ it.each([false, true])(
     });
   },
 );
+
+it('reads release notes and changesets in the plain shape and the legacy literals, and refuses other shapes', () => {
+  const legacy = note('minor', ['@inventarch/a'], 'Legacy note');
+  expect(validateNote('legacy-note', legacy, names)).toEqual(legacy);
+  const plain = { ...legacy, format: 'npm-change-note', formatVersion: 1 };
+  expect(validateNote('plain-note', plain, names)).toEqual(plain);
+  for (const bad of [
+    { ...plain, formatVersion: 2 },
+    { ...legacy, formatVersion: 1 },
+    { ...plain, formatVersion: undefined },
+    { ...plain, format: 'ia.npm-change-note.v2' },
+    { ...plain, format: 'ia.npm-change-note.v1' },
+  ])
+    expect(() => validateNote('bad-note', JSON.parse(JSON.stringify(bad)), names)).toThrow();
+  const policy = {
+    version: '1.1.0',
+    baseline: { commit: 'a'.repeat(40), version: '1.0.0' },
+  } as unknown as ReleasePolicy;
+  const projects = names.map((name) => ({
+    directory: 'packages/' + name.slice(12),
+    manifest: { name, version: '1.1.0' },
+  }));
+  const entry = changeset();
+  const structured = (value: Record<string, unknown>) =>
+    validateChangesetStructure(value as unknown as Changeset, policy, projects as never);
+  expect(() => structured({ ...entry })).not.toThrow();
+  expect(() => structured({ ...entry, format: 'npm-changeset', formatVersion: 1 })).not.toThrow();
+  for (const bad of [
+    { ...entry, format: 'npm-changeset' },
+    { ...entry, format: 'npm-changeset', formatVersion: 2 },
+    { ...entry, formatVersion: 1 },
+    { ...entry, format: 'ia.npm-changeset.v2' },
+  ])
+    expect(() => structured(bad)).toThrow(/Unexpected changeset format/);
+});

@@ -64,7 +64,11 @@ it('adds a workspace with its @workspace name as id', async () => {
   expect(status).toBe('added');
   expect(row).toEqual({ id: 'team-kb', root: realpathSync(root), added: NOW.toISOString() });
   expect(readTracked(at)).toEqual([row]);
-  expect(JSON.parse(readFileSync(file(at), 'utf8'))).toEqual({ format: TRACKED_FORMAT, workspaces: [row] });
+  expect(JSON.parse(readFileSync(file(at), 'utf8'))).toEqual({
+    format: TRACKED_FORMAT,
+    formatVersion: 1,
+    workspaces: [row],
+  });
 });
 
 it('falls back to the folder name when no single @workspace is declared', () => {
@@ -190,6 +194,7 @@ it('keeps unknown fields', async () => {
     file(at),
     JSON.stringify({
       format: TRACKED_FORMAT,
+      formatVersion: 1,
       workspaces: [{ id: 'first', root: realpathSync(first), added: NOW.toISOString(), entry: 'x' }],
       note: 'y',
     }),
@@ -204,12 +209,19 @@ it('keeps unknown fields', async () => {
 it('refuses a malformed file and leaves it as it was', async () => {
   const root = workspaceAt(resolve(scratch('tracked'), 'repo'), 'repo');
   const added = NOW.toISOString();
-  const withRows = (...rows: unknown[]) => JSON.stringify({ format: TRACKED_FORMAT, workspaces: rows });
+  const withRows = (...rows: unknown[]) =>
+    JSON.stringify({ format: TRACKED_FORMAT, formatVersion: 1, workspaces: rows });
   const cases: readonly (readonly [string, string])[] = [
     ['{ not json', ''],
     ['[]', 'it is not a JSON object'],
     [JSON.stringify({ format: 'ia-tracked-workspaces-2', workspaces: [] }), 'not ' + TRACKED_FORMAT],
-    [JSON.stringify({ format: TRACKED_FORMAT, workspaces: {} }), 'workspaces is not a list'],
+    [JSON.stringify({ format: TRACKED_FORMAT, workspaces: [] }), 'its formatVersion is undefined, not 1'],
+    [JSON.stringify({ format: TRACKED_FORMAT, formatVersion: 2, workspaces: [] }), 'its formatVersion is 2, not 1'],
+    [
+      JSON.stringify({ format: 'ia-tracked-workspaces-1', formatVersion: 1, workspaces: [] }),
+      'its format is "ia-tracked-workspaces-1", not ' + TRACKED_FORMAT,
+    ],
+    [JSON.stringify({ format: TRACKED_FORMAT, formatVersion: 1, workspaces: {} }), 'workspaces is not a list'],
     [withRows(1), 'workspaces[0] is not an object'],
     [withRows({ id: 'bad id', root, added }), 'workspaces[0] has no valid id'],
     [withRows({ id: 'x', root: 'relative', added }), 'x names no absolute root'],
@@ -403,7 +415,11 @@ const listRows = (at: string, rows: readonly { readonly id: string; readonly roo
   mkdirSync(at, { recursive: true });
   writeFileSync(
     file(at),
-    JSON.stringify({ format: TRACKED_FORMAT, workspaces: rows.map((row) => ({ ...row, added: NOW.toISOString() })) }),
+    JSON.stringify({
+      format: TRACKED_FORMAT,
+      formatVersion: 1,
+      workspaces: rows.map((row) => ({ ...row, added: NOW.toISOString() })),
+    }),
   );
 };
 const unprivileged = process.platform === 'win32' || process.getuid?.() === 0;
@@ -462,4 +478,18 @@ it('trackedState reads a stat that failed from its code: ENOENT and ENOTDIR are 
   expect(trackedState(row, () => undefined)).toBe('missing');
   expect(trackedState(row, () => ({ isDirectory: () => false }))).toBe('missing');
   expect(trackedState(row, () => ({ isDirectory: () => true }))).toBe('present');
+});
+
+it('reads a list written under the legacy ia-tracked-workspaces-1 literal and rewrites it in the plain shape', async () => {
+  const at = home(),
+    first = workspaceAt(resolve(scratch('tracked'), 'legacy-first'), 'first'),
+    second = workspaceAt(resolve(scratch('tracked'), 'legacy-second'), 'second');
+  mkdirSync(at, { recursive: true });
+  const row = { id: 'first', root: realpathSync(first), added: NOW.toISOString() };
+  writeFileSync(file(at), JSON.stringify({ format: 'ia-tracked-workspaces-1', workspaces: [row] }));
+  expect(readTracked(at).map((entry) => entry.id)).toEqual(['first']);
+  await trackWorkspace(at, { root: second }, NOW);
+  const written = JSON.parse(readFileSync(file(at), 'utf8'));
+  expect(written).toMatchObject({ format: 'tracked-workspaces', formatVersion: 1 });
+  expect(written.workspaces.map((entry: { id: string }) => entry.id)).toEqual(['first', 'second']);
 });

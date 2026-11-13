@@ -301,6 +301,27 @@ const PROJECTION_OWNED: Readonly<Record<'claude' | 'codex', (path: string) => bo
     /^\.agents\/skills\/[a-z][a-z0-9-]*\/SKILL\.md$/.test(path),
 };
 /**
+ * Whether `row` declares `plain` with an integer `formatVersion` in `versions`, or one of the exact `legacy` literals
+ * written before that field existed (which then carries no `formatVersion`). The state files this reads are written by
+ * the distribution; each plain format adds exactly that one key.
+ */
+function declares(
+  row: Record<string, unknown>,
+  plain: string,
+  versions: readonly number[],
+  legacy: readonly string[],
+): boolean {
+  return row['format'] === plain
+    ? versions.includes(row['formatVersion'] as number)
+    : legacy.includes(row['format'] as string) && !Object.hasOwn(row, 'formatVersion');
+}
+/** The sorted keys of `row` without `formatVersion` (and optionally other optional keys), for the exact-shape checks. */
+const shapeOf = (row: Record<string, unknown>, ...optional: string[]): string =>
+  Object.keys(row)
+    .filter((key) => key !== 'formatVersion' && !optional.includes(key))
+    .sort()
+    .join('|');
+/**
  * A bounded read of the projection ownership states, not a validation of the projected bytes. Undefined when neither
  * state exists (legacy mode); a state that is not a plain, unaliased, well-formed file throws, so the caller fails closed.
  */
@@ -315,8 +336,8 @@ function projectionOwnership(root: string): Ownership | undefined {
     const row: unknown = decodeDistributionJson(new TextDecoder('utf-8', { fatal: true }).decode(content));
     if (
       !object(row) ||
-      Object.keys(row).sort().join('|') !== 'files|format|host' ||
-      row['format'] !== 'ia.host-projection-state.v1' ||
+      shapeOf(row) !== 'files|format|host' ||
+      !declares(row, 'host-projection-state', [1], ['ia.host-projection-state.v1']) ||
       row['host'] !== host ||
       !object(row['files'])
     )
@@ -361,7 +382,11 @@ function registeredSelection(root: string, hook: string): readonly string[] | un
       const content = readState(resolve(directory, name), 'Unsafe hook ownership state');
       if (content === undefined) throw new Error('Hook ownership state disappeared while read');
       row = decodeDistributionJson(new TextDecoder('utf-8', { fatal: true }).decode(content));
-      if (!object(row) || row['format'] !== 'ia.hook-registration-state.v1' || !Array.isArray(row['groups']))
+      if (
+        !object(row) ||
+        !declares(row, 'hook-registration-state', [1], ['ia.hook-registration-state.v1']) ||
+        !Array.isArray(row['groups'])
+      )
         throw new Error('Invalid hook ownership state');
     } catch (error) {
       // The state file that could not be read, root-relative, so a refusal can name its repair.
@@ -429,8 +454,8 @@ function contextSettingsManaged(root: string, includeContext = true): GuardContr
       throw new Error('Invalid context ownership marker');
     if (pending) {
       if (
-        Object.keys(row).sort().join('|') !== 'after|before|format|id' ||
-        row['format'] !== 'ia.lifecycle-registration-pending.v1'
+        shapeOf(row) !== 'after|before|format|id' ||
+        !declares(row, 'lifecycle-registration-pending', [1], ['ia.lifecycle-registration-pending.v1'])
       )
         throw new Error('Invalid pending context ownership');
       for (const key of ['before', 'after']) {
@@ -445,10 +470,10 @@ function contextSettingsManaged(root: string, includeContext = true): GuardContr
     } else if (guardPending) {
       // One journal serves the retired steward guard's registration and the `@hook` groups' (distribution
       // guard-registration.ts): each names its own state format.
-      const hookJournal = row['format'] === 'ia.hook-registration-pending.v1';
+      const hookJournal = declares(row, 'hook-registration-pending', [1], ['ia.hook-registration-pending.v1']);
       if (
-        Object.keys(row).sort().join('|') !== 'after|before|format|id' ||
-        (row['format'] !== 'ia.guard-registration-pending.v1' && !hookJournal)
+        shapeOf(row) !== 'after|before|format|id' ||
+        (!hookJournal && !declares(row, 'guard-registration-pending', [1], ['ia.guard-registration-pending.v1']))
       )
         throw new Error('Invalid pending guard ownership');
       for (const key of ['before', 'after']) {
@@ -464,7 +489,9 @@ function contextSettingsManaged(root: string, includeContext = true): GuardContr
           const state: unknown = decodeDistributionJson(side['state']);
           if (
             !object(state) ||
-            state['format'] !== (hookJournal ? 'ia.hook-registration-state.v1' : 'ia.guard-registration-state.v1') ||
+            !(hookJournal
+              ? declares(state, 'hook-registration-state', [1], ['ia.hook-registration-state.v1'])
+              : declares(state, 'guard-registration-state', [1], ['ia.guard-registration-state.v1'])) ||
             state['id'] !== row['id'] ||
             typeof state['cache'] !== 'string' ||
             !isAbsolute(state['cache'])
@@ -477,12 +504,9 @@ function contextSettingsManaged(root: string, includeContext = true): GuardContr
       // The `@hook` groups' ownership state: the settings that hold them, and the launcher they run, are managed as the
       // retired guard's were.
       if (
-        Object.keys(row)
-          .filter((key) => key !== 'existing')
-          .sort()
-          .join('|') !== 'cache|created|format|groups|id|release' ||
+        shapeOf(row, 'existing') !== 'cache|created|format|groups|id|release' ||
         (row['existing'] !== undefined && !Array.isArray(row['existing'])) ||
-        row['format'] !== 'ia.hook-registration-state.v1' ||
+        !declares(row, 'hook-registration-state', [1], ['ia.hook-registration-state.v1']) ||
         row['id'] !== hooks[1] ||
         typeof row['cache'] !== 'string' ||
         !isAbsolute(row['cache']) ||
@@ -496,12 +520,9 @@ function contextSettingsManaged(root: string, includeContext = true): GuardContr
       launchers.push(resolve(row['cache'] as string, 'scripts/ia.mjs'));
     } else if (guard) {
       if (
-        Object.keys(row)
-          .filter((key) => key !== 'existing')
-          .sort()
-          .join('|') !== 'cache|created|format|group|id|release' ||
+        shapeOf(row, 'existing') !== 'cache|created|format|group|id|release' ||
         (row['existing'] !== undefined && !Array.isArray(row['existing'])) ||
-        row['format'] !== 'ia.guard-registration-state.v1' ||
+        !declares(row, 'guard-registration-state', [1], ['ia.guard-registration-state.v1']) ||
         row['id'] !== guard[1] ||
         typeof row['cache'] !== 'string' ||
         !isAbsolute(row['cache']) ||
@@ -514,12 +535,14 @@ function contextSettingsManaged(root: string, includeContext = true): GuardContr
       guardManaged = true;
       launchers.push(resolve(row['cache'] as string, 'scripts/ia.mjs'));
     } else if (
-      Object.keys(row)
-        .filter((key) => key !== 'existing')
-        .sort()
-        .join('|') !== 'binding|cache|created|format|groups|id|release|revision' ||
+      shapeOf(row, 'existing') !== 'binding|cache|created|format|groups|id|release|revision' ||
       (row['existing'] !== undefined && !Array.isArray(row['existing'])) ||
-      !['ia.lifecycle-registration-state.v1', 'ia.lifecycle-registration-state.v2'].includes(row['format'] as string) ||
+      !declares(
+        row,
+        'lifecycle-registration-state',
+        [1, 2],
+        ['ia.lifecycle-registration-state.v1', 'ia.lifecycle-registration-state.v2'],
+      ) ||
       row['id'] !== match![1] ||
       !Number.isSafeInteger(row['revision']) ||
       (row['revision'] as number) < 1 ||
@@ -637,8 +660,8 @@ function actorMap(path: string, revision: string): ReadonlyMap<string, string> {
   const value: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(content));
   if (
     !object(value) ||
-    Object.keys(value).sort().join('|') !== 'actors|format|revision' ||
-    value['format'] !== 'ia.steward-actors.v1' ||
+    shapeOf(value) !== 'actors|format|revision' ||
+    !declares(value, 'steward-actors', [1], ['ia.steward-actors.v1']) ||
     value['revision'] !== revision ||
     !Array.isArray(value['actors']) ||
     value['actors'].length > 256

@@ -29,8 +29,10 @@ const git = (root, ...args) => execFileSync('git', args, { cwd: root, encoding: 
 function inputDescriptor(root) {
   const bytes = readFileSync(child(root, PUBLIC_INPUTS)),
     receipt = JSON.parse(bytes);
+  // Plain `public-package-inputs` declares formatVersion 2; the exact legacy literal is the same version written before.
+  const plain = receipt.format === 'public-package-inputs';
   if (
-    receipt.format !== 'ia.public-package-inputs.v2' ||
+    (plain ? receipt.formatVersion !== 2 : receipt.format !== 'ia.public-package-inputs.v2') ||
     receipt.source?.repository !== 'https://github.com/inventarch/ia' ||
     !/^[a-f0-9]{40}$/.test(receipt.source?.commit) ||
     !/^[a-f0-9]{40}$/.test(receipt.source?.tree) ||
@@ -43,7 +45,10 @@ function inputDescriptor(root) {
     !receipt.files.length ||
     new Set(receipt.files.map((row) => row.path)).size !== receipt.files.length ||
     receipt.files.some((row) => row.path === PUBLIC_INPUTS || !/^[a-f0-9]{64}$/.test(row.sha256)) ||
-    Object.keys(receipt).sort().join(',') !== 'files,format,inputDigest,membership,npm,source' ||
+    Object.keys(receipt).sort().join(',') !==
+      (plain
+        ? 'files,format,formatVersion,inputDigest,membership,npm,source'
+        : 'files,format,inputDigest,membership,npm,source') ||
     receipt.inputDigest !== sha(JSON.stringify(receipt.files)) ||
     !receipt.npm ||
     typeof receipt.npm !== 'object' ||
@@ -168,7 +173,8 @@ function currentPublicPackageInputs(root) {
   const files = tracked.map((path) => ({ path, sha256: sha(readFileSync(child(root, path))) }));
   const npm = validateMembership(root, tracked);
   const receipt = {
-    format: 'ia.public-package-inputs.v2',
+    format: 'public-package-inputs',
+    formatVersion: 2,
     source: {
       repository: 'https://github.com/inventarch/ia',
       commit: git(root, 'rev-parse', 'HEAD'),

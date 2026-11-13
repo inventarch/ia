@@ -601,7 +601,8 @@ it('doctor lists the installed-implementation catalog and the join ia host recor
   const recorded = JSON.parse(read(root, JOINS)),
     payload = resolve(env.IA_HOST_HOME, 'hosts', release);
   expect(recorded).toEqual({
-    format: 'ia.host-joins.v1',
+    format: 'host-joins',
+    formatVersion: 1,
     joins: [
       {
         consumer: 'claude',

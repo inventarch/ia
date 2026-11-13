@@ -13,7 +13,8 @@ const temp = () => {
 afterEach(() => {
   for (const p of made.splice(0)) rmSync(p, { recursive: true, force: true });
 });
-const cfg = (map: Record<string, unknown>) => JSON.stringify({ format: 'ia.registries.v1', registries: map });
+const cfg = (map: Record<string, unknown>) =>
+  JSON.stringify({ format: 'registries', formatVersion: 1, registries: map });
 const refusal = (code: string, message: RegExp) => ({
   code: `IA-DIST-${code}`,
   message: expect.stringMatching(message),
@@ -341,5 +342,23 @@ it('returns deeply frozen choices', () => {
   ]) {
     expect(Object.isFrozen(choice)).toBe(true);
     expect(Object.isFrozen(choice.base)).toBe(true);
+  }
+});
+
+it('reads the legacy ia.registries.v1 literal beside the plain format and refuses any other format or version', () => {
+  const { root, env } = setup();
+  const pick = () => registryFor('acme/x', { root, env });
+  workspaceFile(root, JSON.stringify({ format: 'ia.registries.v1', registries: { '*': 'https://old.test/r' } }));
+  expect(pick()).toMatchObject({ level: 'workspace', base: { url: 'https://old.test/r/' } });
+  workspaceFile(root, cfg({ '*': 'https://new.test/r' }));
+  expect(pick()).toMatchObject({ level: 'workspace', base: { url: 'https://new.test/r/' } });
+  for (const bad of [
+    { format: 'registries', registries: {} },
+    { format: 'registries', formatVersion: 2, registries: {} },
+    { format: 'ia.registries.v1', formatVersion: 1, registries: {} },
+    { format: 'ia.registries.v2', registries: {} },
+  ]) {
+    workspaceFile(root, JSON.stringify(bad));
+    expect(refused(pick)).toMatchObject({ code: 'IA-DIST-INPUT-INVALID' });
   }
 });
