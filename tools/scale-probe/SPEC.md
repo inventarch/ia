@@ -71,7 +71,7 @@ The CLI runs themselves are measurements and stay out of the suite.
   - capture's prior-state fields `prior`, `previous`, `rotated`, `changed` and `new`;
   - the values of `observed-at` and `captured-at` lines in text.
 
-  Everything else in an output, its standard error and the files it writes is compared.
+  Everything else in an output, its standard error and the files it writes is compared. An output or written file that parses as JSON is compared as its parsed value, so differences that parsing removes, such as whitespace, number spelling and string escapes, are not compared.
 - The same size and seed give the same files and the same commit, whatever a machine's global git ignore file or template says.
 
 ## Limits
