@@ -1,5 +1,6 @@
 {
-  "schemaVersion": 1,
+  "format": "test-tasks",
+  "formatVersion": 1,
   "profiles": {
     "unit": {
       "hookTimeoutMs": 10000,
@@ -860,6 +861,7 @@
         "tests/doctor-extensions.test.ts",
         "tests/doctor-handoff.test.ts",
         "tests/doctor-kits.test.ts",
+        "tests/document-identities.test.ts",
         "tests/fix.test.ts",
         "tests/handoff.test.ts",
         "tests/local-cli-fs-root.test.ts",
@@ -1633,6 +1635,7 @@
         "tests/context-launcher.test.ts",
         "tests/decisions.test.ts",
         "tests/dependent-authoring.test.ts",
+        "tests/document-identities.test.ts",
         "tests/guard-registration.test.ts",
         "tests/home-lock.test.ts",
         "tests/host-home.test.ts",
@@ -2452,8 +2455,11 @@
         "tests/canon-linear.test.ts",
         "tests/check-evidence.test.ts",
         "tests/complete-scope.test.ts",
+        "tests/descriptor-identities.test.ts",
         "tests/descriptors.test.ts",
         "tests/distribution-contracts.test.ts",
+        "tests/document-identities.test.ts",
+        "tests/document-identity.test.ts",
         "tests/editor.test.ts",
         "tests/handle.test.ts",
         "tests/inputs.test.ts",
@@ -2910,6 +2916,7 @@
         "tests/composition.test.ts",
         "tests/context.test.ts",
         "tests/coordinate.test.ts",
+        "tests/document-identities.test.ts",
         "tests/door-position.test.ts",
         "tests/door-read.test.ts",
         "tests/editor.test.ts",

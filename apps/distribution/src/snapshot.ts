@@ -26,7 +26,9 @@ import {
 import { fail } from './files.js';
 
 export type DistributionSourceInput = Pick<InputSnapshot, 'sources' | 'folders' | 'floorOrigin' | 'activation'>;
+/** A snapshot is verified in the process that built it, so it names itself in the plain shape already (decision dec-008). */
 export interface DistributionSnapshot extends DistributionSourceInput {
+  readonly format: 'distribution-snapshot';
   readonly formatVersion: 1;
   readonly fingerprint: string;
 }
@@ -156,12 +158,18 @@ export function distributionSnapshot(input: unknown): DistributionSnapshot {
     floorOrigin,
     ...(activation ? { activation } : {}),
   };
-  return Object.freeze({ formatVersion: 1, ...body, fingerprint: metadataDigest(body) });
+  return Object.freeze({
+    format: 'distribution-snapshot' as const,
+    formatVersion: 1 as const,
+    ...body,
+    fingerprint: metadataDigest(body),
+  });
 }
 
 /** Recompute the complete commitment instead of trusting a typed caller's fingerprint. */
 export function verifyDistributionSnapshot(input: unknown): DistributionSnapshot {
   const row = object(input, [
+    'format',
     'formatVersion',
     'fingerprint',
     'sources',
@@ -169,9 +177,10 @@ export function verifyDistributionSnapshot(input: unknown): DistributionSnapshot
     'floorOrigin',
     ...(input && typeof input === 'object' && Object.hasOwn(input, 'activation') ? ['activation'] : []),
   ]);
-  const { formatVersion, fingerprint, ...body } = row,
+  const { format, formatVersion, fingerprint, ...body } = row,
     result = distributionSnapshot(body);
-  if (formatVersion !== 1 || fingerprint !== result.fingerprint) fail('INPUT-INVALID', 'Snapshot fingerprint differs');
+  if (format !== 'distribution-snapshot' || formatVersion !== 1 || fingerprint !== result.fingerprint)
+    fail('INPUT-INVALID', 'Snapshot fingerprint differs');
   return result;
 }
 

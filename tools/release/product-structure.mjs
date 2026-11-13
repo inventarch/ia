@@ -70,7 +70,7 @@ export function productStructure(root) {
   };
   assets.set('.ia/authoring.resources.json', Buffer.from(JSON.stringify(selection)));
   const descriptor = {
-    formatVersion: 1,
+    ...(WRITE_PLAIN_NAMES ? { format: 'release-descriptor', formatVersion: 1 } : { formatVersion: 1 }),
     id: 'inventarch/product-structure',
     version: '0.1.0',
     distribution: 'workspace-system/definition/distribution/product-structure',

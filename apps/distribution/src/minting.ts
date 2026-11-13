@@ -21,7 +21,7 @@ import { RESOURCE_LIMITS, resourceOccurrences, nativeResourcePath } from '@inven
 import { digest } from '@inventarch/graph';
 import { verifySelectedArchiveClosure } from './archive.js';
 import { distributionSnapshot } from './snapshot.js';
-import { fail, stamped, utf8 } from './files.js';
+import { fail, stamped, utf8, writeIdentity } from './files.js';
 import { KERNEL_SOURCES } from '@inventarch/language';
 
 export interface MintingReleaseSet {
@@ -118,7 +118,7 @@ function selectedView(floor: Capture['sources'], input: MintingReleaseSet | null
     selected === null
       ? undefined
       : {
-          formatVersion: 1 as const,
+          ...writeIdentity('activation-pointer', 1, { formatVersion: 1 } as const),
           generation: generationDigest(
             selected.lock,
             selected.inputs,

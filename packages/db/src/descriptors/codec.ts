@@ -3,6 +3,8 @@ import { isProxy } from 'node:util/types';
 import semver from 'semver';
 import { parseStrictJson } from '../json.js';
 import type { StrictJsonFault } from '../json.js';
+import { identityOf } from '../document-identity.js';
+import { WRITE_PLAIN_NAMES } from '../written-names.js';
 
 /** OS09 DESC-02 initial limits. Collections are arrays and layout objects; names are unique per collection. */
 export const DESCRIPTOR_LIMITS = Object.freeze({
@@ -13,7 +15,29 @@ export const DESCRIPTOR_LIMITS = Object.freeze({
   text: 200,
   message: 256,
 });
+/** The `format` every descriptor resource and registry carried when released; read as written, written until the switch flips. */
 export const DESCRIPTOR_FORMAT = 1;
+/** The plain `format` names of the descriptor documents (decision dec-008); each carries `formatVersion` 1. */
+export type DescriptorFormatName =
+  | 'domain-descriptor'
+  | 'storage-descriptor'
+  | 'app-descriptor'
+  | 'descriptor-registry'
+  | 'compiled-domain-descriptor'
+  | 'compiled-storage-descriptor'
+  | 'compiled-app-descriptor';
+/**
+ * The identity keys this package writes into a descriptor document: the released `format: 1` until `WRITE_PLAIN_NAMES`
+ * is flipped, then the plain name with `formatVersion` 1. The compiled values and the registry are shared with the
+ * services that host them, so they follow the switch; the resources a person commits are only read here.
+ */
+export function descriptorIdentity<N extends DescriptorFormatName>(
+  name: N,
+): { readonly format: 1 } | { readonly format: N; readonly formatVersion: 1 } {
+  return identityOf(WRITE_PLAIN_NAMES, name, 1, { format: DESCRIPTOR_FORMAT }) as
+    | { readonly format: 1 }
+    | { readonly format: N; readonly formatVersion: 1 };
+}
 export type DescriptorKind = 'domain-model' | 'storage-binding' | 'app-composition';
 export type DescriptorCode =
   | 'DESC-ENVELOPE-INVALID'
@@ -453,19 +477,44 @@ export function features(value: unknown, path: string): readonly string[] {
   if (names.length) refuse('DESC-FEATURE-UNSUPPORTED', `${path}[0]`, 'Unknown required descriptor feature');
   return names;
 }
-/** Check the format before the closed shape, so a newer major refuses as unsupported rather than as unknown fields. */
+/**
+ * Check the identity before the closed shape, so a newer major refuses as unsupported rather than as unknown fields.
+ * A document is either the released shape (`format` is the integer 1) or the plain shape (`format` is `name` and
+ * `formatVersion` is 1); each lists its own keys, and nothing else is accepted (decision dec-008).
+ */
 export function versioned(
   value: unknown,
+  name: DescriptorFormatName,
   required: readonly string[],
   optional: readonly string[] = [],
   scan = true,
 ): Row {
-  if (value !== null && typeof value === 'object' && !Array.isArray(value) && Object.hasOwn(value, 'format'))
-    format((value as Row)['format'], 'format');
+  const declared =
+    value !== null && typeof value === 'object' && !Array.isArray(value) && Object.hasOwn(value, 'format')
+      ? (value as Row)
+      : undefined;
+  const plain = declared !== undefined && declared['format'] === name;
+  if (declared !== undefined) identity(declared, name);
   if (scan) refuseExecutableKeys(value);
-  const row = record(value, '', required, optional);
-  format(row['format'], 'format');
+  const row = record(value, '', plain ? [...required, 'formatVersion'] : required, optional);
+  identity(row, name);
   return row;
+}
+/** The row's `format` is the released integer, or `name` with a `formatVersion` of 1. */
+function identity(row: Row, name: string): void {
+  if (row['format'] === name) {
+    const version = row['formatVersion'];
+    if (version !== 1) {
+      const unsupported = typeof version === 'number' && Number.isSafeInteger(version);
+      refuse(
+        unsupported ? 'DESC-FORMAT-UNSUPPORTED' : 'DESC-FIELD-INVALID',
+        'formatVersion',
+        'Unsupported descriptor format',
+      );
+    }
+    return;
+  }
+  format(row['format'], 'format');
 }
 export function format(value: unknown, path: string): void {
   if (value !== DESCRIPTOR_FORMAT)

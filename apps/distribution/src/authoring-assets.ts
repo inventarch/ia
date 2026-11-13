@@ -20,7 +20,7 @@ import {
 import { resolveAuthoring } from '@inventarch/workspace-runtime/authoring';
 import { RESOURCE_LIMITS, resourceOccurrences, nativeResourcePath } from '@inventarch/workspace-runtime/resources';
 import { digest } from '@inventarch/graph';
-import { fail, utf8 } from './files.js';
+import { fail, utf8, writeIdentity } from './files.js';
 
 /** Archive evidence is entirely input bytes plus the installed language's explicit immutable floor. */
 export function verifyAuthoringAssetClosure(manifest: BundleManifest, files: ReadonlyMap<string, Uint8Array>): void {
@@ -164,6 +164,7 @@ export function verifySelectedAuthoringAssetClosure(
     // An unrelated requested package must not satisfy an undeclared guide/schema dependency.
     verifyAuthoringSelection(
       {
+        ...(lock.format === undefined ? {} : { format: lock.format }),
         formatVersion: lock.formatVersion,
         engine: lock.engine,
         requests: [{ id: pkg.id, range: pkg.version }],
@@ -188,7 +189,7 @@ function verifyAuthoringSelection(
 ): void {
   const inputs = deriveGenerationInputs(lock, releases);
   const pointer = {
-    formatVersion: 1 as const,
+    ...writeIdentity('activation-pointer', 1, { formatVersion: 1 } as const),
     generation: generationDigest(lock, inputs, installationWorkspace(lock, inputs, releases)),
     previous: null,
     counter: 1,

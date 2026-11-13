@@ -1,7 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-export const SCHEMA_VERSION = 1;
+/** The manifest names itself `format: 'test-tasks'` with this `formatVersion` (decision dec-008); it is private to this repository's tools, so only that shape is read. */
+export const FORMAT = 'test-tasks';
+export const FORMAT_VERSION = 1;
+export const SCHEMA_VERSION = FORMAT_VERSION;
 export const PLATFORMS = ['linux', 'windows', 'macos'] as const;
 export const MODES = ['source', 'emitted'] as const;
 export const RESOURCE_CLASSES = ['pure', 'io', 'subprocess', 'native-heavy'] as const;
@@ -54,7 +57,8 @@ export interface CommandTask extends TaskBase {
 }
 export type TaskRecord = VitestTask | CommandTask;
 export interface Manifest {
-  readonly schemaVersion: number;
+  readonly format: typeof FORMAT;
+  readonly formatVersion: number;
   readonly profiles: Readonly<Record<string, TimeoutProfile>>;
   readonly inputProfiles: Readonly<Record<string, string>>;
   readonly tasks: readonly TaskRecord[];
@@ -120,7 +124,7 @@ export function parseManifest(value: unknown): Manifest {
   function text(value: unknown, label: string): void {
     if (typeof value !== 'string' || !value.trim()) throw new Error(label + ': expected nonempty text');
   }
-  const manifest = object(value, 'tasks.json', ['schemaVersion', 'profiles', 'inputProfiles', 'tasks']);
+  const manifest = object(value, 'tasks.json', ['format', 'formatVersion', 'profiles', 'inputProfiles', 'tasks']);
   const profiles = object(manifest['profiles'], 'profiles'),
     inputs = object(manifest['inputProfiles'], 'inputProfiles');
   for (const [name, value] of Object.entries(profiles)) {
@@ -221,8 +225,10 @@ export interface ValidationInput {
 export function validateManifest(input: ValidationInput): readonly string[] {
   const { manifest, projects, discovery, leaves, tracked } = input,
     findings: string[] = [];
-  if (manifest.schemaVersion !== SCHEMA_VERSION)
-    findings.push(`tasks.json: expected schemaVersion ${SCHEMA_VERSION}, found ${String(manifest.schemaVersion)}`);
+  if (manifest.format !== FORMAT || manifest.formatVersion !== FORMAT_VERSION)
+    findings.push(
+      `tasks.json: expected format ${FORMAT} formatVersion ${FORMAT_VERSION}, found ${String(manifest.format)} ${String(manifest.formatVersion)}`,
+    );
   const profiles = Object.keys(manifest.profiles ?? {}),
     inputProfiles = Object.keys(manifest.inputProfiles ?? {});
   if (!profiles.length) findings.push('tasks.json: no timeout profiles declared');

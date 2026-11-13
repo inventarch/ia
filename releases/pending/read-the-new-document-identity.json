@@ -1,0 +1,26 @@
+{
+  "format": "npm-change-note",
+  "formatVersion": 1,
+  "bump": "minor",
+  "title": "Read the new document identity",
+  "summary": "The package reads the new document identity: a bare format name beside an integer formatVersion, for the bindings and kit sidecars, kit releases, packets, the distribution lock, pointer, generation inputs, release descriptor and manifest, descriptors, the update check, decisions and home marker, and the kit package block. The released shapes are still written until the follow-up release (dec-008).",
+  "packages": [
+    "@inventarch/cli",
+    "@inventarch/db",
+    "@inventarch/distribution",
+    "@inventarch/runtime",
+    "@inventarch/service-contracts"
+  ],
+  "paths": [
+    ".ia/authoring.resources.json",
+    "CLAUDE.md",
+    "apps/cli/",
+    "apps/distribution/",
+    "docs/",
+    "examples/",
+    "packages/db/",
+    "packages/runtime/",
+    "packages/service-contracts/",
+    "tools/"
+  ]
+}

@@ -3,6 +3,7 @@
  * its name. A document written before that carries exactly one of its recorded legacy literals and no `formatVersion`;
  * each reader lists those literals explicitly, and nothing here parses a suffix.
  */
+import { identityOf } from '@inventarch/db';
 import { WRITE_PLAIN_NAMES } from './written-names.js';
 export type Stamp<N extends string = string, L extends string = string> =
   | { readonly format: N; readonly formatVersion: 1 }
@@ -43,3 +44,13 @@ export function writeStamp<N extends string, L extends string>(name: N, released
 export function written<P, R>(plain: P, released: R): P | R {
   return WRITE_PLAIN_NAMES ? plain : released;
 }
+/**
+ * The identity keys a writer of a shared document emits: the plain name with `formatVersion` once `WRITE_PLAIN_NAMES` is
+ * flipped, until then exactly the `released` keys (an integer `format`, a `contract`, or a `formatVersion` alone), as the
+ * released programs that read the document expect (decision dec-008).
+ */
+export const writeIdentity = <N extends string, V extends number, R extends Readonly<Record<string, string | number>>>(
+  name: N,
+  version: V,
+  released: R,
+): R | { readonly format: N; readonly formatVersion: V } => identityOf(WRITE_PLAIN_NAMES, name, version, released);

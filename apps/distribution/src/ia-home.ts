@@ -11,7 +11,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
-import { fail, syncDirectory } from './files.js';
+import { fail, syncDirectory, writeIdentity } from './files.js';
 
 /** Host plugin distribution spec §3: the user-level IA home and which variable placed it. IA_HOST_HOME is a one-release alias. */
 export type HomeSource = 'IA_HOME' | 'IA_HOST_HOME' | 'default';
@@ -58,7 +58,7 @@ function markHome(home: string): void {
   try {
     const fd = openSync(stage, 'wx', 0o600);
     try {
-      writeFileSync(fd, JSON.stringify({ schema: 'ia.home.v1' }) + '\n');
+      writeFileSync(fd, JSON.stringify(writeIdentity('ia-home', 1, { schema: 'ia.home.v1' } as const)) + '\n');
       fsyncSync(fd);
     } finally {
       closeSync(fd);

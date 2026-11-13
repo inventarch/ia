@@ -18,6 +18,7 @@ import {
 import type { Stats } from 'node:fs';
 import { dirname, isAbsolute, join, parse, resolve } from 'node:path';
 import { stableSerialize } from '@inventarch/graph';
+import { identityOf, readIdentity } from '@inventarch/db';
 import { WRITE_PLAIN_NAMES } from './written-names.js';
 
 /** `path`, when present, is the workspace-relative file the refusal concerns, so a caller can locate it without parsing the message. */
@@ -284,6 +285,17 @@ export function versionedObject(
   );
   return { row, legacy };
 }
+export { readIdentity };
+/**
+ * The identity keys a writer of a shared document emits when its released shape is not a string `format`: an integer
+ * `format`, a `schema` literal, or a `formatVersion` with no name. The plain name with `formatVersion` once
+ * `WRITE_PLAIN_NAMES` is flipped, until then exactly the `released` keys (decision dec-008).
+ */
+export const writeIdentity = <N extends string, V extends number, R extends Readonly<Record<string, string | number>>>(
+  name: N,
+  version: V,
+  released: R,
+): R | { readonly format: N; readonly formatVersion: V } => identityOf(WRITE_PLAIN_NAMES, name, version, released);
 /**
  * The `format` fields a writer of a shared document emits: the plain name with its integer `formatVersion` once
  * `WRITE_PLAIN_NAMES` is flipped, until then the released literal alone, as the released programs that read the

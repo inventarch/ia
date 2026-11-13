@@ -1,4 +1,5 @@
 import { parseOptions } from '../shared/args.mjs';
+import { WRITE_PLAIN_NAMES } from '../shared/written-names.mjs';
 /**
  * The bundled `inventarch/language` base package: docs/specs/workspace-initialization-apply/README.md
  * §2, producing what docs/specs/workspace-initialization/README.md §3 ships.
@@ -54,7 +55,7 @@ export interface LanguageBase {
 /** The base artifact descriptor. `version` and `engine` are parameters so compatibility refusals can be exercised. */
 export function languageBaseDescriptor(version: string, engine = `^${RELEASE_ENGINE_VERSION}`) {
   return {
-    formatVersion: 1,
+    ...(WRITE_PLAIN_NAMES ? { format: 'release-descriptor', formatVersion: 1 } : { formatVersion: 1 }),
     id: BASE_ID,
     version,
     distribution: 'workspace-system/definition/distribution/language-distribution',

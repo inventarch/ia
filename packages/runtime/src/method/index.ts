@@ -78,7 +78,15 @@ export {
 export type { Binding, Bindings, Entry, SelectedBinding } from './bindings.js';
 export { PIN_FORMAT, kitUpdate, pinRootFor, projectOf, readPin, writePin } from './pin.js';
 export type { Pin, PinnedKey, PinnedKit } from './pin.js';
-export { DIGESTED, EVIDENCE_STATES, PACKET_CONTRACT, assemblePacket, canonical, packetDigest } from './packet.js';
+export {
+  DIGESTED,
+  EVIDENCE_STATES,
+  PACKET_CONTRACT,
+  assemblePacket,
+  canonical,
+  packetDigest,
+  readPacketIdentity,
+} from './packet.js';
 export type { MethodPacket } from './packet.js';
 export { closureStore, retainKit, retainedKit } from './retained.js';
 export { assertReadable, kitCache, kitReadRoot, userCache } from './kit-root.js';

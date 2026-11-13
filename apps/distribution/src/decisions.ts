@@ -1,10 +1,12 @@
 import { existsSync, realpathSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
-import { fail } from './files.js';
+import { fail, readIdentity, writeIdentity } from './files.js';
 import { readHomeFile, writeHomeFile } from './ia-home.js';
 
 /** Host plugin distribution spec §7.2: answers to "initialize this repository?", kept in the IA home, never in the repository. */
 export const DECISIONS = 'state/decisions.json';
+/** The literal the file carried when released; the plain identity is `decisions` with `formatVersion` 1 (decision dec-008). */
+const DECISIONS_SCHEMA = 'ia.decisions.v1';
 export type DeclineKind = 'today' | 'forever';
 export interface Decision {
   readonly decision: 'declined-today' | 'declined-forever';
@@ -76,15 +78,15 @@ export function readDecisions(home: string): {
     return { repositories: {}, invalid: true, reason: (error as NodeJS.ErrnoException).code ?? 'unknown' };
   }
   if (text === null) return { repositories: {}, invalid: false };
-  let value: { schema?: unknown; repositories?: unknown };
+  let value: { repositories?: unknown };
   try {
-    value = JSON.parse(text) as { schema?: unknown; repositories?: unknown };
+    value = JSON.parse(text) as { repositories?: unknown };
   } catch {
     return { repositories: {}, invalid: true, reason: 'parse' };
   }
   const rows = value.repositories;
   if (
-    value.schema !== 'ia.decisions.v1' ||
+    readIdentity(value, 'decisions', [1], [{ key: 'schema', value: DECISIONS_SCHEMA, version: 1 }]) === undefined ||
     rows === null ||
     typeof rows !== 'object' ||
     Array.isArray(rows) ||
@@ -111,7 +113,12 @@ function writable(home: string, now: Date): Record<string, Decision> {
   return Object.fromEntries(Object.entries(current.repositories).filter(([, decision]) => live(decision, now)));
 }
 const save = (home: string, repositories: Record<string, Decision>): void =>
-  writeHomeFile(home, DECISIONS, JSON.stringify({ schema: 'ia.decisions.v1', repositories }, null, 2) + '\n');
+  writeHomeFile(
+    home,
+    DECISIONS,
+    JSON.stringify({ ...writeIdentity('decisions', 1, { schema: DECISIONS_SCHEMA } as const), repositories }, null, 2) +
+      '\n',
+  );
 export function recordDecision(
   home: string,
   directory: string,
