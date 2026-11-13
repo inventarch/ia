@@ -152,7 +152,34 @@ describe('the comparison', () => {
   });
 
   it('refuses a comparison with nothing in it', () => {
-    expect(() => compare(new Map(), new Map())).toThrow(/nothing to compare/);
+    expect(thrown(() => compare(new Map(), new Map()))).toBe('nothing to compare: neither side holds a capture');
+  });
+
+  it('refuses a comparison whose captures hold no command output', () => {
+    const none = 'nothing to compare: no capture holds a command output';
+    const empty = { outputs: {}, skipped: ['kb-pack'] };
+    expect(thrown(() => compare(one(empty), one(empty)))).toBe(none);
+    expect(thrown(() => compare(one(empty), new Map()))).toBe(none);
+    // Under different names, each side's capture has no match on the other, yet neither holds an output either.
+    expect(thrown(() => compare(new Map([['x.json', empty]]), new Map([['y.json', empty]])))).toBe(none);
+  });
+
+  it('fails an output that was unstable in its capture, on either side, whatever the digests', () => {
+    const at = (stable: boolean, digest = 'a') => ({
+      outputs: { validate: { exit: 0, digest, stderr: 'e', files: {}, stable } },
+    });
+    for (const [before, after] of [
+      [at(false), at(true)],
+      [at(true), at(false)],
+      [at(false), at(false)],
+      [at(false), at(true, 'b')],
+    ]) {
+      const result = compare(one(before), one(after));
+      expect(result.rows).toEqual([{ tree: 't', command: 'validate', outputs: 'unstable' }]);
+      expect(result.failed).toBe(1);
+    }
+    expect(compare(one(at(true)), one(at(true))).rows[0]!.outputs).toBe('equal');
+    expect(compare(one(at(false)), one({ outputs: {} })).rows[0]!.outputs).toBe('missing');
   });
 
   it('fails an output whose standard error differs', () => {

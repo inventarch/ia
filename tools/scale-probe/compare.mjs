@@ -2,7 +2,8 @@
 // and, when both carry measurements, the median wall time and peak memory before and after. Usage:
 //   node tools/scale-probe/compare.mjs <before> <after> [--outputs-only] [--slower <ratio>] [--larger <ratio>] [--json <file>]
 // <before> and <after> are capture files or folders of them, matched by file name. Exit 1 when an output differs,
-// a command is missing, or (unless --outputs-only) a command is slower or larger past the given ratios.
+// a command is missing or was unstable in its capture, or (unless --outputs-only) a command is slower or larger past
+// the given ratios.
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -34,9 +35,14 @@ const median = (values) => {
   return sorted.length % 2 ? sorted[mid] : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
 };
 
-/** One row per tree and command. Refuses two empty sides: a comparison of nothing is no evidence. */
+/**
+ * One row per tree and command. Refuses two empty sides, and captures that hold no command output: a comparison of
+ * nothing is no evidence. An output a capture found unstable is `unstable`, never `equal`: its digest is one run's.
+ */
 export function compare(before, after, { outputsOnly = false, slower = 1.1, larger = 1.1 } = {}) {
   if (before.size === 0 && after.size === 0) throw new Error('nothing to compare: neither side holds a capture');
+  const holds = (side) => [...side.values()].some((capture) => Object.keys(capture?.outputs ?? {}).length > 0);
+  if (!holds(before) && !holds(after)) throw new Error('nothing to compare: no capture holds a command output');
   const rows = [];
   for (const [file, a] of before) {
     const b = after.get(file);
@@ -58,7 +64,9 @@ export function compare(before, after, { outputsOnly = false, slower = 1.1, larg
         x.digest === y.digest &&
         x.stderr === y.stderr &&
         JSON.stringify(x.files) === JSON.stringify(y.files);
-      const row = { tree, command, outputs: !x || !y ? 'missing' : same ? 'equal' : 'differ' };
+      const outputs =
+        !x || !y ? 'missing' : x.stable === false || y.stable === false ? 'unstable' : same ? 'equal' : 'differ';
+      const row = { tree, command, outputs };
       if (!outputsOnly && a.measurements?.[command] && b?.measurements?.[command]) {
         for (const key of ['wallMs', 'maxRssMB']) {
           row[`${key}Before`] = median(a.measurements[command].map((m) => m?.[key]));
@@ -135,7 +143,7 @@ function main(argv) {
   if (o.json) writeFileSync(o.json, `${JSON.stringify(result, null, 2)}\n`);
   process.stdout.write(markdown(result, o));
   process.stdout.write(
-    `\n${result.failed ? `${result.failed} row(s) differ, are missing, or are past the ratios` : 'every output is equal'}${result.failed || o.outputsOnly ? '' : ', and no command is slower or larger past the ratios'}\n`,
+    `\n${result.failed ? `${result.failed} row(s) differ, are missing or unstable, or are past the ratios` : 'every output is equal'}${result.failed || o.outputsOnly ? '' : ', and no command is slower or larger past the ratios'}\n`,
   );
   if (result.failed) process.exitCode = 1;
 }
