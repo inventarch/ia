@@ -9,6 +9,7 @@ import type { OperationContext } from '@inventarch/agent-system';
 import { copy, digest, memoryStore } from '@inventarch/session-system';
 import { sqliteStore } from '@inventarch/session-system/sqlite';
 import * as SDK from '../src/index.js';
+import type { Capture } from '@inventarch/workspace-runtime';
 import * as code from '../src/installed-catalog.js';
 import { readFixture, readPath, qualifyAdmission, qualifyInstalledRead } from './installed-read-fixture.mjs';
 
@@ -19,7 +20,7 @@ afterEach(() => {
   for (const cleanup of close.splice(0)) cleanup();
   vi.restoreAllMocks();
 });
-function declaredReadCase(name: string, capture: SDK.Capture): string {
+function declaredReadCase(name: string, capture: Capture): string {
   const reader = new EditorSnapshot({
     root,
     sources: capture.sources,
@@ -314,7 +315,7 @@ it.each([
     };
   let calls = 0;
   f.currentCapture.mockImplementation(() =>
-    ++calls === at ? (malformed === 'null' ? (null as unknown as SDK.Capture) : changed) : f.capture,
+    ++calls === at ? (malformed === 'null' ? (null as unknown as Capture) : changed) : f.capture,
   );
   await expect(f.adapter.execute({ path: readPath }, f.context)).rejects.toMatchObject({
     code: 'IA-INSTALLED-READ-DENIED',
@@ -344,7 +345,7 @@ it.each([1, 2])('preserves cancellation during current capture callback %s', asy
   f.currentCapture.mockImplementation(() => {
     if (++calls !== at) return f.capture;
     controller.abort(reason);
-    return null as unknown as SDK.Capture;
+    return null as unknown as Capture;
   });
   await expect(f.adapter.execute({ path: readPath }, { ...f.context, signal: controller.signal })).rejects.toBe(reason);
 });

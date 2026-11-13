@@ -8,7 +8,7 @@
     {
       "id": "inventarch/agent-composition-system",
       "bump": "minor",
-      "summary": "Installed catalog entries carry the contract version as a positive integer, and compileHarness accepts aliases that send an old contract name to its plain replacement; provenance.aliases records each alias used."
+      "summary": "Installed catalog entries carry the contract version as a positive integer, and compileHarness accepts aliases that send an old contract name to its plain replacement; provenance.aliases records each alias used. Remove the deprecated aliases that forwarded the generic workspace runtime: the root re-exports of captureWorkspace, adoptWorkspace, verifyCapture, Corpus, candidateValidation, managedPublication and Capture, and the subpaths of the 18 modules that moved to @inventarch/workspace-runtime in 1.2.0."
     },
     {
       "id": "inventarch/authoring-system",

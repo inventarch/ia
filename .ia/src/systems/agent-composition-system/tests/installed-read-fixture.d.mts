@@ -1,4 +1,5 @@
-import type { Capture, CompiledHarness, CompositionCatalog } from '../src/index.js';
+import type { CompiledHarness, CompositionCatalog } from '../src/index.js';
+import type { Capture } from '@inventarch/workspace-runtime';
 import type { InstalledReadOptions } from '../src/installed-read.js';
 import type { Grant, Manifest } from '@inventarch/agent-system';
 import type { Json, SessionStore } from '@inventarch/session-system';
