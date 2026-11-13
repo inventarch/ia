@@ -129,8 +129,8 @@ const GIT_ENV = {
 };
 
 /**
- * Variables that point git at another repository than the tree's. Git hands its hooks such variables, so a run
- * started from a hook would write into the hook's repository; they are dropped, and the rest of the environment kept.
+ * Variables that point git at another repository than the one `-C` names. Git hands its hooks such variables, so a
+ * run started from a hook would write into, or read from, the hook's repository.
  */
 const ELSEWHERE = [
   'GIT_DIR',
@@ -140,6 +140,17 @@ const ELSEWHERE = [
   'GIT_ALTERNATE_OBJECT_DIRECTORIES',
   'GIT_COMMON_DIR',
 ];
+
+/**
+ * The environment for every git command the probe's tools run: this process's, without the variables that point git
+ * at another repository, and with `extra` on top. The rest is kept.
+ * @param {Record<string, string>} [extra]
+ */
+export function gitEnvironment(extra = {}) {
+  const env = { ...process.env, ...extra };
+  for (const name of ELSEWHERE) delete env[name];
+  return env;
+}
 
 /**
  * What the generator gives a tree beside what `ia init` writes: the arguments it passes `ia init`, the synthetic
@@ -184,8 +195,7 @@ export function generate({ cli, out, records, seed, git = false }) {
     if (content.selection !== null) writeFileSync(join(tree, 'selection.json'), content.selection);
     let commit = null;
     if (content.commit) {
-      const env = { ...process.env, ...content.commit.env };
-      for (const name of ELSEWHERE) delete env[name];
+      const env = gitEnvironment(content.commit.env);
       const run = (...args) =>
         execFileSync(
           'git',

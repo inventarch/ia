@@ -6,7 +6,7 @@ Build synthetic and public IA trees, run every probed command on them under one 
 
 ## Modules
 
-- [generate.mjs](generate.mjs) and [generate.d.mts](generate.d.mts) — the seeded synthetic tree: a fresh `ia init` workspace, then work records.
+- [generate.mjs](generate.mjs) and [generate.d.mts](generate.d.mts) — the seeded synthetic tree: a fresh `ia init` workspace, then work records; and the environment every git command of these tools runs in.
 - [normalise.mjs](normalise.mjs) and [normalise.d.mts](normalise.d.mts) — the normalisation of one command's output or written file.
 - [capture.mjs](capture.mjs) — runs each command on fresh copies of one tree and records digests, times and memory.
 - [measure.mjs](measure.mjs) — runs the CLI in its own process and reports its wall time, CPU time and peak memory.
@@ -53,6 +53,7 @@ Trees and copies are made under `--work` or the temporary directory and removed 
 Task ownership: `tools:test-scale-probe`. The test covers:
 - the generator: its determinism; a digest of what it gives the trees the reference was captured on (the `ia init` arguments, the files, the selection and the commit's message, author and date); the commit it makes around a stand-in `ia init`, which also pins the file names, how it calls `ia init`, and the message it commits with, and which a git template named in the environment does not move; counts, references and layout;
 - that the generator leaves alone a repository that `GIT_DIR` and `GIT_INDEX_FILE` name, as a git hook's do;
+- that, when `GIT_DIR` names another repository, the capture records a tree's own commit and the probe builds a git tree from the repository it is given;
 - the `kb pack` selection;
 - the normaliser's rules;
 - the expected exits;
@@ -76,7 +77,7 @@ Runs of the IA CLI are measurements and stay out of the suite; where a case need
 
   Everything else in an output, its standard error and the files it writes is compared. An output or written file that parses as JSON is compared as its parsed value, so differences that parsing removes, such as whitespace, number spelling and string escapes, are not compared.
 - The same size and seed give the same files and the same commit, whatever a machine's global git ignore file or template says.
-- The generator's git gets none of `GIT_DIR`, `GIT_WORK_TREE`, `GIT_INDEX_FILE`, `GIT_OBJECT_DIRECTORY`, `GIT_ALTERNATE_OBJECT_DIRECTORIES` and `GIT_COMMON_DIR`, so a run started from a git hook, which hands such variables on, writes only into the tree it builds.
+- The git commands of the generator, the capture and the probe get none of `GIT_DIR`, `GIT_WORK_TREE`, `GIT_INDEX_FILE`, `GIT_OBJECT_DIRECTORY`, `GIT_ALTERNATE_OBJECT_DIRECTORIES` and `GIT_COMMON_DIR`, so a run started from a git hook, which hands such variables on, writes only into the tree it builds, records the commit of the tree it captures, and archives fixtures from the repository it runs in.
 
 ## Limits
 

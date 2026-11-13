@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { captureAll } from './capture.mjs';
-import { generate } from './generate.mjs';
+import { generate, gitEnvironment } from './generate.mjs';
 
 const TREES = fileURLToPath(new URL('./trees.json', import.meta.url));
 
@@ -67,6 +67,7 @@ export function build(tree, { initCli, work, repository = process.cwd() }) {
   const prefix = tree.path === '.' ? '' : `${tree.path}/`;
   const paths = (tree.include ?? ['']).map((p) => `${prefix}${p}`.replace(/\/$/, '') || '.');
   const archive = execFileSync('git', ['-C', repository, 'archive', '--format=tar', tree.commit, ...paths], {
+    env: gitEnvironment(),
     maxBuffer: 1 << 30,
     windowsHide: true,
   });

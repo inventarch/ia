@@ -19,7 +19,7 @@ import { capture, treeFiles } from './capture.mjs';
 import { compare } from './compare.mjs';
 import { contents, generate, selection, syntheticFiles } from './generate.mjs';
 import { normalise } from './normalise.mjs';
-import { refuseStaleOut, unexpectedExits } from './probe.mjs';
+import { build, refuseStaleOut, unexpectedExits } from './probe.mjs';
 
 const declared = (text: string) =>
   [...text.matchAll(/^@(\w[\w-]*) ([\w-]+)$/gm)].map(([, word, name]) => `${word} ${name}`);
@@ -534,6 +534,72 @@ describe("the probe's --work", () => {
         expect(what === 'copy' ? parent : realpathSync.native(parent)).toBe(real);
       }
       expect(readdirSync(work)).toEqual([]);
+    }));
+});
+
+describe('the git variables a hook hands on', () => {
+  /** The test's own git calls get no git variables, so they cannot reach another repository either. */
+  const git = async (cwd: string, ...args: string[]) => {
+    const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith('GIT_')));
+    const run = await runBounded('git', ['-C', cwd, ...args], { timeoutMs: bound, env });
+    expect(run.status, run.stderr).toBe(0);
+    return run.stdout.trim();
+  };
+  /** A repository with a commit of its own, standing in for the one a hook's GIT_DIR names. */
+  const decoy = async (base: string) => {
+    const dir = join(base, 'decoy');
+    mkdirSync(dir);
+    writeFileSync(join(dir, 'decoy.txt'), 'decoy\n');
+    await git(dir, 'init', '--quiet', '--template=');
+    await git(dir, 'add', 'decoy.txt');
+    await git(
+      dir,
+      ...['-c', 'user.name=Decoy', '-c', 'user.email=decoy@example.invalid', '-c', 'commit.gpgsign=false'],
+      ...['commit', '--quiet', '--no-verify', '-m', 'decoy'],
+    );
+    return { gitDir: join(dir, '.git'), head: await git(dir, 'rev-parse', 'HEAD') };
+  };
+  /** Runs `body` with GIT_DIR naming `gitDir`, as in a hook, and puts the variable back afterwards. */
+  const withGitDir = <T>(gitDir: string, body: () => T): T => {
+    const saved = process.env['GIT_DIR'];
+    process.env['GIT_DIR'] = gitDir;
+    try {
+      return body();
+    } finally {
+      if (saved === undefined) delete process.env['GIT_DIR'];
+      else process.env['GIT_DIR'] = saved;
+    }
+  };
+  /** A generated tree, committed, around a stand-in `ia init` that writes nothing. */
+  const generated = (base: string) => {
+    writeFileSync(join(base, 'init.mjs'), '');
+    return generate({ cli: join(base, 'init.mjs'), out: join(base, 'synthetic'), records: 7, seed: 1, git: true });
+  };
+
+  it("has the capture record the tree's own commit, not the HEAD of the repository GIT_DIR names", () =>
+    scratch(async (base) => {
+      const made = generated(base);
+      const { gitDir, head } = await decoy(base);
+      expect(head).not.toBe(made.commit);
+      const result = withGitDir(gitDir, () =>
+        capture({ cli: join(base, 'unused.mjs'), label: 'x', root: made.out, commands: [], measure: false }),
+      ) as { tree: { commit: string | null } };
+      expect(result.tree.commit, `the decoy's HEAD is ${head}`).toBe(made.commit);
+    }));
+
+  it('has the probe build a git tree from the repository it is given, not from the one GIT_DIR names', () =>
+    scratch(async (base) => {
+      const made = generated(base);
+      const { gitDir } = await decoy(base);
+      const work = join(base, 'work');
+      mkdirSync(work);
+      const root = withGitDir(gitDir, () =>
+        build(
+          { name: 'docs', kind: 'git', commit: made.commit, path: 'docs/synthetic' },
+          { initCli: join(base, 'init.mjs'), work, repository: made.out },
+        ),
+      );
+      expect(readdirSync(root)).toEqual(['syn-spec-000000.md']);
     }));
 });
 

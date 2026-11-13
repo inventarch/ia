@@ -20,6 +20,7 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { gitEnvironment } from './generate.mjs';
 import { normalise } from './normalise.mjs';
 
 const MEASURE = fileURLToPath(new URL('./measure.mjs', import.meta.url));
@@ -203,6 +204,7 @@ export function captureAll({
   if (existsSync(join(tree.root, '.git')))
     tree.commit = execFileSync('git', ['-C', tree.root, 'rev-parse', 'HEAD'], {
       encoding: 'utf8',
+      env: gitEnvironment(),
       windowsHide: true,
     }).trim();
   tree.files = treeFiles(tree.root);
