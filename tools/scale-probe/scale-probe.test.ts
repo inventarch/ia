@@ -1,14 +1,42 @@
 import { createHash } from 'node:crypto';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { runBounded } from '../testing/subprocess.js';
 import { compare } from './compare.mjs';
 import { selection, syntheticFiles } from './generate.mjs';
 import { normalise } from './normalise.mjs';
-import { unexpectedExits } from './probe.mjs';
+import { refuseStaleOut, unexpectedExits } from './probe.mjs';
 
 const declared = (text: string) =>
   [...text.matchAll(/^@(\w[\w-]*) ([\w-]+)$/gm)].map(([, word, name]) => `${word} ${name}`);
 const referenced = (text: string) =>
   [...text.matchAll(/@(spec|plan|milestone|task|decision) ([\w-]+)/g)].map(([, word, name]) => `${word} ${name}`);
+
+const PROBE = fileURLToPath(new URL('./probe.mjs', import.meta.url));
+const bound = Number(process.env['IA_TEST_SUBPROCESS_TIMEOUT_MS']) || 10_000;
+
+/** Runs `run` in a fresh temporary folder, removed afterwards. */
+async function scratch(run: (base: string) => Promise<void> | void): Promise<void> {
+  const base = mkdtempSync(join(tmpdir(), 'ia-scale-probe-test-'));
+  try {
+    await run(base);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+}
+
+/** The message `run` throws, or undefined when it returns. */
+function thrown(run: () => unknown): string | undefined {
+  try {
+    run();
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+  return undefined;
+}
 
 describe('the synthetic generator', () => {
   it('writes the same files, byte for byte, for the same size and seed', () => {
@@ -153,6 +181,57 @@ describe("the probe's expected exits", () => {
     expect(unexpectedExits({ validate: 0, 'kb-check': 1 }, result)).toEqual([]);
     expect(unexpectedExits(undefined, result)).toEqual([]);
   });
+});
+
+describe("the probe's --out", () => {
+  const stale = (folders: string[]) =>
+    `--out already holds captures in ${folders.join(', ')}; a tree this run does not finish would keep an earlier run's capture there. Remove them or choose another --out.`;
+
+  it('accepts an --out that holds no capture for its labels: no folder, other files, or another label', () =>
+    scratch((out) => {
+      expect(thrown(() => refuseStaleOut(join(out, 'none'), ['a']))).toBeUndefined();
+      mkdirSync(join(out, 'a'));
+      writeFileSync(join(out, 'a', 'notes.txt'), '');
+      mkdirSync(join(out, 'b'));
+      writeFileSync(join(out, 'b', 't.json'), '{}');
+      expect(thrown(() => refuseStaleOut(out, ['a']))).toBeUndefined();
+    }));
+
+  it('refuses an --out whose label folders already hold captures, naming each', () =>
+    scratch((out) => {
+      for (const label of ['a', 'b', 'c']) mkdirSync(join(out, label));
+      writeFileSync(join(out, 'a', 't.json'), '{}');
+      writeFileSync(join(out, 'c', 'u.json'), '{}');
+      expect(thrown(() => refuseStaleOut(out, ['a', 'b', 'c']))).toBe(stale([join(out, 'a'), join(out, 'c')]));
+    }));
+
+  it('stops on any error but a missing folder, such as a file where a label folder should be', () =>
+    scratch((out) => {
+      writeFileSync(join(out, 'a'), '');
+      let code: unknown;
+      try {
+        refuseStaleOut(out, ['a']);
+      } catch (error) {
+        code = (error as NodeJS.ErrnoException).code;
+      }
+      expect(code).toBe('ENOTDIR');
+    }));
+
+  it('refuses at start with exit 2, before it builds a tree', () =>
+    scratch(async (out) => {
+      mkdirSync(join(out, 'a'));
+      writeFileSync(join(out, 'a', 't.json'), '{}\n');
+      // Neither CLI exists, so a probe that went on to build a tree would stop with another message.
+      const missing = join(out, 'missing.js');
+      const run = await runBounded(
+        process.execPath,
+        [PROBE, '--init-cli', missing, '--cli', `a=${missing}`, '--out', out],
+        { timeoutMs: bound },
+      );
+      expect(run).toMatchObject({ status: 2, stdout: '', stderr: `${stale([join(out, 'a')])}\n` });
+      expect(readdirSync(out)).toEqual(['a']);
+      expect(readFileSync(join(out, 'a', 't.json'), 'utf8')).toBe('{}\n');
+    }));
 });
 
 describe('the normaliser', () => {

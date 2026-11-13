@@ -5242,7 +5242,7 @@
       ],
       "cache": true,
       "workerLimit": 1,
-      "resourceClass": "pure",
+      "resourceClass": "subprocess",
       "covers": [
         "vitest run --config vitest.tools.config.mts --maxWorkers=1"
       ]
