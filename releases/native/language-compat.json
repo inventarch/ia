@@ -17915,8 +17915,8 @@
       }
     },
     {
-      "version": "3.3.0",
-      "archive": "3ada760ec07848770957538a8562ec94c6f3a9ceb6f1e29d2739b217f9234728",
+      "version": "3.3.1",
+      "archive": "969a1cf9091534f9194c8584c0e45c92449f2e24849db1431841ef73df52b888",
       "engine": "^0.1.1",
       "language": [
         "1.0"
