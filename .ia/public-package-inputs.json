@@ -2,40 +2,40 @@
   "format": "ia.public-package-inputs.v2",
   "source": {
     "repository": "https://github.com/inventarch/ia",
-    "commit": "bc511873260375992baa0c291f74e9438626795a",
-    "tree": "d5aa139c38c15206f299011e75ef5850ec1d96f2",
-    "dirty": false
+    "commit": "59d51a0d3de6006c67c94e48b406b4c49569adde",
+    "tree": "204427d53d01117cd01beb8892396119270b4c6b",
+    "dirty": true
   },
   "membership": {
     "path": "tools/distribution/public-content-policy.json",
     "sha256": "691cc00a0c41392292f273fff1cfe6a86c3bc9ebae77545c666d0bb3eff4bac2"
   },
   "npm": {
-    ".ia/src/systems/agent-composition-system/package.json": "3.7.0",
-    ".ia/src/systems/agent-system/package.json": "3.7.0",
-    ".ia/src/systems/authoring-system/package.json": "3.7.0",
-    ".ia/src/systems/compliance-system/package.json": "3.7.0",
-    ".ia/src/systems/governance-system/package.json": "3.7.0",
-    ".ia/src/systems/hook-authoring-system/package.json": "3.7.0",
-    ".ia/src/systems/learning-system/package.json": "3.7.0",
-    ".ia/src/systems/session-system/package.json": "3.7.0",
-    ".ia/src/systems/template-system/package.json": "3.7.0",
-    ".ia/src/systems/work-system/package.json": "3.7.0",
-    ".ia/src/systems/workspace-system/package.json": "3.7.0",
-    "apps/cli/package.json": "3.7.0",
-    "apps/distribution/package.json": "3.7.0",
-    "apps/mcp-door/package.json": "3.7.0",
-    "apps/runner/package.json": "3.7.0",
-    "apps/steward-hook/package.json": "3.7.0",
-    "apps/vscode/package.json": "3.7.0",
-    "packages/compliance/package.json": "3.7.0",
-    "packages/db/package.json": "3.7.0",
-    "packages/graph/package.json": "3.7.0",
-    "packages/kb/package.json": "3.7.0",
-    "packages/language/package.json": "3.7.0",
-    "packages/runtime/package.json": "3.7.0",
-    "packages/service-contracts/package.json": "3.7.0",
-    "packages/workspace-runtime/package.json": "3.7.0"
+    ".ia/src/systems/agent-composition-system/package.json": "3.8.0",
+    ".ia/src/systems/agent-system/package.json": "3.8.0",
+    ".ia/src/systems/authoring-system/package.json": "3.8.0",
+    ".ia/src/systems/compliance-system/package.json": "3.8.0",
+    ".ia/src/systems/governance-system/package.json": "3.8.0",
+    ".ia/src/systems/hook-authoring-system/package.json": "3.8.0",
+    ".ia/src/systems/learning-system/package.json": "3.8.0",
+    ".ia/src/systems/session-system/package.json": "3.8.0",
+    ".ia/src/systems/template-system/package.json": "3.8.0",
+    ".ia/src/systems/work-system/package.json": "3.8.0",
+    ".ia/src/systems/workspace-system/package.json": "3.8.0",
+    "apps/cli/package.json": "3.8.0",
+    "apps/distribution/package.json": "3.8.0",
+    "apps/mcp-door/package.json": "3.8.0",
+    "apps/runner/package.json": "3.8.0",
+    "apps/steward-hook/package.json": "3.8.0",
+    "apps/vscode/package.json": "3.8.0",
+    "packages/compliance/package.json": "3.8.0",
+    "packages/db/package.json": "3.8.0",
+    "packages/graph/package.json": "3.8.0",
+    "packages/kb/package.json": "3.8.0",
+    "packages/language/package.json": "3.8.0",
+    "packages/runtime/package.json": "3.8.0",
+    "packages/service-contracts/package.json": "3.8.0",
+    "packages/workspace-runtime/package.json": "3.8.0"
   },
   "files": [
     {
@@ -324,7 +324,7 @@
     },
     {
       "path": ".ia/src/systems/agent-composition-system/package.json",
-      "sha256": "fe58af0d7bca11538d9c36af7315ef45828d8b740765f7bde04f85a702216d8b"
+      "sha256": "4a4cf25d27af0b4092cd1413631128de471996ca716c9540054e69ba01466f1e"
     },
     {
       "path": ".ia/src/systems/agent-composition-system/records/read-captured-source-binding.ia",
@@ -544,7 +544,7 @@
     },
     {
       "path": ".ia/src/systems/agent-system/package.json",
-      "sha256": "dd9ef44f421fb134401661455be8d39444f18117732b705880d1dfc0a4163fd5"
+      "sha256": "d72640a01caaca23e8b60682739e3f6c048bc5f7a25e28e36dd6cad638bbf279"
     },
     {
       "path": ".ia/src/systems/agent-system/schemas/agent.schema.ia",
@@ -664,7 +664,7 @@
     },
     {
       "path": ".ia/src/systems/authoring-system/package.json",
-      "sha256": "86265228da514b8d557d45e363936f85c0f10211154ed52ddfe04ec8aed7ee8f"
+      "sha256": "66827c04ac252d88e5524c099b807c3c8f05b686ef409a23ec9e562b2b0aa5c6"
     },
     {
       "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
@@ -900,7 +900,7 @@
     },
     {
       "path": ".ia/src/systems/compliance-system/package.json",
-      "sha256": "55aca3da0d52360de504bd73f721332e78fe454f932095f31aaa8b8e13abc303"
+      "sha256": "7c3214a56f209f539fd9243aecfbc587a92c08e65461e2a01f96ba300aa77248"
     },
     {
       "path": ".ia/src/systems/compliance-system/schemas/case.schema.ia",
@@ -940,7 +940,7 @@
     },
     {
       "path": ".ia/src/systems/governance-system/package.json",
-      "sha256": "de799e95b377f0bb80dfb285d108806a2ba72ef92dec5367912053c9bce8ab96"
+      "sha256": "1a02d09bee351cb3a006ecc34b2b25da6ffc2fc57d0dc8542dc034bf14b36f4d"
     },
     {
       "path": ".ia/src/systems/governance-system/records/canon/asking.ia",
@@ -1020,7 +1020,7 @@
     },
     {
       "path": ".ia/src/systems/hook-authoring-system/package.json",
-      "sha256": "c8e27c287a705ca389569231133462a44f15f33b9aede4f7e1a78ca636e3649a"
+      "sha256": "e8d09ec9e5da453545b4807efd52870893f44a4d3040bca732b14a447cf70382"
     },
     {
       "path": ".ia/src/systems/hook-authoring-system/schemas/hook.schema.ia",
@@ -1052,7 +1052,7 @@
     },
     {
       "path": ".ia/src/systems/learning-system/package.json",
-      "sha256": "27b84f8e11109a33a73fbdad4d05de0a48aea3a9efdc66f1518e30655da39afd"
+      "sha256": "2ce44988b8c3a4212859bfcb843065f0f50f092d10fe0701314727eed84c0c01"
     },
     {
       "path": ".ia/src/systems/learning-system/schemas/improvement.schema.ia",
@@ -1088,7 +1088,7 @@
     },
     {
       "path": ".ia/src/systems/session-system/package.json",
-      "sha256": "eb4726060a51529758e70d2db2b2097f6c46e3240455c46ab9e10c68d64d5784"
+      "sha256": "f27b6878431ba139e7c2a223aa213e795ba6eaa508951ba0d900545840861148"
     },
     {
       "path": ".ia/src/systems/session-system/schemas/run.schema.ia",
@@ -1196,7 +1196,7 @@
     },
     {
       "path": ".ia/src/systems/template-system/package.json",
-      "sha256": "d030fa371c2da465f4e30812cf9baa59313495933aafe090f2036a8d1ee10f52"
+      "sha256": "010ae70d923033cfce89451f3e50f7e8418b966e858ee29e57abe6788de3b52a"
     },
     {
       "path": ".ia/src/systems/template-system/schemas/template.schema.ia",
@@ -1264,7 +1264,7 @@
     },
     {
       "path": ".ia/src/systems/work-system/package.json",
-      "sha256": "a25f7a938f866fe1a88f139516e114d87368ce57a51d8d3cc389c503aa77eee9"
+      "sha256": "ffd5066f0f5331a52c06e5a131d43dbb684ea96bfb2489579be44ae64f4b6d57"
     },
     {
       "path": ".ia/src/systems/work-system/records/canon/compliance.ia",
@@ -1320,7 +1320,7 @@
     },
     {
       "path": ".ia/src/systems/workspace-system/package.json",
-      "sha256": "cdece4853e5970d9071b51f5e4e7afa303eb926d9e5d598063b1361ff6a4a317"
+      "sha256": "2f69da3a273e7f1b62fed0deb439842b79dc4d3ce4fa1a8b9017cf82d7833a6f"
     },
     {
       "path": ".ia/src/systems/workspace-system/schemas/distribution.schema.ia",
@@ -1344,7 +1344,7 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "9a00b1121a73e6b0b2fbc713960c73c44a9efe5e4224dbf3afab0f4a3239d821"
+      "sha256": "b5fb22649d0f44544bdae9cb242ce108e726c1539bb242320b913c9cddf99c28"
     },
     {
       "path": "CLAUDE.md",
@@ -1420,7 +1420,7 @@
     },
     {
       "path": "apps/cli/package.json",
-      "sha256": "07ba17b512aee7f28a59a1eb39d7b76bac9afe1462849ef280460f37067f812d"
+      "sha256": "7d76156772919477d8a49ed43333fdc689ade719b7e3d4cb768eeaa39e8e9435"
     },
     {
       "path": "apps/cli/src/adopt.ts",
@@ -2324,7 +2324,7 @@
     },
     {
       "path": "apps/distribution/package.json",
-      "sha256": "6d373e1ab84570146569a87d5bef55039897bfa892e8a1755fc12f14b87a04dd"
+      "sha256": "5e75858d5a246cb97b8ce43ae9f941c00d6f26b751a3b801a0419bd96738842f"
     },
     {
       "path": "apps/distribution/references/registry-collections.md",
@@ -2788,7 +2788,7 @@
     },
     {
       "path": "apps/mcp-door/package.json",
-      "sha256": "c1b13bddebc16137ef159302abac894933e6c9851c6f61766310801edfc5de3c"
+      "sha256": "b8750f57eff6896793324eb5ce263fcd561eeda641d719eb3123f7e9d0f6db71"
     },
     {
       "path": "apps/mcp-door/src/kb.ts",
@@ -2904,7 +2904,7 @@
     },
     {
       "path": "apps/runner/package.json",
-      "sha256": "b79bacb797461e54be015e613d0d3a95f44eeb613eaf3ab59a1066474f83b594"
+      "sha256": "65197d72b3ec88e5841c4daf093340da83d354f3997ea1d40491510066a89aa2"
     },
     {
       "path": "apps/runner/src/catalog.ts",
@@ -2980,7 +2980,7 @@
     },
     {
       "path": "apps/steward-hook/package.json",
-      "sha256": "50c9cd8b15038c00c26b17086aebfab74c76900365f80013206259b82ed97882"
+      "sha256": "fce31a2a6612e7662b43f1e5b24e49a6f01d4714d6246db93f02e1dd90ee13f2"
     },
     {
       "path": "apps/steward-hook/src/context.ts",
@@ -3060,7 +3060,7 @@
     },
     {
       "path": "apps/vscode/THIRD_PARTY_NOTICES.txt",
-      "sha256": "66dc737d2d345437a39b9dd66f4c5eacc62be4671cd69cdac1b06a2d043f5029"
+      "sha256": "a7a816f925287372fc9618133e1b7ede559190799809ea5c2d5cd021eabcc1c5"
     },
     {
       "path": "apps/vscode/build.mjs",
@@ -3084,7 +3084,7 @@
     },
     {
       "path": "apps/vscode/package.json",
-      "sha256": "81cdef566f830c6b57bfa5ebadb70faa0d05708653b0c06dba7e613a4e18a4ea"
+      "sha256": "b81f3d6c488115af7250e4a5a061a4e4488c9476dafdbe7f37e0842ae08b96e2"
     },
     {
       "path": "apps/vscode/src/create.ts",
@@ -5596,7 +5596,7 @@
     },
     {
       "path": "packages/compliance/package.json",
-      "sha256": "8699a6a7ee00808794f921ccdad32da2b099ed24245b1a8c1ced3eeaacb0faed"
+      "sha256": "7a93d65278552ac9cebf4a724733d1cd1178d7ebf68182c7b6c16020547079df"
     },
     {
       "path": "packages/compliance/src/adoption.ts",
@@ -5892,7 +5892,7 @@
     },
     {
       "path": "packages/db/package.json",
-      "sha256": "2bdfbefb67cf747b13d7e9b3b84f0e1ebd030d6c045ef2dfcdd296494a554710"
+      "sha256": "02e4774ec38cb4f8c559da80bce0722ff23c32931947e488cc296bd8f4c10454"
     },
     {
       "path": "packages/db/src/cache.ts",
@@ -6228,7 +6228,7 @@
     },
     {
       "path": "packages/graph/package.json",
-      "sha256": "7e8aae6ce5de451c9a7b69a1fce12a9b58d841bde259fca01e7492451069eb89"
+      "sha256": "45215b36d61ccc7055f6a6576c63ff1828ff7b9e61196016f036714eab3ca47d"
     },
     {
       "path": "packages/graph/src/claims.ts",
@@ -6368,7 +6368,7 @@
     },
     {
       "path": "packages/kb/package.json",
-      "sha256": "b02c5fdda3f74356fcbc524befb22631f02111235ba4670a3ac47e9165f6e7c1"
+      "sha256": "05adb56d47a11fc0fedaee2ffa25310b743f638b661e32c417f6a44c382d1775"
     },
     {
       "path": "packages/kb/src/edges.ts",
@@ -6496,7 +6496,7 @@
     },
     {
       "path": "packages/language/package.json",
-      "sha256": "20b4dbea7a289c4015e30d2fa21a4b64e63c2b9fa8c4955ee1be13f22dab993c"
+      "sha256": "f825cd9e61ba7116ed4e50674afcf75e6decaadf593882f116c37d547c927659"
     },
     {
       "path": "packages/language/src/ast.ts",
@@ -6888,7 +6888,7 @@
     },
     {
       "path": "packages/runtime/package.json",
-      "sha256": "4a00bb4a0d2269a605a8f8154b036f2c8771aba7a5b5e44b0e8a75f105d38b44"
+      "sha256": "459ad0ab430e01216c9408361ea46a26bcb19b499529afaab92fe2068e2e7ada"
     },
     {
       "path": "packages/runtime/src/activation.ts",
@@ -7304,7 +7304,7 @@
     },
     {
       "path": "packages/service-contracts/package.json",
-      "sha256": "db4b680865c9495745d84d727eaef2b874b2117750ffcd4b5c0f160a6edebb01"
+      "sha256": "31cb7726c6d6faa0fbf43d33e1ca0c1c272621fa13b18c8ed4043008fd9a872f"
     },
     {
       "path": "packages/service-contracts/src/index.ts",
@@ -7396,7 +7396,7 @@
     },
     {
       "path": "packages/workspace-runtime/package.json",
-      "sha256": "c77b08f7bbeb9b6c1a4d2fc6eca2373ab91bdcd17a7cd5b81932885fb3533c6f"
+      "sha256": "ccd8670cae4a66543cbc844d29d6284105517d099d390ca8644a03fa7dc6ea19"
     },
     {
       "path": "packages/workspace-runtime/src/adapters.ts",
@@ -7815,8 +7815,12 @@
       "sha256": "9d0fae020b13074205e1f5fc0ce3a39411b523cc30f4bb8f5582c1fd0792d32c"
     },
     {
+      "path": "releases/changesets/3.8.0.json",
+      "sha256": "7259ebd5f713152f73d8df522a31847971ebe8e731a6035a1e2aa7ccfe2fd388"
+    },
+    {
       "path": "releases/current.json",
-      "sha256": "e09982025bf80bd6fc90ae62835da879aae9aebe8840af5f63fac3dd2a6c7bdf"
+      "sha256": "e7456ef89e640f5f7a381e9c3aff245e8f2b06010606b5b15acce645a36a7a58"
     },
     {
       "path": "releases/native/baselines/npm-2.0.0.json",
@@ -7861,130 +7865,6 @@
     {
       "path": "releases/native/notes.json",
       "sha256": "aea324bcf6d6acc752d02cc4197b7bd5b7c0d4fbdd980638e3ecbecbd07d5413"
-    },
-    {
-      "path": "releases/pending/an-aliased-model-or-evaluator-compiles-and-execu.json",
-      "sha256": "bc39ab2591bc33ff1fbe83d100fec2a00156ae3b36a8f7c8c102b0b69f9f27b3"
-    },
-    {
-      "path": "releases/pending/batch-pnpm-installs-ignore-the-repository-pnpmfi.json",
-      "sha256": "49953553866045e06d55296734601cdea07648134528062f03c58f89a4df8429"
-    },
-    {
-      "path": "releases/pending/canon-link-scan-runs-at-its-earlier-speed.json",
-      "sha256": "a2507e0a7f990097d104fb471146e17a5dff3ea49fc56ef46eead5d22a34e79d"
-    },
-    {
-      "path": "releases/pending/console-batch-a-ctrl-c-during-commit-leaves-comm.json",
-      "sha256": "7fa18adc736040d58685b29df2c6bb63c666ba4b9d7e7513eb4451b14fe6ae60"
-    },
-    {
-      "path": "releases/pending/contract-versions-and-catalog-aliases.json",
-      "sha256": "c577c678d872815cf6d03b62f4b63224543f78e0b110b24a24b1ec9577454f3c"
-    },
-    {
-      "path": "releases/pending/cover-every-tracked-workspaces-loader-refusal.json",
-      "sha256": "d7d0324520e2e43d95f4dc30347a1b0f07904f6b505b025cbf35342bfe8d9e6d"
-    },
-    {
-      "path": "releases/pending/db-docs-and-tests-use-the-plain-rule-and-profile.json",
-      "sha256": "cebe2982365e99229d1fc461fbf5871a63f526e2bc0fdd55b6fbff25a0a4ed8f"
-    },
-    {
-      "path": "releases/pending/db-reads-both-evaluator-catalog-shapes.json",
-      "sha256": "3a800f43c23a59253344366488589b67dabf7d18879b717df93e82216f1c4e6b"
-    },
-    {
-      "path": "releases/pending/document-the-home-lock-kit-collections-and-kit-i.json",
-      "sha256": "fbe79dea30c5637e15ed8d9c9fcba50f5bb669f22b7935fe1b6f0dd1faeaefc2"
-    },
-    {
-      "path": "releases/pending/guard-a-folder-named-kit-binding-as-the-kit-serv.json",
-      "sha256": "22b6b71e90199d759e6d80a90e647568e1ae51912a725a4b822c34ddd826249f"
-    },
-    {
-      "path": "releases/pending/ia-format-checks-staleness-once-per-run.json",
-      "sha256": "b65d2dee58137c27ced3f40976830c87ad009dd5b31eda0ea8dffe8f5b802c3f"
-    },
-    {
-      "path": "releases/pending/ia-home-folders-resolve-through-one-authoritativ.json",
-      "sha256": "4aa3625584c319826850fd84298570227940aaf2d5481d264cbe4934b1283096"
-    },
-    {
-      "path": "releases/pending/ia-position-honours-rule-activation.json",
-      "sha256": "1516b4c12d6f873e57dfcf2be9a63d092da86a0735a22eebbe055afd2df53fa3"
-    },
-    {
-      "path": "releases/pending/import-the-workspace-runtime-from-its-own-packag.json",
-      "sha256": "122825337e9b6a80521112564ec5dad1cb8f6d43641610fff4847a616d095f66"
-    },
-    {
-      "path": "releases/pending/index-postings-build-in-linear-time.json",
-      "sha256": "de7691103c2dec03e63582316a3d322dc3755e20985d00a528c03ec192907543"
-    },
-    {
-      "path": "releases/pending/kb-pack-reads-a-commit-in-batches.json",
-      "sha256": "cd0178fae10abe7250ab2d0ba135c8fcb13eef4f09180dfe4c39b1c56c2e7a70"
-    },
-    {
-      "path": "releases/pending/kb-pack-refuses-a-native-file-whose-git-path-is.json",
-      "sha256": "a84effd7356c2c08dee60305a43a0f9dc4a3d3f1d6b95d3bd06e83080fb43c06"
-    },
-    {
-      "path": "releases/pending/language-base-compat.json",
-      "sha256": "a035f64453993dd6baa90dc8c594b21c31ade74f8092a18bccafa76550e240ed"
-    },
-    {
-      "path": "releases/pending/language-compat-forms-cardinality.json",
-      "sha256": "e049232c1b5d075a3c4aa7be2875e8bba8992f3ce99c6dc53c4033ac65a9054b"
-    },
-    {
-      "path": "releases/pending/name-a-host-admitted-agent-on-session-start.json",
-      "sha256": "34ff83d0f5ae59a87770d0761f42bd52288e245617fca3aa99b0827bc415beb9"
-    },
-    {
-      "path": "releases/pending/path-identity-samefile-and-tracked-roots-handle.json",
-      "sha256": "8c59ef4718223b5420fa0b80f805e2e9fa59a6bedd47c44f2770da33fbf7a411"
-    },
-    {
-      "path": "releases/pending/pin-the-console-s-batch-wiring.json",
-      "sha256": "187313714f3159cef0528ed186f7203b5e4096b7e4fe9200ebfe7b3e2e7e6583"
-    },
-    {
-      "path": "releases/pending/plain-catalog-names-for-the-shipped-contracts.json",
-      "sha256": "9d2444ce014f744d6fbd6ba7ea35cbb669ab51788f731609edf7d2cfdb84ec6c"
-    },
-    {
-      "path": "releases/pending/plain-names-for-review-rules-evaluators-and-prof.json",
-      "sha256": "b17f117992aba9f6e88789d239782d81fa02763697ab85a4bbbd7c5e73e663b3"
-    },
-    {
-      "path": "releases/pending/plain-profile-names-in-test-fixtures.json",
-      "sha256": "4c43a94554d8d48e0629cbf11cb73e8527296151aa0112e0f33106274e4cf60a"
-    },
-    {
-      "path": "releases/pending/publication-qualification-retries-a-timed-out-fi.json",
-      "sha256": "d9c837ec69940d2bca73d662294a3251103de80a19702059d8329c4d49baad2b"
-    },
-    {
-      "path": "releases/pending/regenerated-vocabulary-assets.json",
-      "sha256": "5c0c38babaa5b10beb1d231177dac475980575c7cb25c4e07c1b325256a407cc"
-    },
-    {
-      "path": "releases/pending/term-dumb-and-ia-no-console-keep-bare-ia-out-of.json",
-      "sha256": "23593cef5d870768ffdbfa2a5b56c110834259ac19b1ed7d35b491c3949c73d1"
-    },
-    {
-      "path": "releases/pending/the-kit-not-installed-remedy-names-the-package-r.json",
-      "sha256": "0c5e6732e8d4c1f92be206ec69d7ab1d97dd85bf57b33c9dc7c3691b7329e2fd"
-    },
-    {
-      "path": "releases/pending/the-source-walk-vets-each-folder-once-and-checks.json",
-      "sha256": "1bda3ee93bbb97db6316be264be7655fcf1a0db7a1958caf53b394b166117c25"
-    },
-    {
-      "path": "releases/pending/versioned-codecs-for-evaluator-catalogs.json",
-      "sha256": "52d6a37e77a7e69a4a556e98597f94e5622de7cfd4408ee18a86dc59298612eb"
     },
     {
       "path": "tools/compliance/SPEC.md",
@@ -8332,7 +8212,7 @@
     },
     {
       "path": "tools/distribution/system-package-policy.json",
-      "sha256": "8cfb2b8d6c2bcbaf1346eeb639fef79adcb8528b39f99b85ace06895bd8ff070"
+      "sha256": "28902affac9a99bfa1bbc8e94ae0539e027c211372aebcb9badefe5aa2625d7a"
     },
     {
       "path": "tools/docs/MARKDOWN.md",
@@ -9199,5 +9079,5 @@
       "sha256": "b7a2070d0de01d78a2f8dbd4e8c646740a4b9f68810cfda96aafe69ffc7a47f4"
     }
   ],
-  "inputDigest": "d773ab29a9d8941a4628eb02d7325a588bb23f194fcc73d5d61bd2dc66ae2975"
+  "inputDigest": "ea73c135a8efebc27811c34470c2fcaa24f6238c034be251bee96203991f296c"
 }
