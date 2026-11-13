@@ -85,6 +85,9 @@ export const nativeStartRequest = z.strictObject({
   captureId: digest,
   task: boundedText,
   entry: z.enum(['author', 'architect', 'system-architect']).optional(),
+  // A host-admitted agent beyond the built-in entries, named by its admitted entry binding. Exclusive with `entry`;
+  // the host refuses a request naming both, or an agent it has not admitted for the workspace.
+  agent: id.optional(),
 });
 export const sessionAdvanceRequest = z.strictObject({
   sessionId: id,

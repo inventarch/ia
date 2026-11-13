@@ -2,8 +2,8 @@
   "format": "ia.public-package-inputs.v2",
   "source": {
     "repository": "https://github.com/inventarch/ia",
-    "commit": "d1f24a443937381d21aa845b9363ffebe59212e2",
-    "tree": "5af1f5891e26511944dd83b7c29330a163469acf",
+    "commit": "9de6bdcf1385e650c5cbda6f27920f782b5cabec",
+    "tree": "1a9023a16325edb4e7d47e22843f920f698cc9c5",
     "dirty": true
   },
   "membership": {
@@ -136,7 +136,7 @@
     },
     {
       "path": ".ia/authoring.resources.json",
-      "sha256": "586a901332fbe2965d0baad31395fc67103233a7418fd3d302ae5fe72649bd27"
+      "sha256": "dbffdd93cd9cdc3a8aa36f54bd4a83e054773365d4d8384d13d63cd21ee3df5f"
     },
     {
       "path": ".ia/src/floor/README.md",
@@ -300,11 +300,11 @@
     },
     {
       "path": ".ia/src/systems/agent-composition-system/README.md",
-      "sha256": "86732a2ebd2be9552106f01dc69b17b963923c4889aa4c6a238b7b7a1094082a"
+      "sha256": "64da36ba677616d0e59a087982ddb451c865a5cd39401afd993405115c4b1a99"
     },
     {
       "path": ".ia/src/systems/agent-composition-system/SPEC.md",
-      "sha256": "b7a13439e58a81fd4000d9326f3fbcb99234bc056412c724d5cdf0ffe9bd83d5"
+      "sha256": "3ade344bb8087f5ea08dafa1a678f316a91ec6bc183edc46a6bd193f58f8983d"
     },
     {
       "path": ".ia/src/systems/agent-composition-system/cases/read-captured-source.ia",
@@ -324,7 +324,7 @@
     },
     {
       "path": ".ia/src/systems/agent-composition-system/package.json",
-      "sha256": "fe58af0d7bca11538d9c36af7315ef45828d8b740765f7bde04f85a702216d8b"
+      "sha256": "6cb74b3915c22c3e21e41eabd296d258fb1735efcebc993f8b3b08c8000d35dc"
     },
     {
       "path": ".ia/src/systems/agent-composition-system/records/read-captured-source-binding.ia",
@@ -371,6 +371,34 @@
       "sha256": "9029ee0b99a0e118529aaf6c8ecca6fa98cbdaddd07cb635a74ac4c8c6080c15"
     },
     {
+      "path": ".ia/src/systems/agent-composition-system/src/adapters.ts",
+      "sha256": "82e26ba71036400281c38c45d08f03c8c1a35d46d45ddc02c11c9441e39e4fed"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/authoring-format.ts",
+      "sha256": "9c5c5333f53156999c749609eb9b43e14848c538805ef253c25b7cb70887e127"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/authoring-index.ts",
+      "sha256": "2af5dafce3f8ea4d1a890b18d6ca9ac47c1a2aacc88af0bf1e884ee3dc3d8a7c"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/authoring-manifest.ts",
+      "sha256": "8949f5616d65d3e4fb1b1c9593e581384db79ccbd16ee29d8a6ed7048ec12717"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/authoring-types.ts",
+      "sha256": "b0154910b86fd5b06f66bf88017e17d1ab51a05b242a089ea55a1d6de077a161"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/authoring.ts",
+      "sha256": "d8828fd88f4c748478172bdd4d96529146caccf1b78826d19fef7f484586e5e9"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/candidate.ts",
+      "sha256": "1b18efb544850a8a1945bcb907a34091d6b327458ddc1221072eeab2d7d0515a"
+    },
+    {
       "path": ".ia/src/systems/agent-composition-system/src/catalog.ts",
       "sha256": "2a1c645ee964b0ae0719c4f3b27a7f64c3519fe15a569c5adf47fb2263ad97ba"
     },
@@ -383,6 +411,10 @@
       "sha256": "33e92bb46de3a86a07f7a12c2c23992c5d0ccf7645ee84c9ae724840fcd94d9e"
     },
     {
+      "path": ".ia/src/systems/agent-composition-system/src/corpus.ts",
+      "sha256": "79989f705644df27cdad4393d716394f858eebe869655a3b832a1cc7bedffd5e"
+    },
+    {
       "path": ".ia/src/systems/agent-composition-system/src/execution.ts",
       "sha256": "168ec628cef5c22b85786218c139cbb07a20496adcdc1c540a165ec19567f4df"
     },
@@ -392,7 +424,7 @@
     },
     {
       "path": ".ia/src/systems/agent-composition-system/src/index.ts",
-      "sha256": "a42609226ae2f94818bb8924617f4a58a66dcae8d5c229b8d4d03a1f8a34e32d"
+      "sha256": "289932bc308fb970234b95c2de43765bc5ccf49bbcb35dccbd38dfa607405db9"
     },
     {
       "path": ".ia/src/systems/agent-composition-system/src/inputs.ts",
@@ -407,6 +439,82 @@
       "sha256": "7eb159b9917552b3d23f4d9f47eb3c1a6c77f688428dd57a24f775a8b9bb5bd3"
     },
     {
+      "path": ".ia/src/systems/agent-composition-system/src/installed-source-policy.ts",
+      "sha256": "d40ad7df0561e34e141dce7be36138c9784774138def1f648c440d0646035026"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/lifecycle-profile.ts",
+      "sha256": "d38c017b37623c050a47d38d7f37f5174c913871b3e6a1401073bd4148f17e22"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/lifecycle-rows.ts",
+      "sha256": "c3bdeddeb7b2e3c5bc6cd3029141f8e2d65218f553c57d03c10fb770e7f6c9bb"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/lifecycle-transport.ts",
+      "sha256": "d923d5c2fc6cae016d9c233d9b40d489d75814321cacf3c921593f5a1478d92a"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/lifecycle.ts",
+      "sha256": "db8c8731633aff909f641a15ed28f5075208097d23ab1e02b8cc416adb1d114a"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/local-store.ts",
+      "sha256": "38c6e97713aa372178e58a9c864d35940a3a396a1a8bfb75eb70caccafa458bc"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/projection-codex.ts",
+      "sha256": "f0717c8f467bbc39ed94bb94f614cee5dc2073fbbc2e0db848e1b251268dda26"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/projection-format.ts",
+      "sha256": "6b43e6be9001c2935191d5907abfba8ea728b3d16e116daafa14934cf474c0af"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/projection-host.ts",
+      "sha256": "6683fe9c41a88e1a964586b4b790c3bf384d36addd94bba85cb1493377ba1a06"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/projection-routine.ts",
+      "sha256": "90e46a6f1f327138f68f81a6289f4d08d6c9a21c58bc983720b6b633fe920c7c"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/projections.ts",
+      "sha256": "0d375c1945d1405caa26ac81e2c29ae8a03d2a1fea77fdd2bac2a7ff470d5bde"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/publication.ts",
+      "sha256": "12716946bee99854396ae37cef7572b024406b9056a2e288e5bfacfea4c0ee3b"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/resource-context.ts",
+      "sha256": "f8c5e8a7476b26d8abb459a7d1011e441d7577354466791efb380fb8de5c49ad"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/resource-files.ts",
+      "sha256": "31a88e7587459e1742284e507477a845ad36b98180d28c167b8e0ebe620a10d2"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/resource-format.ts",
+      "sha256": "b021c11944b33dc342db15bc87d102e369625745b37fde5779f76533651fa232"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/resource-sources.ts",
+      "sha256": "739b609e032e78b72cf2583c9a5fd4472c3371b54a9ef9f77c0856251b1dc29e"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/resources.ts",
+      "sha256": "0900964c9f7a99dbdcffc116b5b74b7de3010705b1b006a5e909f66748f38157"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/sources.ts",
+      "sha256": "6852484973e8f5c8c2615e08754cda9f4d57d17874c972db1c4702d18017b32e"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/task-capture-format.ts",
+      "sha256": "972d64075584badddedc727ab3c35fa3b9a67772868002f9322a9a4181486fce"
+    },
+    {
       "path": ".ia/src/systems/agent-composition-system/src/task-capture.ts",
       "sha256": "4e1de0566dc9162003c4e8dc677c9eec823e08ce8742360845d479d081e382a2"
     },
@@ -419,6 +527,10 @@
       "sha256": "e6b07c4afe44445d1a90795e4fc21c8cf38fcc4f368d8ceb333f6a2ddd3afe02"
     },
     {
+      "path": ".ia/src/systems/agent-composition-system/src/templates.ts",
+      "sha256": "e088f6fbc6d95036812148161f4c6707b30f5bf43f151c63f63d51f85379361f"
+    },
+    {
       "path": ".ia/src/systems/agent-composition-system/src/tools.ts",
       "sha256": "c105bf0fca14e7f20dc88c73f1d3347574545b6c9c01ec8e7f04101d940170a8"
     },
@@ -428,15 +540,15 @@
     },
     {
       "path": ".ia/src/systems/agent-composition-system/tests/compatibility.test.ts",
-      "sha256": "d4824702650bba5e550603ce8364e54c3170a4b8f799273aabd9e71ba8dc4f29"
+      "sha256": "fb304094df009f3f6233734755d0289c30add1396e7054c9b6149ee09d60d584"
     },
     {
       "path": ".ia/src/systems/agent-composition-system/tests/compile.test.ts",
-      "sha256": "be91f46168fd3c613e11167a2d2ef3d4b9a80c7b5a0bb305d5495514ad685b03"
+      "sha256": "6d43a4c97b3da069c805caa874bd1855b948ae007fd3c76ac32b5a6e32685531"
     },
     {
       "path": ".ia/src/systems/agent-composition-system/tests/compiler-fixture.ts",
-      "sha256": "612e783474b1647b6ccb4f90fc2a93bb1e8f311a7b357f1a16869ada5d111358"
+      "sha256": "d70799c2e595c60c9eafda144f25b959dce53962ecd373f0ddb8385bc0e8a513"
     },
     {
       "path": ".ia/src/systems/agent-composition-system/tests/contract-version.test.ts",
@@ -452,7 +564,7 @@
     },
     {
       "path": ".ia/src/systems/agent-composition-system/tests/execution.test.ts",
-      "sha256": "e6bd1e3db097f6e2c3e1da7e354de2eae88829786725e07be4fb6264ebf7e844"
+      "sha256": "ddbd3137c279c536fc390d0102a0638f996c4044aab972fa3567d36f3240a396"
     },
     {
       "path": ".ia/src/systems/agent-composition-system/tests/installed-catalog.test.ts",
@@ -460,15 +572,15 @@
     },
     {
       "path": ".ia/src/systems/agent-composition-system/tests/installed-read-fixture.d.mts",
-      "sha256": "c793a9271b028e34f6f3e6426921b80aaa7f32f486f2f68de980c16790192307"
+      "sha256": "3f1a9f3632e47837077102221f3e6f9d2635eea3a8171c5eac8bae00051294c8"
     },
     {
       "path": ".ia/src/systems/agent-composition-system/tests/installed-read-fixture.mjs",
-      "sha256": "8ad1edcac489c2610b15c2a5eefa5ac5d60ed2c7b1f6997e1f694c42cc0a472b"
+      "sha256": "6e94b5355398c77a42a959e5bf9f36dbb4dbb496923545d3dea1578ae8b23aba"
     },
     {
       "path": ".ia/src/systems/agent-composition-system/tests/installed-read.test.ts",
-      "sha256": "36d974411527f677f7c8fd0cf66c02abdecc4d7d7bac257cb48580c881645c3c"
+      "sha256": "1afec84bb45d19c10b385c0f6675af490d2b4fc7b65fe536869346c3f7b3f6f4"
     },
     {
       "path": ".ia/src/systems/agent-composition-system/tests/sdk-runtime/native/read.ia.fixture",
@@ -488,7 +600,7 @@
     },
     {
       "path": ".ia/src/systems/agent-composition-system/tests/sdk-runtime/recipe.mjs",
-      "sha256": "7b66879357b250cc60ecc9269ed0218cf0fb45fadaf99a19d8c7af7e8caf54e3"
+      "sha256": "0da4146876738cabc76d7554d6ee5618a130d5304b7980a0343bd714dbc3401e"
     },
     {
       "path": ".ia/src/systems/agent-composition-system/tests/spec-read-boundary-fixture.d.mts",
@@ -496,7 +608,7 @@
     },
     {
       "path": ".ia/src/systems/agent-composition-system/tests/spec-read-boundary-fixture.mjs",
-      "sha256": "50340f7af7349c0729fb8847be1e5c05c14e79a2c5ec60d01a28335fb39956ee"
+      "sha256": "d37d2e961b307c10a12015abf26898ba8256e6aaaa1326eb2da8d3961df738fd"
     },
     {
       "path": ".ia/src/systems/agent-composition-system/tests/spec-read-boundary.test.ts",
@@ -508,7 +620,7 @@
     },
     {
       "path": ".ia/src/systems/agent-composition-system/tests/tools.test.ts",
-      "sha256": "bb18d929851dda05eef4e14995648924d6da90375e38c079b841c0027e9a9bfc"
+      "sha256": "db21f19f9e8239ab000bf3edc92c553ddcb04fdc9f4ec2668475e99642b20e27"
     },
     {
       "path": ".ia/src/systems/agent-composition-system/tsconfig.json",
@@ -7300,7 +7412,7 @@
     },
     {
       "path": "packages/service-contracts/SPEC.md",
-      "sha256": "4d930454b8bf00cde7a96a13a92dae563c7e1fd74ab1a5ca05a0621d19ac4da2"
+      "sha256": "739d961bb6fdd2e064c648952c0b6d7fb92799f208ea981d785e73e0070c52dd"
     },
     {
       "path": "packages/service-contracts/package.json",
@@ -7308,7 +7420,7 @@
     },
     {
       "path": "packages/service-contracts/src/index.ts",
-      "sha256": "561d14fa2bd1b18dd3617455cc329f1d189e86c42dd65e97c8def1e5fa58ea39"
+      "sha256": "9476913471b99fd637537034b22880609a118f0ec57c294d3b5ab76beadb80c1"
     },
     {
       "path": "packages/service-contracts/src/installation.ts",
@@ -7320,7 +7432,7 @@
     },
     {
       "path": "packages/service-contracts/src/session-lifecycle.ts",
-      "sha256": "c654457ee8bd51615fe760f02933297addbcf09af2e6686baece37f24f66b2a1"
+      "sha256": "ae3922cab3ebaba6111b020f0f03219d22ed756edbc61db8da6c7fd99a647a1c"
     },
     {
       "path": "packages/service-contracts/src/source-apply.ts",
@@ -7336,7 +7448,7 @@
     },
     {
       "path": "packages/service-contracts/tests/contracts.test.ts",
-      "sha256": "0b4f1068186efe40b8bd24311f1581165f71f649a4821115ae1d842dc5692e07"
+      "sha256": "bf540e322f0f88ee17334426222d949190bf858619d6fcd6cbccd9b2e781df3e"
     },
     {
       "path": "packages/service-contracts/tests/installation.test.ts",
@@ -7348,7 +7460,7 @@
     },
     {
       "path": "packages/service-contracts/tests/session-lifecycle.test.ts",
-      "sha256": "3bc3d9514502d5ad33db2af5436352383642430ab60007beae9f857b6278356f"
+      "sha256": "622d515c96359d9a43447db5b5b576d7378e97f98df3058042dc45c68e8d8a73"
     },
     {
       "path": "packages/service-contracts/tests/source-apply.test.ts",
@@ -7848,7 +7960,7 @@
     },
     {
       "path": "releases/native/current.json",
-      "sha256": "5aaea931907fab1b5d76b4dc31d95af046b3697babace76acc7e8da76eba4a34"
+      "sha256": "2d745af7c588e545b704ce20beb7399794a547a45a484dcd689f859159db815e"
     },
     {
       "path": "releases/native/language-bases.json",
@@ -7860,7 +7972,7 @@
     },
     {
       "path": "releases/native/notes.json",
-      "sha256": "aea324bcf6d6acc752d02cc4197b7bd5b7c0d4fbdd980638e3ecbecbd07d5413"
+      "sha256": "c0f023bf4deb9ce96629b12d790155171d801d55b1aecd2c7d6a2a3adaebbec2"
     },
     {
       "path": "releases/pending/an-aliased-model-or-evaluator-compiles-and-execu.json",
@@ -7911,10 +8023,6 @@
       "sha256": "1516b4c12d6f873e57dfcf2be9a63d092da86a0735a22eebbe055afd2df53fa3"
     },
     {
-      "path": "releases/pending/import-the-workspace-runtime-from-its-own-packag.json",
-      "sha256": "122825337e9b6a80521112564ec5dad1cb8f6d43641610fff4847a616d095f66"
-    },
-    {
       "path": "releases/pending/index-postings-build-in-linear-time.json",
       "sha256": "de7691103c2dec03e63582316a3d322dc3755e20985d00a528c03ec192907543"
     },
@@ -7933,6 +8041,10 @@
     {
       "path": "releases/pending/language-compat-forms-cardinality.json",
       "sha256": "e049232c1b5d075a3c4aa7be2875e8bba8992f3ce99c6dc53c4033ac65a9054b"
+    },
+    {
+      "path": "releases/pending/name-a-host-admitted-agent-on-session-start.json",
+      "sha256": "34ff83d0f5ae59a87770d0761f42bd52288e245617fca3aa99b0827bc415beb9"
     },
     {
       "path": "releases/pending/path-identity-samefile-and-tracked-roots-handle.json",
@@ -9191,5 +9303,5 @@
       "sha256": "b7a2070d0de01d78a2f8dbd4e8c646740a4b9f68810cfda96aafe69ffc7a47f4"
     }
   ],
-  "inputDigest": "817795ca51753c723d12aa9a053b250efc926fe1aeb9b8f7e7c2d4ba79104bb8"
+  "inputDigest": "c91d0fff09b95de90815d63bbf1b18d6765f528cc3e175c3f5cb5f3176139ae6"
 }

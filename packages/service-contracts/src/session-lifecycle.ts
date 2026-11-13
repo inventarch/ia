@@ -47,6 +47,7 @@ export const sessionContinueRequest = z
     expectedSequence: sequence,
     task: nativeStartRequest.shape.task,
     entry: nativeStartRequest.shape.entry,
+    agent: nativeStartRequest.shape.agent,
   })
   .refine((value) => value.sessionId !== value.id, 'Continuation requires a new session identity');
 export type SessionListRequest = z.infer<typeof sessionListRequest>;
