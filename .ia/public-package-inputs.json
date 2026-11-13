@@ -2,8 +2,8 @@
   "format": "ia.public-package-inputs.v2",
   "source": {
     "repository": "https://github.com/inventarch/ia",
-    "commit": "7c68bd99062e44f8b2de0a3a923b4dcae2ecf328",
-    "tree": "f033b110966c129af0922bcf22de645ca98933be",
+    "commit": "d1f24a443937381d21aa845b9363ffebe59212e2",
+    "tree": "5af1f5891e26511944dd83b7c29330a163469acf",
     "dirty": true
   },
   "membership": {
@@ -7848,7 +7848,7 @@
     },
     {
       "path": "releases/native/current.json",
-      "sha256": "2d745af7c588e545b704ce20beb7399794a547a45a484dcd689f859159db815e"
+      "sha256": "5aaea931907fab1b5d76b4dc31d95af046b3697babace76acc7e8da76eba4a34"
     },
     {
       "path": "releases/native/language-bases.json",
@@ -7912,7 +7912,7 @@
     },
     {
       "path": "releases/pending/import-the-workspace-runtime-from-its-own-packag.json",
-      "sha256": "b4269ff5b2fd9a497b17eb23d8b7f9f0aa1db59384e48be1bd1da08fdcaf9a36"
+      "sha256": "122825337e9b6a80521112564ec5dad1cb8f6d43641610fff4847a616d095f66"
     },
     {
       "path": "releases/pending/index-postings-build-in-linear-time.json",
@@ -9191,5 +9191,5 @@
       "sha256": "b7a2070d0de01d78a2f8dbd4e8c646740a4b9f68810cfda96aafe69ffc7a47f4"
     }
   ],
-  "inputDigest": "742a0820f5e7f9240353f7b8acf615d602b66fd3802a5663a197da7708f7b10d"
+  "inputDigest": "817795ca51753c723d12aa9a053b250efc926fe1aeb9b8f7e7c2d4ba79104bb8"
 }

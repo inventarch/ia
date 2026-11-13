@@ -4,13 +4,13 @@
     "tag": "v3.7.0",
     "commit": "ae43a8e496a2db5ecf05c4439c094f1fba6a8a73"
   },
-  "notesSha256": "c0f023bf4deb9ce96629b12d790155171d801d55b1aecd2c7d6a2a3adaebbec2",
+  "notesSha256": "aea324bcf6d6acc752d02cc4197b7bd5b7c0d4fbdd980638e3ecbecbd07d5413",
   "archives": [
     {
       "id": "inventarch/agent-composition-system",
       "version": "3.2.0",
-      "archive": "23694b7b634ddf8b0903300613368f59297d55d4824854f3dc6dd39f3806d06b",
-      "manifest": "cb1caf15b1049a4342e7059a30b7a10f8fa9b3c38fb0cd512a5580db22a0f0ce",
+      "archive": "0c96b2473f0486c8080ee18cc20de09e4813eec5c06478e1f07f26b11279acd9",
+      "manifest": "dccdde35d64f1699920bf2ca819041b0cbfedec1983708a8f7b82b4dbed3b879",
       "dependencies": [
         "inventarch/agent-system",
         "inventarch/authoring-system",
