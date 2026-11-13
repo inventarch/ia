@@ -19,13 +19,16 @@ import { MethodError } from './errors.js';
 import { findKit, folderKits, homeFolder, iaHome } from './kits.js';
 import type { Kit } from './kits.js';
 import { canonical } from './packet.js';
+import { currentStamp, peekStamp } from '../plain-format.js';
 
 /**
  * Retained method bytes: an exact copy of a kit and of its carrier's scripts and support files, stored by the digest of
  * its manifest under the closure store, so a pin keeps reading the bytes it resolved. The layout is the `ia` plugin's:
  * `config/kits/<folder>/...`, `scripts/...`, `.claude-plugin/plugin.json` and `config/qualified-process-tools.json`.
  */
-const FORMAT = 'inventarch.method-bytes/1';
+/** A retained manifest names its format plainly beside `formatVersion` 1; ones retained earlier carry the original literal. */
+const FORMAT = 'method-bytes';
+const LEGACY_FORMATS = ['inventarch.method-bytes/1'] as const;
 const SUPPORT = ['.claude-plugin/plugin.json', 'config/qualified-process-tools.json'] as const;
 const sha = (bytes: string | Buffer): string => createHash('sha256').update(bytes).digest('hex');
 const fail = (message: string): never => {
@@ -122,7 +125,8 @@ function supportFiles(carrier: string): Loaded[] {
   });
 }
 function verify(root: string, manifest: { format?: unknown; files?: unknown }, digest: string): void {
-  if (manifest.format !== FORMAT || sha(canonical(manifest)) !== digest)
+  // The digest names the manifest as it was retained, so a legacy manifest verifies under its own literal.
+  if (peekStamp(manifest, FORMAT, LEGACY_FORMATS) === undefined || sha(canonical(manifest)) !== digest)
     fail('retained method manifest digest mismatch');
   if (canonical(inventory(join(root, 'payload'))) !== canonical(manifest.files))
     fail('retained method bytes differ from their content digest');
@@ -168,7 +172,7 @@ export function retainKit(kit: Kit, store: string = closureStore()): Kit {
   if (source.length > 10000 || source.reduce((sum, entry) => sum + entry.bytes, 0) > 128 * 1024 * 1024)
     fail('retained method resource limit exceeded');
   const manifest = {
-    format: FORMAT,
+    ...currentStamp(FORMAT),
     kit: kit.id,
     files: source.map(({ path, sha256, bytes }) => ({ path, sha256, bytes })),
   };

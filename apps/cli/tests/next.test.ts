@@ -109,7 +109,8 @@ it('prints the view the Door returns as one --json value, from any seat of the p
   if (!served.ok) throw new Error(served.message);
   expect(JSON.stringify(machine)).toBe(JSON.stringify({ version: 1, ok: true, view: served.result }));
   expect(machine.view).toMatchObject({
-    format: 'ia.delivery-view.v1',
+    format: 'delivery-view',
+    formatVersion: 1,
     plan: PLAN,
     next: `ia position --seat ${task('guide')} --shape sequence`,
     summary: `2 of 5 tasks have exit evidence; next: ${task('guide')}, with no declared blocker`,

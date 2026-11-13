@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { id, inputInvalid, invalid, object, unicode } from './contract.js';
+import { peekStamp, stampKeys } from './plain-format.js';
 
 export const TEMPLATE_LIMITS = Object.freeze({
   inputBytes: 65536,
@@ -29,7 +30,8 @@ export type TemplateNode =
       readonly children: readonly TemplateNode[];
     };
 export interface StructuredTemplate {
-  readonly format: 'ia.structured-template.v1';
+  readonly format: 'structured-template' | 'ia.structured-template.v1';
+  readonly formatVersion?: 1;
   readonly inputs: Readonly<Record<string, InputSchema>>;
   readonly nodes: readonly TemplateNode[];
 }
@@ -46,8 +48,9 @@ function scalar(value: unknown): ScalarSchema {
   return { type: row['type'] as ScalarSchema['type'], required: row['required'] };
 }
 export function verifyStructuredTemplate(value: unknown): StructuredTemplate {
-  const row = object(value, ['format', 'inputs', 'nodes']);
-  if (row['format'] !== 'ia.structured-template.v1') invalid('Unknown structured template format');
+  const stamp = peekStamp(value, 'structured-template', ['ia.structured-template.v1']);
+  const row = object(value, [...stampKeys(stamp), 'inputs', 'nodes']);
+  if (stamp === undefined) invalid('Unknown structured template format');
   const declarations = Object.entries(object(row['inputs']));
   if (declarations.length > 64) invalid('Template input declaration ceiling exceeded');
   const inputs = Object.fromEntries(
@@ -150,7 +153,7 @@ export function verifyStructuredTemplate(value: unknown): StructuredTemplate {
       invalid('Unused declared item field');
   }
   // Bounds also cap metadata/text outside the input payload; no huge inert tree.
-  const result: StructuredTemplate = { format: 'ia.structured-template.v1', inputs, nodes: tree };
+  const result: StructuredTemplate = { ...stamp, inputs, nodes: tree };
   if (Buffer.byteLength(JSON.stringify(result)) > TEMPLATE_LIMITS.outputBytes) invalid('Template tree exceeds 1 MiB');
   return result;
 }

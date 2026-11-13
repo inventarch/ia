@@ -54,4 +54,23 @@ describe('legacy wire contract', () => {
     expect(verifyPortable(sealed(0)).files).toHaveLength(9);
     expect(() => verifyPortable(sealed(1))).toThrow('Portable byte limit exceeded');
   });
+  it('reads the plain kb-portable stamp beside the original literal, and refuses another', () => {
+    const { format: _format, ...rest } = envelope,
+      sealed = (stamp: object) => {
+        const content = { ...stamp, ...rest };
+        return { ...content, digest: hash(stableSerialize(content)) };
+      };
+    const plain = sealed({ format: 'kb-portable', formatVersion: 1 });
+    expect(verifyPortable(plain)).toEqual(plain);
+    // The original literal keeps its independently pinned digest, which the plain stamp does not share.
+    expect(verifyPortable(portable).digest).toBe('e50a076dfc4e12ab4d52438eef5caf06cad35ce614b84caec71f64a8e919822d');
+    expect(plain.digest).not.toBe(portable.digest);
+    for (const stamp of [
+      { format: 'kb-portable' },
+      { format: 'kb-portable', formatVersion: 2 },
+      { format: 'iakb.portable.v1', formatVersion: 1 },
+      { format: 'iakb.portable.v2' },
+    ])
+      expect(() => verifyPortable(sealed(stamp))).toThrow(/Invalid portable format|envelope/);
+  });
 });

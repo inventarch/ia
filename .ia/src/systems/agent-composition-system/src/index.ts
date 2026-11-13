@@ -4,7 +4,8 @@ export { captureWorkspace, adoptWorkspace, verifyCapture, Corpus } from '@invent
 /** @deprecated Import from @inventarch/workspace-runtime. */
 export type { Capture } from '@inventarch/workspace-runtime';
 export { compileHarness } from './compile.js';
-export { executionManifest, compiledAliases } from './execution.js';
+export type { CompiledStamp } from './compile.js';
+export { executionManifest, compiledAliases, compiledStamp } from './execution.js';
 /** @deprecated Import from @inventarch/workspace-runtime. */
 export { candidateValidation } from '@inventarch/workspace-runtime';
 /** @deprecated Import from @inventarch/workspace-runtime. */

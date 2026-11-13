@@ -16,6 +16,10 @@ import type {
   CapturedDocument,
 } from './authoring-types.js';
 import { decodeAuthoring, indexBody, invalidAuthoring } from './authoring-format.js';
+import { currentStamp, peekStamp } from './plain-format.js';
+import type { Stamp } from './plain-format.js';
+
+type IndexStamp = Stamp<'authoring-index', 'ia.authoring-index.v1'>;
 
 export function authoringContext(native: Capture, resourceInput: unknown) {
   const capture = verifyCapture(native),
@@ -133,7 +137,11 @@ function validateBase(context: AuthoringContext, base: ResourceOccurrence, syste
     invalidAuthoring('System base occurrence is stale');
   selectedKey(context, base);
 }
-function derive(context: AuthoringContext, input: AuthoringIndexInput): CapturedAuthoringIndex {
+function derive(
+  context: AuthoringContext,
+  input: AuthoringIndexInput,
+  stamp: IndexStamp = currentStamp('authoring-index'),
+): CapturedAuthoringIndex {
   const registry = context.reader.inspect().graph.registry;
   for (const association of input.systems) {
     const node = nativePart(context, association.system).node,
@@ -231,7 +239,7 @@ function derive(context: AuthoringContext, input: AuthoringIndexInput): Captured
     for (const stage of stages) visit(stage);
   }
   const body = {
-    format: 'ia.authoring-index.v1' as const,
+    ...stamp,
     nativeCaptureRevision: context.capture.revision,
     resourceDigest: context.resources.digest,
     systems: ordered(input.systems, (s) => `${occurrenceOf(s.system)}:${metadataDigest(s)}`),
@@ -242,15 +250,17 @@ function derive(context: AuthoringContext, input: AuthoringIndexInput): Captured
   };
   return frozen({ ...body, digest: metadataDigest(body) });
 }
+/** `stamp` is the format an already retained index carries, so verification re-derives it under its own literal. */
 export function createAuthoringIndex(
   capture: Capture,
   resources: CapturedResources,
   input: unknown,
+  stamp?: IndexStamp,
 ): CapturedAuthoringIndex {
   const checked = decodeAuthoring(input, false),
     context = authoringContext(capture, resources);
   try {
-    const result = derive(context, checked);
+    const result = derive(context, checked, stamp);
     return decodeAndFreeze(result);
   } finally {
     context.reader.close();
@@ -278,7 +288,12 @@ export function verifyAuthoringIndex(
     documents: index.documents.map((d) => ({ ...d, members: d.members.map(({ revision: _revision, ...m }) => m) })),
     lifecycles: index.lifecycles,
   };
-  const expected = createAuthoringIndex(capture, resources, input);
+  const expected = createAuthoringIndex(
+    capture,
+    resources,
+    input,
+    peekStamp(index, 'authoring-index', ['ia.authoring-index.v1']),
+  );
   if (expected.digest !== index.digest) invalidAuthoring('Retained authoring artifact or membership proof differs');
   return expected;
 }

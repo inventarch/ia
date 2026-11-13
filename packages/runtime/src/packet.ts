@@ -29,6 +29,7 @@ import { position } from './position.js';
 import type { HostNote } from './position.js';
 import { statedText, valueText } from './render.js';
 import { freeze } from './types.js';
+import { currentStamp } from './plain-format.js';
 
 /**
  * The position packet (SPEC R19). One host-neutral packet a host adapter renders: body(K0)'s digest, the seat, the
@@ -143,7 +144,9 @@ export interface PacketProvenance {
   readonly slug?: string;
 }
 export interface PositionPacket {
-  readonly format: 'ia.position-packet.v1';
+  /** `position-packet` at `formatVersion` 1; a packet digested before formats stopped carrying a version keeps its literal. */
+  readonly format: 'position-packet' | 'ia.position-packet.v1';
+  readonly formatVersion?: 1;
   /**
    * The authored revision of the view the scope reads, body(K0)'s (db `Snapshot.authoredRevision`), which no
    * runtime-band source moves.
@@ -376,7 +379,7 @@ export function renderPacket(handle: ReadHandle, within: string, catalog: readon
   );
 
   const packet: PositionPacket = {
-    format: 'ia.position-packet.v1',
+    ...currentStamp('position-packet'),
     revision: body.revision,
     body: k0.digest,
     seat: {

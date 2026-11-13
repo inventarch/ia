@@ -6,6 +6,7 @@ import { Engine } from '@inventarch/agent-system';
 import type { EngineHost, Grant, ModelAdapter, ModelResponse, Profile } from '@inventarch/agent-system';
 import {
   compiledAliases,
+  compiledStamp,
   compileHarness,
   executionManifest,
   installedReadCatalog,
@@ -299,6 +300,7 @@ export function openRunner(options: RunnerOptions) {
         entry: compiled.entry.binding,
         catalog,
         aliases: compiledAliases(compiled),
+        ...(compiledStamp(compiled) ? { stamp: compiledStamp(compiled)! } : {}),
       });
       const readPin = compiled.provenance.installed.find(
         (pin) =>

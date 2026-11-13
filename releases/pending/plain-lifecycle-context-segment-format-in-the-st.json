@@ -1,0 +1,17 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "major",
+  "title": "Plain lifecycle context segment format in the steward hook",
+  "summary": "The context hook emits its lifecycle context segments as lifecycle-context-segment with formatVersion 1 instead of ia.lifecycle-context-segment.v1, and the lifecycle context they carry, its event and its profile are the plain lifecycle-context, lifecycle-event and lifecycle-profile formats. A binding registered before keeps working: its original ia.lifecycle-profile.v1 profile still verifies under its own digest, and a set of segments emitted under the original literal still assembles as written. Breaking: a consumer that matched the old segment literal must read formatVersion.",
+  "packages": [
+    "@inventarch/steward-hook"
+  ],
+  "paths": [
+    ".ia/authoring.resources.json",
+    "CLAUDE.md",
+    "apps/steward-hook/",
+    "docs/",
+    "examples/",
+    "tools/"
+  ]
+}

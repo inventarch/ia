@@ -2,6 +2,7 @@ import { parseLocator } from '@inventarch/runtime';
 import { closed, data, fail, frozen, KnowledgeError, LIMITS } from './format.js';
 import { boundedResponse } from './view.js';
 import type { openKnowledgeView } from './view.js';
+import { peekStamp, stampKeys } from './plain-format.js';
 export const KB_PROTOCOL_VERSION = 1;
 export interface KnowledgeResponse {
   readonly version: 1;
@@ -40,7 +41,12 @@ export const KB_OPERATIONS = frozen([
     name: 'resolve',
     description: 'Resolve an exact citation against this snapshot, or refuse if the pinned bytes are unavailable.',
     inputSchema: object(
-      { citation: { type: 'object', description: 'The complete ia.kb.citation.v1 returned by a knowledge read.' } },
+      {
+        citation: {
+          type: 'object',
+          description: 'The complete citation (format kb-citation, formatVersion 1) returned by a knowledge read.',
+        },
+      },
       ['citation'],
     ),
   },
@@ -98,11 +104,13 @@ export function parseKnowledgeRequest(operation: string, input: unknown): Knowle
   if (operation === 'resolve') {
     const c = value.citation as Record<string, unknown>;
     if (!c || typeof c !== 'object' || Array.isArray(c)) fail('Complete knowledge citation required');
+    // The citation's own stamp decides its keys: the plain name carries formatVersion, the original literal does not.
+    const stamp = peekStamp(c, 'kb-citation', ['ia.kb.citation.v1']);
     closed(
       c,
       c['kind'] === 'commit'
-        ? ['format', 'kind', 'sourceId', 'snapshot', 'locator', 'identity', 'body', 'commit']
-        : ['format', 'kind', 'sourceId', 'snapshot', 'locator', 'identity', 'body'],
+        ? [...stampKeys(stamp), 'kind', 'sourceId', 'snapshot', 'locator', 'identity', 'body', 'commit']
+        : [...stampKeys(stamp), 'kind', 'sourceId', 'snapshot', 'locator', 'identity', 'body'],
     );
   }
   return frozen(value);

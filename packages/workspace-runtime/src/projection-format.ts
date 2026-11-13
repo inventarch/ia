@@ -13,6 +13,7 @@ import {
   sourceRevision,
   text,
 } from './resource-format.js';
+import { peekStamp, stampKeys } from './plain-format.js';
 export const PROJECTION_LIMITS = Object.freeze({
   exports: 128,
   profiles: 16,
@@ -103,7 +104,8 @@ export interface ProjectionExport {
   readonly presentation: Presentation;
 }
 export interface ProjectionDescriptor {
-  readonly format: 'ia.projection-descriptor.v1';
+  readonly format: 'projection-descriptor' | 'ia.projection-descriptor.v1';
+  readonly formatVersion?: 1;
   readonly sourceRevisions: readonly SourceRevision[];
   readonly product: 'workspace' | 'plugin';
   readonly profiles: readonly ProfilePin[];
@@ -135,7 +137,8 @@ export interface ProjectionOmission {
   readonly reason: string;
 }
 export interface ProjectionManifest {
-  readonly format: 'ia.projection-manifest.v1';
+  readonly format: 'projection-manifest' | 'ia.projection-manifest.v1';
+  readonly formatVersion?: 1;
   readonly product: 'workspace' | 'plugin';
   readonly sourceRevisions: readonly SourceRevision[];
   readonly descriptorDigest: string;
@@ -154,12 +157,14 @@ export interface ProjectionManifest {
 }
 export type ProjectionResult =
   | {
-      readonly format: 'ia.projection-result.v1';
+      readonly format: 'projection-result' | 'ia.projection-result.v1';
+      readonly formatVersion?: 1;
       readonly status: 'refused';
       readonly diagnostics: readonly ProjectionDiagnostic[];
     }
   | {
-      readonly format: 'ia.projection-result.v1';
+      readonly format: 'projection-result' | 'ia.projection-result.v1';
+      readonly formatVersion?: 1;
       readonly status: 'compiled';
       readonly manifest: ProjectionManifest;
       readonly files: readonly ProjectionFile[];
@@ -271,12 +276,23 @@ export function verifyProjectionDescriptor(value: unknown): ProjectionDescriptor
   try {
     if (typeof value === 'string' && Buffer.byteLength(value) > PROJECTION_LIMITS.metadataBytes)
       inputFailure('Projection descriptor exceeds its ceiling');
+    const decoded = typeof value === 'string' ? decodeJson(value) : value,
+      stamp = peekStamp(decoded, 'projection-descriptor', ['ia.projection-descriptor.v1']);
+    if (stamp === undefined) inputFailure('Unsupported projection descriptor format');
     const row = closed(
-      typeof value === 'string' ? decodeJson(value) : value,
-      ['format', 'sourceRevisions', 'product', 'profiles', 'exports', 'resourcesDigest', 'inventoryDigest', 'digest'],
+      decoded,
+      [
+        ...stampKeys(stamp),
+        'sourceRevisions',
+        'product',
+        'profiles',
+        'exports',
+        'resourcesDigest',
+        'inventoryDigest',
+        'digest',
+      ],
       ['contextBudget'],
     );
-    if (row['format'] !== 'ia.projection-descriptor.v1') inputFailure('Unsupported projection descriptor format');
     const sourceRevisions = ordered(
       unique(list(row['sourceRevisions'], 2001).map(sourceRevision), (s) => s.source),
       (s) => s.source,
@@ -339,7 +355,7 @@ export function verifyProjectionDescriptor(value: unknown): ProjectionDescriptor
       inputFailure('Exports require selected profile pins');
     const budget = Object.hasOwn(row, 'contextBudget') ? object(row['contextBudget'], ['bytes', 'tokens']) : null;
     const body = {
-      format: 'ia.projection-descriptor.v1' as const,
+      ...stamp,
       sourceRevisions,
       product: oneOf(row['product'], ['workspace', 'plugin']),
       profiles,

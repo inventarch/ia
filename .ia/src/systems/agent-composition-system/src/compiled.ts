@@ -59,7 +59,9 @@ export interface CompiledProfile extends Profile {
 /** Compiler output remains distinct from the v1 development manifest.
  * executionManifest retains these obligations for engine and current host admission. */
 export interface CompiledHarness {
-  format: 'ia.compiled-harness.v1';
+  /** `compiled-harness` at `formatVersion` 1; a harness compiled before formats stopped carrying a version keeps its literal. */
+  format: 'compiled-harness' | 'ia.compiled-harness.v1';
+  formatVersion?: 1;
   digest: string;
   id: string;
   workspace: string;

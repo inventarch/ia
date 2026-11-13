@@ -16,6 +16,7 @@ import {
   type InstalledAdapterCatalog,
 } from './adapters.js';
 import { decodeJson, frozen, hash, integer, metadataDigest, object, text } from './resource-format.js';
+import { peekStamp, stampKeys } from './plain-format.js';
 
 export const RETAINED_STORE_LIMITS = Object.freeze({
   entries: 100_000,
@@ -24,7 +25,8 @@ export const RETAINED_STORE_LIMITS = Object.freeze({
   indexBatch: 100,
 });
 export interface RetainedStoreBinding {
-  readonly format: 'ia.retained-store.v1';
+  readonly format: 'retained-store' | 'ia.retained-store.v1';
+  readonly formatVersion?: 1;
   readonly owner: string;
   readonly storeId: string;
   readonly rootBinding: string;
@@ -42,8 +44,10 @@ export interface RetainedStoreBinding {
 }
 export function verifyStoreBinding(input: unknown, installed: unknown): RetainedStoreBinding {
   const adapter = decodeInstalledAdapter(installed),
-    row = object(typeof input === 'string' ? decodeJson(input) : input, [
-      'format',
+    value = typeof input === 'string' ? decodeJson(input) : input,
+    stamp = peekStamp(value, 'retained-store', ['ia.retained-store.v1']),
+    row = object(value, [
+      ...stampKeys(stamp),
       'owner',
       'storeId',
       'rootBinding',
@@ -54,7 +58,7 @@ export function verifyStoreBinding(input: unknown, installed: unknown): Retained
       'adapterDigest',
       'digest',
     ]);
-  if (row['format'] !== 'ia.retained-store.v1' || !adapter.effects.some((effect) => effect.kind === 'retained-store'))
+  if (stamp === undefined || !adapter.effects.some((effect) => effect.kind === 'retained-store'))
     return adapterInvalid('An explicit retained-store adapter binding is required');
   const owner = text(row['owner'], 512);
   if (!owner || /[\u0000-\u001f\u007f]/.test(owner))
@@ -63,7 +67,7 @@ export function verifyStoreBinding(input: unknown, installed: unknown): Retained
     quotas = object(row['quotas'], ['entries', 'entryBytes', 'totalBytes', 'indexBatch']);
   if (retention['deletion'] !== 'explicit') return adapterInvalid('Retained store deletion must be explicit');
   const body = {
-    format: 'ia.retained-store.v1' as const,
+    ...stamp,
     owner,
     storeId: adapterKey(row['storeId']),
     rootBinding: adapterKey(row['rootBinding']),
