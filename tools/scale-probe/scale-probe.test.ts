@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { runBounded } from '../testing/subprocess.js';
 import { compare } from './compare.mjs';
-import { selection, syntheticFiles } from './generate.mjs';
+import { contents, generate, selection, syntheticFiles } from './generate.mjs';
 import { normalise } from './normalise.mjs';
 import { refuseStaleOut, unexpectedExits } from './probe.mjs';
 
@@ -43,15 +43,68 @@ describe('the synthetic generator', () => {
     expect(syntheticFiles({ records: 437, seed: 7 })).toEqual(syntheticFiles({ records: 437, seed: 7 }));
   });
 
-  it('writes the files the 3.7.0 reference was captured on, so a change to the generator cannot move it', () => {
-    // packages/db/tests/fixtures/reference-3.7.0/synthetic-200.json and synthetic-2000.json were captured on these.
+  it('pins the init arguments, files, selection and commit it gave the trees the 3.7.0 reference was captured on', () => {
+    // packages/db/tests/fixtures/reference-3.7.0/synthetic-200.json and synthetic-2000.json were captured on these
+    // trees, whose commits they record. The files `ia init` writes come from the 3.7.0 CLI and are not pinned here.
     const digest = (records: number) =>
       createHash('sha256')
-        .update(JSON.stringify(syntheticFiles({ records, seed: 1 })))
+        .update(JSON.stringify(contents({ records, seed: 1, git: true })))
         .digest('hex');
-    expect(digest(200)).toBe('78349e641ecde4225a327bdfb3b0807dd8a51c68c0e8c61ca3f5ef6978a3c0fb');
-    expect(digest(2000)).toBe('c6f130f9692cb3088bd7fefc9927256cc7b83d93ea95a5521a575aa152b35100');
+    expect(digest(200)).toBe('b1d7bf6a0f1a5ce54ffdecaf37ba777f217674c1ac873c22fbdee3b9fd8efe23');
+    expect(digest(2000)).toBe('b2df8f539636a6730ddedb2fa328be8024caf4c0456a12901b59694bf0e9db97');
   });
+
+  /** A stand-in `ia init` that writes the folder name and arguments it was given into that folder, and nothing else. */
+  const recordingInit = (base: string): string => {
+    const init = join(base, 'init.mjs');
+    writeFileSync(
+      init,
+      [
+        "import { writeFileSync } from 'node:fs';",
+        "import { basename, join } from 'node:path';",
+        'const [, , command, folder, ...rest] = process.argv;',
+        "writeFileSync(join(folder, 'init.json'), JSON.stringify([command, basename(folder), ...rest]));",
+      ].join('\n'),
+    );
+    return init;
+  };
+  const PINNED = '83de71881c5fc005d2aba403116ad06150d87d12';
+
+  it('makes a pinned commit around a stand-in ia init that records how it was called', () =>
+    scratch((base) => {
+      // Beyond the digest above, this pins the file names, how generate() calls `ia init` (the folder and arguments
+      // it gives it), and the message it commits with. The real `ia init`'s files come from the 3.7.0 CLI.
+      const made = generate({
+        cli: recordingInit(base),
+        out: join(base, 'synthetic'),
+        records: 200,
+        seed: 1,
+        git: true,
+      });
+      expect(made.commit).toBe(PINNED);
+    }));
+
+  it('makes the same commit whatever git template the environment names', () =>
+    scratch((base) => {
+      // GIT_TEMPLATE_DIR outranks init.templateDir. This template's exclude file would leave the documents out.
+      mkdirSync(join(base, 'template', 'info'), { recursive: true });
+      writeFileSync(join(base, 'template', 'info', 'exclude'), '*.md\n');
+      const before = process.env['GIT_TEMPLATE_DIR'];
+      process.env['GIT_TEMPLATE_DIR'] = join(base, 'template');
+      try {
+        const made = generate({
+          cli: recordingInit(base),
+          out: join(base, 'synthetic'),
+          records: 200,
+          seed: 1,
+          git: true,
+        });
+        expect(made.commit).toBe(PINNED);
+      } finally {
+        if (before === undefined) delete process.env['GIT_TEMPLATE_DIR'];
+        else process.env['GIT_TEMPLATE_DIR'] = before;
+      }
+    }));
 
   it('writes different text for a different seed, with the same record names', () => {
     const a = syntheticFiles({ records: 120, seed: 1 }),

@@ -13,7 +13,7 @@ Build synthetic and public IA trees, run every probed command on them under one 
 - [probe.mjs](probe.mjs) and [probe.d.mts](probe.d.mts) — builds each listed tree once, captures it under each CLI, and checks the exits each tree expects.
 - [compare.mjs](compare.mjs) and [compare.d.mts](compare.d.mts) — compares two sets of captures.
 - [trees.json](trees.json) — the reference trees: synthetic sizes and seeds, public fixtures pinned to a commit, what each covers and the exit each command is expected to give.
-- [scale-probe.test.ts](scale-probe.test.ts) — the generator, normaliser, expected exits and comparison, with no CLI run.
+- [scale-probe.test.ts](scale-probe.test.ts) — the tests described under Validation. They never run the IA CLI: a case that needs one runs a stand-in script.
 
 ## Commands
 
@@ -51,7 +51,7 @@ Trees and copies are made under `--work` or the temporary directory and removed 
 ## Validation
 
 Task ownership: `tools:test-scale-probe`. The test covers:
-- the generator: its determinism, the digest of the files the reference was captured on, counts, references and layout;
+- the generator: its determinism; a digest of what it gives the trees the reference was captured on (the `ia init` arguments, the files, the selection and the commit's message, author and date); the commit it makes around a stand-in `ia init`, which also pins the file names, how it calls `ia init`, and the message it commits with, and which a git template named in the environment does not move; counts, references and layout;
 - the `kb pack` selection;
 - the normaliser's rules;
 - the expected exits;
