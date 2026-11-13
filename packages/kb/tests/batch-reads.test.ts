@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { committedReader } from '../src/git.js';
 import { createLegacyFoundation } from '../src/legacy.js';
 import { packageFromCommit } from '../src/package.js';
 
@@ -97,6 +98,40 @@ describe('kb pack keeps its refusals and their order when it reads in batches', 
     writeFileSync(join(repo.root, '.ia/src/more/broken.ia'), Buffer.from([0x23, 0x21, 0xff, 0xfe, 0x0a]));
     const { outcome } = pack(repo.root, repo.commit());
     expect(outcome).toMatchObject({ message: 'Selected blob is not UTF-8' });
+  });
+  it('refuses a native file whose name is not UTF-8, as reading it path by path does', () => {
+    // A Git path is bytes. Decoded lossily, a stray 0xff byte becomes U+FFFD, a path the commit does not hold, so the
+    // path-by-path read refuses it; the batched read must not fetch the blob under that name instead.
+    const repo = repository(0);
+    repo.git('add', '.');
+    const entry = Buffer.concat([
+      Buffer.from(`100644 blob ${blobOf(repo, spec('gamma'))}\t.ia/src/more/gamma-`),
+      Buffer.from([0xff]),
+      Buffer.from('.ia\0'),
+    ]);
+    execFileSync('git', ['-C', repo.root, 'update-index', '-z', '--index-info'], { input: entry, windowsHide: true });
+    const { outcome } = pack(repo.root, repo.commit(true));
+    expect(outcome).toMatchObject({ message: 'Selected committed regular non-executable blob unavailable' });
+  });
+  it('packs a native file whose name is not UTF-8 when another file has its lossy name, as path by path does', () => {
+    // The lossy name of `gamma-<0xff>.ia` is `gamma-\uFFFD.ia`, and here a file really has that name: reading the name,
+    // in a batch or path by path, reads that file.
+    const repo = repository(0);
+    repo.git('add', '.');
+    const entries = Buffer.concat([
+      Buffer.from(`100644 blob ${blobOf(repo, spec('gamma'))}\t.ia/src/more/gamma-\uFFFD.ia\0`),
+      Buffer.from(`100644 blob ${blobOf(repo, spec('delta'))}\t.ia/src/more/gamma-`),
+      Buffer.from([0xff]),
+      Buffer.from('.ia\0'),
+    ]);
+    execFileSync('git', ['-C', repo.root, 'update-index', '-z', '--index-info'], { input: entries, windowsHide: true });
+    const revision = repo.commit(true);
+    expect(pack(repo.root, revision).outcome).toMatchObject({ format: 'ia.kb.package.v1' });
+    // Which blob the name reads: the real file's, in a batch as path by path, never the 0xff name's.
+    const reader = committedReader(repo.root, revision),
+      name = '.ia/src/more/gamma-\uFFFD.ia';
+    expect(reader.readMany([name])[0]!().text).toBe(spec('gamma'));
+    expect(reader.read(name).text).toBe(spec('gamma'));
   });
   it('refuses at the first faulty native file in path order', () => {
     const repo = repository(0);
