@@ -102,6 +102,19 @@ describe('the dependency-free link scanner', () => {
     expect(scanned.links.map((link) => link.href)).toEqual(['./a.md', './i.png']);
     expect([...scanned.ids]).toEqual(['top', 'pic']);
   });
+  it('ends a link destination before its title at exactly the code units /\\s/ matches', () => {
+    // Each line is `[a](x<unit>"t")`. A space ends the destination; any other code unit joins it. `(`, `)` and `\`
+    // change the destination's syntax, and \n and \r end the line, so those five are left out.
+    const units: string[] = [];
+    for (let code = 0; code <= 0xffff; code++) {
+      const unit = String.fromCharCode(code);
+      if (!'()\\\n\r'.includes(unit)) units.push(unit);
+    }
+    const { links } = scanMarkdown(units.map((unit) => `[a](x${unit}"t")`).join('\n'));
+    const wrong = units.filter((unit, index) => links[index]?.href !== (/\s/.test(unit) ? 'x' : `x${unit}"t"`));
+    expect(wrong.map((unit) => `U+${unit.charCodeAt(0).toString(16).padStart(4, '0')}`)).toEqual([]);
+    expect(links).toHaveLength(units.length);
+  });
   it('dedupes a repeat whose numbered slug already exists without looping', { timeout: 2000 }, () => {
     expect([...scanMarkdown('# A\n# A-1\n# A\n').ids]).toEqual(['a', 'a-1', 'a-2']);
   });
