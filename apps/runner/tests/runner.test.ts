@@ -701,6 +701,86 @@ it('compiles records that still name the original ids through the aliases and re
   expect(state.runs['root']?.status).toBe('completed');
   expect(state.budget.operations).toBe(1);
 });
+it('compiles a record that names the original model explicitly through the aliases', () => {
+  const options = originalFixture(),
+    file = resolve(options.root, '.ia/src/systems/agent-composition-system/records/runner.ia');
+  // A profile written before the rename may name its model, which the host now lists under its plain name.
+  writeFileSync(
+    file,
+    readFileSync(file, 'utf8').replace(
+      '    mandate-contract runner-read-v1\n',
+      '$&    model-profile runner-external-v1\n',
+    ),
+  );
+  expect(readFileSync(file, 'utf8')).toContain('model-profile runner-external-v1');
+  const runner = openRunner({ ...options, model: scripted([], []) });
+  cleanups.push(() => runner.close());
+  const provenance = installedPins(runner);
+  expect(provenance.aliases).toEqual(
+    expect.arrayContaining([{ group: 'models', from: 'runner-external-v1', to: 'runner-external' }]),
+  );
+  expect(provenance.installed.filter((pin) => pin.group === 'models').map((pin) => pin.id)).toEqual([
+    'runner-external',
+  ]);
+});
+it('opens a harness whose original host lists the original model while the profile names the plain one', () => {
+  const options = originalFixture(),
+    file = resolve(options.root, '.ia/src/systems/agent-composition-system/records/runner.ia');
+  writeFileSync(
+    file,
+    readFileSync(file, 'utf8').replace(
+      '    mandate-contract runner-read-v1\n',
+      '$&    model-profile runner-external\n',
+    ),
+  );
+  // Only the model is aliased, so the profile keeps the original host, which lists the original model name. The
+  // alias that list relied on is recorded, so the runner's rebuild from the recorded aliases matches.
+  const runner = openRunner({
+    ...options,
+    catalog: runnerCatalog(),
+    aliases: { models: { 'runner-external-v1': 'runner-external' } },
+    model: scripted([], []),
+  });
+  cleanups.push(() => runner.close());
+  expect(installedPins(runner).aliases).toEqual([
+    { group: 'models', from: 'runner-external-v1', to: 'runner-external' },
+  ]);
+});
+it("opens a workspace's own read binding that names the original implementation", () => {
+  const options = fixture(),
+    file = resolve(options.root, '.ia/src/systems/agent-composition-system/records/runner.ia');
+  // A workspace that bound the public read itself before the rename names the original implementation, while the
+  // adopted read operation names the plain handler.
+  writeFileSync(
+    file,
+    readFileSync(file, 'utf8')
+      .replace(
+        'bindings [@execution-binding read-captured-source-binding, @execution-binding runner-entry]',
+        'bindings [@execution-binding runner-own-read-binding, @execution-binding runner-entry]',
+      )
+      .concat(
+        [
+          '',
+          '@execution-binding runner-own-read-binding',
+          '  meaning',
+          '    says "Bind the captured read from this workspace, as written before the rename."',
+          '    answers "Which implementation does the local reader bind?"',
+          '  binding',
+          '    kind operation',
+          '    target @operation read-captured-source',
+          '    implementation captured-source-read-v1',
+          '',
+        ].join('\n'),
+      ),
+  );
+  expect(readFileSync(file, 'utf8')).toContain('@execution-binding runner-own-read-binding');
+  const runner = openRunner({ ...options, model: scripted([], []) });
+  cleanups.push(() => runner.close());
+  expect(installedPins(runner).aliases).toEqual(
+    expect.arrayContaining([{ group: 'operations', from: 'captured-source-read-v1', to: 'captured-source-read' }]),
+  );
+  expect(runner.manifest.operations[INSTALLED_READ.operation]!.handler).toBe('captured-source-read');
+});
 it('keeps a harness pinned to the original catalog valid and dispatching by the original handler', async () => {
   const options = originalFixture(),
     actions: ModelAction[] = [],
