@@ -3,22 +3,29 @@
 //   node tools/scale-probe/compare.mjs <before> <after> [--outputs-only] [--slower <ratio>] [--larger <ratio>] [--json <file>]
 // <before> and <after> are capture files or folders of them, matched by file name. Exit 1 when an output differs,
 // a command is missing, or (unless --outputs-only) a command is slower or larger past the given ratios.
-import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 /** Below these, a difference is noise whatever its ratio. */
 const NOISE = { wallMs: 150, maxRssMB: 16 };
 
-const load = (path) =>
-  statSync(path).isDirectory()
-    ? new Map(
-        readdirSync(path)
-          .filter((f) => f.endsWith('.json'))
-          .sort()
-          .map((f) => [f, JSON.parse(readFileSync(join(path, f), 'utf8'))]),
-      )
-    : new Map([[basename(path), JSON.parse(readFileSync(path, 'utf8'))]]);
+/** A capture file, or a folder of them. The path is read as a folder first, with no separate check beforehand. */
+const load = (path) => {
+  let files;
+  try {
+    files = readdirSync(path);
+  } catch (error) {
+    if (error?.code !== 'ENOTDIR') throw error;
+    return new Map([[basename(path), JSON.parse(readFileSync(path, 'utf8'))]]);
+  }
+  return new Map(
+    files
+      .filter((f) => f.endsWith('.json'))
+      .sort()
+      .map((f) => [f, JSON.parse(readFileSync(join(path, f), 'utf8'))]),
+  );
+};
 
 const median = (values) => {
   const sorted = values.filter((v) => typeof v === 'number').sort((a, b) => a - b);
