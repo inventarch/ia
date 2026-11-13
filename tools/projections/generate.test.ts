@@ -152,8 +152,8 @@ it('renders this repository as its position packet: CLAUDE.md and both skills, n
       [packet.participants, packet.mandates, packet.systems, packet.tallies, packet.commands].map(
         (rows) => rows.length,
       ),
-    ).toEqual([12, 12, 11, 21, 16]);
-    expect(entryCount(packet)).toBe(87);
+    ).toEqual([12, 12, 11, 16, 16]);
+    expect(entryCount(packet)).toBe(82);
   } finally {
     db.close();
   }
@@ -162,7 +162,7 @@ it('renders this repository as its position packet: CLAUDE.md and both skills, n
       (line, index) => line.startsWith('| ') && !line.startsWith('| ---') && !lines[index + 1]?.startsWith('| ---'),
     );
   expect(lines.filter((line) => line.startsWith('- ') || line.startsWith('ia-generated ')).length + rows.length).toBe(
-    87,
+    82,
   );
   expect(rows).toContain(
     '| `ia project` | effect | Execution | a file without the generated marker at a path it writes, which its plan names; --apply writes nothing | `ia project <host>` |',
