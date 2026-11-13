@@ -11,7 +11,15 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
+
+/** The package's one switch, flipped here to prove the plain names come back exactly when the follow-up release flips it. */
+const flip = vi.hoisted(() => ({ plain: false }));
+vi.mock('../src/written-names.js', () => ({
+  get WRITE_PLAIN_NAMES() {
+    return flip.plain;
+  },
+}));
 import { runBounded } from '@tools/testing/subprocess.js';
 import { findNodeAtLocation, parseTree } from 'jsonc-parser';
 import { json, sha256 } from '../src/files.js';
@@ -50,6 +58,7 @@ const temp = () => {
   return p;
 };
 afterEach(() => {
+  flip.plain = false;
   for (const p of made.splice(0)) rmSync(p, { recursive: true, force: true });
 });
 const put = (root: string, path: string, text: string) => {
@@ -629,78 +638,84 @@ const handler = (cache: string, root: string, hook: string) =>
 const bytesOf = (root: string, path: string): string | null =>
   existsSync(resolve(root, path)) ? readFileSync(resolve(root, path), 'utf8') : null;
 
-it("renders the fixture's @hook as one owned group, keeps every unrelated key and group, re-plans as a no-op and removes only its group", () => {
-  const root = temp(),
-    cache = cacheV2(),
-    rows = fixtureRows();
-  expect(rows).toEqual([
-    { identity: HOOK, tools: ['Write', 'Edit', 'MultiEdit'], paths: ['docs/**', 'restricted/**'] },
-  ]);
-  const original = pretty(
-    {
-      permissions: { allow: ['Bash(ls)'] },
-      hooks: {
-        PreToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command: 'echo' }] }],
-        PostToolUse: [{ matcher: 'Write', hooks: [{ type: 'command', command: 'fmt' }] }],
+it.each([false, true])(
+  "renders the fixture's @hook as one owned group, keeps every unrelated key and group, re-plans as a no-op and removes only its group (plain names: %s)",
+  (plain) => {
+    flip.plain = plain;
+    const root = temp(),
+      cache = cacheV2(),
+      rows = fixtureRows();
+    expect(rows).toEqual([
+      { identity: HOOK, tools: ['Write', 'Edit', 'MultiEdit'], paths: ['docs/**', 'restricted/**'] },
+    ]);
+    const original = pretty(
+      {
+        permissions: { allow: ['Bash(ls)'] },
+        hooks: {
+          PreToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command: 'echo' }] }],
+          PostToolUse: [{ matcher: 'Write', hooks: [{ type: 'command', command: 'fmt' }] }],
+        },
+        env: { A: '1' },
       },
-      env: { A: '1' },
-    },
-    2,
-    '\n',
-  );
-  put(root, settings, original);
-  const plan = planHookRegistration(root, { cache, hooks: rows });
-  expect(plan.hooks).toEqual([{ hook: HOOK, action: 'create' }]);
-  expect(applyHookRegistration(plan)).toEqual({ status: 'hooks-registered', id: 'workspace' });
-  const applied = JSON.parse(readFileSync(resolve(root, settings), 'utf8'));
-  expect(applied.permissions).toEqual({ allow: ['Bash(ls)'] });
-  expect(applied.env).toEqual({ A: '1' });
-  expect(applied.hooks.PostToolUse).toEqual([{ matcher: 'Write', hooks: [{ type: 'command', command: 'fmt' }] }]);
-  expect(applied.hooks.PreToolUse).toEqual([
-    { matcher: 'Bash', hooks: [{ type: 'command', command: 'echo' }] },
-    // Exactly the fixed launcher, verb, root and identity: nothing authored but the identity and tools reaches it.
-    { matcher: 'Write|Edit|MultiEdit', hooks: [handler(cache, root, HOOK)] },
-  ]);
-  expect(JSON.parse(readFileSync(resolve(root, hookState), 'utf8'))).toEqual({
-    format: 'hook-registration-state',
-    formatVersion: 1,
-    id: 'workspace',
-    cache,
-    release: sha256(readFileSync(resolve(cache, 'release.json'), 'utf8')),
-    created: false,
-    groups: [{ hook: HOOK, group: applied.hooks.PreToolUse[1], paths: ['docs/**', 'restricted/**'] }],
-    existing: [['hooks'], ['hooks', 'PreToolUse']],
-  });
-  // Re-planning changes nothing, and applying it writes nothing.
-  const registered = [bytesOf(root, settings), bytesOf(root, hookState)];
-  const again = planHookRegistration(root, { cache, hooks: fixtureRows() });
-  expect(again.hooks).toEqual([{ hook: HOOK, action: 'unchanged' }]);
-  expect([again.after.config, again.after.state]).toEqual(registered);
-  expect(applyHookRegistration(again).status).toBe('hooks-unchanged');
-  expect([bytesOf(root, settings), bytesOf(root, hookState)]).toEqual(registered);
-  // A second hook appends its own group; removing the first hook's record removes only that group.
-  const both = fixtureRows(FIXTURE_HOOKS + extraHook('note-writes')),
-    other = 'hook-authoring-system/binding/hook/note-writes';
-  expect(both.map((row) => row.identity)).toEqual([HOOK, other]);
-  applyHookRegistration(planHookRegistration(root, { cache, hooks: both }));
-  const second = JSON.parse(readFileSync(resolve(root, settings), 'utf8')).hooks.PreToolUse[2];
-  // Every group matches every edit tool: the hook's own tools apply to its paths, read from the record.
-  expect(second).toEqual({ matcher: 'Write|Edit|MultiEdit', hooks: [handler(cache, root, other)] });
-  const removal = planHookRegistration(root, { cache, hooks: both.slice(1) });
-  expect(removal.hooks).toEqual([
-    { hook: HOOK, action: 'remove' },
-    { hook: other, action: 'unchanged' },
-  ]);
-  applyHookRegistration(removal);
-  expect(JSON.parse(readFileSync(resolve(root, settings), 'utf8')).hooks.PreToolUse).toEqual([
-    { matcher: 'Bash', hooks: [{ type: 'command', command: 'echo' }] },
-    second,
-  ]);
-  // No hook left: the settings come back byte for byte and the ownership state goes.
-  expect(applyHookRegistration(planHookRegistration(root, { cache, hooks: [] })).status).toBe('hooks-removed');
-  expect(readFileSync(resolve(root, settings), 'utf8')).toBe(original);
-  expect(existsSync(resolve(root, hookState))).toBe(false);
-});
+      2,
+      '\n',
+    );
+    put(root, settings, original);
+    const plan = planHookRegistration(root, { cache, hooks: rows });
+    expect(plan.hooks).toEqual([{ hook: HOOK, action: 'create' }]);
+    expect(applyHookRegistration(plan)).toEqual({ status: 'hooks-registered', id: 'workspace' });
+    const applied = JSON.parse(readFileSync(resolve(root, settings), 'utf8'));
+    expect(applied.permissions).toEqual({ allow: ['Bash(ls)'] });
+    expect(applied.env).toEqual({ A: '1' });
+    expect(applied.hooks.PostToolUse).toEqual([{ matcher: 'Write', hooks: [{ type: 'command', command: 'fmt' }] }]);
+    expect(applied.hooks.PreToolUse).toEqual([
+      { matcher: 'Bash', hooks: [{ type: 'command', command: 'echo' }] },
+      // Exactly the fixed launcher, verb, root and identity: nothing authored but the identity and tools reaches it.
+      { matcher: 'Write|Edit|MultiEdit', hooks: [handler(cache, root, HOOK)] },
+    ]);
+    expect(JSON.parse(readFileSync(resolve(root, hookState), 'utf8'))).toEqual({
+      // The released literal alone until the switch flips, then the plain name with its formatVersion.
+      ...(plain
+        ? { format: 'hook-registration-state', formatVersion: 1 }
+        : { format: 'ia.hook-registration-state.v1' }),
+      id: 'workspace',
+      cache,
+      release: sha256(readFileSync(resolve(cache, 'release.json'), 'utf8')),
+      created: false,
+      groups: [{ hook: HOOK, group: applied.hooks.PreToolUse[1], paths: ['docs/**', 'restricted/**'] }],
+      existing: [['hooks'], ['hooks', 'PreToolUse']],
+    });
+    // Re-planning changes nothing, and applying it writes nothing.
+    const registered = [bytesOf(root, settings), bytesOf(root, hookState)];
+    const again = planHookRegistration(root, { cache, hooks: fixtureRows() });
+    expect(again.hooks).toEqual([{ hook: HOOK, action: 'unchanged' }]);
+    expect([again.after.config, again.after.state]).toEqual(registered);
+    expect(applyHookRegistration(again).status).toBe('hooks-unchanged');
+    expect([bytesOf(root, settings), bytesOf(root, hookState)]).toEqual(registered);
+    // A second hook appends its own group; removing the first hook's record removes only that group.
+    const both = fixtureRows(FIXTURE_HOOKS + extraHook('note-writes')),
+      other = 'hook-authoring-system/binding/hook/note-writes';
+    expect(both.map((row) => row.identity)).toEqual([HOOK, other]);
+    applyHookRegistration(planHookRegistration(root, { cache, hooks: both }));
+    const second = JSON.parse(readFileSync(resolve(root, settings), 'utf8')).hooks.PreToolUse[2];
+    // Every group matches every edit tool: the hook's own tools apply to its paths, read from the record.
+    expect(second).toEqual({ matcher: 'Write|Edit|MultiEdit', hooks: [handler(cache, root, other)] });
+    const removal = planHookRegistration(root, { cache, hooks: both.slice(1) });
+    expect(removal.hooks).toEqual([
+      { hook: HOOK, action: 'remove' },
+      { hook: other, action: 'unchanged' },
+    ]);
+    applyHookRegistration(removal);
+    expect(JSON.parse(readFileSync(resolve(root, settings), 'utf8')).hooks.PreToolUse).toEqual([
+      { matcher: 'Bash', hooks: [{ type: 'command', command: 'echo' }] },
+      second,
+    ]);
+    // No hook left: the settings come back byte for byte and the ownership state goes.
+    expect(applyHookRegistration(planHookRegistration(root, { cache, hooks: [] })).status).toBe('hooks-removed');
+    expect(readFileSync(resolve(root, settings), 'utf8')).toBe(original);
+    expect(existsSync(resolve(root, hookState))).toBe(false);
+  },
+);
 
 it('writes nothing authored but the identity into a group, whatever the paths and message hold', () => {
   const root = temp(),

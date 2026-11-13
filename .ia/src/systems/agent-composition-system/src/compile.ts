@@ -23,7 +23,7 @@ import { CompositionError } from './compiled.js';
 import type { Compilation, CompiledCapability, CompiledHarness, CompiledProfile, ComponentPin } from './compiled.js';
 import { closedFields, fail, field, LIMIT_KEYS, limits, list, minimum, strings, unique, value } from './fields.js';
 import { compatibleInputs } from './inputs.js';
-import { currentStamp } from './plain-format.js';
+import { writeStamp } from './plain-format.js';
 import type { Stamp } from './plain-format.js';
 
 const sha = (text: string): string => createHash('sha256').update(text).digest('hex');
@@ -873,7 +873,7 @@ class Compiler {
       ...(aliases.length ? { aliases } : {}),
     };
     const body = {
-      ...(this.options.stamp ?? currentStamp('compiled-harness')),
+      ...(this.options.stamp ?? writeStamp('compiled-harness', 'ia.compiled-harness.v1')),
       id: this.harness.identity,
       workspace: workspace.identity,
       sourceDigest: this.task.revision,

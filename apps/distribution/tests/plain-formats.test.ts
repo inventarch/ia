@@ -1,7 +1,15 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
+
+/** The package's one switch, flipped here to prove the plain names come back exactly when the follow-up release flips it. */
+const flip = vi.hoisted(() => ({ plain: false }));
+vi.mock('../src/written-names.js', () => ({
+  get WRITE_PLAIN_NAMES() {
+    return flip.plain;
+  },
+}));
 import { applyHost, planHost, verifyHostCache } from '../src/host.js';
 import { json, sha256, versionedDocument, versionedObject } from '../src/files.js';
 
@@ -12,6 +20,7 @@ const temp = (): string => {
   return root;
 };
 afterEach(() => {
+  flip.plain = false;
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 const put = (root: string, path: string, text: string): void => {
@@ -67,30 +76,42 @@ it('refuses unknown host release and cache formats, versions and mixed versions'
     expect(() => verifyHostCache(payload(release, cache))).toThrow(code('IA-DIST-INPUT-INVALID'));
 });
 
-it('writes host ownership state and the plan in the plain shape, reads the legacy state, and asks an older plan to be made again', () => {
-  const root = temp(),
-    cache = payload({ format: 'host-release', formatVersion: 2 }, { format: 'host-cache', formatVersion: 2 });
-  const plan = planHost(root, 'claude', cache);
-  expect(plan).toMatchObject({ format: 'host-plan', formatVersion: 1 });
-  expect(applyHost(plan).status).toBe('host-active');
-  const state = resolve(root, '.ia/distributions/hosts/claude-workspace.json');
-  const written = JSON.parse(readFileSync(state, 'utf8'));
-  expect(written).toMatchObject({ format: 'host-state', formatVersion: 1 });
-  // The same state under the legacy literal is still owned: removing the registration plans and applies cleanly.
-  const { formatVersion: _formatVersion, ...rest } = written;
-  writeFileSync(state, json({ ...rest, format: 'ia.host-state.v1' }));
-  const removal = planHost(root, 'claude', null, written.id);
-  expect(applyHost(removal).status).toBe('host-removed');
-  // A saved plan made before formatVersion digests its old body and is refused as stale, never misread.
-  const old = { ...plan, format: 'ia.host-plan.v1' } as Record<string, unknown>;
-  delete old['formatVersion'];
-  expect(() => applyHost(old)).toThrow(code('IA-DIST-PLAN-STALE'));
-  for (const bad of [
-    { ...plan, formatVersion: 2 },
-    { ...plan, format: 'ia.host-plan.v2' },
-  ])
-    expect(() => applyHost(bad)).toThrow(code('IA-DIST-INPUT-INVALID'));
-});
+it.each([false, true])(
+  'writes host ownership state under the released literal by default and the plain shape once the switch flips, keeps the plan plain, and reads both (plain names: %s)',
+  (plainNames) => {
+    flip.plain = plainNames;
+    const root = temp(),
+      cache = payload({ format: 'host-release', formatVersion: 2 }, { format: 'host-cache', formatVersion: 2 });
+    const plan = planHost(root, 'claude', cache);
+    expect(plan).toMatchObject({ format: 'host-plan', formatVersion: 1 });
+    expect(applyHost(plan).status).toBe('host-active');
+    const state = resolve(root, '.ia/distributions/hosts/claude-workspace.json');
+    const written = JSON.parse(readFileSync(state, 'utf8'));
+    // The state is read by older programs, which refuse anything but the released literal (dec-008, A15); the saved plan
+    // is read only by the build that made it, so it is plain either way.
+    expect(written).toMatchObject(
+      plainNames ? { format: 'host-state', formatVersion: 1 } : { format: 'ia.host-state.v1' },
+    );
+    if (!plainNames) expect(written).not.toHaveProperty('formatVersion');
+    // The same state under either spelling is still owned: removing the registration plans and applies cleanly.
+    const { formatVersion: _formatVersion, ...rest } = written;
+    writeFileSync(
+      state,
+      json(plainNames ? { ...rest, format: 'ia.host-state.v1' } : { ...rest, format: 'host-state', formatVersion: 1 }),
+    );
+    const removal = planHost(root, 'claude', null, written.id);
+    expect(applyHost(removal).status).toBe('host-removed');
+    // A saved plan made before formatVersion digests its old body and is refused as stale, never misread.
+    const old = { ...plan, format: 'ia.host-plan.v1' } as Record<string, unknown>;
+    delete old['formatVersion'];
+    expect(() => applyHost(old)).toThrow(code('IA-DIST-PLAN-STALE'));
+    for (const bad of [
+      { ...plan, formatVersion: 2 },
+      { ...plan, format: 'ia.host-plan.v2' },
+    ])
+      expect(() => applyHost(bad)).toThrow(code('IA-DIST-INPUT-INVALID'));
+  },
+);
 
 it('versionedDocument maps each exact legacy literal to its version and refuses anything outside the allow-list', () => {
   const spec = { format: 'ia.example', versions: [1, 2], legacy: { 'ia.example.v1': 1, 'ia.example.v2': 2 } };

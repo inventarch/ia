@@ -15,7 +15,7 @@ import type {
   PrimaryGuide,
   RequiredAuthoringPart,
 } from './authoring-types.js';
-import { currentStamp } from './plain-format.js';
+import { writeStamp, written } from './plain-format.js';
 export { AUTHORING_LIMITS, AuthoringError } from './authoring-format.js';
 export { createAuthoringIndex, verifyAuthoringIndex } from './authoring-index.js';
 export type * from './authoring-types.js';
@@ -156,7 +156,7 @@ function guideRows(state: State): PrimaryGuide[] {
         schema,
         document,
         proof: metadataDigest({
-          criterion: 'primary-guide',
+          criterion: written('primary-guide', 'primary-guide-v1'),
           registration,
           descriptor,
           descriptorText: nativePart(context, descriptor).text,
@@ -301,7 +301,7 @@ export function resolveAuthoring(
       documents: [...copiedScope.allowedDocuments].sort(),
     });
     const body = {
-      ...currentStamp('authoring-view'),
+      ...writeStamp('authoring-view', 'ia.authoring-view.v1'),
       captureRevision: capture.revision,
       resourceDigest: resources.digest,
       indexDigest: index.digest,
@@ -657,7 +657,7 @@ export function assessAuthoringMinting(
   return frozen({
     ...body,
     proof: metadataDigest({
-      criterion: 'minting-readiness',
+      criterion: written('minting-readiness', 'minting-readiness-v1'),
       baseline: baseline.proof,
       candidate: candidate.proof,
       body,

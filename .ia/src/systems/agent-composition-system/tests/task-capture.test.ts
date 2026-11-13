@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import { canonical, digest } from '@inventarch/session-system';
 import { createSourcePolicy, mountSourceCapture } from '@inventarch/workspace-runtime/sources';
 import { verifyCapture } from '@inventarch/workspace-runtime/corpus';
@@ -12,6 +12,14 @@ import { taskContextDeclaration } from '../src/task-context-declaration.js';
 import type { TaskCaptureRequest, TaskContextDeclaration } from '../src/task-capture.js';
 import { resourceOccurrences } from '@inventarch/workspace-runtime/resources';
 import { sha256 } from '@inventarch/workspace-runtime/resource-format';
+
+/** The package's one switch, flipped here to prove the plain names come back exactly when the follow-up release flips it. */
+const flip = vi.hoisted(() => ({ plain: false }));
+vi.mock('../src/written-names.js', () => ({
+  get WRITE_PLAIN_NAMES() {
+    return flip.plain;
+  },
+}));
 
 const fixture = fileURLToPath(new URL('../fixtures/task-capture.json', import.meta.url));
 const areas: string[] = [];
@@ -900,20 +908,31 @@ it('distinguishes implementation skew before recomputing and preserves exact rel
   }
 });
 
-it('reads a task selection and a declaration under the plain stamp or the original literal, and refuses another', () => {
+it('writes the released selection literal until the switch flips, and reads either stamp and refuses another', () => {
   const f = setup(),
     full = f.open();
   try {
     const prepared = prepareTaskCapture(full, request, options),
       { revision: _revision, selection, ...body } = prepared.capture;
-    expect(selection).toMatchObject({ format: 'task-capture-selection', formatVersion: 1 });
+    // Forward compatibility: the default selection carries exactly the released literal and no `formatVersion`.
+    expect(selection).toMatchObject({ format: 'ia.task-capture-selection.v1' });
+    expect(Object.hasOwn(selection!, 'formatVersion')).toBe(false);
     expect(verifyTaskCapture(prepared.capture, full, options)).toEqual(prepared);
-    // A selection written under the original literal verifies as written: its digest covers that literal.
-    const { formatVersion: _version, ...bare } = selection!,
-      originalBody = { ...body, selection: { ...bare, format: 'ia.task-capture-selection.v1' as const } },
-      original = { ...originalBody, revision: digest(originalBody) };
-    expect(verifyCapture(original)).toEqual(original);
-    expect(original.revision).not.toBe(prepared.capture.revision);
+    // Once the switch flips the selection is stamped plainly, and its digest covers that stamp.
+    flip.plain = true;
+    let plainPrepared: ReturnType<typeof prepareTaskCapture>;
+    try {
+      plainPrepared = prepareTaskCapture(full, request, options);
+      expect(plainPrepared.capture.selection).toMatchObject({ format: 'task-capture-selection', formatVersion: 1 });
+      expect(verifyTaskCapture(plainPrepared.capture, full, options)).toEqual(plainPrepared);
+    } finally {
+      flip.plain = false;
+    }
+    expect(plainPrepared.capture.revision).not.toBe(prepared.capture.revision);
+    // Either stamp verifies as written whatever the switch says.
+    expect(verifyCapture(plainPrepared.capture)).toEqual(plainPrepared.capture);
+    expect(verifyCapture(prepared.capture)).toEqual(prepared.capture);
+    const { formatVersion: _version, ...bare } = selection!;
     for (const stamp of [
       { format: 'task-capture-selection' },
       { format: 'task-capture-selection', formatVersion: 2 },

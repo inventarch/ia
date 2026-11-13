@@ -17,7 +17,10 @@ import { readPublicManifest } from './public-manifest.mjs';
 /** The file whose `@distribution language-distribution` roots the bundled `inventarch/language` package. */
 export const LANGUAGE_ROOT = 'records/language.ia';
 /** Floor, contracts, schemas and the language root only: packing whole system folders must not ship the examples. */
-export function languagePackageInputs(root: string): { inputs: NativeInput[]; folders: string[] } {
+export function languagePackageInputs(root: string): {
+  inputs: NativeInput[];
+  folders: string[];
+} {
   return publicLanguageInputs(root, [LANGUAGE_ROOT]);
 }
 export function publicLanguageInputs(
@@ -37,8 +40,14 @@ export function publicLanguageInputs(
       path,
       text: source(file).replace(/\r\n/g, '\n'),
       location: floor
-        ? { placement: { kind: 'floor', band: 10, reach: '' }, provenance: 'bootstrap' }
-        : { placement: { kind: 'authored', band: 100, reach: '' }, provenance: 'workspace' },
+        ? {
+            placement: { kind: 'floor', band: 10, reach: '' },
+            provenance: 'bootstrap',
+          }
+        : {
+            placement: { kind: 'authored', band: 100, reach: '' },
+            provenance: 'workspace',
+          },
     });
   };
   for (const path of manifest.floor) add(path, resolve(root, path), true);
@@ -69,9 +78,20 @@ export function exampleCatalog(): CompositionCatalog {
         },
       }),
     },
-    models: { 'example-model': installed({ model: 'uninvoked-example-model' }) },
-    validators: { 'example-text': installed({ schema: { type: 'string', maxLength: 1024 } }) },
-    outcomes: { 'example-outcomes': installed({ kinds: ['answer'], completion: 'response' }) },
+    models: {
+      'example-model': installed({ model: 'uninvoked-example-model' }),
+    },
+    validators: {
+      'example-text': installed({
+        schema: { type: 'string', maxLength: 1024 },
+      }),
+    },
+    outcomes: {
+      'example-outcomes': installed({
+        kinds: ['answer'],
+        completion: 'response',
+      }),
+    },
     mandates: {
       'example-mandate': installed({
         input: 'example-text',
@@ -85,14 +105,28 @@ export function exampleCatalog(): CompositionCatalog {
     contexts: {
       'example-context': installed({
         scope: 'captured-workspace',
-        coordinate: { phase: 'act', primitive: 'Attention', category: 'capability' },
+        coordinate: {
+          phase: 'act',
+          primitive: 'Attention',
+          category: 'capability',
+        },
         tokens: 4096,
         records: 100,
       }),
     },
     operations: {},
     evaluators: {},
-    entries: { 'example-entry': installed({ target: 'agent-profile', mapping: 'example-identity' }) },
+    // dec-004 (A1): the original entry keeps its original name and bytes, beside the plain one.
+    entries: {
+      'example-entry-v1': installed({
+        target: 'agent-profile',
+        mapping: 'example-identity',
+      }),
+      'example-entry': installed({
+        target: 'agent-profile',
+        mapping: 'example-identity',
+      }),
+    },
     mappings: { 'example-identity': installed({ kind: 'identity' }) },
   };
 }

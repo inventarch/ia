@@ -7,7 +7,7 @@ import type { Json } from '@inventarch/session-system';
 import { validateShape } from '@inventarch/agent-system';
 import type { OperationAdapter, OperationContext, OperationDefinition } from '@inventarch/agent-system';
 import { candidateInputSchema } from './candidate.js';
-import { currentStamp } from './plain-format.js';
+import { currentStamp, written } from './plain-format.js';
 
 /** The handler this publication shipped under before handler ids stopped carrying their version; still dispatched. */
 export const LEGACY_DRAFT_PUBLISH_HANDLER = 'ia.draft.publish.v1';
@@ -28,7 +28,8 @@ export function managedPublication(
   /** The same adapter under the plain handler and the original one, for manifests pinned before the rename. */
   adapters: Readonly<Record<string, OperationAdapter>>;
 } {
-  const legacy = binding?.handler === LEGACY_DRAFT_PUBLISH_HANDLER,
+  // A binding keeps the handler it was compiled under; one made now carries the original until `WRITE_PLAIN_NAMES` is flipped.
+  const legacy = binding === undefined ? written(false, true) : binding.handler === LEGACY_DRAFT_PUBLISH_HANDLER,
     handler = legacy ? LEGACY_DRAFT_PUBLISH_HANDLER : DRAFT_PUBLISH_HANDLER;
   if (!/^[a-f0-9]{64}$/.test(implementationDigest))
     throw new SessionError('IA-CORPUS-DENIED', 'Installed publication implementation is unavailable');

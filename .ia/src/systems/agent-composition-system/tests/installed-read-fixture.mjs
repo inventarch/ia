@@ -15,22 +15,25 @@ const canonicalReadPaths = [
   '.ia/src/systems/agent-composition-system/records/read-captured-source-binding.ia',
 ];
 /**
- * The canonical read records as they were written when names carried their version. `mode` is 'plain' (the shipped
- * records), 'legacy' (old names, compiled against the retained original entries) or 'aliased' (old names, compiled
- * through `installedReadAliases()` to the plain entries).
+ * The canonical read records are the released ones: they carry the original names, because older programs compile
+ * them. `mode` is 'legacy' (the shipped records, compiled against the retained original entries), 'aliased' (the same
+ * records compiled through `installedReadAliases()` to the plain entries, which needs the switch flipped) or 'plain'
+ * (the records rewritten to the plain names).
  */
-export function readFixture(SDK, root, mode = 'plain') {
+export function readFixture(SDK, root, mode = 'legacy') {
   const baseline = SDK.captureWorkspace(root),
     { revision: _revision, ...captured } = baseline;
-  const oldNames = (text) =>
-    text.replace(/^(\s+(?:handler|input|output|implementation) captured-source-read(?:-input|-output)?)$/gm, '$1-v1');
+  const plainNames = (text) =>
+    text
+      .replace(/^(\s+(?:handler|input|output|implementation) captured-source-read(?:-input|-output)?)-v1$/gm, '$1')
+      .replace(/^(\s+profile governed)-v1$/gm, '$1');
   const body =
-    mode === 'plain'
+    mode !== 'plain'
       ? captured
       : {
           ...captured,
           sources: captured.sources.map((row) =>
-            canonicalReadPaths.includes(row.path) ? { ...row, text: oldNames(row.text) } : row,
+            canonicalReadPaths.includes(row.path) ? { ...row, text: plainNames(row.text) } : row,
           ),
         };
   const placement = { placement: { kind: 'authored', band: 100, reach: '' }, provenance: 'workspace' };
@@ -42,12 +45,12 @@ export function readFixture(SDK, root, mode = 'plain') {
     },
     {
       path: '.ia/src/systems/agent-composition-system/operations/read-captured-source.ia',
-      text: '#! ia 1.0\n@operation read-captured-source\n  meaning\n    says "Read one exact captured native source through the first-party adapter."\n    answers "Which captured bytes are selected?"\n  execution\n    handler captured-source-read\n    effects read-only\n    input captured-source-read-input\n    output captured-source-read-output\n    profile governed\n    recovery repeatable\n  relationships\n    implements @contract agent-composition-runtime-contract#REQ-RT-CAPTURED-INPUT\n    implements @contract agent-composition-runtime-contract#REQ-RT-CAPTURED-READ\n    implements @contract agent-composition-runtime-contract#REQ-RT-CAPTURED-REFUSE\n',
+      text: '#! ia 1.0\n@operation read-captured-source\n  meaning\n    says "Read one exact captured native source through the first-party adapter."\n    answers "Which captured bytes are selected?"\n  execution\n    handler captured-source-read-v1\n    effects read-only\n    input captured-source-read-input-v1\n    output captured-source-read-output-v1\n    profile governed-v1\n    recovery repeatable\n  relationships\n    implements @contract agent-composition-runtime-contract#REQ-RT-CAPTURED-INPUT\n    implements @contract agent-composition-runtime-contract#REQ-RT-CAPTURED-READ\n    implements @contract agent-composition-runtime-contract#REQ-RT-CAPTURED-REFUSE\n',
       location: placement,
     },
     {
       path: '.ia/src/systems/agent-composition-system/records/read-captured-source-binding.ia',
-      text: '#! ia 1.0\n\n@execution-binding read-captured-source-binding\n  meaning\n    says "Select the fixed installed first-party captured-source read adapter."\n    answers "Which declared implementation can an explicitly selected harness bind for captured reads?"\n  binding\n    kind operation\n    target @operation read-captured-source\n    implementation captured-source-read\n',
+      text: '#! ia 1.0\n\n@execution-binding read-captured-source-binding\n  meaning\n    says "Select the fixed installed first-party captured-source read adapter."\n    answers "Which declared implementation can an explicitly selected harness bind for captured reads?"\n  binding\n    kind operation\n    target @operation read-captured-source\n    implementation captured-source-read-v1\n',
       location: placement,
     },
     {
@@ -134,8 +137,8 @@ export function readFixture(SDK, root, mode = 'plain') {
   // Reuse the explicitly selected canonical operation; never duplicate or silently replace its bytes.
   const added = sources
     .map((source) =>
-      mode !== 'plain' && canonicalReadPaths.includes(source.path)
-        ? { ...source, text: oldNames(source.text) }
+      mode === 'plain' && canonicalReadPaths.includes(source.path)
+        ? { ...source, text: plainNames(source.text) }
         : source,
     )
     .filter((source) => {
@@ -263,7 +266,7 @@ export async function qualifyInstalledRead(SDK, root, store, retryFault) {
   const f = readFixture(SDK, root);
   let current = f.capture;
   const read = SDK.installedReadAdapters(f.capture, { ...f.options, currentCapture: () => current }),
-    adapter = read.operations[SDK.INSTALLED_READ.handler];
+    adapter = read.operations[SDK.INSTALLED_READ_LEGACY.handler];
   let calls = 0,
     reads = 0,
     failOnce = true,
@@ -306,7 +309,7 @@ export async function qualifyInstalledRead(SDK, root, store, retryFault) {
       digest(manifest) === digest(f.manifest) &&
       current.revision === f.capture.revision &&
       SDK.installedImplementationDigest() ===
-        f.catalog.operations[SDK.INSTALLED_READ.implementation].value.implementationDigest,
+        f.catalog.operations[SDK.INSTALLED_READ_LEGACY.implementation].value.implementationDigest,
     context: async () => ({ capture: f.capture.revision }),
     evaluate: async () => {
       checks++;
@@ -389,7 +392,7 @@ export async function qualifyInstalledRead(SDK, root, store, retryFault) {
     return {
       capture: f.capture.revision,
       compiled: f.compiled.digest,
-      installedCode: f.catalog.operations[SDK.INSTALLED_READ.implementation].value.implementationDigest,
+      installedCode: f.catalog.operations[SDK.INSTALLED_READ_LEGACY.implementation].value.implementationDigest,
       calls,
       reads,
       checks,
@@ -417,7 +420,7 @@ export async function qualifyAdmission(SDK, root, directory) {
   const f = readFixture(SDK, root),
     sentinel = 'A supplied public read label.',
     read = SDK.installedReadAdapters(f.capture, f.options),
-    adapter = read.operations[SDK.INSTALLED_READ.handler];
+    adapter = read.operations[SDK.INSTALLED_READ_LEGACY.handler];
   let revoked = false,
     returnChecks = 0,
     nativeReads = 0,
@@ -596,7 +599,7 @@ if (isEntry(process.argv[1], import.meta.url)) {
       };
       try {
         await assert.rejects(
-          bound.operations[installedSDK.INSTALLED_READ.handler].execute({ path: readPath }, context),
+          bound.operations[installedSDK.INSTALLED_READ_LEGACY.handler].execute({ path: readPath }, context),
           /implementation bytes changed/,
         );
         byteMutationRefused = true;

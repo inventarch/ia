@@ -13,6 +13,7 @@
 import { COORDINATE_DOMAINS } from './coordinate.js';
 import { SCOPE_KEY_CAPS } from './scope-key.js';
 import { freeze } from './types.js';
+import { written } from './plain-format.js';
 
 export type JsonSchema = Readonly<Record<string, unknown>>;
 export interface ProtocolRefusal {
@@ -459,8 +460,7 @@ export const MACHINE_PROTOCOL: MachineProtocol = freeze({
           "A @plan, @milestone or @task identity; the view is that plan's, or the plan of that milestone or task. Omitted, the only admitted @plan at authored placement (band 100).",
         ),
       }),
-      result:
-        'The view: {format: delivery-view, formatVersion: 1, revision, plan, milestones, tasks, review, next, summary}. Each task is {identity, milestone, status, prerequisites, verdict, line, evidence?, states}; next is the command for the first task with no declared blocker, or null when every task has exit evidence or every other one is blocked, which summary says.',
+      result: `The view: {format: ${written('delivery-view, formatVersion: 1', 'ia.delivery-view.v1')}, revision, plan, milestones, tasks, review, next, summary}. Each task is {identity, milestone, status, prerequisites, verdict, line, evidence?, states}; next is the command for the first task with no declared blocker, or null when every task has exit evidence or every other one is blocked, which summary says.`,
       refusals: [
         REQUEST_INVALID,
         SCOPE_UNAVAILABLE,
@@ -542,8 +542,7 @@ export const MACHINE_PROTOCOL: MachineProtocol = freeze({
             'An optional cognitive primitive override. Omitted, derive it from shape; supplied, use it for cells and conditions, retaining the shape focus.',
         },
       }),
-      result:
-        "The position: {body, digest, hostNote}. body is body(K) in the format position-body (formatVersion 1), its key the one resolved and its revision that of the view the scope reads; digest is the SHA-256 of the body's canonical JSON text; hostNote is {revision, capturedRevision?, previousRevision?, freshness, key}, host state never digested, freshness current, stale or no-capture against the last capture and key the key as completed.",
+      result: `The position: {body, digest, hostNote}. body is body(K) in the format ${written('position-body (formatVersion 1)', 'ia.position-body.v1')}, its key the one resolved and its revision that of the view the scope reads; digest is the SHA-256 of the body's canonical JSON text; hostNote is {revision, capturedRevision?, previousRevision?, freshness, key}, host state never digested, freshness current, stale or no-capture against the last capture and key the key as completed.`,
       refusals: [
         {
           code: 'IA-RUNTIME-REQUEST-INVALID',

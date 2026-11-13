@@ -9,5 +9,5 @@
     effects read-only
     input fixture-secondary-input-v1
     output fixture-secondary-output-v1
-    profile governed
+    profile governed-v1
     recovery repeatable

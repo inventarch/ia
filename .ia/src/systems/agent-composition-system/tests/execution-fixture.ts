@@ -63,7 +63,7 @@ export function executionFixture(root: string) {
   sources.push({
     ...owner,
     path: '.ia/src/systems/agent-composition-system/records/example-read.ia',
-    text: '#! ia 1.0\n\n@operation example-read\n  meaning\n    says "Read the selected fixture source."\n    answers "Which fixture operation is selected?"\n  execution\n    handler corpus-inspect-v1\n    effects read-only\n    input example-read-input\n    output example-read-output\n    profile governed\n    recovery repeatable\n\n@execution-binding example-read-binding\n  meaning\n    says "Bind the fixture read adapter."\n    answers "Which adapter receives the fixture request?"\n  binding\n    kind operation\n    target @operation example-read\n    implementation corpus-inspect-v1\n',
+    text: '#! ia 1.0\n\n@operation example-read\n  meaning\n    says "Read the selected fixture source."\n    answers "Which fixture operation is selected?"\n  execution\n    handler corpus-inspect-v1\n    effects read-only\n    input example-read-input\n    output example-read-output\n    profile governed-v1\n    recovery repeatable\n\n@execution-binding example-read-binding\n  meaning\n    says "Bind the fixture read adapter."\n    answers "Which adapter receives the fixture request?"\n  binding\n    kind operation\n    target @operation example-read\n    implementation corpus-inspect-v1\n',
   });
   const next = { ...body, sources };
   return { ...next, revision: digest(next) };

@@ -110,3 +110,22 @@ it('writes plain registry formats with formatVersion 1 and still reads the legac
   expect(registryWorkspaceIndex.safeParse({ ...workspace, format: 'ia.registry-workspace.v1' }).success).toBe(false);
   expect(registryWorkspaceIndex.safeParse({ ...workspace, format: 'registry-kit' }).success).toBe(false);
 });
+
+it('still accepts the released registry literals exactly as older programs write them, with no formatVersion', () => {
+  const released = (format: string) => ({
+    format,
+    id: 'example/index',
+    releases: [{ version: '1.0.0', withdrawn: false, distributions: [{ id: 'example/base', range: '1.0.0' }] }],
+  });
+  expect(registryKitIndex.safeParse(released('ia.registry-kit.v1')).success).toBe(true);
+  const workspace = {
+    ...released('ia.registry-workspace.v1'),
+    releases: [
+      { version: '1.0.0', withdrawn: false, revision: hash, files: [{ path: '.ia/src/work.ia', text: '#! ia 1.0\n' }] },
+    ],
+  };
+  expect(registryWorkspaceIndex.safeParse(workspace).success).toBe(true);
+  // The released literal is never read under the other shape's version field, nor the plain name without one.
+  expect(registryKitIndex.safeParse({ ...released('ia.registry-kit.v1'), formatVersion: 1 }).success).toBe(false);
+  expect(registryKitIndex.safeParse(released('registry-kit')).success).toBe(false);
+});

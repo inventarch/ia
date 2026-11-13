@@ -21,6 +21,14 @@ import { syncBuiltinESMExports } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
+
+/** The package's one switch, flipped here to prove the plain names come back exactly when the follow-up release flips it. */
+const flip = vi.hoisted(() => ({ plain: false }));
+vi.mock('../src/written-names.js', () => ({
+  get WRITE_PLAIN_NAMES() {
+    return flip.plain;
+  },
+}));
 import { json, sha256 } from '../src/files.js';
 import { acquireHostRegistrationLock, verifyHostCache } from '../src/host.js';
 import { hostVerifier, observeHosts } from '../src/host-observe.js';
@@ -51,6 +59,7 @@ const put = (root: string, path: string, text: string) => {
   writeFileSync(resolve(root, path), text);
 };
 afterEach(() => {
+  flip.plain = false;
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 const code = (value: string) => expect.objectContaining({ code: value });
@@ -879,7 +888,7 @@ it('takes a session open time before it reads any input, so it never prunes what
   }
 });
 
-it('records joins in the plain host-joins format and still reads the legacy ia.host-joins.v1 file', () => {
+it('reads the plain host-joins format beside the legacy ia.host-joins.v1 file', () => {
   const root = temp();
   const row = {
     consumer: 'claude',
@@ -903,3 +912,21 @@ it('records joins in the plain host-joins format and still reads the legacy ia.h
     expect(() => readJoins(root)).toThrow(code('IA-DIST-INPUT-INVALID'));
   }
 });
+
+it.each([false, true])(
+  'records joins under the released literal by default and in the plain host-joins format once the switch flips (plain names: %s)',
+  (plainNames) => {
+    flip.plain = plainNames;
+    const root = temp(),
+      { root: cache, release } = payload();
+    registered(root, 'claude', cache, release);
+    expect(joinHost(root, 'claude', REVISION).status).toBe('joined');
+    const written = JSON.parse(readFileSync(resolve(root, JOINS), 'utf8'));
+    // Older programs read the join receipts and refuse anything but the released literal (dec-008, A15).
+    expect(written).toMatchObject(
+      plainNames ? { format: 'host-joins', formatVersion: 1 } : { format: 'ia.host-joins.v1' },
+    );
+    if (!plainNames) expect(written).not.toHaveProperty('formatVersion');
+    expect(readJoins(root)).toHaveLength(1);
+  },
+);

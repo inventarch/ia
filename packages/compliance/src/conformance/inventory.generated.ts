@@ -2,7 +2,7 @@
 import type { ConformanceInventory } from './inventory.js';
 
 export const INVENTORY: ConformanceInventory = {
-  "profile": "package",
+  "profile": "package-v1",
   "fixtures": [
     {
       "path": "cases/fail/duplicate-given.ia",
@@ -2246,4 +2246,4 @@ export const INVENTORY: ConformanceInventory = {
   ]
 };
 
-export const INVENTORY_DIGEST = "fc61fb5d35abe5bbecf5b428089834919c29ab57a51867af1cab86d8b93f526d";
+export const INVENTORY_DIGEST = "2dd953609722f67d6a86f9a3cc89ab6496759bcb909ca08c6da50bc01c4049ac";

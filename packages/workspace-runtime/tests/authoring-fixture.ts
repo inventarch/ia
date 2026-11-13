@@ -221,8 +221,7 @@ export function authoringFixture(
     (a) => occurrenceOf(a.owner),
   );
   const resourceBody = {
-    format: 'captured-resources' as const,
-    formatVersion: 1 as const,
+    format: 'ia.captured-resources.v1' as const,
     sourceRevisions: inventory.sourceRevisions,
     nativeCaptureRevision: capture.revision,
     files,

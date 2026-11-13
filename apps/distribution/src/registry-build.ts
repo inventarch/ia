@@ -14,9 +14,11 @@ import {
   json,
   locate,
   replace,
+  stamped,
   utf8,
   workspace,
 } from './files.js';
+import { WRITE_PLAIN_NAMES } from './written-names.js';
 import {
   decodePackageIndex,
   decodeRegistryInfo,
@@ -58,15 +60,18 @@ export function registryAddCollection<K extends 'kit' | 'workspace'>(
   if (content.length > REGISTRY_LIMITS.indexBytes) fail('LIMIT-EXCEEDED', 'Collection index exceeds 4 MiB');
   const index = decodeCollectionIndex(utf8(content), kind, value.id),
     path = collectionIndexPath(kind, index.id);
-  // Whatever shape came in, the registry file is written in the plain shape.
-  content = encode(index);
+  // Until `WRITE_PLAIN_NAMES` is flipped the file keeps the released shape the caller supplied, or is written in it;
+  // once flipped, whatever shape came in, the registry file is written in the plain shape.
+  if (WRITE_PLAIN_NAMES) content = encode(index);
+  else if (value.format === `registry-${kind}`)
+    content = encode({ format: `ia.registry-${kind}.v1`, id: index.id, releases: index.releases });
   const previous = existing(root, path, (text) => decodeCollectionIndex(text, kind, index.id));
   for (const prior of previous?.releases ?? []) {
     const next = index.releases.find((release) => release.version === prior.version);
     if (!next || json(next) !== json(prior)) fail('CONFLICT', 'Collection indexes are append-only');
   }
   if (readInfo(root) === null)
-    create(root, INFO, encode({ format: 'registry', formatVersion: 1, name: basename(root) }));
+    create(root, INFO, encode({ ...stamped('registry', 'ia.registry.v1'), name: basename(root) }));
   if (previous === null) create(root, path, content);
   else replace(root, path, content, PUBLIC);
 }
@@ -108,7 +113,7 @@ function create(root: string, path: string, content: Buffer): void {
 function indexContent(id: string, releases: readonly RegistryRelease[]): Buffer {
   if (releases.length > REGISTRY_LIMITS.releases)
     fail('LIMIT-EXCEEDED', `Registry index exceeds ${REGISTRY_LIMITS.releases} releases`);
-  const content = encode({ format: 'registry-package', formatVersion: 1, id, releases });
+  const content = encode({ ...stamped('registry-package', 'ia.registry-package.v1'), id, releases });
   if (content.length > REGISTRY_LIMITS.indexBytes)
     fail('LIMIT-EXCEEDED', `Registry index exceeds ${REGISTRY_LIMITS.indexBytes} bytes`);
   relabel(() => decodePackageIndex(utf8(content), id), 'Built registry index does not decode: ');
@@ -182,7 +187,7 @@ export function registryAdd(request: RegistryAddRequest): {
   if (info !== null && request.name !== undefined && request.name !== info.name)
     fail('CONFLICT', `Registry is already named "${info.name}", not "${request.name}"`);
   const infoContent =
-    info === null ? encode({ format: 'registry', formatVersion: 1, name: request.name ?? basename(root) }) : null;
+    info === null ? encode({ ...stamped('registry', 'ia.registry.v1'), name: request.name ?? basename(root) }) : null;
   if (infoContent !== null) relabel(() => decodeRegistryInfo(utf8(infoContent)), 'Invalid registry name: ');
   const id = manifest.id,
     path = packageIndexPath(id),

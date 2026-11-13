@@ -549,7 +549,7 @@ it('verifies COMP-KERNEL and COMP-FIXTURES with --verify-conformance and records
   });
   expect(envelope.conformance.verdicts).toEqual(verified('pass'));
   expect(envelope.conformance).toMatchObject({
-    profile: 'package',
+    profile: 'package-v1',
     kernel: { floorDigest: expect.stringMatching(/^[0-9a-f]{64}$/) },
     fixtures: { inventoryDigest: expect.stringMatching(/^[0-9a-f]{64}$/) },
   });
@@ -574,7 +574,7 @@ it('verifies COMP-KERNEL and COMP-FIXTURES with --verify-conformance and records
   expect(human.text).toContain('Conformance ✔ COMP-FIXTURES pass, verified Inventory ');
   expect(human.text).toContain('✔ COMP-KERNEL pass, verified Floor ');
   expect(human.text).toContain(
-    'Profile package, which does not run HOOK, RUNTIME, escalation, EXEC and PUBLICATION: a pass says nothing about them.',
+    'Profile package-v1, which does not run HOOK, RUNTIME, escalation, EXEC and PUBLICATION: a pass says nothing about them.',
   );
   // The kernel check is not-evaluated beside a verified pass, and says why.
   expect(human.text).toContain(

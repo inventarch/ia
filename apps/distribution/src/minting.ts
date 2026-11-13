@@ -21,7 +21,7 @@ import { RESOURCE_LIMITS, resourceOccurrences, nativeResourcePath } from '@inven
 import { digest } from '@inventarch/graph';
 import { verifySelectedArchiveClosure } from './archive.js';
 import { distributionSnapshot } from './snapshot.js';
-import { fail, utf8 } from './files.js';
+import { fail, stamped, utf8 } from './files.js';
 import { KERNEL_SOURCES } from '@inventarch/language';
 
 export interface MintingReleaseSet {
@@ -35,8 +35,8 @@ export interface ReleaseMintingRequest {
   readonly policyRevision: string;
 }
 export interface ReleaseMintingAssessment {
-  readonly format: 'release-minting';
-  readonly formatVersion: 1;
+  readonly format: 'release-minting' | 'ia.release-minting.v1';
+  readonly formatVersion?: 1;
   readonly ready: boolean;
   readonly semantic: 'not-evaluated';
   readonly floor: string;
@@ -227,8 +227,7 @@ export function assessReleaseMinting(input: ReleaseMintingRequest): ReleaseMinti
       if (candidate.pin.lock === null) return refused();
       const assessment = assessAuthoringMinting(baseline.view, candidate.view);
       const body = {
-        format: 'release-minting' as const,
-        formatVersion: 1 as const,
+        ...stamped('release-minting', 'ia.release-minting.v1'),
         ready: assessment.ready,
         semantic: 'not-evaluated' as const,
         floor: digest(floor),

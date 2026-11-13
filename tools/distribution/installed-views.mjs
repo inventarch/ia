@@ -176,9 +176,8 @@ export function qualifyInstalledViews(cli, cwd, env, workspace) {
     current = resolve(workspace, '.ia/work/snapshot/current.json');
   const snapshotBytes = readFileSync(current),
     snapshot = JSON.parse(snapshotBytes);
-  assert.equal(captured.format, 'snapshot');
-  assert.equal(snapshot.format, 'snapshot');
-  assert.equal(snapshot.formatVersion, 1);
+  assert.equal(captured.format, 'ia-snapshot-1');
+  assert.equal(snapshot.format, 'ia-snapshot-1');
   assert.equal(captured.digest, sha256(snapshotBytes));
   assert.equal(captured.admission.errors, 0);
   for (const identity of [plan, milestone, prerequisite, dependent])
@@ -209,8 +208,7 @@ export function qualifyInstalledViews(cli, cwd, env, workspace) {
   }
   const delivery = machine(['next']);
   assert.equal(delivery.ok, true);
-  assert.equal(delivery.view.format, 'delivery-view');
-  assert.equal(delivery.view.formatVersion, 1);
+  assert.equal(delivery.view.format, 'ia.delivery-view.v1');
   assert.equal(delivery.view.plan, plan);
   assert.equal(delivery.view.revision, captured.revision);
   assert.deepEqual(

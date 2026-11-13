@@ -11,10 +11,10 @@ import { GRAPH_CODES } from '../../packages/graph/src/index.js';
 import { COMP_CODES, EVIDENCE_CODES } from '../../packages/compliance/src/index.js';
 import { loadCorpus } from '../../packages/compliance/src/conformance/corpus.js';
 import {
-  CONFORMANCE_PROFILE,
   companionSuffixes,
   fileDigest,
   inventoryDigest,
+  writtenConformanceProfile,
 } from '../../packages/compliance/src/conformance/inventory.js';
 import type { ConformanceInventory, InventoryFixture } from '../../packages/compliance/src/conformance/inventory.js';
 import { runRefusalFixtures } from '../../packages/compliance/src/conformance/refusals.js';
@@ -68,7 +68,7 @@ export function generateInventory(root: string): { text: string; digest: string;
   ].map((result) => result.assessment.scope);
   if (new Set(boundaries).size !== boundaries.length) throw new Error('Duplicate boundary case scope');
   const inventory: ConformanceInventory = {
-    profile: CONFORMANCE_PROFILE,
+    profile: writtenConformanceProfile(),
     fixtures: fixtures(root),
     corpus: sources,
     folders,

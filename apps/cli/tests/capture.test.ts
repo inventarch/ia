@@ -21,7 +21,7 @@ import {
 } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { stripVTControlCharacters } from 'node:util';
-import { afterAll, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, expect, it, vi } from 'vitest';
 import { readInputs } from '@inventarch/db';
 import { sha256 } from '@inventarch/distribution/services';
 // Through the root development dependency, as the db pins an adopted revision.
@@ -32,8 +32,11 @@ import {
   previewCapture,
   renderCapture,
   SNAPSHOT_DIRECTORY,
-  SNAPSHOT_FORMAT,
+  RELEASED_SNAPSHOT_FORMAT,
   SYNTAX_CODES,
+  SNAPSHOT_FORMAT,
+  SNAPSHOT_FORMAT_VERSION,
+  captureEnvelope,
   unparsedSeed,
   WRITE_REPAIRABLE,
   writeRepair,
@@ -53,6 +56,17 @@ import {
 } from './workspace-fixture.js';
 
 afterAll(cleanup);
+
+/** The package's one switch, flipped here to prove the plain names come back exactly when the follow-up release flips it. */
+const flip = vi.hoisted(() => ({ plain: false }));
+vi.mock('../src/written-names.js', () => ({
+  get WRITE_PLAIN_NAMES() {
+    return flip.plain;
+  },
+}));
+afterEach(() => {
+  flip.plain = false;
+});
 
 /** A seam on db D08b's planCapture, so a test can fail the reads a preview makes. Every call passes through. */
 const seams = vi.hoisted(() => ({ plan: undefined as ((root: string) => void) | undefined }));
@@ -104,7 +118,6 @@ interface Finding {
 }
 interface SnapshotFile {
   readonly format: string;
-  readonly formatVersion: number;
   readonly language: string;
   readonly kernelDigest: string;
   readonly revision: string;
@@ -186,7 +199,7 @@ const listedUnder = (stdout: string, label: string): readonly string[] | null =>
  * conditional wording and no identity heading, so a capture without --preview reports as it did before.
  */
 const captureReport = (stdout: string): string => {
-  expect(stdout.split('\n')[1]).toMatch(new RegExp(`^Capture\\s+${SNAPSHOT_FORMAT}\\s+revision `));
+  expect(stdout.split('\n')[1]).toMatch(new RegExp(`^Capture\\s+${RELEASED_SNAPSHOT_FORMAT}\\s+revision `));
   expect(stdout).not.toMatch(/preview|nothing has been written|would /i);
   expect(['Changed', 'New', 'Removed'].map((label) => listedUnder(stdout, label))).toEqual([null, null, null]);
   return flat(stdout);
@@ -213,7 +226,6 @@ it('writes the first capture with per-record digests and membership, and compare
     'version',
     'snapshot',
     'format',
-    'formatVersion',
     'revision',
     'digest',
     'records',
@@ -230,8 +242,7 @@ it('writes the first capture with per-record digests and membership, and compare
   expect(first).toMatchObject({
     version: 1,
     snapshot: resolve(realpathSync(root), CURRENT),
-    format: SNAPSHOT_FORMAT,
-    formatVersion: 1,
+    format: RELEASED_SNAPSHOT_FORMAT,
     changed: 0,
     unchanged: 0,
     removed: 0,
@@ -249,8 +260,7 @@ it('writes the first capture with per-record digests and membership, and compare
   const bytes = bytesAt(root, CURRENT);
   expect(sha256(bytes)).toBe(first.digest);
   const snapshot = snapshotAt(root);
-  expect(snapshot.format).toBe(SNAPSHOT_FORMAT);
-  expect(snapshot.formatVersion).toBe(1);
+  expect(snapshot.format).toBe(RELEASED_SNAPSHOT_FORMAT);
   expect(snapshot.language).toBe('1.0');
   expect(snapshot.kernelDigest).toMatch(/^[0-9a-f]{64}$/);
   expect(snapshot.revision).toBe(first.revision);
@@ -432,12 +442,9 @@ it('replaces a current.json that is no capture and retains no previous capture b
   for (const [text, reason] of [
     ['not json\n', 'is not JSON'],
     ['{"format":"ia.compiled.v1"}\n', `is not an ${SNAPSHOT_FORMAT} document`],
+    [`{"format":"${RELEASED_SNAPSHOT_FORMAT}","revision":"r","membership":[]}\n`, 'has no revision or membership rows'],
     [
-      `{"format":"${SNAPSHOT_FORMAT}","formatVersion":1,"revision":"r","membership":[]}\n`,
-      'has no revision or membership rows',
-    ],
-    [
-      `{"format":"${SNAPSHOT_FORMAT}","formatVersion":1,"revision":"${'a'.repeat(64)}","membership":[{"identity":"x"}]}\n`,
+      `{"format":"${RELEASED_SNAPSHOT_FORMAT}","revision":"${'a'.repeat(64)}","membership":[{"identity":"x"}]}\n`,
       'has a malformed membership row',
     ],
   ] as const) {
@@ -468,7 +475,7 @@ it('renders the effect apart from admission in human output', async () => {
   const first = await run(['capture', '--root', root]);
   expect(first.exitCode).toBe(0);
   expect(first.stderr).toBe('');
-  for (const text of ['Capture', SNAPSHOT_FORMAT, 'No prior capture to compare with', CURRENT, 'Admission'])
+  for (const text of ['Capture', RELEASED_SNAPSHOT_FORMAT, 'No prior capture to compare with', CURRENT, 'Admission'])
     expect(first.stdout).toContain(text);
   const report = captureReport(first.stdout);
   expect(report).toContain('No earlier capture at another authored revision is retained.');
@@ -930,7 +937,6 @@ it('previews exactly the edited record as changed and writes nothing: both snaps
     'preview',
     'snapshot',
     'format',
-    'formatVersion',
     'revision',
     'digest',
     'records',
@@ -975,7 +981,7 @@ it('previews exactly the edited record as changed and writes nothing: both snaps
   ])
     expect(flat(human.stdout)).toContain(text);
   // Headed as the other previews are, and its effect line is information: nothing was written to mark.
-  expect(human.stdout.split('\n')[1]).toMatch(new RegExp(`^Plan\\s+capture ${SNAPSHOT_FORMAT}\\s+revision `));
+  expect(human.stdout.split('\n')[1]).toMatch(new RegExp(`^Plan\\s+capture ${RELEASED_SNAPSHOT_FORMAT}\\s+revision `));
   expect(human.stdout.split('\n').find((line) => line.includes('Would capture '))).toMatch(
     /(•|\*)\s+Would capture \d+ records\./,
   );
@@ -1203,5 +1209,25 @@ it('refuses the removed compile command without creating a capture or the 1.x ar
   expect(existsSync(resolve(root, DEFAULT_OUT))).toBe(false);
   const captured = await capture(root);
   expect(captured.prior).toBeNull();
-  expect(snapshotAt(root).format).toBe(SNAPSHOT_FORMAT);
+  expect(snapshotAt(root).format).toBe(RELEASED_SNAPSHOT_FORMAT);
 });
+
+it.each([false, true])(
+  'writes the released ia-snapshot-1 literal by default and the plain snapshot format once the switch flips, in the document and the envelope (plain names: %s)',
+  (plainNames) => {
+    flip.plain = plainNames;
+    const view = previewCapture(workspace());
+    const document = JSON.parse(view.text) as Record<string, unknown>,
+      envelope = captureEnvelope(view) as Record<string, unknown>;
+    // Older programs read the capture and accept only the released literal, with no formatVersion (dec-008, A15).
+    const stamp = plainNames
+      ? { format: SNAPSHOT_FORMAT, formatVersion: SNAPSHOT_FORMAT_VERSION }
+      : { format: RELEASED_SNAPSHOT_FORMAT };
+    expect(document).toMatchObject(stamp);
+    expect(envelope).toMatchObject(stamp);
+    if (!plainNames) {
+      expect(document).not.toHaveProperty('formatVersion');
+      expect(envelope).not.toHaveProperty('formatVersion');
+    }
+  },
+);

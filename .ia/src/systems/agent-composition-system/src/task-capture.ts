@@ -33,7 +33,7 @@ import { taskContextDeclaration } from './task-context-declaration.js';
 import type { TaskContextDeclaration } from './task-context-declaration.js';
 import { taskTeachingClosure } from './task-teaching-closure.js';
 import { occurrenceOf } from '@inventarch/workspace-runtime/resource-format';
-import { currentStamp } from './plain-format.js';
+import { writeStamp } from './plain-format.js';
 export type { TaskContextDeclaration } from './task-context-declaration.js';
 export {
   TASK_CAPTURE_BYTES,
@@ -436,7 +436,7 @@ export function prepareTaskCapture(
         selectedFiles.some((source) => systemMember(source.path)?.name === name),
       ),
       selection: {
-        ...currentStamp('task-capture-selection'),
+        ...writeStamp('task-capture-selection', 'ia.task-capture-selection.v1'),
         request,
         policy: TASK_CAPTURE_POLICY,
         implementation,

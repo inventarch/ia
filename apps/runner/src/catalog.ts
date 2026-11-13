@@ -1,5 +1,6 @@
 import { installed, installedReadAliases, installedReadCatalog } from '@inventarch/agent-composition-system';
 import type { CatalogAliases, CompositionCatalog } from '@inventarch/agent-composition-system';
+import { WRITE_PLAIN_NAMES } from './written-names.js';
 
 /** Each name the runner contracts shipped under before names stopped carrying their version, with its plain name. */
 const RENAMED = {
@@ -18,6 +19,8 @@ const RENAMED = {
  * records that still name an old contract compile to the plain entry.
  */
 export function runnerAliases(): CatalogAliases {
+  // Until `WRITE_PLAIN_NAMES` is flipped a record that names an original contract compiles to the original entry.
+  if (!WRITE_PLAIN_NAMES) return {};
   const read = installedReadAliases();
   return {
     ...RENAMED,

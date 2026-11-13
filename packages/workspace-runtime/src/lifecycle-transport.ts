@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { stableSerialize } from '@inventarch/graph';
 import { decodeJson, frozen, metadataDigest } from './resource-format.js';
 import { isSegmentedLifecycleProfile, LifecycleError } from './lifecycle-profile.js';
-import { currentStamp, peekStamp } from './plain-format.js';
+import { peekStamp, writeStamp } from './plain-format.js';
 import type { Stamp } from './plain-format.js';
 
 export const LIFECYCLE_CONTEXT_SLOTS = 12;
@@ -83,8 +83,9 @@ function payloadInfo(payload: string) {
 /** Exact deterministic transport only; no view, permission, input or delivery cache. */
 export function fragmentLifecycleContext(
   payload: string,
-  stamp: Stamp<'lifecycle-context-segment', 'ia.lifecycle-context-segment.v1'> = currentStamp(
+  stamp: Stamp<'lifecycle-context-segment', 'ia.lifecycle-context-segment.v1'> = writeStamp(
     'lifecycle-context-segment',
+    'ia.lifecycle-context-segment.v1',
   ),
 ): LifecycleFragments {
   const info = payloadInfo(payload),

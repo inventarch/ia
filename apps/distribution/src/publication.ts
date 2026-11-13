@@ -13,6 +13,7 @@ import {
   replace,
   sha256,
   syncDirectory,
+  stamped,
   utf8,
   versionedObject,
   workspace,
@@ -31,8 +32,8 @@ interface Owned {
   config: string | null;
 }
 interface State {
-  format: 'projection-publication';
-  formatVersion: 1;
+  format: 'projection-publication' | 'ia.projection-publication.v1';
+  formatVersion?: 1;
   id: string;
   manifest: ProjectionManifest;
   files: Owned[];
@@ -43,8 +44,8 @@ interface Change {
   after: string | null;
 }
 interface Pending {
-  format: 'projection-pending';
-  formatVersion: 1;
+  format: 'projection-pending' | 'ia.projection-pending.v1';
+  formatVersion?: 1;
   id: string;
   before: string | null;
   after: string;
@@ -223,7 +224,7 @@ function prepare(
   }
   const manifest = result?.manifest ?? previous.value!.manifest;
   const after = Buffer.from(
-    json({ format: 'projection-publication', formatVersion: 1, id, manifest, files } satisfies State),
+    json({ ...stamped('projection-publication', 'ia.projection-publication.v1'), id, manifest, files } satisfies State),
   );
   state(after, id);
   return { before: previous.content, after, changes };
@@ -246,8 +247,7 @@ function transact(root: string, id: string, result: Compiled | null, options: Pu
     const plan = prepare(root, id, result);
     options.fresh?.();
     const pending: Pending = {
-      format: 'projection-pending',
-      formatVersion: 1,
+      ...stamped('projection-pending', 'ia.projection-pending.v1'),
       id,
       before: encoded(plan.before),
       after: plan.after.toString('base64'),
