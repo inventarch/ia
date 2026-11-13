@@ -1,6 +1,6 @@
 # Shared-root CLI qualification
 
-Tracks [issue #263](https://github.com/inventarch/ia/issues/263), the isolated CLI ownership portion of [#194](https://github.com/inventarch/ia/issues/194). Native plan: `shared-root-authoring`; task/spec: `shared-root-cli-ownership`. Authored by InventArch.
+Tracks [issue #263](https://github.com/inventarch/ia/issues/263), the isolated CLI ownership portion of [#194](https://github.com/inventarch/ia/issues/194). Its plan, spec and task are kept with InventArch's work records outside this repository. Authored by InventArch.
 
 ## Red checkpoint
 
