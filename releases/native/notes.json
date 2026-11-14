@@ -1,39 +1,39 @@
 {
   "format": "ia.native-release-notes.v1",
   "baseline": {
-    "tag": "v3.7.0",
-    "commit": "ae43a8e496a2db5ecf05c4439c094f1fba6a8a73"
+    "tag": "v3.8.0",
+    "commit": "52db8d463f2ad452b0d19632e1b4a965957d7b45"
   },
   "changes": [
     {
       "id": "inventarch/agent-composition-system",
-      "bump": "minor",
-      "summary": "Installed catalog entries carry the contract version as a positive integer, and compileHarness accepts aliases that send an old contract name to its plain replacement; provenance.aliases records each alias used. Remove the deprecated aliases that forwarded the generic workspace runtime: the root re-exports of captureWorkspace, adoptWorkspace, verifyCapture, Corpus, candidateValidation, managedPublication and Capture, and the subpaths of the 18 modules that moved to @inventarch/workspace-runtime in 1.2.0."
+      "bump": "patch",
+      "summary": "compileHarness compares the input and output validators an operation descriptor lists, and the mapping an entry contract lists, by installed name, so a catalog whose alias table renames only an operation's validators or only an entry's mapping compiles; the alias such a listed name relies on is recorded in provenance.aliases. installedReadAdapters requires each read validator the harness pins, found through its recorded aliases, to equal the first-party validator the read lists."
     },
     {
       "id": "inventarch/authoring-system",
-      "bump": "minor",
-      "summary": "Rebuilt on agent-composition-system's contract versions and catalog aliases; no change of its own."
+      "bump": "patch",
+      "summary": "Rebuilt on agent-composition-system's alias fix for listed validators and mappings; no change of its own."
     },
     {
       "id": "inventarch/hook-authoring-system",
-      "bump": "minor",
-      "summary": "Rebuilt on agent-composition-system's contract versions and catalog aliases; no change of its own."
+      "bump": "patch",
+      "summary": "Rebuilt on agent-composition-system's alias fix for listed validators and mappings; no change of its own."
     },
     {
       "id": "inventarch/language",
-      "bump": "minor",
-      "summary": "IA syntax remains 1.0. Rebuilt on agent-composition-system's contract versions and catalog aliases; no change of its own."
+      "bump": "patch",
+      "summary": "IA syntax remains 1.0. Rebuilt on agent-composition-system's alias fix for listed validators and mappings; no change of its own."
     },
     {
       "id": "inventarch/learning-system",
-      "bump": "minor",
-      "summary": "Rebuilt on agent-composition-system's contract versions and catalog aliases; no change of its own."
+      "bump": "patch",
+      "summary": "Rebuilt on agent-composition-system's alias fix for listed validators and mappings; no change of its own."
     },
     {
       "id": "inventarch/template-system",
-      "bump": "minor",
-      "summary": "Rebuilt on agent-composition-system's contract versions and catalog aliases; no change of its own."
+      "bump": "patch",
+      "summary": "Rebuilt on agent-composition-system's alias fix for listed validators and mappings; no change of its own."
     }
   ]
 }

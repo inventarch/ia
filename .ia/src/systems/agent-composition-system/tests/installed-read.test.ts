@@ -7,6 +7,7 @@ import { resolve } from 'node:path';
 import { Engine, manifestDigest } from '@inventarch/agent-system';
 import type { OperationContext } from '@inventarch/agent-system';
 import { copy, digest, memoryStore } from '@inventarch/session-system';
+import type { Json } from '@inventarch/session-system';
 import { sqliteStore } from '@inventarch/session-system/sqlite';
 import * as SDK from '../src/index.js';
 import type { Capture } from '@inventarch/workspace-runtime';
@@ -735,3 +736,123 @@ it('dispatches an aliased and a plain harness by the plain handler', async () =>
     expect(result.effect).toBe('none');
   }
 });
+
+/**
+ * The read fixture compiled with only the read's validators aliased, so its harness pins the read operation its records
+ * name together with the validators the aliases send that operation's listed ones to. 'forward' keeps the original
+ * records and sends the original validators to the plain ones; 'reverse' keeps the plain records and sends the plain
+ * validators to the originals. `edit` changes the catalogue first; `sendTo` overrides an alias target.
+ */
+function validatorsAliased(
+  direction: 'forward' | 'reverse',
+  edit: (catalog: SDK.CompositionCatalog) => void = () => {},
+  sendTo: Partial<Record<'input' | 'output', string>> = {},
+) {
+  const f = readFixture(SDK, root, direction === 'forward' ? 'legacy' : 'plain'),
+    catalog = copy(f.catalog),
+    [listed, pinned] =
+      direction === 'forward'
+        ? [SDK.INSTALLED_READ_LEGACY, SDK.INSTALLED_READ]
+        : [SDK.INSTALLED_READ, SDK.INSTALLED_READ_LEGACY];
+  edit(catalog);
+  const compilation = SDK.compileHarness(f.capture, {
+    harness: 'installed-read-example-harness',
+    entry: 'installed-read-example-entry',
+    catalog,
+    aliases: {
+      validators: {
+        [listed.input]: sendTo.input ?? pinned.input,
+        [listed.output]: sendTo.output ?? pinned.output,
+      },
+    },
+  });
+  if (!compilation.ok) throw new Error(JSON.stringify(compilation.diagnostics));
+  const compiled = compilation.manifest,
+    manifest = SDK.executionManifest(compiled, catalog);
+  return { ...f, catalog, compiled, manifest, listed, pinned, options: { ...f.options, catalog, compiled, manifest } };
+}
+/** A read validator with one bound widened past the fixed contract. */
+function widened(id: string, side: 'input' | 'output'): SDK.Installed<{ schema: Json }> {
+  const value = copy(SDK.installedReadCatalog().validators[id]!.value),
+    properties = (value.schema as { properties: Record<string, Record<string, Json>> }).properties;
+  if (side === 'input') properties['limit']!['maximum'] = 100000;
+  else properties['text']!['maxLength'] = 100000;
+  return SDK.installed(value);
+}
+/** The read validators a harness pins. */
+const validatorPins = (compiled: SDK.CompiledHarness) =>
+  compiled.provenance.installed
+    .filter((pin) => pin.group === 'validators' && pin.id.startsWith('captured-source-read-'))
+    .map((pin) => pin.id);
+
+it.each([
+  ['forward', 'input'],
+  ['forward', 'output'],
+  ['reverse', 'input'],
+  ['reverse', 'output'],
+] as const)(
+  'refuses a changed %s-aliased %s validator the harness pins in place of the listed one',
+  (direction, side) => {
+    const pinnedId = (direction === 'forward' ? SDK.INSTALLED_READ : SDK.INSTALLED_READ_LEGACY)[side];
+    const f = validatorsAliased(direction, (catalog) => {
+      catalog.validators[pinnedId] = widened(pinnedId, side);
+    });
+    // The harness pins the changed entry, not the unchanged one its read operation lists.
+    expect(validatorPins(f.compiled)).toContain(pinnedId);
+    expect(validatorPins(f.compiled)).not.toContain(f.listed[side]);
+    expect(f.catalog.validators[f.listed[side]]).toEqual(SDK.installedReadCatalog().validators[f.listed[side]]);
+    expect(() => SDK.installedReadAdapters(f.capture, f.options)).toThrow('Installed read validator changed');
+  },
+);
+
+it('accepts and reads through a catalogue without the original validators when only the validators are aliased', async () => {
+  const f = validatorsAliased('forward', (catalog) => {
+    delete catalog.validators[SDK.INSTALLED_READ_LEGACY.input];
+    delete catalog.validators[SDK.INSTALLED_READ_LEGACY.output];
+  });
+  expect(validatorPins(f.compiled)).toEqual([SDK.INSTALLED_READ.input, SDK.INSTALLED_READ.output]);
+  const bound = SDK.installedReadAdapters(f.capture, { ...f.options, currentCapture: () => f.capture });
+  close.push(bound.close);
+  const context: OperationContext = {
+    sessionId: 's',
+    runId: 'root',
+    attemptId: 'a',
+    invocationId: 'i',
+    principal: f.principal,
+    grant: f.grant,
+    manifest: f.manifest,
+    signal: new AbortController().signal,
+    assertCurrent: async () => {},
+  };
+  const result = await bound.operations[SDK.INSTALLED_READ_LEGACY.handler]!.execute(
+    { path: readPath, limit: 1 },
+    context,
+  );
+  expect(result.effect).toBe('none');
+  expect(result.output).toMatchObject({ revision: f.capture.revision });
+});
+
+it("refuses a read validator the aliases send to a different entry outside the read's catalogue with the read's own refusal", () => {
+  const f = validatorsAliased('forward', () => {}, { input: 'installed-read-example-task-v1' });
+  // The read's input is now the example task validator: an entry outside the read's own catalogue that differs from
+  // the input validator the read lists.
+  expect(f.compiled.operations[SDK.INSTALLED_READ.operation]!.input).toEqual(
+    f.catalog.validators['installed-read-example-task-v1']!.value.schema,
+  );
+  expect(SDK.installedReadCatalog().validators['installed-read-example-task-v1']).toBeUndefined();
+  expect(() => SDK.installedReadAdapters(f.capture, f.options)).toThrow('Installed read validator changed');
+});
+
+it.each(['input', 'output'] as const)(
+  "refuses a read whose %s validator the aliases send to the read's other one",
+  (side) => {
+    const other = side === 'input' ? SDK.INSTALLED_READ.output : SDK.INSTALLED_READ.input;
+    const f = validatorsAliased('forward', () => {}, { [side]: other });
+    // The read's `side` is now the unchanged first-party validator of its other side.
+    expect(f.compiled.operations[SDK.INSTALLED_READ.operation]![side]).toEqual(
+      f.catalog.validators[other]!.value.schema,
+    );
+    expect(f.catalog.validators[other]).toEqual(SDK.installedReadCatalog().validators[other]);
+    expect(() => SDK.installedReadAdapters(f.capture, f.options)).toThrow('Installed read validator changed');
+  },
+);
