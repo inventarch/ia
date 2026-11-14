@@ -8,6 +8,11 @@ updates:
     groups:
       minor-and-patch:
         update-types: ["minor", "patch"]
+    ignore:
+      # vsce refuses to package the editor when @types/vscode is a newer minor than engines.vscode
+      # in apps/vscode/package.json (^1.138.0). Raise this bound together with the engine.
+      - dependency-name: "@types/vscode"
+        versions: [">=1.139.0"]
     open-pull-requests-limit: 5
 
   # Workflow actions. The setup action pins a third-party action to a commit; Dependabot updates the pin.
