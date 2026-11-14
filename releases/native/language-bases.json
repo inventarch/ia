@@ -38,6 +38,12 @@
       "archive": "ee6e65018df2ebef705913d9da1947f040edf44c2e7ade6c9750c6fa0185985e",
       "manifest": "b6c5e0cc9149b874c11898e63c19082c9742acaf71bde192a2ec9fa6dd3f9fab",
       "source": "@inventarch/cli@3.7.0"
+    },
+    {
+      "version": "3.3.0",
+      "archive": "3ada760ec07848770957538a8562ec94c6f3a9ceb6f1e29d2739b217f9234728",
+      "manifest": "133e0ec85c27c457ba088623c2f753cb7618d531d1412fa957ad6c6ee7b700ee",
+      "source": "@inventarch/cli@3.8.0"
     }
   ]
 }

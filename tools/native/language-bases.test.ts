@@ -9,6 +9,7 @@ import type { LanguageBase } from './language-base.js';
 import { buildLanguageBase } from './language-base.js';
 import {
   BASES_DIRECTORY,
+  compareVersions,
   fetchBase,
   LEDGER_PATH,
   ledgerArchive,
@@ -112,14 +113,21 @@ const cliTarball = (base: LanguageBase): Buffer =>
 describe('fetching a published base', () => {
   const SEEDED = '3.2.1';
   const SEEDED_ARCHIVE = 'ee6e65018df2ebef705913d9da1947f040edf44c2e7ade6c9750c6fa0185985e';
-  /** A copy of the ledger without the `SEEDED` row and its archive, in a folder of its own. */
+  /**
+   * A copy of the ledger without the `SEEDED` row, the rows recorded after it and their archives, in a folder of its own:
+   * a fetch appends, so the seeded version must follow the copy's last row.
+   */
   function ledgerCopy(): string {
     const scratch = mkdtempSync(resolve(tmpdir(), 'ia-bases-fetch-test-'));
     cpSync(resolve(root, 'releases/native'), resolve(scratch, 'releases/native'), { recursive: true });
-    const copy = JSON.parse(readFileSync(resolve(scratch, LEDGER_PATH), 'utf8')) as { bases: { version: string }[] };
-    copy.bases = copy.bases.filter((base) => base.version !== SEEDED);
+    const copy = JSON.parse(readFileSync(resolve(scratch, LEDGER_PATH), 'utf8')) as {
+      bases: { version: string; archive: string }[];
+    };
+    const dropped = copy.bases.filter((base) => compareVersions(base.version, SEEDED) >= 0);
+    copy.bases = copy.bases.filter((base) => compareVersions(base.version, SEEDED) < 0);
     writeFileSync(resolve(scratch, LEDGER_PATH), `${JSON.stringify(copy, null, 2)}\n`);
-    rmSync(resolve(scratch, BASES_DIRECTORY, `${SEEDED_ARCHIVE}.ia.tgz`), { force: true });
+    expect(dropped.map((base) => base.archive)).toContain(SEEDED_ARCHIVE);
+    for (const base of dropped) rmSync(resolve(scratch, BASES_DIRECTORY, `${base.archive}.ia.tgz`), { force: true });
     expect(readBaseLedger(scratch).bases.some((base) => base.version === SEEDED)).toBe(false);
     expect(ledgerFindings(scratch)).toEqual([]);
     return scratch;
