@@ -2,6 +2,34 @@
 
 Generated from reviewed release changesets. Entries describe intended releases; publication is a separate action.
 
+## 3.8.1
+
+Coordinated 3.8.1 release of the 24 public npm packages: Catalogs that rename only an operation's validators or an entry's mapping compile; Regenerated vocabulary and language compatibility assets; Workspace runtime docs: the agent-composition aliases are gone.
+
+### Catalogs that rename only an operation's validators or an entry's mapping compile
+
+compileHarness now compares the input and output validators an operation descriptor lists, and the mapping an entry contract lists, with the names a record resolves to by installed name, as it already compares models. A catalog whose alias table renames an operation's validators but not the operation, or an entry's mapping but not the entry, was refused with IA-COMPOSITION-CONFLICT and now compiles. The alias such a listed name relies on is recorded in provenance.aliases, so compiledAliases still rebuilds the harness. A listed name the alias table sends to another entry is still refused, and compilations that already succeeded are unaffected. installedReadAdapters requires each read validator the compiled harness pins, found through its recorded aliases, to equal the first-party validator the read lists: when only the read's validators are renamed, a changed replacement, or one that is the read's other validator, is refused, and the original validator entries the harness no longer uses need not be installed.
+
+Packages: `@inventarch/agent-composition-system`, `@inventarch/runner`.
+
+### Regenerated vocabulary and language compatibility assets
+
+The bundled vocabulary assets carry the new native system versions. The bundled language bases and compatibility index keep every published base, 3.3.0 included, and add 3.3.1, the base this release builds, as the newest; a workspace locked to a published base still restores offline, and the language floors the CLI computes are unchanged. No consumer-facing change.
+
+Packages: `@inventarch/cli`, `@inventarch/mcp-door`.
+
+### Workspace runtime docs: the agent-composition aliases are gone
+
+Docs only: the provenance note now says IA 3.8.0 removed the agent-composition-system aliases of this package's modules; no package behaviour changes.
+
+Packages: `@inventarch/workspace-runtime`.
+
+### Coordinated version alignment
+
+Package version metadata follows the coordinated 3.8.1 release; each native artifact version follows its own archive content.
+
+Packages: `@inventarch/agent-system`, `@inventarch/authoring-system`, `@inventarch/compliance`, `@inventarch/compliance-system`, `@inventarch/db`, `@inventarch/distribution`, `@inventarch/governance-system`, `@inventarch/graph`, `@inventarch/hook-authoring-system`, `@inventarch/kb`, `@inventarch/language`, `@inventarch/learning-system`, `@inventarch/runtime`, `@inventarch/service-contracts`, `@inventarch/session-system`, `@inventarch/steward-hook`, `@inventarch/template-system`, `@inventarch/work-system`, `@inventarch/workspace-system`.
+
 ## 3.8.0
 
 Coordinated 3.8.0 release of the 24 public npm packages: Aliased model, evaluator, context and operation names compile and run as their installed entries; Batch pnpm installs ignore the repository pnpmfile; Canon link scan runs at its earlier speed; Console batch: a Ctrl-C before a repository's commit runs leaves Commit to choose again; Contract versions and catalog aliases; Cover every tracked-workspaces loader refusal; db docs and tests use the plain rule and profile names; db reads both evaluator catalog shapes; Document the home-lock, kit-collections and kit-inventory exports; Guard a folder-named kit binding as the kit served and keep its pin; ia format checks staleness once per run; IA home folders resolve through one authoritative location; ia position honours rule activation; Import the workspace runtime from its own package; Index postings build in linear time; kb pack reads a commit in batches; kb pack's batched read takes a Git path that is not UTF-8 as path by path does; Language base compatibility floor; Compatibility checks see text forms, edge targets and cardinality; Name a host-admitted agent on session start; Path identity: sameFile and tracked roots handle volumes with no inode; Pin the console's batch wiring; Plain catalog names for the shipped contracts; Plain names for review rules, evaluators and profiles; Plain profile names in test fixtures; Publication qualification retries a timed-out filesystem probe up to twice; Regenerated vocabulary assets; TERM=dumb and IA_NO_CONSOLE keep bare ia out of the console; The kit-not-installed remedy names the package route; The source walk vets each folder once and checks each source's final path; Versioned codecs for evaluator catalogs.

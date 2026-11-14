@@ -1,0 +1,652 @@
+{
+  "format": "ia.npm-changeset.v1",
+  "version": "3.8.1",
+  "state": "consumed",
+  "baseline": {
+    "commit": "52db8d463f2ad452b0d19632e1b4a965957d7b45",
+    "version": "3.8.0"
+  },
+  "bump": "patch",
+  "summary": "Coordinated 3.8.1 release of the 24 public npm packages: Catalogs that rename only an operation's validators or an entry's mapping compile; Regenerated vocabulary and language compatibility assets; Workspace runtime docs: the agent-composition aliases are gone.",
+  "packages": {
+    "@inventarch/agent-composition-system": {
+      "previous": "3.8.0",
+      "kind": "changed",
+      "summary": "Catalogs that rename only an operation's validators or an entry's mapping compile."
+    },
+    "@inventarch/agent-system": {
+      "previous": "3.8.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/authoring-system": {
+      "previous": "3.8.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/cli": {
+      "previous": "3.8.0",
+      "kind": "changed",
+      "summary": "Regenerated vocabulary and language compatibility assets."
+    },
+    "@inventarch/compliance": {
+      "previous": "3.8.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/compliance-system": {
+      "previous": "3.8.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/db": {
+      "previous": "3.8.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/distribution": {
+      "previous": "3.8.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/governance-system": {
+      "previous": "3.8.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/graph": {
+      "previous": "3.8.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/hook-authoring-system": {
+      "previous": "3.8.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/kb": {
+      "previous": "3.8.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/language": {
+      "previous": "3.8.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/learning-system": {
+      "previous": "3.8.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/mcp-door": {
+      "previous": "3.8.0",
+      "kind": "changed",
+      "summary": "Regenerated vocabulary and language compatibility assets."
+    },
+    "@inventarch/runner": {
+      "previous": "3.8.0",
+      "kind": "changed",
+      "summary": "Catalogs that rename only an operation's validators or an entry's mapping compile."
+    },
+    "@inventarch/runtime": {
+      "previous": "3.8.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/service-contracts": {
+      "previous": "3.8.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/session-system": {
+      "previous": "3.8.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/steward-hook": {
+      "previous": "3.8.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/template-system": {
+      "previous": "3.8.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/work-system": {
+      "previous": "3.8.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/workspace-runtime": {
+      "previous": "3.8.0",
+      "kind": "changed",
+      "summary": "Workspace runtime docs: the agent-composition aliases are gone."
+    },
+    "@inventarch/workspace-system": {
+      "previous": "3.8.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    }
+  },
+  "changes": [
+    {
+      "id": "catalogs-that-rename-only-an-operation-s-validat",
+      "title": "Catalogs that rename only an operation's validators or an entry's mapping compile",
+      "summary": "compileHarness now compares the input and output validators an operation descriptor lists, and the mapping an entry contract lists, with the names a record resolves to by installed name, as it already compares models. A catalog whose alias table renames an operation's validators but not the operation, or an entry's mapping but not the entry, was refused with IA-COMPOSITION-CONFLICT and now compiles. The alias such a listed name relies on is recorded in provenance.aliases, so compiledAliases still rebuilds the harness. A listed name the alias table sends to another entry is still refused, and compilations that already succeeded are unaffected. installedReadAdapters requires each read validator the compiled harness pins, found through its recorded aliases, to equal the first-party validator the read lists: when only the read's validators are renamed, a changed replacement, or one that is the read's other validator, is refused, and the original validator entries the harness no longer uses need not be installed.",
+      "packages": [
+        "@inventarch/agent-composition-system",
+        "@inventarch/runner"
+      ],
+      "paths": [
+        ".ia/authoring.resources.json",
+        ".ia/src/systems/agent-composition-system/",
+        "apps/runner/"
+      ]
+    },
+    {
+      "id": "regenerated-vocabulary-and-language-compatibilit",
+      "title": "Regenerated vocabulary and language compatibility assets",
+      "summary": "The bundled vocabulary assets carry the new native system versions. The bundled language bases and compatibility index keep every published base, 3.3.0 included, and add 3.3.1, the base this release builds, as the newest; a workspace locked to a published base still restores offline, and the language floors the CLI computes are unchanged. No consumer-facing change.",
+      "packages": [
+        "@inventarch/cli",
+        "@inventarch/mcp-door"
+      ],
+      "paths": [
+        ".ia/authoring.resources.json",
+        "CLAUDE.md",
+        "apps/cli/",
+        "apps/mcp-door/",
+        "docs/",
+        "examples/",
+        "tools/"
+      ]
+    },
+    {
+      "id": "workspace-runtime-docs-the-agent-composition-ali",
+      "title": "Workspace runtime docs: the agent-composition aliases are gone",
+      "summary": "Docs only: the provenance note now says IA 3.8.0 removed the agent-composition-system aliases of this package's modules; no package behaviour changes.",
+      "packages": [
+        "@inventarch/workspace-runtime"
+      ],
+      "paths": [
+        "docs/",
+        "packages/workspace-runtime/"
+      ]
+    },
+    {
+      "id": "cohort-alignment",
+      "title": "Coordinated version alignment",
+      "summary": "Package version metadata follows the coordinated 3.8.1 release; each native artifact version follows its own archive content.",
+      "packages": [
+        "@inventarch/agent-system",
+        "@inventarch/authoring-system",
+        "@inventarch/compliance",
+        "@inventarch/compliance-system",
+        "@inventarch/db",
+        "@inventarch/distribution",
+        "@inventarch/governance-system",
+        "@inventarch/graph",
+        "@inventarch/hook-authoring-system",
+        "@inventarch/kb",
+        "@inventarch/language",
+        "@inventarch/learning-system",
+        "@inventarch/runtime",
+        "@inventarch/service-contracts",
+        "@inventarch/session-system",
+        "@inventarch/steward-hook",
+        "@inventarch/template-system",
+        "@inventarch/work-system",
+        "@inventarch/workspace-system"
+      ],
+      "paths": [
+        ".ia/src/systems/agent-system/package.json",
+        ".ia/src/systems/authoring-system/package.json",
+        ".ia/src/systems/authoring-system/system.ia",
+        ".ia/src/systems/compliance-system/package.json",
+        ".ia/src/systems/governance-system/package.json",
+        ".ia/src/systems/hook-authoring-system/package.json",
+        ".ia/src/systems/hook-authoring-system/system.ia",
+        ".ia/src/systems/learning-system/package.json",
+        ".ia/src/systems/learning-system/system.ia",
+        ".ia/src/systems/session-system/package.json",
+        ".ia/src/systems/template-system/package.json",
+        ".ia/src/systems/template-system/system.ia",
+        ".ia/src/systems/work-system/package.json",
+        ".ia/src/systems/workspace-system/package.json",
+        "apps/distribution/package.json",
+        "apps/steward-hook/package.json",
+        "packages/compliance/package.json",
+        "packages/db/package.json",
+        "packages/graph/package.json",
+        "packages/kb/package.json",
+        "packages/language/package.json",
+        "packages/runtime/package.json",
+        "packages/service-contracts/package.json"
+      ]
+    },
+    {
+      "id": "repository-maintenance",
+      "title": "Repository maintenance",
+      "summary": "Tooling, workflow, documentation and release bookkeeping outside the published package contents.",
+      "packages": [],
+      "internal": true,
+      "paths": [
+        "apps/vscode/THIRD_PARTY_NOTICES.txt",
+        "apps/vscode/package.json",
+        "releases/"
+      ]
+    }
+  ],
+  "coverage": [
+    {
+      "path": ".ia/authoring.resources.json",
+      "sha256": "2d94538505ae7b2020666e8baca7a41ee9f21f4b60fa3f63cf50d5edb61517c5",
+      "change": "catalogs-that-rename-only-an-operation-s-validat"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/SPEC.md",
+      "sha256": "c6ab97218d57bba6ba9bb40ad5735423df6aa62859c48ef7525f49b5b91bea74",
+      "change": "catalogs-that-rename-only-an-operation-s-validat"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/package.json",
+      "sha256": "efd61a15f47f9bce9bb9eb3bb5712837ee5236772f2092ec7ef039e0a9747e46",
+      "cohortOnly": true,
+      "change": "catalogs-that-rename-only-an-operation-s-validat"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/compile.ts",
+      "sha256": "e5bb1f1ef962aa2345ed868a4566d9f2e30276fa084c436d81da6f0a1c4c8981",
+      "change": "catalogs-that-rename-only-an-operation-s-validat"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/installed-read.ts",
+      "sha256": "2bcc645870f78e7dd82ee082632ed7b4adcfba52ea5cb7cfbb432f73cf672beb",
+      "change": "catalogs-that-rename-only-an-operation-s-validat"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/system.ia",
+      "sha256": "7a7c1701175d9dd4538dd6262f3253c276a9550adc0421f522f442007153fc3b",
+      "cohortOnly": true,
+      "change": "catalogs-that-rename-only-an-operation-s-validat"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/contract-version.test.ts",
+      "sha256": "4e32eded175e637e556eadb521d2327015df2d35067b9c93b3c533d7d07daf62",
+      "change": "catalogs-that-rename-only-an-operation-s-validat"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/installed-read.test.ts",
+      "sha256": "93599aabbf2093cdd641f78e011d4f422aadc15a257fc11f4444ce91d0c85e36",
+      "change": "catalogs-that-rename-only-an-operation-s-validat"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/package.json",
+      "sha256": "d622c7bf4431dea6de8a9c810c3d7f7fe34ec75288eacbf6141a4c1755d46f5a",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/package.json",
+      "sha256": "102120f03e81a2977182d3f951b125c4bce996d271f9a4bfdca62d0ad8967cc6",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/system.ia",
+      "sha256": "05565706f4b8e3ec3f8e721959ecbbe02f84dff9c14ff9da9a087dd966b691a8",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/compliance-system/package.json",
+      "sha256": "1ef5de44e9bf6ffe467ad3f12786e7b1030b5f7d335576e40f2da134afdaa8a1",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/package.json",
+      "sha256": "da09b8a6eda7db12c379556d8a9cdba7eb6c88b0d65d864a0923dc90340ec9b5",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/hook-authoring-system/package.json",
+      "sha256": "18cc4a16f93c7fdc51e37f0dac7798c5e00afb569477efd9f2aa93cd7427ab70",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/hook-authoring-system/system.ia",
+      "sha256": "7ccfab9cdde6830f8e3924d0a7f212373ae861363ee8baafa53bea5d71b5d2b2",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/learning-system/package.json",
+      "sha256": "27e956d176495fbcd58390caf5670b4b472b37b532ba3d288f3a191d2989be10",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/learning-system/system.ia",
+      "sha256": "772152a7447e37e18fcaebae1cfd02a2271fa653cada518dd87463b302c5990b",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/session-system/package.json",
+      "sha256": "0125426fb6c7905f65634d0b42ebf64bcb4cd2cab28b9f2a9f3eb42990c2c311",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/template-system/package.json",
+      "sha256": "f432cbba6ee594cd9f142bf4532ec8aa76742d9be206979c71c49a74732cb503",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/template-system/system.ia",
+      "sha256": "09d4d5767063c70c591dc83d9033e3b127b6973d9d919f486eebf0a849247093",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/work-system/package.json",
+      "sha256": "c26951065cad3c5557be9eb61b30c01223170befd0df58282f13b867103074bd",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/workspace-system/package.json",
+      "sha256": "c4536722e84be6af82e98be19e073ed36761a6b057178bdb18b707fa9c72d27b",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "CLAUDE.md",
+      "sha256": "769cb795e9dafccd7ffe623a254019e91042a4f1eb772e5fa2d9308bdae603f2",
+      "change": "regenerated-vocabulary-and-language-compatibilit"
+    },
+    {
+      "path": "apps/cli/assets/language-compat.json",
+      "sha256": "21a92ba09729d6c709c16cd9bd9e0a8171c6d25d099669bc66beeafb0f0a0150",
+      "change": "regenerated-vocabulary-and-language-compatibilit"
+    },
+    {
+      "path": "apps/cli/assets/vocabulary.json",
+      "sha256": "d84cdd72a31bd0f988dabd1937e1aa66c9aea1b811f717077f3d0dec904797a7",
+      "change": "regenerated-vocabulary-and-language-compatibilit"
+    },
+    {
+      "path": "apps/cli/package.json",
+      "sha256": "d1f98f962d1b702d7810d34e949c1203034118fa1101da7ef8817348e2c608ba",
+      "cohortOnly": true,
+      "change": "regenerated-vocabulary-and-language-compatibilit"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/composition-workspace/.ia/release.json",
+      "sha256": "4b1763f05380025593123640f785d939c526c201e623413294ada21bf3027a45",
+      "cohortOnly": true,
+      "change": "regenerated-vocabulary-and-language-compatibilit"
+    },
+    {
+      "path": "apps/distribution/package.json",
+      "sha256": "e8a2b75440c9196e985a5a5364d619dd33472b81c571272949c139d72eacdf8c",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "apps/mcp-door/assets/vocabulary.json",
+      "sha256": "d84cdd72a31bd0f988dabd1937e1aa66c9aea1b811f717077f3d0dec904797a7",
+      "change": "regenerated-vocabulary-and-language-compatibilit"
+    },
+    {
+      "path": "apps/mcp-door/package.json",
+      "sha256": "10018af93d8663d7f7800965ff20c8848255879015ae66d2d3f9d710454b3d55",
+      "cohortOnly": true,
+      "change": "regenerated-vocabulary-and-language-compatibilit"
+    },
+    {
+      "path": "apps/mcp-door/tests/fixtures/method/golden-check.json",
+      "sha256": "1689cae1b4bf9818bfb09adc195376afcc839f3c15485ce29d9bc0f362b40fb9",
+      "change": "regenerated-vocabulary-and-language-compatibilit"
+    },
+    {
+      "path": "apps/mcp-door/tests/fixtures/method/golden-find.json",
+      "sha256": "67876c4748f0e1f255b176eceab517a829759de28e8ba7877a11082876cedbcf",
+      "change": "regenerated-vocabulary-and-language-compatibilit"
+    },
+    {
+      "path": "apps/mcp-door/tests/fixtures/method/golden-pin.json",
+      "sha256": "0338eb4a27cea1008d4bc9f7d33844c176195f21e35ee0b0500c0f41fd788220",
+      "change": "regenerated-vocabulary-and-language-compatibilit"
+    },
+    {
+      "path": "apps/runner/package.json",
+      "sha256": "fa3351c3fd7fb6ff348a162a3a9f295f98bad5eed654c6695b9e10f252949589",
+      "cohortOnly": true,
+      "change": "catalogs-that-rename-only-an-operation-s-validat"
+    },
+    {
+      "path": "apps/runner/tests/runner.test.ts",
+      "sha256": "a70215690a9ee860c8f0d17ae227a72419eae8b3be72a94fb1c97f0c7542085a",
+      "change": "catalogs-that-rename-only-an-operation-s-validat"
+    },
+    {
+      "path": "apps/steward-hook/package.json",
+      "sha256": "ac93101df9aa25d2122ec9d9e8f2beea86ac7df23d29379881d50a7d67abc8fc",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "apps/vscode/THIRD_PARTY_NOTICES.txt",
+      "sha256": "09b04d46a64c9a9b5b461925d93874b991a504241af3546978690b595d842634",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "apps/vscode/package.json",
+      "sha256": "724c3ebebf33c1089c0a3845e1a5800788743ef363998e7752cf9a836351b5fd",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "docs/reference/language/vocabulary.json",
+      "sha256": "d84cdd72a31bd0f988dabd1937e1aa66c9aea1b811f717077f3d0dec904797a7",
+      "change": "regenerated-vocabulary-and-language-compatibilit"
+    },
+    {
+      "path": "docs/reference/language/vocabulary.md",
+      "sha256": "f584a52e5429295d4ee368f1d0a59d761bb8ea07f10706914794aa4286b12e0f",
+      "change": "regenerated-vocabulary-and-language-compatibilit"
+    },
+    {
+      "path": "docs/reference/packages/README.md",
+      "sha256": "72fea98a174e62ede6e421fbeb2a1c862117e685d4ecc23f6475ab371d719507",
+      "change": "regenerated-vocabulary-and-language-compatibilit"
+    },
+    {
+      "path": "examples/public-language/contracts/agent-composition-system.ia",
+      "sha256": "7a7c1701175d9dd4538dd6262f3253c276a9550adc0421f522f442007153fc3b",
+      "cohortOnly": true,
+      "change": "regenerated-vocabulary-and-language-compatibilit"
+    },
+    {
+      "path": "examples/public-language/contracts/authoring-system.ia",
+      "sha256": "05565706f4b8e3ec3f8e721959ecbbe02f84dff9c14ff9da9a087dd966b691a8",
+      "cohortOnly": true,
+      "change": "regenerated-vocabulary-and-language-compatibilit"
+    },
+    {
+      "path": "examples/public-language/contracts/hook-authoring-system.ia",
+      "sha256": "7ccfab9cdde6830f8e3924d0a7f212373ae861363ee8baafa53bea5d71b5d2b2",
+      "cohortOnly": true,
+      "change": "regenerated-vocabulary-and-language-compatibilit"
+    },
+    {
+      "path": "examples/public-language/contracts/learning-system.ia",
+      "sha256": "772152a7447e37e18fcaebae1cfd02a2271fa653cada518dd87463b302c5990b",
+      "cohortOnly": true,
+      "change": "regenerated-vocabulary-and-language-compatibilit"
+    },
+    {
+      "path": "examples/public-language/contracts/template-system.ia",
+      "sha256": "09d4d5767063c70c591dc83d9033e3b127b6973d9d919f486eebf0a849247093",
+      "cohortOnly": true,
+      "change": "regenerated-vocabulary-and-language-compatibilit"
+    },
+    {
+      "path": "examples/public-language/versions.json",
+      "sha256": "c093f9e2fe670ef535a8caed26845132994a67aaca749dd8cd1e43861deba864",
+      "cohortOnly": true,
+      "change": "regenerated-vocabulary-and-language-compatibilit"
+    },
+    {
+      "path": "packages/compliance/package.json",
+      "sha256": "35a97831e4b90e6ace586c162670beb09a450e49c77a03241a0556901d254025",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/db/package.json",
+      "sha256": "f6c5c70e20f845e8b2472472218c6f1c9918d533d4d378ec1edbbbbf05b6fdc4",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/graph/package.json",
+      "sha256": "ff71d6d27eb2390a6ebbf55bc81b14df21a260ded8eff5f17d08a708c3df39b4",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/kb/package.json",
+      "sha256": "74c918b1591986546a7dc9ee913280d5e1d0fbdc90e278549cb7e53b8b0aba00",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/language/package.json",
+      "sha256": "8efc62cdfb571457d4f6c35d385cbb0e41ffa296ecaf93b9e1ccb51ecc19cfdc",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/runtime/package.json",
+      "sha256": "5dc79ede404a5a307448a8e2467edaa0c58526f1af554be60ee7169bb264df0a",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/service-contracts/package.json",
+      "sha256": "d25e66a82566b8858896289d8ef209999e445bbc0c2ac01f84bd19a75c708919",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/workspace-runtime/SPEC.md",
+      "sha256": "e802612d57009465845f9cb31dc8be303b1b482f627cbc5a403672237dc4e5ec",
+      "change": "workspace-runtime-docs-the-agent-composition-ali"
+    },
+    {
+      "path": "packages/workspace-runtime/package.json",
+      "sha256": "5b75a0bd11650e75ca19cccc5551843ec90184d25b017a9a1727af3db7f1b2c4",
+      "cohortOnly": true,
+      "change": "workspace-runtime-docs-the-agent-composition-ali"
+    },
+    {
+      "path": "releases/current.json",
+      "sha256": "da9d1e08332bcf52cc82acee2cf5ca99d96c26d688f41243056d4403c7ced95d",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "releases/native/bases/3ada760ec07848770957538a8562ec94c6f3a9ceb6f1e29d2739b217f9234728.ia.tgz",
+      "sha256": "3ada760ec07848770957538a8562ec94c6f3a9ceb6f1e29d2739b217f9234728",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "releases/native/current.json",
+      "sha256": "5030f3f088db13b5e9201001c2888cd7e7c0d9328e0c8a624fc1ed25fbc02a1e",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "releases/native/language-bases.json",
+      "sha256": "631b03de3bbfdf30eceaf1171e08499b2c268dcd7b0549c03950a7dc95339f1a",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "releases/native/language-compat.json",
+      "sha256": "5e66bb2871194c67731dd19c87325c060c1074ef9c98d9afb9f2aa41d3f80579",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "releases/native/notes.json",
+      "sha256": "193f1299e89e133c485de56d38ba3c77edd1c250247f1b24a67c32bb63c87897",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "tools/distribution/system-package-policy.json",
+      "sha256": "83b49957546665bc470412e677670d8d11880b3037be568d1ddc0b919bd83495",
+      "cohortOnly": true,
+      "change": "regenerated-vocabulary-and-language-compatibilit"
+    },
+    {
+      "path": "tools/native/language-bases.test.ts",
+      "sha256": "18090f49be6c4580c5023375506137e88d890ee54410975a178c2325bfd77ba5",
+      "change": "regenerated-vocabulary-and-language-compatibilit"
+    },
+    {
+      "path": "tools/scale-probe/SPEC.md",
+      "sha256": "d047c198201f4c766c2bfe2dcf856795c798671f677f1a6faa5232cdc3288279",
+      "change": "regenerated-vocabulary-and-language-compatibilit"
+    },
+    {
+      "path": "tools/scale-probe/capture.mjs",
+      "sha256": "b8636ed0c4a3df69c72fd2f51e644fcd4e13acd649bb2bfe7a36e0a775bbf476",
+      "change": "regenerated-vocabulary-and-language-compatibilit"
+    },
+    {
+      "path": "tools/scale-probe/compare.d.mts",
+      "sha256": "7896cca7c21abe583d607fa1331b3fef0541bbc9ac51844c866d94e8c99456e0",
+      "change": "regenerated-vocabulary-and-language-compatibilit"
+    },
+    {
+      "path": "tools/scale-probe/compare.mjs",
+      "sha256": "1d48dc15b7a3c3ac182f9665b815a8e622bbbd16868f8e745955baff225683cc",
+      "change": "regenerated-vocabulary-and-language-compatibilit"
+    },
+    {
+      "path": "tools/scale-probe/generate.d.mts",
+      "sha256": "e4359ddf9636186c1a237ad1781cdca070afb2c27ae21c5ae97bbe39119dcd87",
+      "change": "regenerated-vocabulary-and-language-compatibilit"
+    },
+    {
+      "path": "tools/scale-probe/generate.mjs",
+      "sha256": "10b3115dec728bcd9c94dcfb6f5f2a24990ec57b0f3701da5ff457a23e316391",
+      "change": "regenerated-vocabulary-and-language-compatibilit"
+    },
+    {
+      "path": "tools/scale-probe/probe.d.mts",
+      "sha256": "89f7254376a85c2da7db9ae7184b5182c539c34e88e146e8c5e9255d41ada836",
+      "change": "regenerated-vocabulary-and-language-compatibilit"
+    },
+    {
+      "path": "tools/scale-probe/probe.mjs",
+      "sha256": "6b54a24a0334494e36fbfd25229be4d64e5ea02040840b2be72ec3fe2d88ed14",
+      "change": "regenerated-vocabulary-and-language-compatibilit"
+    },
+    {
+      "path": "tools/scale-probe/scale-probe.test.ts",
+      "sha256": "0e5e0e6d7d1621f27f9d31cca7eb2a68d0405d75030a4f8a4cf2b1236985d304",
+      "change": "regenerated-vocabulary-and-language-compatibilit"
+    },
+    {
+      "path": "tools/testing/tasks.json",
+      "sha256": "83ae23895307d141b810e6c66df6c8e6fdbbe619e6d641b5bde1825ee77b0756",
+      "change": "regenerated-vocabulary-and-language-compatibilit"
+    }
+  ]
+}
