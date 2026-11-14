@@ -290,6 +290,23 @@ describe('the generated table', () => {
       expect(result.stderr).toContain('pinned');
     }
   });
+  it('the entry point refuses an argument it does not know, --download among them, before reading anything', async () => {
+    // Regeneration reads only vendored files: there is no network path, so a removed --download must not pass silently.
+    for (const [argument, argv] of [
+      ['--frob', ['--check', '--frob']],
+      ['--download', ['--check', '--download']],
+      ['--download', ['--download']],
+      ['--download', ['--from', vendored, '--download', '--check']],
+    ] as const) {
+      const result = await runBounded(process.execPath, [generator, ...argv], {
+        cwd: repository,
+        timeoutMs: 20_000,
+      });
+      expect([argv, result.status]).toEqual([argv, 1]);
+      expect(result.stderr).toContain(`unknown argument ${argument}`);
+      expect(result.stdout).toBe('');
+    }
+  });
 });
 
 describe('the cached task that runs these tests', () => {
