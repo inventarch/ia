@@ -115,6 +115,9 @@ export function selection({ records }) {
   };
 }
 
+/** What `ia init` is given beside the folder: the workspace's identity, and no host. */
+const INIT = ['--id', `local/${WORKSPACE}`, '--host', 'none'];
+
 /** A fixed author and date, so the same files always give the same commit. */
 const GIT_ENV = {
   GIT_AUTHOR_NAME: 'Scale probe',
@@ -126,6 +129,46 @@ const GIT_ENV = {
 };
 
 /**
+ * Variables that point git at another repository than the one `-C` names. Git hands its hooks such variables, so a
+ * run started from a hook would write into, or read from, the hook's repository.
+ */
+const ELSEWHERE = [
+  'GIT_DIR',
+  'GIT_WORK_TREE',
+  'GIT_INDEX_FILE',
+  'GIT_OBJECT_DIRECTORY',
+  'GIT_ALTERNATE_OBJECT_DIRECTORIES',
+  'GIT_COMMON_DIR',
+];
+
+/**
+ * The environment for every git command the probe's tools run: this process's, without the variables that point git
+ * at another repository, and with `extra` on top. The rest is kept.
+ * @param {Record<string, string>} [extra]
+ */
+export function gitEnvironment(extra = {}) {
+  const env = { ...process.env, ...extra };
+  for (const name of ELSEWHERE) delete env[name];
+  return env;
+}
+
+/**
+ * What the generator gives a tree beside what `ia init` writes: the arguments it passes `ia init`, the synthetic
+ * files and, with `git`, the text of the `kb pack` selection and the commit's message, author and date. Pure: the
+ * same options give the same value. Tests pin this value, and the commit generate() makes from it around a stand-in
+ * `ia init`, which also pins the file names, how it calls `ia init`, and the message it commits with.
+ * @param {{ records: number, seed: number, git?: boolean }} options
+ */
+export function contents({ records, seed, git = false }) {
+  return {
+    init: INIT,
+    files: syntheticFiles({ records, seed }),
+    selection: git ? `${JSON.stringify(selection({ records }), null, 2)}\n` : null,
+    commit: git ? { message: `Synthetic tree: ${records} records, seed ${seed}`, env: GIT_ENV } : null,
+  };
+}
+
+/**
  * Initialises `out` with the given CLI, writes the synthetic files, and optionally commits them.
  * @param {{ cli: string, out: string, records: number, seed: number, git?: boolean }} options
  * @returns {{ out: string, files: number, commit: string | null }}
@@ -134,28 +177,25 @@ export function generate({ cli, out, records, seed, git = false }) {
   const target = resolve(out);
   if (existsSync(target) && readdirSync(target).length > 0)
     throw new Error(`refusing a folder that is not empty: ${target}`);
-  const files = syntheticFiles({ records, seed });
+  const content = contents({ records, seed, git });
   // The workspace is named after the folder ia init is given, so init runs in a folder named WORKSPACE.
   mkdirSync(dirname(target), { recursive: true });
   const stage = mkdtempSync(join(dirname(target), `.${basename(target)}-`));
   try {
     const tree = join(stage, WORKSPACE);
     mkdirSync(tree);
-    execFileSync(
-      process.execPath,
-      [resolve(cli), 'init', tree, '--id', `local/${WORKSPACE}`, '--host', 'none', '--apply', '--yes', '--json'],
-      {
-        stdio: ['ignore', 'ignore', 'pipe'],
-        windowsHide: true,
-      },
-    );
-    for (const [path, text] of Object.entries(files)) {
+    execFileSync(process.execPath, [resolve(cli), 'init', tree, ...content.init, '--apply', '--yes', '--json'], {
+      stdio: ['ignore', 'ignore', 'pipe'],
+      windowsHide: true,
+    });
+    for (const [path, text] of Object.entries(content.files)) {
       mkdirSync(dirname(join(tree, path)), { recursive: true });
       writeFileSync(join(tree, path), text);
     }
-    if (git) writeFileSync(join(tree, 'selection.json'), `${JSON.stringify(selection({ records }), null, 2)}\n`);
+    if (content.selection !== null) writeFileSync(join(tree, 'selection.json'), content.selection);
     let commit = null;
-    if (git) {
+    if (content.commit) {
+      const env = gitEnvironment(content.commit.env);
       const run = (...args) =>
         execFileSync(
           'git',
@@ -166,29 +206,28 @@ export function generate({ cli, out, records, seed, git = false }) {
             'commit.gpgsign=false',
             '-c',
             'core.autocrlf=false',
-            // A global ignore file or template would change what is committed, and so the commit.
+            // A global ignore file would change what is committed, and so the commit; so would a template (see init).
             '-c',
             `core.excludesFile=${join(tree, '.git', 'no-excludes')}`,
-            '-c',
-            'init.templateDir=',
             '-C',
             tree,
             ...args,
           ],
           {
             encoding: 'utf8',
-            env: { ...process.env, ...GIT_ENV },
+            env,
             windowsHide: true,
           },
         ).trim();
-      run('init', '--quiet', '--initial-branch=main');
+      // An empty --template uses no template, and outranks GIT_TEMPLATE_DIR and init.templateDir alike.
+      run('init', '--quiet', '--initial-branch=main', '--template=');
       run('add', '--all');
-      run('commit', '--quiet', '--no-verify', '-m', `Synthetic tree: ${records} records, seed ${seed}`);
+      run('commit', '--quiet', '--no-verify', '-m', content.commit.message);
       commit = run('rev-parse', 'HEAD');
     }
     if (existsSync(target)) rmSync(target, { recursive: true });
     renameSync(tree, target);
-    return { out: target, files: Object.keys(files).length, commit };
+    return { out: target, files: Object.keys(content.files).length, commit };
   } finally {
     rmSync(stage, { recursive: true, force: true });
   }

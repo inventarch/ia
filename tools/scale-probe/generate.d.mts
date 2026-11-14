@@ -6,6 +6,13 @@ export function selection(options: { records: number }): {
   records: string[];
   resources: string[];
 };
+export function contents(options: { records: number; seed: number; git?: boolean }): {
+  init: string[];
+  files: Record<string, string>;
+  selection: string | null;
+  commit: { message: string; env: Record<string, string> } | null;
+};
+export function gitEnvironment(extra?: Record<string, string>): NodeJS.ProcessEnv;
 export function generate(options: { cli: string; out: string; records: number; seed: number; git?: boolean }): {
   out: string;
   files: number;

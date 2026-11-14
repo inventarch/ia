@@ -1,16 +1,18 @@
 // Builds each probe tree once and captures it under each CLI. Usage:
 //   node tools/scale-probe/probe.mjs --init-cli <bin.js> --cli <label>=<bin.js> [--cli <label>=<bin.js>]...
-//     [--trees <trees.json>] [--only <name,name>] [--synthetic <n,n>] [--runs <n>] [--no-measure] [--work <dir>] --out <dir>
-// Writes <out>/<label>/<tree>.json for every CLI and tree. Run it from the repository root: git trees are archived
-// from this repository's history.
+//     [--trees <trees.json>] [--only <name,name>] [--synthetic <n,n>] [--runs <n>] [--commands <a,b>] [--no-measure]
+//     [--work <dir>] --out <dir>
+// Writes <out>/<label>/<tree>.json for every CLI and tree, and refuses an <out>/<label> that already holds captures.
+// Builds each tree, and makes each copy a command runs on, under --work or a temporary folder, and removes them.
+// Run it from the repository root: git trees are archived from this repository's history.
 import '../temp/physical-temp.mjs';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { captureAll } from './capture.mjs';
-import { generate } from './generate.mjs';
+import { generate, gitEnvironment } from './generate.mjs';
 
 const TREES = fileURLToPath(new URL('./trees.json', import.meta.url));
 
@@ -30,6 +32,29 @@ export function unexpectedExits(expect, result) {
   return out;
 }
 
+/**
+ * Refuses an `out` whose folder for one of the labels already holds captures, the `.json` files a comparison reads:
+ * a tree a run does not finish would keep the earlier run's capture, and a comparison would read it as this run's.
+ * @param {string} out
+ * @param {string[]} labels
+ */
+export function refuseStaleOut(out, labels) {
+  const held = labels
+    .map((label) => join(out, label))
+    .filter((dir) => {
+      try {
+        return readdirSync(dir).some((name) => name.endsWith('.json'));
+      } catch (error) {
+        if (error?.code === 'ENOENT') return false;
+        throw error;
+      }
+    });
+  if (held.length)
+    throw new Error(
+      `--out already holds captures in ${held.join(', ')}; a tree this run does not finish would keep an earlier run's capture there. Remove them or choose another --out.`,
+    );
+}
+
 /** Builds one tree from its recipe under `work`, and returns its root. */
 export function build(tree, { initCli, work, repository = process.cwd() }) {
   const root = join(work, tree.name);
@@ -42,6 +67,7 @@ export function build(tree, { initCli, work, repository = process.cwd() }) {
   const prefix = tree.path === '.' ? '' : `${tree.path}/`;
   const paths = (tree.include ?? ['']).map((p) => `${prefix}${p}`.replace(/\/$/, '') || '.');
   const archive = execFileSync('git', ['-C', repository, 'archive', '--format=tar', tree.commit, ...paths], {
+    env: gitEnvironment(),
     maxBuffer: 1 << 30,
     windowsHide: true,
   });
@@ -73,8 +99,13 @@ function main(argv) {
   }
   if (!o.initCli || !o.clis.length || o.clis.some((c) => !c.label || !c.bin) || !o.out || !(o.runs >= 1))
     throw new Error(
-      'usage: probe.mjs --init-cli <bin.js> --cli <label>=<bin.js>... [--only <names>] [--synthetic <n,n>] [--runs <n>] --out <dir>',
+      'usage: probe.mjs --init-cli <bin.js> --cli <label>=<bin.js>... [--trees <trees.json>] [--only <names>] [--synthetic <n,n>] [--runs <n>] [--commands <a,b>] [--no-measure] [--work <dir>] --out <dir>',
     );
+  // Before anything is built, so a refusal costs nothing.
+  refuseStaleOut(
+    o.out,
+    o.clis.map((c) => c.label),
+  );
   const listed = JSON.parse(readFileSync(o.trees, 'utf8')).trees;
   const trees = [
     ...listed.filter((t) => !o.only || o.only.has(t.name)),
@@ -96,6 +127,7 @@ function main(argv) {
           runs: o.runs,
           commands: o.commands,
           measure: o.measure,
+          work,
         });
         for (const cli of o.clis) {
           const result = captures[cli.label];

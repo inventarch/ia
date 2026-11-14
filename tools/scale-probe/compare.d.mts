@@ -1,7 +1,7 @@
 export type Row = {
   tree: string;
   command: string;
-  outputs: 'equal' | 'differ' | 'missing' | 'tree differs';
+  outputs: 'equal' | 'differ' | 'missing' | 'unstable' | 'tree differs';
   wallMsBefore?: number | null;
   wallMsAfter?: number | null;
   maxRssMBBefore?: number | null;

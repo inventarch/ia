@@ -1,29 +1,171 @@
 import { createHash } from 'node:crypto';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  readlinkSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { runBounded } from '../testing/subprocess.js';
+import { capture, treeFiles } from './capture.mjs';
 import { compare } from './compare.mjs';
-import { selection, syntheticFiles } from './generate.mjs';
+import { contents, generate, selection, syntheticFiles } from './generate.mjs';
 import { normalise } from './normalise.mjs';
-import { unexpectedExits } from './probe.mjs';
+import { build, refuseStaleOut, unexpectedExits } from './probe.mjs';
 
 const declared = (text: string) =>
   [...text.matchAll(/^@(\w[\w-]*) ([\w-]+)$/gm)].map(([, word, name]) => `${word} ${name}`);
 const referenced = (text: string) =>
   [...text.matchAll(/@(spec|plan|milestone|task|decision) ([\w-]+)/g)].map(([, word, name]) => `${word} ${name}`);
 
+const PROBE = fileURLToPath(new URL('./probe.mjs', import.meta.url));
+const bound = Number(process.env['IA_TEST_SUBPROCESS_TIMEOUT_MS']) || 10_000;
+
+/** Runs `run` in a fresh temporary folder, removed afterwards. */
+async function scratch(run: (base: string) => Promise<void> | void): Promise<void> {
+  const base = mkdtempSync(join(tmpdir(), 'ia-scale-probe-test-'));
+  try {
+    await run(base);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+}
+
+const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
+
+/** Links a file. Windows grants file links only with a privilege (Developer Mode or elevation): without it, EPERM, and false. */
+function fileLink(target: string, path: string): boolean {
+  try {
+    symlinkSync(target, path, 'file');
+    return true;
+  } catch (error) {
+    if (process.platform === 'win32' && (error as NodeJS.ErrnoException).code === 'EPERM') return false;
+    throw error;
+  }
+}
+
+/** The message `run` throws, or undefined when it returns. */
+function thrown(run: () => unknown): string | undefined {
+  try {
+    run();
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+  return undefined;
+}
+
 describe('the synthetic generator', () => {
   it('writes the same files, byte for byte, for the same size and seed', () => {
     expect(syntheticFiles({ records: 437, seed: 7 })).toEqual(syntheticFiles({ records: 437, seed: 7 }));
   });
 
-  it('writes the files the 3.7.0 reference was captured on, so a change to the generator cannot move it', () => {
-    // packages/db/tests/fixtures/reference-3.7.0/synthetic-200.json and synthetic-2000.json were captured on these.
+  it('pins the init arguments, files, selection and commit it gave the trees the 3.7.0 reference was captured on', () => {
+    // packages/db/tests/fixtures/reference-3.7.0/synthetic-200.json and synthetic-2000.json were captured on these
+    // trees, whose commits they record. The files `ia init` writes come from the 3.7.0 CLI and are not pinned here.
     const digest = (records: number) =>
       createHash('sha256')
-        .update(JSON.stringify(syntheticFiles({ records, seed: 1 })))
+        .update(JSON.stringify(contents({ records, seed: 1, git: true })))
         .digest('hex');
-    expect(digest(200)).toBe('78349e641ecde4225a327bdfb3b0807dd8a51c68c0e8c61ca3f5ef6978a3c0fb');
-    expect(digest(2000)).toBe('c6f130f9692cb3088bd7fefc9927256cc7b83d93ea95a5521a575aa152b35100');
+    expect(digest(200)).toBe('b1d7bf6a0f1a5ce54ffdecaf37ba777f217674c1ac873c22fbdee3b9fd8efe23');
+    expect(digest(2000)).toBe('b2df8f539636a6730ddedb2fa328be8024caf4c0456a12901b59694bf0e9db97');
   });
+
+  /** A stand-in `ia init` that writes the folder name and arguments it was given into that folder, and nothing else. */
+  const recordingInit = (base: string): string => {
+    const init = join(base, 'init.mjs');
+    writeFileSync(
+      init,
+      [
+        "import { writeFileSync } from 'node:fs';",
+        "import { basename, join } from 'node:path';",
+        'const [, , command, folder, ...rest] = process.argv;',
+        "writeFileSync(join(folder, 'init.json'), JSON.stringify([command, basename(folder), ...rest]));",
+      ].join('\n'),
+    );
+    return init;
+  };
+  const PINNED = '83de71881c5fc005d2aba403116ad06150d87d12';
+
+  it('makes a pinned commit around a stand-in ia init that records how it was called', () =>
+    scratch((base) => {
+      // Beyond the digest above, this pins the file names, how generate() calls `ia init` (the folder and arguments
+      // it gives it), and the message it commits with. The real `ia init`'s files come from the 3.7.0 CLI.
+      const made = generate({
+        cli: recordingInit(base),
+        out: join(base, 'synthetic'),
+        records: 200,
+        seed: 1,
+        git: true,
+      });
+      expect(made.commit).toBe(PINNED);
+    }));
+
+  it('makes the same commit whatever git template the environment names', () =>
+    scratch((base) => {
+      // GIT_TEMPLATE_DIR outranks init.templateDir. This template's exclude file would leave the documents out.
+      mkdirSync(join(base, 'template', 'info'), { recursive: true });
+      writeFileSync(join(base, 'template', 'info', 'exclude'), '*.md\n');
+      const before = process.env['GIT_TEMPLATE_DIR'];
+      process.env['GIT_TEMPLATE_DIR'] = join(base, 'template');
+      try {
+        const made = generate({
+          cli: recordingInit(base),
+          out: join(base, 'synthetic'),
+          records: 200,
+          seed: 1,
+          git: true,
+        });
+        expect(made.commit).toBe(PINNED);
+      } finally {
+        if (before === undefined) delete process.env['GIT_TEMPLATE_DIR'];
+        else process.env['GIT_TEMPLATE_DIR'] = before;
+      }
+    }));
+
+  it("leaves alone the repository a hook's git variables name, and commits its own tree", () =>
+    scratch(async (base) => {
+      // Git hands its hooks variables that locate its repository: a commit's hooks get GIT_INDEX_FILE, and git's hook
+      // documentation names GIT_DIR. A decoy repository with a staged file stands in for the hook's.
+      const decoy = join(base, 'decoy'),
+        index = join(decoy, '.git', 'index');
+      mkdirSync(decoy);
+      writeFileSync(join(decoy, 'staged.txt'), 'staged\n');
+      // The test's own git calls get no git variables, so they cannot reach another repository either.
+      const clean = Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith('GIT_')));
+      for (const args of [
+        ['init', '--quiet'],
+        ['add', 'staged.txt'],
+      ]) {
+        const run = await runBounded('git', ['-C', decoy, ...args], { timeoutMs: bound, env: clean });
+        expect(run.status, run.stderr).toBe(0);
+      }
+      const before = readFileSync(index);
+      const saved = { GIT_DIR: process.env['GIT_DIR'], GIT_INDEX_FILE: process.env['GIT_INDEX_FILE'] };
+      Object.assign(process.env, { GIT_DIR: join(decoy, '.git'), GIT_INDEX_FILE: index });
+      try {
+        const made = generate({
+          cli: recordingInit(base),
+          out: join(base, 'synthetic'),
+          records: 200,
+          seed: 1,
+          git: true,
+        });
+        expect(made.commit).toBe(PINNED);
+      } finally {
+        for (const [name, value] of Object.entries(saved))
+          if (value === undefined) delete process.env[name];
+          else process.env[name] = value;
+      }
+      expect(readFileSync(index).equals(before), 'the decoy index changed').toBe(true);
+    }));
 
   it('writes different text for a different seed, with the same record names', () => {
     const a = syntheticFiles({ records: 120, seed: 1 }),
@@ -124,7 +266,34 @@ describe('the comparison', () => {
   });
 
   it('refuses a comparison with nothing in it', () => {
-    expect(() => compare(new Map(), new Map())).toThrow(/nothing to compare/);
+    expect(thrown(() => compare(new Map(), new Map()))).toBe('nothing to compare: neither side holds a capture');
+  });
+
+  it('refuses a comparison whose captures hold no command output', () => {
+    const none = 'nothing to compare: no capture holds a command output';
+    const empty = { outputs: {}, skipped: ['kb-pack'] };
+    expect(thrown(() => compare(one(empty), one(empty)))).toBe(none);
+    expect(thrown(() => compare(one(empty), new Map()))).toBe(none);
+    // Under different names, each side's capture has no match on the other, yet neither holds an output either.
+    expect(thrown(() => compare(new Map([['x.json', empty]]), new Map([['y.json', empty]])))).toBe(none);
+  });
+
+  it('fails an output that was unstable in its capture, on either side, whatever the digests', () => {
+    const at = (stable: boolean, digest = 'a') => ({
+      outputs: { validate: { exit: 0, digest, stderr: 'e', files: {}, stable } },
+    });
+    for (const [before, after] of [
+      [at(false), at(true)],
+      [at(true), at(false)],
+      [at(false), at(false)],
+      [at(false), at(true, 'b')],
+    ]) {
+      const result = compare(one(before), one(after));
+      expect(result.rows).toEqual([{ tree: 't', command: 'validate', outputs: 'unstable' }]);
+      expect(result.failed).toBe(1);
+    }
+    expect(compare(one(at(true)), one(at(true))).rows[0]!.outputs).toBe('equal');
+    expect(compare(one(at(false)), one({ outputs: {} })).rows[0]!.outputs).toBe('missing');
   });
 
   it('fails an output whose standard error differs', () => {
@@ -153,6 +322,285 @@ describe("the probe's expected exits", () => {
     expect(unexpectedExits({ validate: 0, 'kb-check': 1 }, result)).toEqual([]);
     expect(unexpectedExits(undefined, result)).toEqual([]);
   });
+});
+
+describe('the capture', () => {
+  it('digests a link by its target text without following it, a dangling one included', (context) =>
+    scratch((base) => {
+      writeFileSync(join(base, 'a.txt'), 'a');
+      if (!fileLink('a.txt', join(base, 'to-a'))) return context.skip('Windows denied file symlink creation (EPERM)');
+      fileLink('missing.txt', join(base, 'dangling'));
+      mkdirSync(join(base, 'sub'));
+      writeFileSync(join(base, 'sub', 'b.txt'), 'b');
+      // A junction needs no privilege on Windows, which stores its target as an absolute path, so the expected digest
+      // comes from what the link holds there.
+      symlinkSync(join(base, 'sub'), join(base, 'to-sub'), 'junction');
+      const toSub = createHash('sha256')
+        .update(readlinkSync(join(base, 'to-sub'), { encoding: 'buffer' }))
+        .digest('hex');
+      expect(Object.fromEntries(treeFiles(base))).toEqual({
+        'a.txt': sha256('a'),
+        dangling: `link:${sha256('missing.txt')}`,
+        'sub/b.txt': sha256('b'),
+        'to-a': `link:${sha256('a.txt')}`,
+        'to-sub': `link:${toSub}`,
+      });
+    }));
+
+  it('copies a relative link as a link, so a write through it changes the copy, not the tree', (context) =>
+    scratch((base) => {
+      const tree = join(base, 'tree'),
+        cli = join(base, 'cli.mjs');
+      mkdirSync(tree);
+      writeFileSync(join(tree, 'target.txt'), 'original\n');
+      if (!fileLink('target.txt', join(tree, 'link.txt')))
+        return context.skip('Windows denied file symlink creation (EPERM)');
+      // A stand-in CLI: it writes through the link in its copy and adds a dangling link there.
+      writeFileSync(
+        cli,
+        [
+          "import { symlinkSync, writeFileSync } from 'node:fs';",
+          "import { join } from 'node:path';",
+          "const root = process.argv[process.argv.indexOf('--root') + 1];",
+          "writeFileSync(join(root, 'link.txt'), 'changed\\n');",
+          "symlinkSync('missing.txt', join(root, 'added'), 'file');",
+          "process.stdout.write('{}');",
+        ].join('\n'),
+      );
+      const result = capture({ cli, label: 'x', root: tree, commands: ['validate'], measure: false }) as {
+        outputs: Record<string, { exit: number; files: Record<string, string> }>;
+      };
+      expect(readFileSync(join(tree, 'target.txt'), 'utf8')).toBe('original\n');
+      expect(result.outputs['validate']?.exit).toBe(0);
+      expect(result.outputs['validate']?.files).toEqual({
+        added: `link:${sha256('missing.txt')}`,
+        'target.txt': sha256('changed\n'),
+      });
+    }));
+
+  it('copies the tree a link names, not the link, so a write in the copy leaves the tree alone', () =>
+    scratch((base) => {
+      const tree = join(base, 'tree'),
+        named = join(base, 'named'),
+        cli = join(base, 'cli.mjs');
+      mkdirSync(tree);
+      writeFileSync(join(tree, 'a.txt'), 'a\n');
+      // A junction needs no privilege on Windows; elsewhere it is a symbolic link to the absolute path.
+      symlinkSync(tree, named, 'junction');
+      writeFileSync(
+        cli,
+        [
+          "import { writeFileSync } from 'node:fs';",
+          "import { join } from 'node:path';",
+          "writeFileSync(join(process.argv[process.argv.indexOf('--root') + 1], 'written.txt'), 'w\\n');",
+          "process.stdout.write('{}');",
+        ].join('\n'),
+      );
+      const result = capture({ cli, label: 'x', root: named, commands: ['validate'], measure: false }) as {
+        outputs: Record<string, { exit: number; files: Record<string, string> }>;
+      };
+      expect(readdirSync(tree)).toEqual(['a.txt']);
+      expect(result.outputs['validate']?.exit).toBe(0);
+      expect(result.outputs['validate']?.files).toEqual({ 'written.txt': sha256('w\n') });
+    }));
+});
+
+describe("the probe's --out", () => {
+  const stale = (folders: string[]) =>
+    `--out already holds captures in ${folders.join(', ')}; a tree this run does not finish would keep an earlier run's capture there. Remove them or choose another --out.`;
+
+  it('accepts an --out that holds no capture for its labels: no folder, other files, or another label', () =>
+    scratch((out) => {
+      expect(thrown(() => refuseStaleOut(join(out, 'none'), ['a']))).toBeUndefined();
+      mkdirSync(join(out, 'a'));
+      writeFileSync(join(out, 'a', 'notes.txt'), '');
+      mkdirSync(join(out, 'b'));
+      writeFileSync(join(out, 'b', 't.json'), '{}');
+      expect(thrown(() => refuseStaleOut(out, ['a']))).toBeUndefined();
+    }));
+
+  it('refuses an --out whose label folders already hold captures, naming each', () =>
+    scratch((out) => {
+      for (const label of ['a', 'b', 'c']) mkdirSync(join(out, label));
+      writeFileSync(join(out, 'a', 't.json'), '{}');
+      writeFileSync(join(out, 'c', 'u.json'), '{}');
+      expect(thrown(() => refuseStaleOut(out, ['a', 'b', 'c']))).toBe(stale([join(out, 'a'), join(out, 'c')]));
+    }));
+
+  it('stops on any error but a missing folder, such as a file where a label folder should be', () =>
+    scratch((out) => {
+      writeFileSync(join(out, 'a'), '');
+      let code: unknown;
+      try {
+        refuseStaleOut(out, ['a']);
+      } catch (error) {
+        code = (error as NodeJS.ErrnoException).code;
+      }
+      expect(code).toBe('ENOTDIR');
+    }));
+
+  it('refuses at start with exit 2, before it builds a tree', () =>
+    scratch(async (out) => {
+      mkdirSync(join(out, 'a'));
+      writeFileSync(join(out, 'a', 't.json'), '{}\n');
+      // Neither CLI exists, so a probe that went on to build a tree would stop with another message.
+      const missing = join(out, 'missing.js');
+      const run = await runBounded(
+        process.execPath,
+        [PROBE, '--init-cli', missing, '--cli', `a=${missing}`, '--out', out],
+        { timeoutMs: bound },
+      );
+      expect(run).toMatchObject({ status: 2, stdout: '', stderr: `${stale([join(out, 'a')])}\n` });
+      expect(readdirSync(out)).toEqual(['a']);
+      expect(readFileSync(join(out, 'a', 't.json'), 'utf8')).toBe('{}\n');
+    }));
+});
+
+describe("the probe's --work", () => {
+  it('makes its trees and copies under --work, even one reached through a link, with stable outputs, and leaves it empty', () =>
+    scratch(async (base) => {
+      const work = join(base, 'work'),
+        linked = join(base, 'linked'),
+        out = join(base, 'out'),
+        seen = join(base, 'seen.txt'),
+        init = join(base, 'init.mjs'),
+        cli = join(base, 'cli.mjs'),
+        trees = join(base, 'trees.json');
+      mkdirSync(work);
+      // --work is given through a link, as /tmp is on macOS. A junction needs no privilege on Windows.
+      symlinkSync(work, linked, 'junction');
+      // Stand-ins that record the folder each is given: `ia init` writes nothing, since the synthetic records need no
+      // more than the folder, and the CLI prints the real path of its root, as IA does.
+      writeFileSync(
+        init,
+        [
+          "import { appendFileSync } from 'node:fs';",
+          "appendFileSync(process.env.SCALE_PROBE_SEEN, 'tree ' + process.argv[3] + '\\n');",
+        ].join('\n'),
+      );
+      writeFileSync(
+        cli,
+        [
+          "import { appendFileSync, realpathSync } from 'node:fs';",
+          "const root = process.argv[process.argv.indexOf('--root') + 1];",
+          "appendFileSync(process.env.SCALE_PROBE_SEEN, 'copy ' + root + '\\n');",
+          'process.stdout.write(JSON.stringify({ root: realpathSync(root) }));',
+        ].join('\n'),
+      );
+      writeFileSync(trees, JSON.stringify({ format: 'ia.scale-probe.trees.v1', trees: [] }));
+      const run = await runBounded(
+        process.execPath,
+        [
+          PROBE,
+          '--init-cli',
+          init,
+          '--cli',
+          `x=${cli}`,
+          '--trees',
+          trees,
+          '--synthetic',
+          '1',
+          '--runs',
+          '2',
+          '--commands',
+          'validate',
+          '--no-measure',
+          '--work',
+          linked,
+          '--out',
+          out,
+        ],
+        { timeoutMs: bound, env: { ...process.env, SCALE_PROBE_SEEN: seen } },
+      );
+      expect(run.status, run.stdout + run.stderr).toBe(0);
+      expect(JSON.parse(run.stdout)).toEqual({
+        tree: 'synthetic-1',
+        cli: 'x',
+        commands: 1,
+        skipped: [],
+        unstable: [],
+        unexpected: [],
+      });
+      // The tree is built in a staging folder of its own under --work, as given, and each copy in a folder of its own
+      // at --work's real path, the spelling IA reports, so the normaliser finds the root it was given.
+      const seenBy = readFileSync(seen, 'utf8')
+        .trim()
+        .split('\n')
+        .map((line) => line.split(/ (.*)/s));
+      expect(seenBy.map(([what]) => what)).toEqual(['tree', 'copy', 'copy']);
+      const real = realpathSync.native(work);
+      for (const [what, folder] of seenBy) {
+        const parent = dirname(dirname(folder!));
+        expect(what === 'copy' ? parent : realpathSync.native(parent)).toBe(real);
+      }
+      expect(readdirSync(work)).toEqual([]);
+    }));
+});
+
+describe('the git variables a hook hands on', () => {
+  /** The test's own git calls get no git variables, so they cannot reach another repository either. */
+  const git = async (cwd: string, ...args: string[]) => {
+    const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith('GIT_')));
+    const run = await runBounded('git', ['-C', cwd, ...args], { timeoutMs: bound, env });
+    expect(run.status, run.stderr).toBe(0);
+    return run.stdout.trim();
+  };
+  /** A repository with a commit of its own, standing in for the one a hook's GIT_DIR names. */
+  const decoy = async (base: string) => {
+    const dir = join(base, 'decoy');
+    mkdirSync(dir);
+    writeFileSync(join(dir, 'decoy.txt'), 'decoy\n');
+    await git(dir, 'init', '--quiet', '--template=');
+    await git(dir, 'add', 'decoy.txt');
+    await git(
+      dir,
+      ...['-c', 'user.name=Decoy', '-c', 'user.email=decoy@example.invalid', '-c', 'commit.gpgsign=false'],
+      ...['commit', '--quiet', '--no-verify', '-m', 'decoy'],
+    );
+    return { gitDir: join(dir, '.git'), head: await git(dir, 'rev-parse', 'HEAD') };
+  };
+  /** Runs `body` with GIT_DIR naming `gitDir`, as in a hook, and puts the variable back afterwards. */
+  const withGitDir = <T>(gitDir: string, body: () => T): T => {
+    const saved = process.env['GIT_DIR'];
+    process.env['GIT_DIR'] = gitDir;
+    try {
+      return body();
+    } finally {
+      if (saved === undefined) delete process.env['GIT_DIR'];
+      else process.env['GIT_DIR'] = saved;
+    }
+  };
+  /** A generated tree, committed, around a stand-in `ia init` that writes nothing. */
+  const generated = (base: string) => {
+    writeFileSync(join(base, 'init.mjs'), '');
+    return generate({ cli: join(base, 'init.mjs'), out: join(base, 'synthetic'), records: 7, seed: 1, git: true });
+  };
+
+  it("has the capture record the tree's own commit, not the HEAD of the repository GIT_DIR names", () =>
+    scratch(async (base) => {
+      const made = generated(base);
+      const { gitDir, head } = await decoy(base);
+      expect(head).not.toBe(made.commit);
+      const result = withGitDir(gitDir, () =>
+        capture({ cli: join(base, 'unused.mjs'), label: 'x', root: made.out, commands: [], measure: false }),
+      ) as { tree: { commit: string | null } };
+      expect(result.tree.commit, `the decoy's HEAD is ${head}`).toBe(made.commit);
+    }));
+
+  it('has the probe build a git tree from the repository it is given, not from the one GIT_DIR names', () =>
+    scratch(async (base) => {
+      const made = generated(base);
+      const { gitDir } = await decoy(base);
+      const work = join(base, 'work');
+      mkdirSync(work);
+      const root = withGitDir(gitDir, () =>
+        build(
+          { name: 'docs', kind: 'git', commit: made.commit, path: 'docs/synthetic' },
+          { initCli: join(base, 'init.mjs'), work, repository: made.out },
+        ),
+      );
+      expect(readdirSync(root)).toEqual(['syn-spec-000000.md']);
+    }));
 });
 
 describe('the normaliser', () => {

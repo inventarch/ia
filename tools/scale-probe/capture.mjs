@@ -5,10 +5,22 @@
 import '../temp/physical-temp.mjs';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  readlinkSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { gitEnvironment } from './generate.mjs';
 import { normalise } from './normalise.mjs';
 
 const MEASURE = fileURLToPath(new URL('./measure.mjs', import.meta.url));
@@ -84,7 +96,13 @@ function summary(json) {
   return out;
 }
 
-/** Every file under a tree but its `.git` folder, as workspace-relative path to the SHA-256 of its bytes. */
+/** The digest of a symbolic link: `link:` and the SHA-256 of its target text, which no file's digest can equal. */
+const LINK = 'link:';
+
+/**
+ * Every file under a tree but its `.git` folder, as workspace-relative path to the SHA-256 of its bytes. A symbolic
+ * link is digested by its target text and never followed, so a link to a folder is not walked.
+ */
 export function treeFiles(root) {
   const files = new Map();
   const walk = (dir, prefix) => {
@@ -93,7 +111,8 @@ export function treeFiles(root) {
       const path = join(dir, entry.name),
         rel = prefix ? `${prefix}/${entry.name}` : entry.name;
       if (entry.isDirectory()) walk(path, rel);
-      else files.set(rel, createHash('sha256').update(readFileSync(path)).digest('hex'));
+      else if (entry.isSymbolicLink()) files.set(rel, `${LINK}${sha256(readlinkSync(path, { encoding: 'buffer' }))}`);
+      else files.set(rel, sha256(readFileSync(path)));
     }
   };
   walk(root, '');
@@ -102,13 +121,17 @@ export function treeFiles(root) {
 
 /**
  * The files a run added, changed or removed, as path to the digest of the normalised content (`removed` for a
- * file that is gone). Binary content is digested as it is.
+ * file that is gone). Binary content is digested as it is, and a symbolic link by its target text.
  */
 function written(command, copy, before) {
   const after = treeFiles(copy),
     out = {};
   for (const [path, hash] of after) {
     if (before.get(path) === hash) continue;
+    if (hash.startsWith(LINK)) {
+      out[path] = hash;
+      continue;
+    }
     const bytes = readFileSync(join(copy, path));
     out[path] = bytes.includes(0) ? sha256(bytes) : digestOf(command, bytes.toString('utf8'), copy).digest;
   }
@@ -122,10 +145,14 @@ function written(command, copy, before) {
  * @returns {{ exit: number, digest: string, bytes: number, stderr: string, summary: unknown, files: Record<string, string>, measure: unknown, kept?: unknown }}
  */
 function runOnce({ cli, tree, name, work, measure }) {
-  const parent = mkdtempSync(join(work, `${name}-`));
+  // At its real path: IA reports the root it runs on by its real path, and the normaliser folds only the spelling
+  // it is given. A `work` reached through a link, as /tmp is on macOS, would leave the copy's random name in outputs.
+  const parent = realpathSync.native(mkdtempSync(join(work, `${name}-`)));
   const copy = join(parent, 'tree');
   try {
-    cpSync(tree.root, copy, { recursive: true });
+    // A link is copied as it is: resolved, a relative link would point back into the tree, and a write through it
+    // would change the tree every later run copies.
+    cpSync(tree.root, copy, { recursive: true, verbatimSymlinks: true });
     const args = [...COMMANDS[name].args(tree, copy), '--root', copy];
     const run = spawnSync(process.execPath, ['--max-old-space-size=8192', MEASURE, ...args], {
       cwd: copy,
@@ -172,10 +199,12 @@ export function captureAll({
   measure = true,
   work,
 }) {
-  const tree = { root: resolve(root), commit: null };
+  // The real path: a copy of a link to the tree would be a link to it, and a run would write into the tree.
+  const tree = { root: realpathSync.native(resolve(root)), commit: null };
   if (existsSync(join(tree.root, '.git')))
     tree.commit = execFileSync('git', ['-C', tree.root, 'rev-parse', 'HEAD'], {
       encoding: 'utf8',
+      env: gitEnvironment(),
       windowsHide: true,
     }).trim();
   tree.files = treeFiles(tree.root);
@@ -264,7 +293,7 @@ function main(argv) {
   }
   if (!o.cli || !o.label || !o.root || !o.out || !(o.runs >= 1))
     throw new Error(
-      'usage: capture.mjs --cli <bin.js> --label <label> --tree <dir> [--runs <n>] [--commands <a,b>] [--keep <dir>] [--no-measure] --out <file>',
+      'usage: capture.mjs --cli <bin.js> --label <label> --tree <dir> [--name <name>] [--runs <n>] [--commands <a,b>] [--keep <dir>] [--no-measure] --out <file>',
     );
   const result = capture(o);
   mkdirSync(dirname(resolve(o.out)), { recursive: true });
