@@ -136,6 +136,60 @@ export function range(value: unknown): string {
   return v;
 }
 export const satisfies = (v: string, r: string): boolean => semver.satisfies(version(v), range(r));
+/** The lowest version a range admits (`^3.2.0` → `3.2.0`), refused for a range that admits none. */
+export function rangeFloor(value: string): string {
+  const lowest = semver.minVersion(range(value));
+  if (lowest === null) refuse('Expected a SemVer range that admits a version');
+  return lowest.version;
+}
+/** Whether a comparator lets a prerelease in. `^1.0.0`'s own upper bound, `<2.0.0-0`, names one and admits none. */
+const admitsPrerelease = (comparator: semver.Comparator): boolean =>
+  comparator.semver instanceof semver.SemVer &&
+  comparator.semver.prerelease.length > 0 &&
+  !(comparator.operator === '<' && comparator.semver.prerelease.join('.') === '0');
+/**
+ * A range accepting exactly what both `a` and `b` accept, or null when none can be written. When one lies inside the other
+ * and admits no prerelease, the narrower is returned as written, so nested ranges keep their spelling. Otherwise it is
+ * their conjunction: sorted comparators, so either order writes the same bytes. A prerelease refuses a conjunction,
+ * because a prerelease comparator admits its tuple's prereleases past the other side's comparators, which accept none
+ * of them; so does a result past `range`'s length. Null therefore means "not provably satisfiable together", and is never an accepted set that is too wide.
+ */
+export function commonRange(a: string, b: string): string | null {
+  const first = range(a),
+    second = range(b);
+  if (first === second) return first;
+  const sets = (r: string) => new semver.Range(r).set,
+    left = sets(first),
+    right = sets(second),
+    prerelease = (clauses: typeof left): boolean => clauses.some((set) => set.some(admitsPrerelease));
+  // `semver.subset` is not trusted with a range that lets a prerelease in: it can call `2.1.3-alpha <3.5.3` a subset
+  // of a range that rejects `2.1.3-alpha`. So the narrower range is returned only when it admits no prerelease.
+  const inFirst = semver.subset(second, first) && !prerelease(right),
+    inSecond = semver.subset(first, second) && !prerelease(left);
+  if (inFirst && inSecond)
+    return first.length !== second.length
+      ? first.length < second.length
+        ? first
+        : second
+      : first < second
+        ? first
+        : second;
+  if (inFirst) return second;
+  if (inSecond) return first;
+  if (prerelease(left) || prerelease(right)) return null;
+  const clause = (set: readonly semver.Comparator[]): string => set.map((comparator) => comparator.value).join(' ');
+  const clauses = new Set<string>();
+  for (const l of left)
+    for (const r of right)
+      if (semver.intersects(clause(l), clause(r)))
+        clauses.add(
+          [...new Set([...l, ...r].map((comparator) => comparator.value).filter((value) => value !== ''))]
+            .sort()
+            .join(' '),
+        );
+  const common = [...clauses].sort().join(' || ');
+  return clauses.size === 0 || common.length > 256 ? null : common;
+}
 /**
  * The distribution engine this reader is. 0.1.2 reads a lock's `entries`, whose one kind is the npm package of kits
  * (`package`); every lock and archive an earlier 0.1 engine reads, it reads unchanged.

@@ -8,9 +8,9 @@
 import { homedir } from 'node:os';
 import { displayFix } from '../fix.js';
 import type { Env } from '../program.js';
-import type { RepoResult, Runner } from './batch-run.js';
+import type { Program, RepoResult, Runner } from './batch-run.js';
 import type { SpawnGuard } from './batch-run.js';
-import { batchEnv, checkPinned, programIn, spawnGuarded } from './batch-run.js';
+import { batchEnv, checkPinned, gitWith, programIn, spawnGuarded, withoutSshPrompt } from './batch-run.js';
 import type { Step } from './offers.js';
 
 export type NextId = 'commit' | 'pr' | 'open' | 'remove' | 'deferred';
@@ -58,19 +58,19 @@ const guardOf = (results: readonly RepoResult[], result: RepoResult): SpawnGuard
   checkouts: results.map((entry) => entry.top),
   worktree: { path: result.worktree, pinned: result.pinned },
 });
-function programFor(name: string, env: Env, results: readonly RepoResult[]): { path: string } | { refused: string } {
+function programFor(name: string, env: Env, results: readonly RepoResult[]): Program | { refused: string } {
   const found = programIn(
     name,
     env,
     results.map((result) => result.top),
   );
-  return 'refused' in found ? { refused: found.refused } : { path: found.path };
+  return 'refused' in found ? { refused: found.refused } : found;
 }
 
 /** Ctrl-C has stopped the choice; read afresh at every check, since it can change during any await. */
 const halted = (signal: AbortSignal | undefined): boolean => signal?.aborted === true;
 /** The last line of a repository whose commit Ctrl-C stopped before it ran; a later choice commits it. */
-const NOT_COMMITTED = 'not committed: stopped';
+export const NOT_COMMITTED = 'not committed: stopped';
 
 /**
  * `git add -A` and `git commit -m "chore: <title>"` in each worktree that passed. A repository whose commit fails (or
@@ -106,7 +106,7 @@ export async function commitPassed(
     // Every invocation goes through the guarded spawn, which checks the pinned worktree immediately before it.
     const guard = guardOf(results, result);
     const git = (args: readonly string[]) =>
-      spawnGuarded(run, program.path, ['-C', result.worktree, ...args], { cwd: result.worktree, env }, guard);
+      spawnGuarded(run, program, ['-C', result.worktree, ...args], { cwd: result.worktree, env }, guard);
     const added = await git(['add', '-A']);
     if (halted(signal)) {
       out.push({ ...result, last: NOT_COMMITTED });
@@ -137,11 +137,12 @@ export async function commitPassed(
 /**
  * Creates the branch on origin, and only creates it: the lease's empty expected value requires the remote ref not to
  * exist, `--atomic` where the remote supports it (one that does not is asked again without it), and `--porcelain` says
- * what happened to the ref. Only a new ref (`*`) is a creation: a ref already up to date (`=`), one rejected (`!`), as
+ * what happened to the ref, and `--no-follow-tags` keeps the user's `push.followTags` from carrying a tag along with the
+ * one ref named. Only a new ref (`*`) is a creation: a ref already up to date (`=`), one rejected (`!`), as
  * a branch already there is even when the push would only fast-forward it, or anything else is a collision.
  */
 async function createBranch(
-  git: string,
+  git: Program,
   worktree: string,
   branch: string,
   run: Runner,
@@ -159,6 +160,7 @@ async function createBranch(
         worktree,
         'push',
         '--porcelain',
+        '--no-follow-tags',
         ...(atomic ? ['--atomic'] : []),
         `--force-with-lease=${ref}:`,
         '-u',
@@ -230,9 +232,9 @@ export async function pushAndOpenPrs(
       continue;
     }
     const base = result.base.slice('origin/'.length);
-    const options = { cwd: result.worktree, env };
     const guard = guardOf(results, result);
-    const pushed = await createBranch(git.path, result.worktree, result.branch, run, options, guard, signal);
+    const options = { cwd: result.worktree, env: withoutSshPrompt(env, gitWith(env, git, guard), result.worktree) };
+    const pushed = await createBranch(git, result.worktree, result.branch, run, options, guard, signal);
     if (!pushed.created) {
       out.push({ root: result.root, url: null, error: pushed.why });
       continue;
@@ -243,7 +245,7 @@ export async function pushAndOpenPrs(
     }
     const opened = await spawnGuarded(
       run,
-      gh.path,
+      gh,
       ['pr', 'create', '--fill', '--head', result.branch, '--base', base],
       options,
       guard,
@@ -290,7 +292,7 @@ export async function removeWorktrees(
     }
     const removed = await spawnGuarded(
       run,
-      git.path,
+      git,
       ['-C', result.top, 'worktree', 'remove', result.worktree],
       { cwd: result.top, env },
       guardOf(results, result),
@@ -318,6 +320,6 @@ export async function ghReady(
   const env = batchEnv(given);
   const found = programIn('gh', env, checkouts);
   if ('refused' in found) return { found: false, authed: false };
-  const status = await spawnGuarded(run, found.path, ['auth', 'status'], { cwd: homedir(), env }, { checkouts });
+  const status = await spawnGuarded(run, found, ['auth', 'status'], { cwd: homedir(), env }, { checkouts });
   return { found: true, authed: status.status === 0 };
 }

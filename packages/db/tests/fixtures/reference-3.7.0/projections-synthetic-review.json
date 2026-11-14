@@ -1,0 +1,108 @@
+{
+  "format": "ia.scale-probe.capture.v1",
+  "label": "3.7.0",
+  "platform": "win32",
+  "node": "v22.23.4",
+  "tree": {
+    "name": "projections-synthetic-review",
+    "recipe": {
+      "kind": "git",
+      "commit": "f766ff05b93e30ff6a2d6256dca93a68c77c39f8",
+      "path": "tools/projections/fixtures/synthetic-review"
+    },
+    "commit": null
+  },
+  "outputs": {
+    "validate": {
+      "exit": 1,
+      "digest": "b8b11b358727212e9f2f7429feb0d8ac3b1dcd651475b2f4aa8525fc8a761e6c",
+      "bytes": 933,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summary": {
+        "ok": false,
+        "code": "IA-RUNTIME-REQUEST-INVALID",
+        "exit": 1
+      },
+      "files": {},
+      "stable": true
+    },
+    "capture-preview": {
+      "exit": 1,
+      "digest": "b8b11b358727212e9f2f7429feb0d8ac3b1dcd651475b2f4aa8525fc8a761e6c",
+      "bytes": 933,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summary": {
+        "ok": false,
+        "code": "IA-RUNTIME-REQUEST-INVALID",
+        "exit": 1
+      },
+      "files": {},
+      "stable": true
+    },
+    "capture": {
+      "exit": 1,
+      "digest": "b8b11b358727212e9f2f7429feb0d8ac3b1dcd651475b2f4aa8525fc8a761e6c",
+      "bytes": 933,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summary": {
+        "ok": false,
+        "code": "IA-RUNTIME-REQUEST-INVALID",
+        "exit": 1
+      },
+      "files": {},
+      "stable": true
+    },
+    "inspect": {
+      "exit": 0,
+      "digest": "7e747064c613bcff12d4313d07863566ba6754526124a6f9c0b4804b1d01131e",
+      "bytes": 321,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summary": {
+        "revision": "65bcd8176fbdf784130de3b59e996bc47aa703583ed248c1c6e73468a88ef9cb",
+        "records": 0
+      },
+      "files": {},
+      "stable": true
+    },
+    "records": {
+      "exit": 0,
+      "digest": "8abf3eae3fe08a0ffc337ff4f0bcb24cd3d6c5097ffdaae9d8951140524927a4",
+      "bytes": 159745,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summary": {
+        "ok": true
+      },
+      "files": {},
+      "stable": true
+    },
+    "format-check": {
+      "exit": 3,
+      "digest": "0a2790248f9f231dfa176d5d9ff340138dca5d11fa31f280aa65bd167e586fa5",
+      "bytes": 258,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summary": {
+        "ok": false,
+        "code": "IA-DIST-CLOSURE-INCOMPLETE",
+        "exit": 3
+      },
+      "files": {},
+      "stable": true
+    },
+    "kb-check": {
+      "exit": 1,
+      "digest": "b8b11b358727212e9f2f7429feb0d8ac3b1dcd651475b2f4aa8525fc8a761e6c",
+      "bytes": 933,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summary": {
+        "ok": false,
+        "code": "IA-RUNTIME-REQUEST-INVALID",
+        "exit": 1
+      },
+      "files": {},
+      "stable": true
+    }
+  },
+  "skipped": [
+    "kb-pack"
+  ]
+}

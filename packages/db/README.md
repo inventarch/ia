@@ -36,7 +36,7 @@ try {
 }
 ```
 
-`open` admits the workspace once. `resolveScope` issues an opaque token, and every read that passes it as `within` stays inside that scope. Band 100 marks a record the workspace authors. `cache: false` makes the open fully read-only. Without it, the handle keeps a disposable graph cache at `.ia/.iadb/graph.json`; a handle opened with `checks: 'structural'` or `evidence: true` never reads or writes that cache. The `.ia/.gitignore` that `ia init` writes does not list `.iadb/`, so add it to your ignore file.
+`open` admits the workspace once. `resolveScope` issues an opaque token, and every read that passes it as `within` stays inside that scope. A handle holds the 4,096 ordinary scopes most recently issued or read, so a token left unread past that refuses with `IA-DB-STALE`, as one does once its sources change: issue a new scope. A scope issued with `pinned: true` sits outside that bound and stays until the sources change or the handle closes. Only a host holding the handle can pin, and nothing limits how many it does, so pin only what you can count. Band 100 marks a record the workspace authors. `cache: false` makes the open fully read-only. Without it, the handle keeps a disposable graph cache at `.ia/.iadb/graph.json`; a handle opened with `checks: 'structural'` or `evidence: true` never reads or writes that cache. The `.ia/.gitignore` that `ia init` writes does not list `.iadb/`, so add it to your ignore file.
 
 ## 🧭 What it does
 
@@ -66,7 +66,7 @@ The `./internal/*` subpaths serve specific toolchain consumers and are not a sta
 
 - **It never writes authored source.** Its only writes are the disposable cache, which `cache: false` turns off, and the capture pair and evidence files, each only when you call its writer.
 - **It makes no network request and no installation write.** Reads verify installed distributions and refuse missing, corrupt or drifted state. Acquiring and installing archives belongs to the application, such as the `ia` CLI.
-- **Admission is not evaluation.** Opening a workspace runs no conformance suite unless you pass `conformance: 'verify'`, which runs `@inventarch/compliance`'s `package-v1` profile in the same process, and never a prose case. `bindChecks` runs no evaluator that is not built in: such a check stays `not-evaluated`, which is never a pass.
+- **Admission is not evaluation.** Opening a workspace runs no conformance suite unless you pass `conformance: 'verify'`, which runs `@inventarch/compliance`'s `package` profile in the same process, and never a prose case. `bindChecks` runs no evaluator that is not built in: such a check stays `not-evaluated`, which is never a pass.
 - **A scope narrows reads; it does not decide who reads.** Unscoped reads and issuing independent scopes are privileged host inspection, and the host that holds the handle decides what it discloses. Call `isCompleteScope(token)` before you show `report`, `refused` or `unadmitted` to a reader: only a whole-workspace scope may disclose them.
 - **Evidence is not attestation.** A runner journal's hash chain establishes internal integrity, not an external observer, authorized execution or real-world effects.
 

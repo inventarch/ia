@@ -229,7 +229,7 @@ const AUTHORING_GUIDANCE = {
   template: [
     'Describe bounded inputs and output structure for rendering.',
     'Use @operation for a broader executable effect or @spec for maintained requirements.',
-    'Scalar templates require parameters and lines; structured-v1 templates use their resource and may omit those legacy fields or keep empty lists.',
+    'Scalar templates require parameters and lines; structured templates use their resource and may omit those legacy fields or keep empty lists.',
   ],
   hook: [
     'Describe a host event and selection guard with its response message.',

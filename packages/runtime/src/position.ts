@@ -3,8 +3,10 @@ import type { Band, Kind, Lane, Phase, Predicate } from '@inventarch/language';
 import { conditionHolds, digest, effectiveSeverity, laneOf, reaches } from '@inventarch/graph';
 import type { ClaimMatch, DirectedEdgeRow, DirectedRow, Node } from '@inventarch/graph';
 import type { ReadHandle } from '@inventarch/db';
+import { activationAt } from './activation.js';
 import { RuntimeError } from './errors.js';
 import { fragmentText } from './locator.js';
+import { rootWorkspace } from './mandate-modes.js';
 import { statedText } from './render.js';
 import { SCOPE_KEY_CAPS, normalizeScopeKey, resolveScopeKey } from './scope-key.js';
 import type { ResolvedScopeKey, ResolvedSeat, ScopeKey } from './scope-key.js';
@@ -47,8 +49,11 @@ export type PositionVia =
   | { readonly by: 'word'; readonly system: string }
   /** A claimant of a location seat, with each of its selections that selects the path (graph G06c). */
   | { readonly by: 'claim'; readonly matches: readonly ClaimMatch[] }
-  /** The record a location seat is declared at, and the rule that declares it (db D02b). */
-  | { readonly by: 'declared-at'; readonly rule: 'system' | 'root' | 'repository' }
+  /**
+   * The record a location seat is declared at, and the rule that declares it (db D02b); for a root several workspaces
+   * share, `shared`, each of its declarers.
+   */
+  | { readonly by: 'declared-at'; readonly rule: 'system' | 'root' | 'shared' | 'repository' }
   /**
    * A field match, not a row: the entry's `subject.subject-word` names the word, or its
    * `subject.subject-kind` the kind, of a record. It costs no hop and claims no relation or consent (R17).
@@ -89,9 +94,25 @@ export interface PositionRecord {
 export interface LoadedRecord extends PositionRecord {
   readonly digest: string;
 }
+/**
+ * A reserved rule. `activation` is present only when the rule's selectors leave it undecided at the key's coordinate (an
+ * axis they name, such as move or artifact-set, is unbound): the undecided groups, `axis is value and ...`, joined by
+ * `or`. A rule without it applies at the coordinate.
+ */
+export interface RuleRecord extends LoadedRecord {
+  readonly activation?: string;
+}
+/** A blocking rule left out of `rules` because its activation contradicts the key's coordinate, as `ia context` omits it. */
+export interface OmittedRule {
+  readonly identity: string;
+  /** The contradictory terms, `axis is value, request is other`, joined by `; `. */
+  readonly detail: string;
+}
 /** The loaded entry of a seat that is no record: a location, or a workspace seat no record declares (`''`). */
 export interface LoadedPlace {
   readonly path: string;
+  /** Under a root several workspaces share (db D02b `shared`): every declarer, in identity order. */
+  readonly declarers?: readonly string[];
 }
 export type LoadedEntry = LoadedRecord | LoadedPlace;
 export interface PositionPointer extends PositionRecord {
@@ -199,9 +220,12 @@ export interface PositionBody {
   readonly loaded: readonly LoadedEntry[];
   /**
    * The blocking governance candidates, and the blocking rules that apply by word to a candidate (R17), reserved
-   * outside the budget, in the governance order: the candidates of the walk without the word, so w hides none.
+   * outside the budget, in the governance order: the candidates of the walk without the word, so w hides none. Only a
+   * rule whose activation admits the key's coordinate is listed (R04); one left undecided carries `activation`.
    */
-  readonly rules: readonly LoadedRecord[];
+  readonly rules: readonly RuleRecord[];
+  /** The blocking rules the key's coordinate disqualifies by activation, by identity; never entered or pointed to. */
+  readonly omittedRules: readonly OmittedRule[];
   /** The first 48 pointers in the shape's order, of w only. */
   readonly pointers: readonly PositionPointer[];
   readonly pointerTallies: readonly PointerTally[];
@@ -408,7 +432,7 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
   // records and the repository's own roots). When neither closure holds the record, no workspace holds the seat: the
   // seat is never outside its own closure.
   const repository = (): string | undefined => {
-    const at = handle.resolveSeat('', read).seat;
+    const at = rootWorkspace(handle, read);
     return at !== undefined && nodes.get(at)?.discriminator === 'workspace' ? at : undefined;
   };
   const workspaceOf = (identity: string | undefined): string | undefined => {
@@ -419,9 +443,13 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
     const holder = roots.find((r) => reaches(r.root, root))?.workspace;
     return [repository(), holder].find((at) => at !== undefined && holds(ownOf(at), identity));
   };
-  const home = workspaceOf(seat.kind === 'location' ? resolution?.seat : seatId),
-    own = ownOf(home);
-  const inside = (identity: string): boolean => holds(own, identity);
+  // A seat under a root several workspaces share (db D02b `shared`) belongs to each equally, so no one of them is its
+  // home: its closure is the union of every declarer's.
+  const declarers = seat.kind !== 'record' && resolution?.by === 'shared' ? resolution.declarers! : undefined;
+  const home = declarers !== undefined ? undefined : workspaceOf(seat.kind === 'location' ? resolution?.seat : seatId),
+    own = declarers !== undefined ? new Set(declarers.flatMap((declarer) => [...ownOf(declarer)])) : ownOf(home);
+  const inside = (identity: string): boolean =>
+    declarers !== undefined ? declarers.some((declarer) => holds(ownOf(declarer), identity)) : holds(own, identity);
 
   // C0, at cost 0 and one level from the seat: its field references both ways; a workspace seat's capture members; a
   // @system seat's word members; a location's declared-at record and claimants. The first class to reach one names it.
@@ -440,8 +468,11 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
       for (const record of records)
         if (record.system === node.name) compose(record.identity, { by: 'word', system: node.name });
   }
-  if (seat.kind === 'location' && resolution !== undefined) {
+  // A workspace seat whose root `''` is shared is that location: no record, its declarers and claimants its composition.
+  const placed = seat.kind === 'location' || declarers !== undefined;
+  if (placed && resolution !== undefined) {
     if (resolution.seat !== undefined) compose(resolution.seat, { by: 'declared-at', rule: resolution.by! });
+    for (const declarer of declarers ?? []) compose(declarer, { by: 'declared-at', rule: 'shared' });
     for (const claimant of resolution.claimants) compose(claimant.identity, { by: 'claim', matches: claimant.matches });
   }
   /**
@@ -577,12 +608,24 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
       if (matches.length > 0)
         matched.set(subject.identity, { hop: 0, via: { by: 'subject', label: FIELD_MATCH, matches } });
     }
+  // A blocking rule is reserved only where its activation admits the coordinate, as `ia context` delivers it (R04): a
+  // contradicted one is listed in `omittedRules` instead, and stays out of L, the pointers and the frontier, and an
+  // undecided one is listed with the groups it waits on.
+  const activations = new Map(
+    [...[...candidates].filter(blocking), ...matched.keys()].map((identity) => [
+      identity,
+      activationAt(nodes.get(identity)!, values),
+    ]),
+  );
   const rules = sorted(
-    [...[...candidates].filter(blocking), ...matched.keys()],
+    [...activations].filter(([, a]) => a.status !== 'omitted').map(([identity]) => identity),
     (identity) => ruleReach(identity).hop,
     true,
   );
-  const reserved = new Set(rules);
+  const omittedRules = [...activations]
+    .flatMap(([identity, a]) => (a.status === 'omitted' ? [{ identity, detail: a.detail }] : []))
+    .sort((a, b) => order(a.identity, b.identity));
+  const reserved = new Set(activations.keys());
   const pool = sorted(
     new Set([...seeds, ...hopReached].filter((identity) => !reserved.has(identity))),
     hopOfReach,
@@ -681,12 +724,29 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
     if (nodes.get(identity)?.discriminator === 'mandate' && inside(identity) && !governing.has(identity))
       governing.set(identity, via);
   };
-  if (seat.kind === 'location' && resolution !== undefined)
+  if (placed && resolution !== undefined)
     for (const claimant of resolution.claimants) govern(claimant.identity, { by: 'claim', matches: claimant.matches });
   if (home !== undefined)
     for (const row of rowsOf(home))
       if (row.kind === 'field-ref' && row.direction === 'in' && row.field === 'authority.scope')
         govern(row.counterpart, viaRow(home, row));
+  // Under a shared root, a scope governs only when it names every declarer: one naming some of them does not. A declarer
+  // at runtime placement is no part of the body, so none is asked for by it, as mandate resolution reads it.
+  const admittedDeclarers = declarers?.filter((declarer) => nodes.has(declarer)) ?? [];
+  if (admittedDeclarers.length > 0) {
+    const scopes = (declarer: string, identity: string): boolean =>
+      rowsOf(declarer).some(
+        (row) =>
+          row.kind === 'field-ref' &&
+          row.direction === 'in' &&
+          row.field === 'authority.scope' &&
+          row.counterpart === identity,
+      );
+    for (const row of rowsOf(admittedDeclarers[0]!))
+      if (row.kind === 'field-ref' && row.direction === 'in' && row.field === 'authority.scope')
+        if (admittedDeclarers.every((declarer) => scopes(declarer, row.counterpart)))
+          govern(row.counterpart, viaRow(admittedDeclarers[0]!, row));
+  }
   const mandates = [...governing.keys()].sort(byBand);
 
   /** The steward the @system `system` names in `head.steward`, when the scope admits that @system. */
@@ -752,7 +812,9 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
   const unknowns: PositionUnknown[] = [];
   if (seat.kind === 'location') {
     const path = seat.path!,
-      declaredAt = resolution?.seat !== undefined && nodes.has(resolution.seat);
+      declaredAt =
+        (resolution?.seat !== undefined && nodes.has(resolution.seat)) ||
+        (declarers?.some((declarer) => nodes.has(declarer)) ?? false);
     // A narrowed scope prunes the claimants it does not admit (db D09), so it can say only that none in it claims.
     if (!declaredAt && !resolution?.claimants.some((claimant) => nodes.has(claimant.identity)))
       unknowns.push({
@@ -777,7 +839,7 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
       subject: home,
       message: `workspace declares no sources: ${home} has no capture members, and ${fallback}`,
     });
-  else if (home === undefined && seat.kind !== 'workspace')
+  else if (home === undefined && declarers === undefined && seat.kind !== 'workspace')
     unknowns.push({ kind: 'sources', message: `no @workspace holds the seat, and ${fallback}` });
   if (handle.isCompleteScope(within)) {
     const spans = entered.map((identity) => nodes.get(identity)!);
@@ -813,10 +875,19 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
     key,
     seat,
     loaded: [
-      seatId === undefined ? { path: seat.path ?? '' } : loadedRecord(seatId, reachOf(seatId)),
+      seatId === undefined
+        ? { path: seat.path ?? '', ...(declarers === undefined ? {} : { declarers }) }
+        : loadedRecord(seatId, reachOf(seatId)),
       ...chosen.map((identity) => loadedRecord(identity, reachOf(identity))),
     ],
-    rules: rules.map((identity) => loadedRecord(identity, ruleReach(identity))),
+    rules: rules.map((identity) => {
+      const a = activations.get(identity)!;
+      return {
+        ...loadedRecord(identity, ruleReach(identity)),
+        ...(a.status === 'conditional' ? { activation: a.detail } : {}),
+      };
+    }),
+    omittedRules,
     pointers: listed.map(pointer),
     pointerTallies: wordTallies(tallied),
     appliesByWord: applies.slice(0, LISTED).map(({ identity, matches }) => {

@@ -30,7 +30,7 @@ function workspaceAt(root: string, name: string): string {
   return root;
 }
 
-it('two directories whose volume reports inode 0 are two rows, and remove touches only the one named', () => {
+it('two directories whose volume reports inode 0 are two rows, and remove touches only the one named', async () => {
   const at = resolve(scratch('tracked-identity-home'), '.ia'),
     parent = scratch('tracked-identity'),
     alpha = workspaceAt(resolve(parent, 'alpha'), 'alpha'),
@@ -38,16 +38,16 @@ it('two directories whose volume reports inode 0 are two rows, and remove touche
   for (const root of [alpha, beta]) unavailable.add(realpathSync.native(root));
   expect(statSync(alpha, { bigint: true }).ino).toBe(0n);
   expect(statSync(beta, { bigint: true }).ino).toBe(0n);
-  expect(trackWorkspace(at, { root: alpha }, NOW).status).toBe('added');
-  expect(trackWorkspace(at, { root: beta }, NOW).status).toBe('added');
+  expect((await trackWorkspace(at, { root: alpha }, NOW)).status).toBe('added');
+  expect((await trackWorkspace(at, { root: beta }, NOW)).status).toBe('added');
   expect(readTracked(at).map((row) => row.id)).toEqual(['alpha', 'beta']);
   // The same directory is still one row: its real path is compared exactly.
-  expect(trackWorkspace(at, { root: beta }, NOW).status).toBe('already');
-  expect(untrackWorkspace(at, beta, parent).id).toBe('beta');
+  expect((await trackWorkspace(at, { root: beta }, NOW)).status).toBe('already');
+  expect((await untrackWorkspace(at, beta, parent)).id).toBe('beta');
   expect(readTracked(at).map((row) => row.id)).toEqual(['alpha']);
 });
 
-it('an IA home whose volume reports inode 0 holds only what lies inside it by real path', () => {
+it('an IA home whose volume reports inode 0 holds only what lies inside it by real path', async () => {
   const at = resolve(scratch('tracked-identity-home'), '.ia'),
     parent = scratch('tracked-identity'),
     alpha = workspaceAt(resolve(parent, 'alpha'), 'alpha'),
@@ -57,10 +57,10 @@ it('an IA home whose volume reports inode 0 holds only what lies inside it by re
   expect(statSync(at, { bigint: true }).ino).toBe(0n);
   // Raw device and inode would call alpha's own directory, and the folder holding it, the home: each reports inode 0.
   expect(findWorkspaces(parent, { iaHome: at })).toEqual([realpathSync(alpha)]);
-  expect(trackWorkspace(at, { root: alpha }, NOW).status).toBe('added');
+  expect((await trackWorkspace(at, { root: alpha }, NOW)).status).toBe('added');
   expect(readTracked(at).map((row) => row.id)).toEqual(['alpha']);
   // A root that really lies inside the home is still refused.
-  expect(() => trackWorkspace(at, { root: inside }, NOW)).toThrow(
+  await expect(trackWorkspace(at, { root: inside }, NOW)).rejects.toThrow(
     expect.objectContaining({ code: 'IA-DIST-PATH-UNSAFE' }),
   );
   expect(readTracked(at).map((row) => row.id)).toEqual(['alpha']);

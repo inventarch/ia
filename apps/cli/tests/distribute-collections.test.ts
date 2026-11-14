@@ -272,10 +272,111 @@ it("re-installing a collection that moves a shared member's range refuses, at pr
       next: expect.stringMatching(/^Install them together with "ia install acme\/a@2\.0\.0 acme\/b --registry /),
     });
     expect(JSON.parse(result.stdout).next).toContain(
-      ` --root ${root.replaceAll('\\', '/')}"; that succeeds only when their releases list acme/x with the same range.`,
+      ` --root ${root.replaceAll('\\', '/')}"; that succeeds only when one release of acme/x satisfies every range their releases list.`,
     );
   }
   expect(readFileSync(join(root, KIT_COLLECTIONS), 'utf8')).toBe(recorded);
+});
+
+/** `acme/a` and `acme/b` share `acme/x`: a 1.0.0 and b at ^1.2.0, a 2.0.0 at ^1.4.0, a 3.0.0 at the disjoint ^2.0.0. */
+function overlapRegistry(versions: readonly string[]): string {
+  const dir = buildFixtureRegistry(versions.map((version) => ({ id: 'acme/x', version })));
+  registryAddCollection(dir, 'kit', {
+    format: 'ia.registry-kit.v1',
+    id: 'acme/a',
+    releases: [
+      { version: '1.0.0', withdrawn: false, distributions: [{ id: 'acme/x', range: '^1.2.0' }] },
+      { version: '2.0.0', withdrawn: false, distributions: [{ id: 'acme/x', range: '^1.4.0' }] },
+      { version: '3.0.0', withdrawn: false, distributions: [{ id: 'acme/x', range: '^2.0.0' }] },
+    ],
+  });
+  registryAddCollection(dir, 'kit', {
+    format: 'ia.registry-kit.v1',
+    id: 'acme/b',
+    releases: [{ version: '1.0.0', withdrawn: false, distributions: [{ id: 'acme/x', range: '^1.2.0' }] }],
+  });
+  return dir;
+}
+
+it('re-installing a collection at a range that intersects a holder moves the pin, and both rows follow it', async () => {
+  // Installed while 1.3.0 was the newest; 1.5.0 is the only release both ranges accept once a moves to ^1.4.0.
+  const before = overlapRegistry(['1.3.0']),
+    after = overlapRegistry(['1.3.0', '1.5.0', '2.0.0']),
+    root = await workspace();
+  await ia(root, before, 'install', 'acme/a@1.0.0');
+  await ia(root, before, 'install', 'acme/b@1.0.0');
+  const row = (id: string) => record(root)!.collections.find((collection) => collection.id === id);
+  expect(row('acme/b')!.members[0]!.version).toBe('1.3.0');
+
+  await ia(root, after, 'install', 'acme/a@2.0.0');
+  const text = lockText(root),
+    lock = decodeDistributionLock(JSON.parse(text)),
+    pin = lock.packages.find((locked) => locked.id === 'acme/x')!;
+  expect(pin.version).toBe('1.5.0');
+  expect(lock.requests.filter((request) => request.id === 'acme/x')).toEqual([{ id: 'acme/x', range: '^1.4.0' }]);
+  const member = [{ id: 'acme/x', version: '1.5.0', archive: pin.archive }];
+  expect(row('acme/a')).toMatchObject({ version: '2.0.0', registry: after, members: member });
+  // The holder keeps its identity and its own version and registry, at the pin that moved under it.
+  expect(row('acme/b')).toMatchObject({ version: '1.0.0', registry: before, members: member });
+
+  // Later commands stay where this one left them: no refusal, no drift.
+  await ia(root, after, 'install', 'acme/a@2.0.0');
+  await ia(root, after, 'install', 'acme/b@1.0.0');
+  await ia(root, after, 'install', 'acme/a@2.0.0', 'acme/b@1.0.0');
+  expect(lockText(root)).toBe(text);
+  expect(row('acme/b')).toMatchObject({ version: '1.0.0', members: member });
+  expect((await run(['restore', '--root', root, '--registry', after, '--apply', '--yes', '--json'])).exitCode).toBe(0);
+  expect(lockText(root)).toBe(text);
+  expect((await run(['doctor', '--root', root, '--json'])).exitCode).toBe(0);
+
+  // The holder still constrains: a release outside it refuses, and nothing moves.
+  const refused = await run(['install', 'acme/a@3.0.0', '--root', root, '--registry', after, '--json']);
+  expect(refused.exitCode, refused.stdout).toBe(3);
+  expect(JSON.parse(refused.stdout)).toMatchObject({
+    code: 'IA-DIST-CONFLICT',
+    message: 'Kit acme/a 3.0.0 lists acme/x ^2.0.0, but installed collection acme/b lists it at ^1.4.0',
+  });
+  expect(lockText(root)).toBe(text);
+});
+
+it('a range the user named in an earlier command is never narrowed by a collection that shares it', async () => {
+  const dir = overlapRegistry(['1.3.0', '1.5.0']),
+    root = await workspace();
+  await ia(root, dir, 'install', 'acme/b@1.0.0');
+  // The user names the member b already lists, at the same range: the lock is unchanged, the record keeps who asked.
+  const lock = lockText(root);
+  await ia(root, dir, 'install', 'acme/x@^1.2.0');
+  expect(lockText(root)).toBe(lock);
+  expect(JSON.parse(readFileSync(join(root, KIT_COLLECTIONS), 'utf8'))).toMatchObject({ named: ['acme/x'] });
+  const recorded = readFileSync(join(root, KIT_COLLECTIONS), 'utf8');
+
+  // A collection listing x at ^1.4.0 refuses, as for any direct request, and nothing is written.
+  const refused = await run(['install', 'acme/a@2.0.0', '--root', root, '--registry', dir, '--json']);
+  expect(refused.exitCode, refused.stdout).toBe(3);
+  expect(JSON.parse(refused.stdout)).toMatchObject({
+    code: 'IA-DIST-CONFLICT',
+    message: 'Kit conflicts with direct request acme/x',
+  });
+  expect(lockText(root)).toBe(lock);
+  expect(readFileSync(join(root, KIT_COLLECTIONS), 'utf8')).toBe(recorded);
+
+  // Re-installing the holder keeps the request the user named, and its mark.
+  await ia(root, dir, 'install', 'acme/b@1.0.0');
+  expect(lockText(root)).toBe(lock);
+  expect(readFileSync(join(root, KIT_COLLECTIONS), 'utf8')).toBe(recorded);
+});
+
+it("a request named before any collection listed it stays the user's once one does", async () => {
+  const dir = overlapRegistry(['1.3.0', '1.5.0']),
+    root = await workspace();
+  await ia(root, dir, 'install', 'acme/x@^1.2.0');
+  await ia(root, dir, 'install', 'acme/b@1.0.0');
+  expect(JSON.parse(readFileSync(join(root, KIT_COLLECTIONS), 'utf8'))).toMatchObject({ named: ['acme/x'] });
+  const refused = await run(['install', 'acme/a@2.0.0', '--root', root, '--registry', dir, '--json']);
+  expect(refused.exitCode, refused.stdout).toBe(3);
+  expect(JSON.parse(refused.stdout)).toMatchObject({
+    message: 'Kit conflicts with direct request acme/x',
+  });
 });
 
 it('a kit whose member is a kit previews and applies, recording the members it expanded to', async () => {

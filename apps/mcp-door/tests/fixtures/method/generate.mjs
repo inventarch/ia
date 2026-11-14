@@ -12,6 +12,9 @@
  * `golden-pin.json`. The temporary root is written `<ROOT>` with forward slashes, the envelope is removed, and each
  * packet's digest is recomputed over that content with the plugin's own `packetDigest`. Record the marketplace commit
  * in `PROVENANCE.json` after a run.
+ *
+ * The plugin is written exactly as published: the kit's lock pins the language base its release was packed on, and the
+ * CLI's `ia restore` that `resolve.mjs` runs carries every published base, so it restores the kit on that base exactly.
  */
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';

@@ -117,7 +117,9 @@ function viaText(via: PositionVia | undefined): string {
     case 'claim':
       return `claims it by ${via.matches.map((match) => `${match.field} ${match.selection}`).join(', ')}`;
     case 'declared-at':
-      return `the record it is declared at, by ${DECLARED[via.rule]}`;
+      return via.rule === 'shared'
+        ? 'one of the workspaces that declare the shared root it lies under'
+        : `the record it is declared at, by ${DECLARED[via.rule]}`;
     case 'subject':
       return `${via.label}: ${via.matches.map((match) => `${match.field} ${match.value} (${match.record})`).join(', ')}`;
   }
@@ -132,7 +134,19 @@ const recordFacts = (record: PositionRecord & { readonly workspace?: string }): 
 const loadedFacts = (loaded: LoadedEntry): readonly (readonly Token[])[] =>
   'identity' in loaded
     ? recordFacts(loaded)
-    : [[atom(spelled(loaded.path), 'cyan', 0)], words('a location, not a record', 'dim')];
+    : [
+        [atom(spelled(loaded.path), 'cyan', 0)],
+        words('a location, not a record', 'dim'),
+        // A root several workspaces declare belongs to each: every declarer is named, none chosen as the seat.
+        ...(loaded.declarers === undefined
+          ? []
+          : [
+              [
+                atom('shared by', 'dim', 0),
+                ...loaded.declarers.map((declarer, index) => atom(declarer, 'cyan', index === 0 ? 2 : 1)),
+              ],
+            ]),
+      ];
 
 /** One section: its label and an entry per item, or one dim line when it is empty. */
 function section<T>(
@@ -243,7 +257,29 @@ export function renderPosition(output: PositionOutput, caps: Capabilities, roote
         'No playbook cell.',
         caps,
       ),
-      section('Rules (reserved outside the budget)', body.rules, recordFacts, 'No blocking rule.', caps),
+      section(
+        'Rules (reserved outside the budget)',
+        body.rules,
+        (rule) => [
+          ...recordFacts(rule),
+          ...(rule.activation === undefined
+            ? []
+            : [[atom('applies only when', 'yellow', 0), ...words(rule.activation, null, 2)]]),
+        ],
+        'No blocking rule.',
+        caps,
+      ),
+      ...(body.omittedRules.length === 0
+        ? []
+        : [
+            section(
+              'Rules left out by activation',
+              body.omittedRules,
+              (rule) => [[atom(rule.identity, 'cyan', 0)], words(rule.detail, 'dim')],
+              '',
+              caps,
+            ),
+          ]),
       section('Mandates', body.mandates, recordFacts, 'No mandate governs the seat.', caps),
       section('Frontier', body.frontier, (t) => [words(tallyText(t, `of kind ${t.kind}`))], 'No frontier.', caps),
       section(

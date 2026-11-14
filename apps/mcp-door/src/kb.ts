@@ -3,13 +3,14 @@ import {
   captureKnowledge,
   openKnowledgeView,
   KnowledgeError,
+  LIMITS,
   readKnowledgeSelection,
   selectableKnowledgeRecord,
 } from '@inventarch/kb';
 import { executeKnowledge, knowledgeFailure, parseKnowledgeRequest } from '@inventarch/kb/protocol';
 import type { KnowledgeOperation } from '@inventarch/kb/protocol';
 /** Selectable authored records a Door scope may carry into one knowledge capture. */
-export const MEMBERSHIP = Object.freeze({ records: 1000, bytes: 8 * 1024 * 1024 });
+export const MEMBERSHIP = Object.freeze({ records: LIMITS.captureRecords, bytes: 20 * 1024 * 1024 });
 /** Tokens are interpreted only by their issuing Door. Transfer membership and graph revision, never the token. */
 export function knowledgeTool(
   root: string,
@@ -24,7 +25,13 @@ export function knowledgeTool(
       operation: 'records',
       params: args.within === undefined ? {} : { within: args.within },
     });
-    if (!membership.ok) throw new KnowledgeError('IA-KB-SCOPE-UNAVAILABLE', 'Knowledge scope unavailable');
+    if (!membership.ok)
+      throw new KnowledgeError(
+        'IA-KB-SCOPE-UNAVAILABLE',
+        membership.code === 'IA-DB-STALE'
+          ? 'Knowledge scope token expired: call ia_scope for a new one'
+          : 'Knowledge scope unavailable',
+      );
     const snapshot = membership.result as {
       revision: string;
       records: readonly { identity: string; placement: { kind: string }; source: { path: string } }[];

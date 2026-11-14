@@ -1,0 +1,2384 @@
+{
+  "format": "ia.npm-changeset.v1",
+  "version": "3.8.0",
+  "state": "consumed",
+  "baseline": {
+    "commit": "ae43a8e496a2db5ecf05c4439c094f1fba6a8a73",
+    "version": "3.7.0"
+  },
+  "bump": "minor",
+  "summary": "Coordinated 3.8.0 release of the 24 public npm packages: Aliased model, evaluator, context and operation names compile and run as their installed entries; Batch pnpm installs ignore the repository pnpmfile; Canon link scan runs at its earlier speed; Console batch: a Ctrl-C before a repository's commit runs leaves Commit to choose again; Contract versions and catalog aliases; Cover every tracked-workspaces loader refusal; db docs and tests use the plain rule and profile names; db reads both evaluator catalog shapes; Document the home-lock, kit-collections and kit-inventory exports; Guard a folder-named kit binding as the kit served and keep its pin; ia format checks staleness once per run; IA home folders resolve through one authoritative location; ia position honours rule activation; Import the workspace runtime from its own package; Index postings build in linear time; kb pack reads a commit in batches; kb pack's batched read takes a Git path that is not UTF-8 as path by path does; Language base compatibility floor; Compatibility checks see text forms, edge targets and cardinality; Name a host-admitted agent on session start; Path identity: sameFile and tracked roots handle volumes with no inode; Pin the console's batch wiring; Plain catalog names for the shipped contracts; Plain names for review rules, evaluators and profiles; Plain profile names in test fixtures; Publication qualification retries a timed-out filesystem probe up to twice; Regenerated vocabulary assets; TERM=dumb and IA_NO_CONSOLE keep bare ia out of the console; The kit-not-installed remedy names the package route; The source walk vets each folder once and checks each source's final path; Versioned codecs for evaluator catalogs.",
+  "packages": {
+    "@inventarch/agent-composition-system": {
+      "previous": "3.7.0",
+      "kind": "changed",
+      "summary": "Aliased model, evaluator, context and operation names compile and run as their installed entries. Contract versions and catalog aliases. Import the workspace runtime from its own package. Plain catalog names for the shipped contracts. Plain names for review rules, evaluators and profiles."
+    },
+    "@inventarch/agent-system": {
+      "previous": "3.7.0",
+      "kind": "changed",
+      "summary": "Plain names for review rules, evaluators and profiles."
+    },
+    "@inventarch/authoring-system": {
+      "previous": "3.7.0",
+      "kind": "changed",
+      "summary": "Plain names for review rules, evaluators and profiles."
+    },
+    "@inventarch/cli": {
+      "previous": "3.7.0",
+      "kind": "changed",
+      "summary": "Batch pnpm installs ignore the repository pnpmfile. Console batch: a Ctrl-C before a repository's commit runs leaves Commit to choose again. Cover every tracked-workspaces loader refusal. ia format checks staleness once per run. ia position honours rule activation. Language base compatibility floor. Compatibility checks see text forms, edge targets and cardinality. Path identity: sameFile and tracked roots handle volumes with no inode. Pin the console's batch wiring. Plain catalog names for the shipped contracts. Regenerated vocabulary assets. TERM=dumb and IA_NO_CONSOLE keep bare ia out of the console."
+    },
+    "@inventarch/compliance": {
+      "previous": "3.7.0",
+      "kind": "changed",
+      "summary": "Plain names for review rules, evaluators and profiles. Versioned codecs for evaluator catalogs."
+    },
+    "@inventarch/compliance-system": {
+      "previous": "3.7.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/db": {
+      "previous": "3.7.0",
+      "kind": "changed",
+      "summary": "Canon link scan runs at its earlier speed. db docs and tests use the plain rule and profile names. db reads both evaluator catalog shapes. Language base compatibility floor. Compatibility checks see text forms, edge targets and cardinality. Path identity: sameFile and tracked roots handle volumes with no inode. The source walk vets each folder once and checks each source's final path."
+    },
+    "@inventarch/distribution": {
+      "previous": "3.7.0",
+      "kind": "changed",
+      "summary": "Document the home-lock, kit-collections and kit-inventory exports. ia format checks staleness once per run. Language base compatibility floor. Plain profile names in test fixtures."
+    },
+    "@inventarch/governance-system": {
+      "previous": "3.7.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/graph": {
+      "previous": "3.7.0",
+      "kind": "changed",
+      "summary": "Index postings build in linear time."
+    },
+    "@inventarch/hook-authoring-system": {
+      "previous": "3.7.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/kb": {
+      "previous": "3.7.0",
+      "kind": "changed",
+      "summary": "kb pack reads a commit in batches. kb pack's batched read takes a Git path that is not UTF-8 as path by path does."
+    },
+    "@inventarch/language": {
+      "previous": "3.7.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/learning-system": {
+      "previous": "3.7.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/mcp-door": {
+      "previous": "3.7.0",
+      "kind": "changed",
+      "summary": "Guard a folder-named kit binding as the kit served and keep its pin. IA home folders resolve through one authoritative location. Language base compatibility floor. Plain catalog names for the shipped contracts. Regenerated vocabulary assets. The kit-not-installed remedy names the package route."
+    },
+    "@inventarch/runner": {
+      "previous": "3.7.0",
+      "kind": "changed",
+      "summary": "Plain catalog names for the shipped contracts."
+    },
+    "@inventarch/runtime": {
+      "previous": "3.7.0",
+      "kind": "changed",
+      "summary": "Guard a folder-named kit binding as the kit served and keep its pin. IA home folders resolve through one authoritative location. ia position honours rule activation. Language base compatibility floor. Plain profile names in test fixtures. Publication qualification retries a timed-out filesystem probe up to twice. The kit-not-installed remedy names the package route."
+    },
+    "@inventarch/service-contracts": {
+      "previous": "3.7.0",
+      "kind": "changed",
+      "summary": "Name a host-admitted agent on session start."
+    },
+    "@inventarch/session-system": {
+      "previous": "3.7.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/steward-hook": {
+      "previous": "3.7.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/template-system": {
+      "previous": "3.7.0",
+      "kind": "changed",
+      "summary": "Plain names for review rules, evaluators and profiles."
+    },
+    "@inventarch/work-system": {
+      "previous": "3.7.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/workspace-runtime": {
+      "previous": "3.7.0",
+      "kind": "changed",
+      "summary": "Plain catalog names for the shipped contracts. Plain names for review rules, evaluators and profiles."
+    },
+    "@inventarch/workspace-system": {
+      "previous": "3.7.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    }
+  },
+  "changes": [
+    {
+      "id": "an-aliased-model-or-evaluator-compiles-and-execu",
+      "title": "Aliased model, evaluator, context and operation names compile and run as their installed entries",
+      "summary": "compileHarness compares a profile's model with the host's and its contracts' model lists by installed name. A record may name a model by a name the alias table renames, and a host or contract may list such a name; an alias a list relies on is recorded as a record's is, so compiledAliases still rebuilds the harness. An operation record and its binding may name two generations of one handler, such as a workspace's own binding that still names captured-source-read-v1. A compiled profile stores each check and context under the installed name the compilation pins, so executionManifest and the runner use the pinned evaluator and context, and a host's evaluate receives the installed evaluator name. executionManifest also resolves a check stored under a renamed name through the harness's own alias table, and refuses an evaluator the harness does not pin.",
+      "packages": [
+        "@inventarch/agent-composition-system"
+      ],
+      "paths": [
+        ".ia/src/systems/agent-composition-system/"
+      ]
+    },
+    {
+      "id": "batch-pnpm-installs-ignore-the-repository-pnpmfi",
+      "title": "Batch pnpm installs ignore the repository pnpmfile",
+      "summary": "The console batch install for pnpm now passes --ignore-pnpmfile as well as --ignore-scripts, so a repository's .pnpmfile.cjs hook no longer runs in the batch worktree. Yarn 2 and later yarnPath and plugins, and settings configured in .npmrc, still apply; the contract and preview now say so.",
+      "packages": [
+        "@inventarch/cli"
+      ],
+      "paths": [
+        "apps/cli/",
+        "docs/"
+      ]
+    },
+    {
+      "id": "canon-link-scan-runs-at-its-earlier-speed",
+      "title": "Canon link scan runs at its earlier speed",
+      "summary": "The canon scanner's linear-time link and code-span scan, which replaced regular expressions that could take quadratic time, now runs as fast as the old regular expressions on ordinary documents; its results are unchanged.",
+      "packages": [
+        "@inventarch/db"
+      ],
+      "paths": [
+        "packages/db/"
+      ]
+    },
+    {
+      "id": "console-batch-a-ctrl-c-during-commit-leaves-comm",
+      "title": "Console batch: a Ctrl-C before a repository's commit runs leaves Commit to choose again",
+      "summary": "In the console's batch screen, a Ctrl-C during the Commit, or Commit, push and open PRs, choice leaves each repository whose `git commit` had not started, including one whose `git add` was running, reading `not committed: stopped`; while any does, the same choice is offered again instead of leaving the next list, so those commits can still be made. If the Ctrl-C interrupts a repository's `git commit` and it doesn't finish successfully, that repository still reads failed.",
+      "packages": [
+        "@inventarch/cli"
+      ],
+      "paths": [
+        "apps/cli/"
+      ]
+    },
+    {
+      "id": "contract-versions-and-catalog-aliases",
+      "title": "Contract versions and catalog aliases",
+      "summary": "An installed catalog entry's version is now the contract's version, a positive integer: installed(value, version) defaults to 1 and the compiler accepts any positive integer, pinned through the entry digest. Hosts may pass aliases with the catalog so a record naming an old contract compiles to its plain replacement; provenance.aliases lists each alias used and is absent when none is, so such compilations are unchanged.",
+      "packages": [
+        "@inventarch/agent-composition-system"
+      ],
+      "paths": [
+        ".ia/authoring.resources.json",
+        ".ia/src/systems/agent-composition-system/"
+      ]
+    },
+    {
+      "id": "cover-every-tracked-workspaces-loader-refusal",
+      "title": "Cover every tracked-workspaces loader refusal",
+      "summary": "Tests now cover every tracked-workspaces loader refusal; no package behavior changes.",
+      "packages": [
+        "@inventarch/cli"
+      ],
+      "paths": [
+        "apps/cli/"
+      ]
+    },
+    {
+      "id": "db-docs-and-tests-use-the-plain-rule-and-profile",
+      "title": "db docs and tests use the plain rule and profile names",
+      "summary": "The db SPEC and tests use the plain rule and profile names (completion, independent-exact-candidate, package); db reads stored values written under the old literals unchanged.",
+      "packages": [
+        "@inventarch/db"
+      ],
+      "paths": [
+        ".ia/authoring.resources.json",
+        "CLAUDE.md",
+        "docs/",
+        "examples/",
+        "packages/db/",
+        "tools/"
+      ]
+    },
+    {
+      "id": "db-reads-both-evaluator-catalog-shapes",
+      "title": "db reads both evaluator catalog shapes",
+      "summary": "The installed-implementation catalog admits evaluator sections in the current shape (format evaluator-catalog with an integer formatVersion and codec references by id and version) as well as the legacy ia-evaluator-catalog/1.x shape, and collects codec references from both.",
+      "packages": [
+        "@inventarch/db"
+      ],
+      "paths": [
+        ".ia/authoring.resources.json",
+        "CLAUDE.md",
+        "docs/",
+        "examples/",
+        "packages/db/",
+        "tools/"
+      ]
+    },
+    {
+      "id": "document-the-home-lock-kit-collections-and-kit-i",
+      "title": "Document the home-lock, kit-collections and kit-inventory exports",
+      "summary": "The distribution specification now documents the home-lock, kit-collections and kit-inventory exports; no package behavior changes.",
+      "packages": [
+        "@inventarch/distribution"
+      ],
+      "paths": [
+        "apps/distribution/",
+        "docs/"
+      ]
+    },
+    {
+      "id": "guard-a-folder-named-kit-binding-as-the-kit-serv",
+      "title": "Guard a folder-named kit binding as the kit served and keep its pin",
+      "summary": "A method binding written with a kit's folder is now guarded as the kit the resolver serves when kits share that folder: an exact id first, then a bundled kit, the lock's package entries and the IA home, so a bundled kit with no lock row of its own refuses with IA-CORE-KIT-NOT-INSTALLED instead of passing on another kit's row. A task's retained pin is found for such a binding.",
+      "packages": [
+        "@inventarch/mcp-door",
+        "@inventarch/runtime"
+      ],
+      "paths": [
+        "packages/runtime/"
+      ]
+    },
+    {
+      "id": "ia-format-checks-staleness-once-per-run",
+      "title": "ia format checks staleness once per run",
+      "summary": "ia format now drafts every file against one session and makes its staleness check (a full refresh of the workspace) once, after the last file and before any write, instead of after every file. A run that drafts nothing still makes no check. On a 4,700-record tree, format --check took 1,463 s and now takes 822 s, with an identical envelope. formatSource takes an opt-in defer, and the new recheckFormat makes the deferred check; single-file callers keep the per-call check. The once-per-run check also re-reads every drafted file, so it refuses a file changed after its draft, which the per-file check could miss.",
+      "packages": [
+        "@inventarch/cli",
+        "@inventarch/distribution"
+      ],
+      "paths": [
+        "apps/cli/",
+        "apps/distribution/",
+        "tools/"
+      ]
+    },
+    {
+      "id": "ia-home-folders-resolve-through-one-authoritativ",
+      "title": "IA home folders resolve through one authoritative location",
+      "summary": "The runtime reads and writes each IA home folder (work, sessions, kit-roots, installed-kits, method-closures) at one authoritative place: the plain folder when it holds an authoritative marker file, otherwise the existing *-v1 folder. No folder moves, the plain folder and marker are never created, and paths on a machine without a marker are unchanged; a later release performs the cutover.",
+      "packages": [
+        "@inventarch/mcp-door",
+        "@inventarch/runtime"
+      ],
+      "paths": [
+        ".ia/authoring.resources.json",
+        "CLAUDE.md",
+        "apps/mcp-door/",
+        "docs/",
+        "examples/",
+        "packages/runtime/",
+        "tools/"
+      ]
+    },
+    {
+      "id": "ia-position-honours-rule-activation",
+      "title": "ia position honours rule activation",
+      "summary": "`ia position` now reserves a blocking rule in `rules` only where its activation admits the key's coordinate, as `ia context` delivers it. A rule whose activation the coordinate contradicts moves to a new `omittedRules` section of `ia.position-body.v1` with the contradictory terms, as `ia context` reports them, and is never loaded, pointed to or listed as applying by word. A rule left undecided because its activation names an axis the key does not bind, such as move, stays in `rules` with an `activation` field naming the groups it waits on. The text view prints both. The runtime exports the `RuleRecord` and `OmittedRule` types.",
+      "packages": [
+        "@inventarch/cli",
+        "@inventarch/runtime"
+      ],
+      "paths": [
+        "apps/cli/",
+        "packages/runtime/"
+      ]
+    },
+    {
+      "id": "import-the-workspace-runtime-from-its-own-packag",
+      "title": "Import the workspace runtime from its own package",
+      "summary": "@inventarch/agent-composition-system no longer re-exports the generic workspace runtime. The root exports captureWorkspace, adoptWorkspace, verifyCapture, Corpus, candidateValidation, managedPublication and the Capture type are removed, as are the ./resources, ./projections, ./templates, ./sources, ./authoring, ./authoring-manifest, ./lifecycle, ./lifecycle-profile, ./adapters and ./local-store subpaths and the ./internal/* subpaths of the 18 modules that moved in 1.2.0. Each was a plain alias of the same module in @inventarch/workspace-runtime, so behaviour is unchanged: import those symbols and subpaths from @inventarch/workspace-runtime instead. The package keeps its root (compileHarness, executionManifest, installed, the installed captured read, task capture and installedImplementationDigest), ./tools and the ./internal/* subpaths of the modules it owns.",
+      "packages": [
+        "@inventarch/agent-composition-system"
+      ],
+      "paths": [
+        ".ia/authoring.resources.json",
+        ".ia/src/systems/agent-composition-system/"
+      ]
+    },
+    {
+      "id": "index-postings-build-in-linear-time",
+      "title": "Index postings build in linear time",
+      "summary": "Graph index postings (byName, byDiscriminator, byKind, bySystem, byCategory, byLane, byArtifactSet, selectors and conditions) now check membership with a set beside each list instead of scanning the list on every insert. Building a bucket of n identities was quadratic: loading 20,000 records of one word took 9 s and now takes about 1.2 s. The lists, their order and the serialized graph are unchanged.",
+      "packages": [
+        "@inventarch/graph"
+      ],
+      "paths": [
+        "packages/graph/"
+      ]
+    },
+    {
+      "id": "kb-pack-reads-a-commit-in-batches",
+      "title": "kb pack reads a commit in batches",
+      "summary": "kb pack now reads a commit with a fixed number of git processes, whatever its file count: one listing for .ia/src, one for the selection's other paths, and one cat-file --batch read for each, instead of two processes per file. On a 124-file tree a pack starts 7 git processes instead of 254 and takes about 3 to 5 s instead of 22 to 24 s, with a byte-identical package. Every path is still checked in order with the same refusals; a repository missing an object it would not have read (a partial clone) falls back to reading path by path. The legacy committed writer is unchanged.",
+      "packages": [
+        "@inventarch/kb"
+      ],
+      "paths": [
+        "packages/kb/",
+        "tools/"
+      ]
+    },
+    {
+      "id": "kb-pack-refuses-a-native-file-whose-git-path-is",
+      "title": "kb pack's batched read takes a Git path that is not UTF-8 as path by path does",
+      "summary": "When `kb pack` reads a commit in batches, a native file whose Git path is not UTF-8 is no longer read under the path's lossy decoding: reading that name gives what reading it path by path gives, normally `Selected committed regular non-executable blob unavailable`. The listing's name-byte limit counts each path's bytes as Git wrote them.",
+      "packages": [
+        "@inventarch/kb"
+      ],
+      "paths": [
+        "packages/kb/"
+      ]
+    },
+    {
+      "id": "language-base-compat",
+      "title": "Language base compatibility floor",
+      "summary": "Kits and workspaces locked on any published 3.x language base restore exactly; a kit locked on a base the carrier doesn't ship uses a newer compatible base instead of being refused; `ia floor` reports and verifies the minimum base; `ia update inventarch/language` works on a fresh clone; no install or update moves the language base below the lock, whichever source lists the lower base.",
+      "packages": [
+        "@inventarch/cli",
+        "@inventarch/db",
+        "@inventarch/distribution",
+        "@inventarch/mcp-door",
+        "@inventarch/runtime"
+      ],
+      "paths": [
+        "README.md",
+        "apps/cli/",
+        "apps/distribution/",
+        "apps/mcp-door/",
+        "docs/specs/",
+        "package.json",
+        "packages/db/",
+        "packages/runtime/",
+        "releases/native/",
+        "tools/"
+      ]
+    },
+    {
+      "id": "language-compat-forms-cardinality",
+      "title": "Compatibility checks see text forms, edge targets and cardinality",
+      "summary": "The language compatibility index now records each text field's form and each edge rule's target and cardinality, so the release gate classes a base that adds or changes a form, narrows a cardinality or retargets an edge rule as breaking, and three edge rules that share a predicate are compared separately instead of as one. `ia floor` reports a value outside a base's text form as a `form` gap. When a base changes, the gate also proves the three published public kits (ia-authoring, ia-kb, ia-method) with `ia floor --verify`, beside the method fixture kit.",
+      "packages": [
+        "@inventarch/cli",
+        "@inventarch/db"
+      ],
+      "paths": [
+        "apps/cli/",
+        "docs/specs/",
+        "packages/db/",
+        "releases/native/",
+        "tools/"
+      ]
+    },
+    {
+      "id": "name-a-host-admitted-agent-on-session-start",
+      "title": "Name a host-admitted agent on session start",
+      "summary": "nativeStartRequest and sessionContinueRequest gain an optional agent, an id naming a host-admitted agent by its admitted entry binding. entry keeps its fixed values and refusals; the two are exclusive, and the host refuses a request naming both or an agent it has not admitted for the workspace.",
+      "packages": [
+        "@inventarch/service-contracts"
+      ],
+      "paths": [
+        "packages/service-contracts/"
+      ]
+    },
+    {
+      "id": "path-identity-samefile-and-tracked-roots-handle",
+      "title": "Path identity: sameFile and tracked roots handle volumes with no inode",
+      "summary": "sameFile now compares exact real paths when a volume reports an inode of 0 or all ones, as within already did, so two different directories are no longer judged one file on such network or ReFS volumes. The CLI's tracked-root comparison and the console batch worktree check share the same rule.",
+      "packages": [
+        "@inventarch/cli",
+        "@inventarch/db"
+      ],
+      "paths": [
+        "apps/cli/",
+        "packages/db/"
+      ]
+    },
+    {
+      "id": "pin-the-console-s-batch-wiring",
+      "title": "Pin the console's batch wiring",
+      "summary": "Tests now pin the console's batch wiring and its quit and refresh aborts; no package behavior changes.",
+      "packages": [
+        "@inventarch/cli"
+      ],
+      "paths": [
+        "apps/cli/"
+      ]
+    },
+    {
+      "id": "plain-catalog-names-for-the-shipped-contracts",
+      "title": "Plain catalog names for the shipped contracts",
+      "summary": "The installed read, draft tools and runner contracts are installed under plain names (captured-source-read, draft-validate, draft-format, captured-template-render, draft-text, captured-template-input, draft-result, runner-task, runner-local, runner-read and the rest), each operation with one name for key and handler. The original -v1 entries stay installed byte for byte so existing pins verify and old handlers still dispatch; installedReadAliases(), draftToolAliases() and runnerAliases() send records that still name an old contract to its plain entry, and compiledAliases() rebuilds a harness's alias table.",
+      "packages": [
+        "@inventarch/agent-composition-system",
+        "@inventarch/cli",
+        "@inventarch/mcp-door",
+        "@inventarch/runner",
+        "@inventarch/workspace-runtime"
+      ],
+      "paths": [
+        ".ia/authoring.resources.json",
+        ".ia/src/systems/agent-composition-system/",
+        "CLAUDE.md",
+        "apps/cli/",
+        "apps/mcp-door/",
+        "apps/runner/",
+        "docs/",
+        "examples/",
+        "packages/workspace-runtime/",
+        "tools/"
+      ]
+    },
+    {
+      "id": "plain-names-for-review-rules-evaluators-and-prof",
+      "title": "Plain names for review rules, evaluators and profiles",
+      "summary": "No identifier carries its version in its name. The review rules (independent-exact-candidate, operator-exact-candidate), the completion evaluator (completion), the governed and structured profiles, the strict-typing evaluation profile, the package conformance profile and the primary-guide and minting-readiness proof criteria are renamed. New writes use the plain names; stored manifests, sessions, reviews, templates and inventories carrying the original literals (each with its -v1 suffix, and ia.completion.v1) are still read and verified from an explicit allow-list kept for at least one major release; unknown values are still refused.",
+      "packages": [
+        "@inventarch/agent-composition-system",
+        "@inventarch/agent-system",
+        "@inventarch/authoring-system",
+        "@inventarch/compliance",
+        "@inventarch/template-system",
+        "@inventarch/workspace-runtime"
+      ],
+      "paths": [
+        ".ia/authoring.resources.json",
+        ".ia/src/systems/agent-composition-system/",
+        ".ia/src/systems/agent-system/",
+        ".ia/src/systems/authoring-system/",
+        ".ia/src/systems/template-system/",
+        "CLAUDE.md",
+        "docs/",
+        "examples/",
+        "packages/compliance/",
+        "packages/db/",
+        "packages/workspace-runtime/",
+        "tools/"
+      ]
+    },
+    {
+      "id": "plain-profile-names-in-test-fixtures",
+      "title": "Plain profile names in test fixtures",
+      "summary": "Test fixtures name the structured template profile without its version suffix; no consumer-facing change.",
+      "packages": [
+        "@inventarch/distribution",
+        "@inventarch/runtime"
+      ],
+      "paths": [
+        ".ia/authoring.resources.json",
+        "CLAUDE.md",
+        "apps/distribution/",
+        "docs/",
+        "examples/",
+        "packages/runtime/",
+        "tools/"
+      ]
+    },
+    {
+      "id": "publication-qualification-retries-a-timed-out-fi",
+      "title": "Publication qualification retries a timed-out filesystem probe up to twice",
+      "summary": "On Windows, qualifying a managed publication root now gives a filesystem probe that timed out, such as a cold PowerShell start past its 30-second bound, up to two more bounded tries before refusing with `IA-PUBLICATION-UNAVAILABLE`. Any other probe failure still refuses at once, and only a success is cached.",
+      "packages": [
+        "@inventarch/runtime"
+      ],
+      "paths": [
+        "packages/runtime/"
+      ]
+    },
+    {
+      "id": "regenerated-vocabulary-assets",
+      "title": "Regenerated vocabulary assets",
+      "summary": "The bundled vocabulary assets carry the new native system versions; no consumer-facing change.",
+      "packages": [
+        "@inventarch/cli",
+        "@inventarch/mcp-door"
+      ],
+      "paths": [
+        ".ia/authoring.resources.json",
+        "CLAUDE.md",
+        "apps/cli/",
+        "apps/mcp-door/",
+        "docs/",
+        "examples/",
+        "tools/"
+      ]
+    },
+    {
+      "id": "term-dumb-and-ia-no-console-keep-bare-ia-out-of",
+      "title": "TERM=dumb and IA_NO_CONSOLE keep bare ia out of the console",
+      "summary": "Bare ia now also prints the same help as ia --help, instead of opening the console, when TERM is exactly dumb or IA_NO_CONSOLE is set to any non-empty value; an unset TERM does not opt out. Scripts that run under a pseudo-terminal can set IA_NO_CONSOLE=1 or call ia --help.",
+      "packages": [
+        "@inventarch/cli"
+      ],
+      "paths": [
+        "apps/cli/",
+        "docs/"
+      ]
+    },
+    {
+      "id": "the-kit-not-installed-remedy-names-the-package-r",
+      "title": "The kit-not-installed remedy names the package route",
+      "summary": "`IA-CORE-KIT-NOT-INSTALLED` now leads its remedy with `ia install --package <name> --apply --yes` and names `@inventarch/public-kits`, where the public kits ship, because `ia install <id>` reaches only a registry release and refuses the public kits. `ia install <id> --apply --yes` is kept for kits a registry serves, and the plugin route reads `kit.mjs add <id> --apply`. The code, the `kit` field and when the refusal fires are unchanged; only the message text differs.",
+      "packages": [
+        "@inventarch/mcp-door",
+        "@inventarch/runtime"
+      ],
+      "paths": [
+        "apps/mcp-door/",
+        "packages/runtime/"
+      ]
+    },
+    {
+      "id": "the-source-walk-vets-each-folder-once-and-checks",
+      "title": "The source walk vets each folder once and checks each source's final path",
+      "summary": "The corpus source walk now lstats each folder once per walk instead of once per read: 60% fewer lstat calls on a 19,700-record tree (21,609 to 8,587), with byte-identical output. After reading a source it also checks the source's final path, so a parent folder replaced by a link or junction between two reads is refused with IA-DB-PATH-UNSAFE at that folder rather than read through. On macOS, and on a Linux without /proc, a source that another file is renamed over, or that is removed, while the walk reads it is now refused with IA-DB-SOURCE-CHANGED `Source replaced during read`, as on Windows, because the platform cannot say which file an open descriptor holds; on Linux the walk keeps the bytes it read, as before.",
+      "packages": [
+        "@inventarch/db"
+      ],
+      "paths": [
+        "packages/db/",
+        "tools/"
+      ]
+    },
+    {
+      "id": "versioned-codecs-for-evaluator-catalogs",
+      "title": "Versioned codecs for evaluator catalogs",
+      "summary": "Evaluator codecs register as an id and a version, and an evaluator entry references its input and output codec as `inputCodec` and `outputCodec`, each an id and a version, in place of the `inputSchemaId` and `outputSchemaId` strings that carried the version; lookup is by the pair, so two versions of one codec id coexist. A catalog declares format `evaluator-catalog` with an integer `formatVersion` of 2. The legacy `ia-evaluator-catalog/1.x` shape with `name@N` codec ids is still read through an explicit legacy reader and keeps its digest, and the installed-implementation catalog in db admits both shapes. `EvaluatorCodec` gains a `version` field, so a host registering codecs adds it and drops the `@N` from the id.",
+      "packages": [
+        "@inventarch/compliance"
+      ],
+      "paths": [
+        ".ia/authoring.resources.json",
+        "CLAUDE.md",
+        "docs/",
+        "examples/",
+        "packages/compliance/",
+        "packages/db/",
+        "tools/"
+      ]
+    },
+    {
+      "id": "cohort-alignment",
+      "title": "Coordinated version alignment",
+      "summary": "Package version metadata follows the coordinated 3.8.0 release; each native artifact version follows its own archive content.",
+      "packages": [
+        "@inventarch/compliance-system",
+        "@inventarch/governance-system",
+        "@inventarch/hook-authoring-system",
+        "@inventarch/language",
+        "@inventarch/learning-system",
+        "@inventarch/session-system",
+        "@inventarch/steward-hook",
+        "@inventarch/work-system",
+        "@inventarch/workspace-system"
+      ],
+      "paths": [
+        ".ia/src/systems/compliance-system/package.json",
+        ".ia/src/systems/governance-system/package.json",
+        ".ia/src/systems/hook-authoring-system/package.json",
+        ".ia/src/systems/hook-authoring-system/system.ia",
+        ".ia/src/systems/learning-system/package.json",
+        ".ia/src/systems/learning-system/system.ia",
+        ".ia/src/systems/session-system/package.json",
+        ".ia/src/systems/work-system/package.json",
+        ".ia/src/systems/workspace-system/package.json",
+        "apps/steward-hook/package.json",
+        "packages/language/package.json"
+      ]
+    },
+    {
+      "id": "repository-maintenance",
+      "title": "Repository maintenance",
+      "summary": "Tooling, workflow, documentation and release bookkeeping outside the published package contents.",
+      "packages": [],
+      "internal": true,
+      "paths": [
+        ".github/",
+        ".gitignore",
+        "apps/vscode/THIRD_PARTY_NOTICES.txt",
+        "apps/vscode/package.json",
+        "releases/"
+      ]
+    }
+  ],
+  "coverage": [
+    {
+      "path": ".github/actions/setup/action.yml",
+      "sha256": "9a883614ac20642a4213e880c317d1667a9cd755e0276b5a1c31d8fc848b5f1d",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": ".github/workflows/npm-publish.yml",
+      "sha256": "263d8e72d81f3dc27d0fd46372cad6bd8a43612bfdae38e748b4efb1edbe3c14",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "a2ebb34424b7515f140a98ed759e4ac2099ebc8b2ef272fbbd3f81710ffca192",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": ".ia/authoring.resources.json",
+      "sha256": "586a901332fbe2965d0baad31395fc67103233a7418fd3d302ae5fe72649bd27",
+      "change": "contract-versions-and-catalog-aliases"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/README.md",
+      "sha256": "86732a2ebd2be9552106f01dc69b17b963923c4889aa4c6a238b7b7a1094082a",
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/SPEC.md",
+      "sha256": "b7a13439e58a81fd4000d9326f3fbcb99234bc056412c724d5cdf0ffe9bd83d5",
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/operations/read-captured-source.ia",
+      "sha256": "8ebe2830815c944752db1c5efafe078add316d879664b7e8e033d5196baf2066",
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/package.json",
+      "sha256": "4a4cf25d27af0b4092cd1413631128de471996ca716c9540054e69ba01466f1e",
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/records/read-captured-source-binding.ia",
+      "sha256": "5d5e8098061fd5d5c3a772eee01108bc0c108c87cf2c2e9f766a99d4519428c5",
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/references/installed-read.md",
+      "sha256": "a20dea4777cb0d84eac0a4d68ded78544938959960a0a0e985d5b0090af1de16",
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/adapters.ts",
+      "sha256": null,
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/authoring-format.ts",
+      "sha256": null,
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/authoring-index.ts",
+      "sha256": null,
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/authoring-manifest.ts",
+      "sha256": null,
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/authoring-types.ts",
+      "sha256": null,
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/authoring.ts",
+      "sha256": null,
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/candidate.ts",
+      "sha256": null,
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/catalog.ts",
+      "sha256": "2a1c645ee964b0ae0719c4f3b27a7f64c3519fe15a569c5adf47fb2263ad97ba",
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/compile.ts",
+      "sha256": "6580837ebee7c7364ca2e9a2a0933ca3030107577b8c8e8406176306a9fe0f20",
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/compiled.ts",
+      "sha256": "33e92bb46de3a86a07f7a12c2c23992c5d0ccf7645ee84c9ae724840fcd94d9e",
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/corpus.ts",
+      "sha256": null,
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/execution.ts",
+      "sha256": "168ec628cef5c22b85786218c139cbb07a20496adcdc1c540a165ec19567f4df",
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/index.ts",
+      "sha256": "a42609226ae2f94818bb8924617f4a58a66dcae8d5c229b8d4d03a1f8a34e32d",
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/installed-read.ts",
+      "sha256": "7eb159b9917552b3d23f4d9f47eb3c1a6c77f688428dd57a24f775a8b9bb5bd3",
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/installed-source-policy.ts",
+      "sha256": null,
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/lifecycle-profile.ts",
+      "sha256": null,
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/lifecycle-rows.ts",
+      "sha256": null,
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/lifecycle-transport.ts",
+      "sha256": null,
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/lifecycle.ts",
+      "sha256": null,
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/local-store.ts",
+      "sha256": null,
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/projection-codex.ts",
+      "sha256": null,
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/projection-format.ts",
+      "sha256": null,
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/projection-host.ts",
+      "sha256": null,
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/projection-routine.ts",
+      "sha256": null,
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/projections.ts",
+      "sha256": null,
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/publication.ts",
+      "sha256": null,
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/resource-context.ts",
+      "sha256": null,
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/resource-files.ts",
+      "sha256": null,
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/resource-format.ts",
+      "sha256": null,
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/resource-sources.ts",
+      "sha256": null,
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/resources.ts",
+      "sha256": null,
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/sources.ts",
+      "sha256": null,
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/task-capture-format.ts",
+      "sha256": null,
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/templates.ts",
+      "sha256": null,
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/tools.ts",
+      "sha256": "c105bf0fca14e7f20dc88c73f1d3347574545b6c9c01ec8e7f04101d940170a8",
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/system.ia",
+      "sha256": "2aae72c78768633f7edba8c2d01fdebc14448db6f4528120b568a0dd02c1719a",
+      "cohortOnly": true,
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/compatibility.test.ts",
+      "sha256": "d4824702650bba5e550603ce8364e54c3170a4b8f799273aabd9e71ba8dc4f29",
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/compile.test.ts",
+      "sha256": "be91f46168fd3c613e11167a2d2ef3d4b9a80c7b5a0bb305d5495514ad685b03",
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/compiler-fixture.ts",
+      "sha256": "612e783474b1647b6ccb4f90fc2a93bb1e8f311a7b357f1a16869ada5d111358",
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/contract-version.test.ts",
+      "sha256": "f4eb15a2296c6651d6479bad0b5449ecb2547bab6f40478a92e3659648861d32",
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/execution-fixture.ts",
+      "sha256": "fe1b8a8f82fb7c6e19e0dcfca7107f05adf73748a51e6635ac3513ebbf0ccc0b",
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/execution.test.ts",
+      "sha256": "e6bd1e3db097f6e2c3e1da7e354de2eae88829786725e07be4fb6264ebf7e844",
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/installed-read-fixture.d.mts",
+      "sha256": "c793a9271b028e34f6f3e6426921b80aaa7f32f486f2f68de980c16790192307",
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/installed-read-fixture.mjs",
+      "sha256": "8ad1edcac489c2610b15c2a5eefa5ac5d60ed2c7b1f6997e1f694c42cc0a472b",
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/installed-read.test.ts",
+      "sha256": "36d974411527f677f7c8fd0cf66c02abdecc4d7d7bac257cb48580c881645c3c",
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/sdk-runtime/native/read.ia.fixture",
+      "sha256": "86be39f14b84aed20ca58ab77e0b810bef9a8ee316290f68fc6d16291d3a9b8e",
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/sdk-runtime/recipe.mjs",
+      "sha256": "7b66879357b250cc60ecc9269ed0218cf0fb45fadaf99a19d8c7af7e8caf54e3",
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/spec-read-boundary-fixture.mjs",
+      "sha256": "50340f7af7349c0729fb8847be1e5c05c14e79a2c5ec60d01a28335fb39956ee",
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/tools.test.ts",
+      "sha256": "bb18d929851dda05eef4e14995648924d6da90375e38c079b841c0027e9a9bfc",
+      "change": "an-aliased-model-or-evaluator-compiles-and-execu"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/package.json",
+      "sha256": "d72640a01caaca23e8b60682739e3f6c048bc5f7a25e28e36dd6cad638bbf279",
+      "cohortOnly": true,
+      "change": "plain-names-for-review-rules-evaluators-and-prof"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/src/SPEC.md",
+      "sha256": "a560655879ecad95fe48e12705ef8feaa2059a7c6d64b149896376a2ff098d0e",
+      "change": "plain-names-for-review-rules-evaluators-and-prof"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/src/contracts.ts",
+      "sha256": "5b63a2ef880a3588fa278899dbcbfc34d6d66ef9ee54264c2523d7ee6165812c",
+      "change": "plain-names-for-review-rules-evaluators-and-prof"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/src/engine.ts",
+      "sha256": "8541729bb501b54e7a527578578479a73acb8d2df3052a1765897990b9372971",
+      "change": "plain-names-for-review-rules-evaluators-and-prof"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/src/types.ts",
+      "sha256": "65e3b3c9f34e089b6afa758312d68e618020bf1c61c75011da4adb3762f5f3e5",
+      "change": "plain-names-for-review-rules-evaluators-and-prof"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/tests/engine.test.ts",
+      "sha256": "bf97e58b584d00274565d7ad1e4396f62167dd69f98f3d3526784acfdec7bf87",
+      "change": "plain-names-for-review-rules-evaluators-and-prof"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/tests/governed.test.ts",
+      "sha256": "c3509b6c46fb5e57d4494cb240511b7377eda56ba7305caa4e3bf62c75123358",
+      "change": "plain-names-for-review-rules-evaluators-and-prof"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/tests/recovery.test.ts",
+      "sha256": "3d657f8d57cbef07d40999691bef71f9a58167d91bcc2e77bf9b414f21ea1af7",
+      "change": "plain-names-for-review-rules-evaluators-and-prof"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/tests/renewal.test.ts",
+      "sha256": "10eae5c793938916ca17ec7714b1ca99ce103fcaea1e8206b646d47c853c8f1a",
+      "change": "plain-names-for-review-rules-evaluators-and-prof"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/package.json",
+      "sha256": "66827c04ac252d88e5524c099b807c3c8f05b686ef409a23ec9e562b2b0aa5c6",
+      "cohortOnly": true,
+      "change": "plain-names-for-review-rules-evaluators-and-prof"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+      "sha256": "6254bcebae45e659e0f300e1ba352769bcc30e7c391961e9fc833bcc661003f7",
+      "change": "plain-names-for-review-rules-evaluators-and-prof"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/template.md",
+      "sha256": "757ab5b87643a2158b95361e54b603447c3792306be353b43a0d5551c8110075",
+      "change": "plain-names-for-review-rules-evaluators-and-prof"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/system.ia",
+      "sha256": "01e591988c9a75bbf85223552ef0431f37b94882e8d25644c5d05fbe7a0fc67d",
+      "cohortOnly": true,
+      "change": "plain-names-for-review-rules-evaluators-and-prof"
+    },
+    {
+      "path": ".ia/src/systems/compliance-system/package.json",
+      "sha256": "7c3214a56f209f539fd9243aecfbc587a92c08e65461e2a01f96ba300aa77248",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/package.json",
+      "sha256": "1a02d09bee351cb3a006ecc34b2b25da6ffc2fc57d0dc8542dc034bf14b36f4d",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/hook-authoring-system/package.json",
+      "sha256": "e8d09ec9e5da453545b4807efd52870893f44a4d3040bca732b14a447cf70382",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/hook-authoring-system/system.ia",
+      "sha256": "7d7911907a2215064628c1bf9f276f2be93a1701f92fd53e817601c06f48916c",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/learning-system/package.json",
+      "sha256": "2ce44988b8c3a4212859bfcb843065f0f50f092d10fe0701314727eed84c0c01",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/learning-system/system.ia",
+      "sha256": "c3e7ec257b60e5f40d14993facb48dc3c540ba0eb8b49f13d1b6fa3aa1693bb0",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/session-system/package.json",
+      "sha256": "f27b6878431ba139e7c2a223aa213e795ba6eaa508951ba0d900545840861148",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/template-system/SPEC.md",
+      "sha256": "cbb323cf23af36861094bc388e8b78a69cdc97c05583732da7db00fd06bd6f6b",
+      "change": "plain-names-for-review-rules-evaluators-and-prof"
+    },
+    {
+      "path": ".ia/src/systems/template-system/package.json",
+      "sha256": "010ae70d923033cfce89451f3e50f7e8418b966e858ee29e57abe6788de3b52a",
+      "cohortOnly": true,
+      "change": "plain-names-for-review-rules-evaluators-and-prof"
+    },
+    {
+      "path": ".ia/src/systems/template-system/schemas/template.schema.ia",
+      "sha256": "a257c5fb4ccbe58cc38143dcb52bf8baaafb84b05074719542cfb0553e7e0986",
+      "change": "plain-names-for-review-rules-evaluators-and-prof"
+    },
+    {
+      "path": ".ia/src/systems/template-system/system.ia",
+      "sha256": "466fcc0ee99ebf0b1b09c45dee69c968508624a19c05a9860269c1504fd5d865",
+      "cohortOnly": true,
+      "change": "plain-names-for-review-rules-evaluators-and-prof"
+    },
+    {
+      "path": ".ia/src/systems/work-system/package.json",
+      "sha256": "ffd5066f0f5331a52c06e5a131d43dbb684ea96bfb2489579be44ae64f4b6d57",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/workspace-system/package.json",
+      "sha256": "2f69da3a273e7f1b62fed0deb439842b79dc4d3ce4fa1a8b9017cf82d7833a6f",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "CLAUDE.md",
+      "sha256": "c300bfe9367c0558883a2ab5092a3db402f1bdc5e11a7e8f7ce8e097f7b9570a",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "README.md",
+      "sha256": "585a7c521e80d8a6522dee5633369ac99fc5a453ac95f14a9c799117b49d0d8b",
+      "change": "language-base-compat"
+    },
+    {
+      "path": "apps/cli/README.md",
+      "sha256": "f1d7a2c429912a6caeaad9f4a5ccc9c11baa10f8e22b5769af5e973954d892f6",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/cli/SPEC.md",
+      "sha256": "b3e960430dc39caea91dad57c31010bfb075b1a2625410022598e453f4358a6e",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/cli/assets/language-compat.json",
+      "sha256": "ca4bc65d074fe53ccb997066a86b5bb4fd63d19ed215db6b5aa1ea15bdb1e34a",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/cli/assets/vocabulary.json",
+      "sha256": "891d5020c4f3cb9e41643b7e0bd917e96df720fd10499f6051c36fff1857bc67",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/cli/package.json",
+      "sha256": "7d76156772919477d8a49ed43333fdc689ade719b7e3d4cb768eeaa39e8e9435",
+      "cohortOnly": true,
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/cli/src/bundled-base.ts",
+      "sha256": "e63fe2d1a3b4a41834b9114d689d3b3bd84af53155d53f4a7fe9de0d823f492f",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/cli/src/commands.ts",
+      "sha256": "3b0c58fc9b0241b03ca8ba29cb587e4581d00f1507f0d8026ebe652124320c59",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/cli/src/console/batch-next.ts",
+      "sha256": "a795dedb3306ff26f5aadae82ebd145ca31733c6e6fa0cc82d9bcd2348fd62e4",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/cli/src/console/batch-run.ts",
+      "sha256": "26d659f9dea67a4f941f116376c9999cfc916cb5a22408da1f67dcdb0ebc764a",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/cli/src/console/batch-screen.ts",
+      "sha256": "91fbb906ad13777af4bf45a1d1fa0f50ed29fb75fef1469a679b162e6fda545f",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/cli/src/consumer.ts",
+      "sha256": "799170522d9e4dc7bf7f72eb562831c357cd6d5a3c5b27ea2223d16a88597a8f",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/cli/src/distribute.ts",
+      "sha256": "a17ce898a920d11484400e29d111c5c0caf021f3d479e9e9cfe6c7a55adcbe8d",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/cli/src/floor.ts",
+      "sha256": "acb748f5f0e9ad9c9c375b1b1700ffee23b1d5e0e04618f9f2bbeffdd64f376f",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/cli/src/format.ts",
+      "sha256": "a776525f73dd77778bb1a8e5f9690c61f83326c4a7174f150c27df04e5230cc4",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/cli/src/init.ts",
+      "sha256": "da9955a01b072ea079655fa70b1ce6784c34420503b527021ef52de8431fdd52",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/cli/src/main.ts",
+      "sha256": "946357082ac19c2e609eb9779bcf14a0efd88e8a009fa77009b06b44cb21ecb7",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/cli/src/pack.ts",
+      "sha256": "1b30c4c204921438c5ed18c2cf99b0f9b8c20162a78c96a3c6c06467c881501f",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/cli/src/package-manager.ts",
+      "sha256": "6872efab0576f2bd90c1e1bf8c973ce5f6825df31a277f74be7c658e068043ca",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/cli/src/position.ts",
+      "sha256": "5b00ffe730672c5b626efed5590bd40d1bdedf6583bb315bb59d49f6818deb07",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/cli/src/record-sources.ts",
+      "sha256": "8ff3ccf6ca87607dcceb49f159941f236e32b988d066a39aa4a3ec775ed39b6c",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/cli/src/tracked.ts",
+      "sha256": "24afa2450c65a6c17c92077d5754a3fd8d19fec99383ad15b6dec659234faae4",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/cli/tests/args.test.ts",
+      "sha256": "1c3f4a0a42ee7061f2698da4e3f2b8ff4ae77cdc3ae07a26fb83c158a2482d74",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/cli/tests/console-app.test.ts",
+      "sha256": "361e343531af9a017fb3c731f455e21022e52033d37c5bf8f1d02bed9481ba0a",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/cli/tests/console-batch-next.test.ts",
+      "sha256": "63da18d5985f1fde5d5cf8448b3086f6b80f364859bd45d5dee273fe40e5200f",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/cli/tests/console-batch-run.test.ts",
+      "sha256": "b859b40544da33209f310117460397dcb2accd8e77b51e55c92f06732292bc9a",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/cli/tests/console-entry.test.ts",
+      "sha256": "23956d55c90848519f3fb019f086e35b18157887b22588538c2b1a2fbc14e4d0",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/cli/tests/doctor-fix.test.ts",
+      "sha256": "c01c44f7a1755b098d1b1e222f76e3c0fb37335fe9194ed04c3fe273261ef821",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/composition-workspace/.ia/release.json",
+      "sha256": "c9d7edcdcbe393971aa6ea5a06ca242c0dc053b8e7339b69821df34fd9f8c395",
+      "cohortOnly": true,
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/cli/tests/floor.test.ts",
+      "sha256": "3f735e5dd57b455555cb6d80ecdd49624ca02d20749f588a74e15d0386054682",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/cli/tests/format-refresh.test.ts",
+      "sha256": "69582f3272adbbc137e472570dc9c85fa8354a4879f1c7bb3744dfa2c7a0c09b",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/cli/tests/host-doctor.test.ts",
+      "sha256": "7ba1471ce0e9fbe864547f7bad21d135937fd0d864939f5746bd90455734ef19",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/cli/tests/init.test.ts",
+      "sha256": "ee1851fe1b40c774b98a1dc0de8609bba1bc1bd737b50e411c4e49db9759aa72",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/cli/tests/package-manager.test.ts",
+      "sha256": "c94dba0495c05ad8106eb9c8b8bc159c36cf9c04af51611ab5e059e0831bd26b",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/cli/tests/position.test.ts",
+      "sha256": "9bdd08417f8062176ab91978f7e42a17f19e3c10c6cd50e30ffc16a4f291c016",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/cli/tests/registry-fixture.ts",
+      "sha256": "78d31c2bd96cb7b97231fdb8688689790b46dc42187daf5d777a67d1d93a8ac0",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/cli/tests/registry.test.ts",
+      "sha256": "808dbeb772858979dfdd7d74b8497894256a278ad2f62c1cb10cc5917dd7ada9",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/cli/tests/tracked.test.ts",
+      "sha256": "68be6b2b08f86567ecaee2f66858a6e81b46cc467822054bacd0b89943d2bfc6",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/cli/tests/validate-checks.test.ts",
+      "sha256": "cde4ee3547975b7ba5bdb042648a20997c317b851e0bf0b8aabf1ea589fa4818",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "apps/distribution/SPEC.md",
+      "sha256": "ad9d2f2df55be620960717ed7ccb614ae13335f10b442c340237b510ada22056",
+      "change": "document-the-home-lock-kit-collections-and-kit-i"
+    },
+    {
+      "path": "apps/distribution/package.json",
+      "sha256": "5e75858d5a246cb97b8ce43ae9f941c00d6f26b751a3b801a0419bd96738842f",
+      "cohortOnly": true,
+      "change": "document-the-home-lock-kit-collections-and-kit-i"
+    },
+    {
+      "path": "apps/distribution/src/registry-resolve.ts",
+      "sha256": "aedf05c2f213f2b1cad5a283d5fa44872b405a2cff3cdf98245143dbd6e72e22",
+      "change": "document-the-home-lock-kit-collections-and-kit-i"
+    },
+    {
+      "path": "apps/distribution/src/registry.ts",
+      "sha256": "f829cca63d841336155766b51ca40950e99f056f8d5188e63e22872badd4c141",
+      "change": "document-the-home-lock-kit-collections-and-kit-i"
+    },
+    {
+      "path": "apps/distribution/src/services.ts",
+      "sha256": "64a8c0a766fe1a4c2574e60947d8c4866c5f15e71f58559471909ff26275e703",
+      "change": "document-the-home-lock-kit-collections-and-kit-i"
+    },
+    {
+      "path": "apps/distribution/tests/command.test.ts",
+      "sha256": "173abcbe7bdab6bd4d487feaa638ef1e4f0455f3cb362994faa12c4a42f913eb",
+      "change": "document-the-home-lock-kit-collections-and-kit-i"
+    },
+    {
+      "path": "apps/distribution/tests/registry-extra.test.ts",
+      "sha256": "2e3148768829e52ed9521cceab2f4fdead969aba853ed3b9b262aec9a6a40cea",
+      "change": "document-the-home-lock-kit-collections-and-kit-i"
+    },
+    {
+      "path": "apps/mcp-door/README.md",
+      "sha256": "0c4b5b76029c4ebf748e09c32c57aef7c2e472515bde0ed19f59975ef81e1e66",
+      "change": "ia-home-folders-resolve-through-one-authoritativ"
+    },
+    {
+      "path": "apps/mcp-door/SPEC.md",
+      "sha256": "8f9f1307c32a559ade11abe86975e24199085818a1174f394433871c26539426",
+      "change": "ia-home-folders-resolve-through-one-authoritativ"
+    },
+    {
+      "path": "apps/mcp-door/assets/vocabulary.json",
+      "sha256": "891d5020c4f3cb9e41643b7e0bd917e96df720fd10499f6051c36fff1857bc67",
+      "change": "ia-home-folders-resolve-through-one-authoritativ"
+    },
+    {
+      "path": "apps/mcp-door/package.json",
+      "sha256": "b8750f57eff6896793324eb5ce263fcd561eeda641d719eb3123f7e9d0f6db71",
+      "cohortOnly": true,
+      "change": "ia-home-folders-resolve-through-one-authoritativ"
+    },
+    {
+      "path": "apps/mcp-door/src/method.ts",
+      "sha256": "c1d066b52746069fade880c2250e65aff2313d17125918b2e9eceeebd2da6464",
+      "change": "ia-home-folders-resolve-through-one-authoritativ"
+    },
+    {
+      "path": "apps/mcp-door/tests/fixtures/method/PROVENANCE.json",
+      "sha256": "cbffd303de5cd9bd5b78ff6be4bde1ae4f691a0ba32e44b50e38c27fa0bd7d48",
+      "change": "ia-home-folders-resolve-through-one-authoritativ"
+    },
+    {
+      "path": "apps/mcp-door/tests/fixtures/method/generate.mjs",
+      "sha256": "1b52d2709675944625696aa00af7e74cce7e829cc34be3eaff622961fcee095f",
+      "change": "ia-home-folders-resolve-through-one-authoritativ"
+    },
+    {
+      "path": "apps/mcp-door/tests/fixtures/method/golden-check.json",
+      "sha256": "7b32b0572878be89037c46c0c5d7cf40ba10bb579f605f2a35798a5249861ca3",
+      "change": "ia-home-folders-resolve-through-one-authoritativ"
+    },
+    {
+      "path": "apps/mcp-door/tests/fixtures/method/golden-find.json",
+      "sha256": "cf5a18a7948b574a373110bea3a93956b0df65ae02f965fe56e4fb6ff2bd93f8",
+      "change": "ia-home-folders-resolve-through-one-authoritativ"
+    },
+    {
+      "path": "apps/mcp-door/tests/fixtures/method/golden-pin.json",
+      "sha256": "7416d8fcedebaa32681ce164bfdab7ef128f1d50c20efe72998bdaf66e0bdef7",
+      "change": "ia-home-folders-resolve-through-one-authoritativ"
+    },
+    {
+      "path": "apps/mcp-door/tests/kit-base.ts",
+      "sha256": "38832fa92842a30861122ac51bdb5daa642fc6204ea5b12e69c6b57d59cf44f6",
+      "change": "ia-home-folders-resolve-through-one-authoritativ"
+    },
+    {
+      "path": "apps/mcp-door/tests/kits-package.test.ts",
+      "sha256": "4558b37947c80ef2a56fdbe4a0f91864689930c6bb49417406ebcf93fc62325f",
+      "change": "ia-home-folders-resolve-through-one-authoritativ"
+    },
+    {
+      "path": "apps/mcp-door/tests/method.test.ts",
+      "sha256": "a0eaa5791fa1317e588708ebb43003d4a43cb4def2bd4a9b8129be90e07ded77",
+      "change": "ia-home-folders-resolve-through-one-authoritativ"
+    },
+    {
+      "path": "apps/runner/README.md",
+      "sha256": "2bd3970275af4177758da9ea7287951921ef3fdcb1d39ebddca6cf79c8321708",
+      "change": "plain-catalog-names-for-the-shipped-contracts"
+    },
+    {
+      "path": "apps/runner/package.json",
+      "sha256": "65197d72b3ec88e5841c4daf093340da83d354f3997ea1d40491510066a89aa2",
+      "cohortOnly": true,
+      "change": "plain-catalog-names-for-the-shipped-contracts"
+    },
+    {
+      "path": "apps/runner/src/catalog.ts",
+      "sha256": "54529f479bea2397c7173457f88cc70bbe6cf42318fbcc335fd21e8c96e6f4be",
+      "change": "plain-catalog-names-for-the-shipped-contracts"
+    },
+    {
+      "path": "apps/runner/src/index.ts",
+      "sha256": "7baf36c8e039835e5558760d5306c7064c656b27063ab9671c9aa0d0495b87bc",
+      "change": "plain-catalog-names-for-the-shipped-contracts"
+    },
+    {
+      "path": "apps/runner/src/open.ts",
+      "sha256": "44937de83cf66cb04871fd4cdd2df632e972b31dc5921232cd33587849c3f7bd",
+      "change": "plain-catalog-names-for-the-shipped-contracts"
+    },
+    {
+      "path": "apps/runner/src/operations.ts",
+      "sha256": "8e3a738378257bd28c948db75d011a9cc79fdb9eaedf911ee927fa2f1e91b6b2",
+      "change": "plain-catalog-names-for-the-shipped-contracts"
+    },
+    {
+      "path": "apps/runner/tests/runner.test.ts",
+      "sha256": "e5c7643828c68bc8f47745e3d0cd74bac0d902311ea867b0cf01bc5b13433af9",
+      "change": "plain-catalog-names-for-the-shipped-contracts"
+    },
+    {
+      "path": "apps/steward-hook/package.json",
+      "sha256": "fce31a2a6612e7662b43f1e5b24e49a6f01d4714d6246db93f02e1dd90ee13f2",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "apps/vscode/THIRD_PARTY_NOTICES.txt",
+      "sha256": "a7a816f925287372fc9618133e1b7ede559190799809ea5c2d5cd021eabcc1c5",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "apps/vscode/package.json",
+      "sha256": "b81f3d6c488115af7250e4a5a061a4e4488c9476dafdbe7f37e0842ae08b96e2",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "docs/catalog.json",
+      "sha256": "73fb4f051a2e5a2452fc633a88097346310e62979c2c6fe64adaab1d71813039",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "docs/reference/language/vocabulary.json",
+      "sha256": "891d5020c4f3cb9e41643b7e0bd917e96df720fd10499f6051c36fff1857bc67",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "docs/reference/language/vocabulary.md",
+      "sha256": "312fd6a98f566165a757a4035a339cc77d7f0a94837134de696ac62be7807f9f",
+      "change": "batch-pnpm-installs-ignore-the-repository-pnpmfi"
+    },
+    {
+      "path": "docs/specs/consumer-cli-contract/README.md",
+      "sha256": "81a5f3c650927d967099d48c3d68d2a9dac3f33f573771eb4a5412b771ba2c09",
+      "change": "language-base-compat"
+    },
+    {
+      "path": "docs/specs/host-plugin-distribution/README.md",
+      "sha256": "c86d0c74af32f9525d6269f6f56f82b6ee5c372394f59a5f64819a9081e16cf4",
+      "change": "language-base-compat"
+    },
+    {
+      "path": "docs/specs/kit-runtime/README.md",
+      "sha256": "42333d8eae65294d36cf77c5c7603fbb96dafec02471a854b18d78cf3d7667f5",
+      "change": "language-base-compat"
+    },
+    {
+      "path": "docs/specs/registry/README.md",
+      "sha256": "70b7f1ecafc42dfc7a4c16e490422fbc30626df53ba1eb1dfd4d70098336bd28",
+      "change": "language-base-compat"
+    },
+    {
+      "path": "examples/conformance/composition/.ia/src/systems/agent-composition-system/operations/fixture-secondary-read.ia",
+      "sha256": "328b281896511de5d0c1f9c8c2960e7e3ad0750c694b665a4fbcac9cdbbfcaae",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "examples/conformance/composition/.ia/src/systems/agent-composition-system/operations/sample-read.ia",
+      "sha256": "3872f86750151fde1556bb83e3408ad314668dc0fb4bc4d86f96a3a8252ea100",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "examples/conformance/composition/.ia/src/systems/agent-composition-system/records/format-draft-binding.ia",
+      "sha256": "c143774ef2d358e9625effd1d73920d4ebf110bd79a22a5525aeff16021b3837",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "examples/conformance/composition/.ia/src/systems/agent-composition-system/records/render-captured-template-binding.ia",
+      "sha256": "acc42741ca37d4d536831b59bed68821f5feb3416efefe2550bfdc54e8a6a58f",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "examples/conformance/composition/.ia/src/systems/agent-composition-system/records/runner.ia",
+      "sha256": "a937aed46a84728d1da389e505f942cb678cfdfde261c5990b58296382a5dcea",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "examples/conformance/composition/.ia/src/systems/agent-composition-system/records/validate-draft-binding.ia",
+      "sha256": "a167a261186f8b81c8477400e60794f9b5a7cfc26a1e4b66d7b42fbbfa72fd5c",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "examples/conformance/composition/.ia/src/systems/authoring-system/operations/format-draft.ia",
+      "sha256": "1f211e8227ddd8eb8d78746ea4c81e6acecdd9731101010b0838aec08e9c407c",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "examples/conformance/composition/.ia/src/systems/authoring-system/operations/validate-draft.ia",
+      "sha256": "0d1151977bd2500412b8c652f0f72e26299887c8f3ecd675ed2f3fc4fa97bf9d",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "examples/conformance/composition/.ia/src/systems/template-system/operations/render-captured-template.ia",
+      "sha256": "81b69b545e72bfe1af03df5c96a81b5df202d6d34d674a209b5d72cc32b73d0c",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "examples/public-language/contracts/agent-composition-system.ia",
+      "sha256": "2aae72c78768633f7edba8c2d01fdebc14448db6f4528120b568a0dd02c1719a",
+      "cohortOnly": true,
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "examples/public-language/contracts/authoring-system.ia",
+      "sha256": "01e591988c9a75bbf85223552ef0431f37b94882e8d25644c5d05fbe7a0fc67d",
+      "cohortOnly": true,
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "examples/public-language/contracts/hook-authoring-system.ia",
+      "sha256": "7d7911907a2215064628c1bf9f276f2be93a1701f92fd53e817601c06f48916c",
+      "cohortOnly": true,
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "examples/public-language/contracts/learning-system.ia",
+      "sha256": "c3e7ec257b60e5f40d14993facb48dc3c540ba0eb8b49f13d1b6fa3aa1693bb0",
+      "cohortOnly": true,
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "examples/public-language/contracts/template-system.ia",
+      "sha256": "466fcc0ee99ebf0b1b09c45dee69c968508624a19c05a9860269c1504fd5d865",
+      "cohortOnly": true,
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "examples/public-language/records/composition.ia",
+      "sha256": "b95f76abdeb71f186806d5d5d3546196726e0f6ac403717f48a2ca3bf91121df",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "examples/public-language/versions.json",
+      "sha256": "5e2d9efd9cc3ee1df2b5cac0418ab3495a91b356bf82053a0424aa0f3cf40b6e",
+      "cohortOnly": true,
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "package.json",
+      "sha256": "211ae8b0cdc7562212546730eccb0ef1934f18d9d72d572e9782fb6774b6a86c",
+      "change": "language-base-compat"
+    },
+    {
+      "path": "packages/compliance/README.md",
+      "sha256": "a8224b247bd7b54d425ed03291a845680a1414201698526eeb398515ddb7ac84",
+      "change": "plain-names-for-review-rules-evaluators-and-prof"
+    },
+    {
+      "path": "packages/compliance/SPEC.md",
+      "sha256": "308b95a30c79877aa9a7967a356143c6e1308415f9d3c65be0ccd7f41c318d06",
+      "change": "plain-names-for-review-rules-evaluators-and-prof"
+    },
+    {
+      "path": "packages/compliance/package.json",
+      "sha256": "7a93d65278552ac9cebf4a724733d1cd1178d7ebf68182c7b6c16020547079df",
+      "cohortOnly": true,
+      "change": "plain-names-for-review-rules-evaluators-and-prof"
+    },
+    {
+      "path": "packages/compliance/src/catalog.ts",
+      "sha256": "22ae4cf20942ca953bfe33883693e3e1fb1f05fc37073de9bfac2bc9e9aa4a2f",
+      "change": "plain-names-for-review-rules-evaluators-and-prof"
+    },
+    {
+      "path": "packages/compliance/src/conformance/evidence-fixtures.ts",
+      "sha256": "b3f100c6e198cb6ae6a36a452083b45b4f1fc27489932c05d12d3ece9edcec6b",
+      "change": "plain-names-for-review-rules-evaluators-and-prof"
+    },
+    {
+      "path": "packages/compliance/src/conformance/evidence.ts",
+      "sha256": "8f6e3744f3a36adbac454dde5ed533e102b53fb62ed1314bbf75094af962c58b",
+      "change": "plain-names-for-review-rules-evaluators-and-prof"
+    },
+    {
+      "path": "packages/compliance/src/conformance/inventory.generated.ts",
+      "sha256": "365b9920c9b8564785eb518a35a85632c7c677dfe94d945d6cd526c87416c1c3",
+      "change": "plain-names-for-review-rules-evaluators-and-prof"
+    },
+    {
+      "path": "packages/compliance/src/conformance/inventory.ts",
+      "sha256": "df1d780b5873811ba1117767702b8f64cb50407c7df94db26b3eddcfa8f938f0",
+      "change": "plain-names-for-review-rules-evaluators-and-prof"
+    },
+    {
+      "path": "packages/compliance/src/conformance/verify.ts",
+      "sha256": "f6f7c12e1061b89aa0345d4a7011962df72dc56ef5dec9f316aa473bbe71b6f4",
+      "change": "plain-names-for-review-rules-evaluators-and-prof"
+    },
+    {
+      "path": "packages/compliance/src/evidence.ts",
+      "sha256": "5d5f78fa9ee67c52707da4a0ca96fa49486813894e58f2d7214d6982f35da13c",
+      "change": "plain-names-for-review-rules-evaluators-and-prof"
+    },
+    {
+      "path": "packages/compliance/src/index.ts",
+      "sha256": "1907e745418f7e60e354475f3224cf1ca3d0dd22b580b538d83a025b9561ad66",
+      "change": "plain-names-for-review-rules-evaluators-and-prof"
+    },
+    {
+      "path": "packages/compliance/src/obligations.ts",
+      "sha256": "abf55f2dc535a2260e65522f660853ab665fc7df91d96ce07410d3327cebf804",
+      "change": "plain-names-for-review-rules-evaluators-and-prof"
+    },
+    {
+      "path": "packages/compliance/src/profiles.ts",
+      "sha256": "e0be6dc823bc509e9c6e63a137319d3451d73a686cb2e43a81b7b14e5230ee4b",
+      "change": "plain-names-for-review-rules-evaluators-and-prof"
+    },
+    {
+      "path": "packages/compliance/tests/catalog-codecs.test.ts",
+      "sha256": "2952f45925b93a0a5aac669f8e5f1acc024278e83e63083c767fc73ba13dea7c",
+      "change": "plain-names-for-review-rules-evaluators-and-prof"
+    },
+    {
+      "path": "packages/compliance/tests/evaluator-catalog.test.ts",
+      "sha256": "12d136be8f09c9ba0bc4f482baf57505fdf5529c7662a560a562fd60eebc289f",
+      "change": "plain-names-for-review-rules-evaluators-and-prof"
+    },
+    {
+      "path": "packages/compliance/tests/report.test.ts",
+      "sha256": "7d8bd9973d6a2f763c2f0352ddf3800320f05ac487c47ada32df3b57406a0db6",
+      "change": "plain-names-for-review-rules-evaluators-and-prof"
+    },
+    {
+      "path": "packages/db/README.md",
+      "sha256": "551e61ecc3fe51ebc1cd00aa323fc35a06bb5e38ee97c204d0a02b9b78940a2b",
+      "change": "canon-link-scan-runs-at-its-earlier-speed"
+    },
+    {
+      "path": "packages/db/SPEC.md",
+      "sha256": "3e10ef80142d9b04184a90f95d6f809287da2d2c42768cf5d0c4a57622339a27",
+      "change": "canon-link-scan-runs-at-its-earlier-speed"
+    },
+    {
+      "path": "packages/db/package.json",
+      "sha256": "02e4774ec38cb4f8c559da80bce0722ff23c32931947e488cc296bd8f4c10454",
+      "cohortOnly": true,
+      "change": "canon-link-scan-runs-at-its-earlier-speed"
+    },
+    {
+      "path": "packages/db/src/canon/links.ts",
+      "sha256": "3e38f533ad97647d9634d09411c91b46e3bfdd0ce53cf401cb4d6057dd580886",
+      "change": "canon-link-scan-runs-at-its-earlier-speed"
+    },
+    {
+      "path": "packages/db/src/checks.ts",
+      "sha256": "9b5bc5884266d7c9b37bada5a4d8f9d43b6a5045d1bbfc9042732af29b46baa5",
+      "change": "canon-link-scan-runs-at-its-earlier-speed"
+    },
+    {
+      "path": "packages/db/src/conformance.ts",
+      "sha256": "e78d43e318f40b3d2ec5b88e88c205be2a031cf70b815ba9303d3b1c377adf1b",
+      "change": "canon-link-scan-runs-at-its-earlier-speed"
+    },
+    {
+      "path": "packages/db/src/distribution/codec.ts",
+      "sha256": "627d12f113bc799af5aedd196a1aca4c8467b5aa762836b42f7193e4f84a4872",
+      "change": "canon-link-scan-runs-at-its-earlier-speed"
+    },
+    {
+      "path": "packages/db/src/distribution/implementations.ts",
+      "sha256": "3d41ae4e6b72ff6ef56bca195efc8db10f28f6fac8d3e538f4bd50c7c4d3fb28",
+      "change": "canon-link-scan-runs-at-its-earlier-speed"
+    },
+    {
+      "path": "packages/db/src/distribution/index.ts",
+      "sha256": "ac3f2e265585b38587709fa1ae90f1b965e5a2afc1eac5ff171e287e3e3292d5",
+      "change": "canon-link-scan-runs-at-its-earlier-speed"
+    },
+    {
+      "path": "packages/db/src/distribution/language-floor.ts",
+      "sha256": "103573e1e3399b076d328ea99a1ef549ed53b363eaaad94cf9f6e52ab4625c58",
+      "change": "canon-link-scan-runs-at-its-earlier-speed"
+    },
+    {
+      "path": "packages/db/src/inputs.ts",
+      "sha256": "736e1453f645ddbfc475057716b210ffef868ec991f261822b383f36d604888b",
+      "change": "canon-link-scan-runs-at-its-earlier-speed"
+    },
+    {
+      "path": "packages/db/src/paths.ts",
+      "sha256": "3ee68577510a5bbd1e56534dff83cabb80c191e428995e1d641bd8fa5317e877",
+      "change": "canon-link-scan-runs-at-its-earlier-speed"
+    },
+    {
+      "path": "packages/db/src/view.ts",
+      "sha256": "4c3cbdc5c77bc15df21871496caed10b1caaf75466321ac57b65d5001d562bd7",
+      "change": "canon-link-scan-runs-at-its-earlier-speed"
+    },
+    {
+      "path": "packages/db/tests/canon-files.test.ts",
+      "sha256": "a0e120fe6a1ff3b46b1cb4b9768d0751040dec0f37dbb209b0e5821ed8f8c941",
+      "change": "canon-link-scan-runs-at-its-earlier-speed"
+    },
+    {
+      "path": "packages/db/tests/canon-linear.test.ts",
+      "sha256": "48c9eaefab92e4103b602d16ee50012d29b923d37a2c0e0472de3dd3be0b133f",
+      "change": "canon-link-scan-runs-at-its-earlier-speed"
+    },
+    {
+      "path": "packages/db/tests/check-evidence.test.ts",
+      "sha256": "91580e053a29c21a0329dc7b19e08541e252ea06c5f67724d4d238dbab1e236f",
+      "change": "canon-link-scan-runs-at-its-earlier-speed"
+    },
+    {
+      "path": "packages/db/tests/distribution-contracts.test.ts",
+      "sha256": "fa428a5279215db63bf159e301b3a5208f042827c67db144b94abd160ef386c4",
+      "change": "canon-link-scan-runs-at-its-earlier-speed"
+    },
+    {
+      "path": "packages/db/tests/editor.test.ts",
+      "sha256": "d3817592a2bcd6c1ab72bad235bc91b2fe03f842efc18e1612247597cf512cee",
+      "change": "canon-link-scan-runs-at-its-earlier-speed"
+    },
+    {
+      "path": "packages/db/tests/fixtures/reference-3.7.0/README.md",
+      "sha256": "d23a2d76fc1adfd25a638c1184543c09840da0f9c4d7536aa891be34a7aa4f6c",
+      "change": "canon-link-scan-runs-at-its-earlier-speed"
+    },
+    {
+      "path": "packages/db/tests/fixtures/reference-3.7.0/cli-composition-workspace.json",
+      "sha256": "d8d9b408269c1d500484db5ca81028dd37d6f81678e1a00255f896d2776cec0f",
+      "change": "canon-link-scan-runs-at-its-earlier-speed"
+    },
+    {
+      "path": "packages/db/tests/fixtures/reference-3.7.0/cli-workspace-1.1.0-collision.json",
+      "sha256": "99b049ef662d3de50f2e64884e5aea22e4a73fa16b3b16fa4b1e8411d71da44b",
+      "change": "canon-link-scan-runs-at-its-earlier-speed"
+    },
+    {
+      "path": "packages/db/tests/fixtures/reference-3.7.0/cli-workspace-1.1.0.json",
+      "sha256": "6736e5ac53eb8af4abef8b4ac810eb5012e7fc54798012a6523d097ec3bd9b24",
+      "change": "canon-link-scan-runs-at-its-earlier-speed"
+    },
+    {
+      "path": "packages/db/tests/fixtures/reference-3.7.0/compliance-loop.json",
+      "sha256": "74cebdea2c1106d66cdba677dc930e9c6d46bb97223bd11fb4b44c20b0d15983",
+      "change": "canon-link-scan-runs-at-its-earlier-speed"
+    },
+    {
+      "path": "packages/db/tests/fixtures/reference-3.7.0/conformance-composition.json",
+      "sha256": "a6f9a4c5e332327d3c2eaeabf89a57316423e3780b4be3a9a9795a13065a2a5d",
+      "change": "canon-link-scan-runs-at-its-earlier-speed"
+    },
+    {
+      "path": "packages/db/tests/fixtures/reference-3.7.0/ia-language-3.7.0.json",
+      "sha256": "98b2239abc5f71153ba4ffc999062ae6af292d422870c3f4800e77fd52d14199",
+      "change": "canon-link-scan-runs-at-its-earlier-speed"
+    },
+    {
+      "path": "packages/db/tests/fixtures/reference-3.7.0/ia-language-f766ff05.json",
+      "sha256": "28e4edf838762bc7e4fb7e5a0796aa403673386abbb8e1d4e7b7df88c251dfd9",
+      "change": "canon-link-scan-runs-at-its-earlier-speed"
+    },
+    {
+      "path": "packages/db/tests/fixtures/reference-3.7.0/knowledge-example.json",
+      "sha256": "6a94260f455aaeb2acb653519045777048f1585c7b3396a22fcd1f6a9ff598fb",
+      "change": "canon-link-scan-runs-at-its-earlier-speed"
+    },
+    {
+      "path": "packages/db/tests/fixtures/reference-3.7.0/product-structure.json",
+      "sha256": "56b40392008e0b1f3dede6ca1995c380643a7a0820379a398f72b1248dc3f18d",
+      "change": "canon-link-scan-runs-at-its-earlier-speed"
+    },
+    {
+      "path": "packages/db/tests/fixtures/reference-3.7.0/projections-synthetic-review.json",
+      "sha256": "b61d7de27937334ec2cf947af03d1ab6ef6cd318f0bf1823ee29ba1b2c34f142",
+      "change": "canon-link-scan-runs-at-its-earlier-speed"
+    },
+    {
+      "path": "packages/db/tests/fixtures/reference-3.7.0/synthetic-200.json",
+      "sha256": "49202bca5112db8bde723d537af9e75b4b437030c793d6273b28d272d7457f14",
+      "change": "canon-link-scan-runs-at-its-earlier-speed"
+    },
+    {
+      "path": "packages/db/tests/fixtures/reference-3.7.0/synthetic-2000.json",
+      "sha256": "3879f1dd51c28710bfc5f5705b15c2f8b9a3e44fac102f75b0b357b3bf3cdb66",
+      "change": "canon-link-scan-runs-at-its-earlier-speed"
+    },
+    {
+      "path": "packages/db/tests/fixtures/reference-3.7.0/systems-native.json",
+      "sha256": "260dbeac27d85f7874304186190924689b5aed7e95f92aa9f12533f34b874d5d",
+      "change": "canon-link-scan-runs-at-its-earlier-speed"
+    },
+    {
+      "path": "packages/db/tests/inputs.test.ts",
+      "sha256": "bb0311d878f05263717a48e3a3971d18207d008523b62dd77599bf08afb23e8d",
+      "change": "canon-link-scan-runs-at-its-earlier-speed"
+    },
+    {
+      "path": "packages/db/tests/language-floor.test.ts",
+      "sha256": "4c332c26a52df630053da842168d51cc55629054735d16ba4f2353667f70567a",
+      "change": "canon-link-scan-runs-at-its-earlier-speed"
+    },
+    {
+      "path": "packages/db/tests/paths.test.ts",
+      "sha256": "6261e8d42dbcb79bf1302634f046ef5e25c0d9298c47ce0e3703911b92d8a21e",
+      "change": "canon-link-scan-runs-at-its-earlier-speed"
+    },
+    {
+      "path": "packages/db/tests/vetted-walk.test.ts",
+      "sha256": "3fac0da8d7685c731613c62c1c7e607cc9d5aa614d6dd2d10d9d0a4a7ff332f0",
+      "change": "canon-link-scan-runs-at-its-earlier-speed"
+    },
+    {
+      "path": "packages/graph/SPEC.md",
+      "sha256": "87b40ed41d130c169e343f051a7f82e9e5e83b6621c738073d45ea9d5e21e9ce",
+      "change": "index-postings-build-in-linear-time"
+    },
+    {
+      "path": "packages/graph/package.json",
+      "sha256": "45215b36d61ccc7055f6a6576c63ff1828ff7b9e61196016f036714eab3ca47d",
+      "cohortOnly": true,
+      "change": "index-postings-build-in-linear-time"
+    },
+    {
+      "path": "packages/graph/src/load.ts",
+      "sha256": "82bf3fbf443f6567d504dbfe87f041733182bc111080d2325dd8b04263e37bb3",
+      "change": "index-postings-build-in-linear-time"
+    },
+    {
+      "path": "packages/graph/tests/load.test.ts",
+      "sha256": "c0685ae6fc703d174b346aa2bfd1ded214face323c54d1b2074d82823998555a",
+      "change": "index-postings-build-in-linear-time"
+    },
+    {
+      "path": "packages/kb/SPEC.md",
+      "sha256": "075e799fbff53e901f00d7a38ea3df6d24b21937d8e8e652f0d09a18dbaf28d5",
+      "change": "kb-pack-reads-a-commit-in-batches"
+    },
+    {
+      "path": "packages/kb/package.json",
+      "sha256": "05adb56d47a11fc0fedaee2ffa25310b743f638b661e32c417f6a44c382d1775",
+      "cohortOnly": true,
+      "change": "kb-pack-reads-a-commit-in-batches"
+    },
+    {
+      "path": "packages/kb/src/git.ts",
+      "sha256": "2daa1e32c4d08d5f5b0408726b05c8d267199e8a8a2654a1ae560f23cb5ded37",
+      "change": "kb-pack-reads-a-commit-in-batches"
+    },
+    {
+      "path": "packages/kb/src/package.ts",
+      "sha256": "86f8f24e8940aea34d94353c2810769324c454f078146613ca12b42993d9e46e",
+      "change": "kb-pack-reads-a-commit-in-batches"
+    },
+    {
+      "path": "packages/kb/tests/batch-reads.test.ts",
+      "sha256": "84e930aae3dd7262b47dee5ea75cedc63d679de42ecf0303bac832a6a0aa325c",
+      "change": "kb-pack-reads-a-commit-in-batches"
+    },
+    {
+      "path": "packages/language/package.json",
+      "sha256": "f825cd9e61ba7116ed4e50674afcf75e6decaadf593882f116c37d547c927659",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/runtime/SPEC.md",
+      "sha256": "7e166ea33fd70124a5796164f2a98a93c47d147f4ea77fcdacd44cdcc104d6fb",
+      "change": "guard-a-folder-named-kit-binding-as-the-kit-serv"
+    },
+    {
+      "path": "packages/runtime/package.json",
+      "sha256": "459ad0ab430e01216c9408361ea46a26bcb19b499529afaab92fe2068e2e7ada",
+      "cohortOnly": true,
+      "change": "guard-a-folder-named-kit-binding-as-the-kit-serv"
+    },
+    {
+      "path": "packages/runtime/src/activation.ts",
+      "sha256": "97f7a35feed014250f8e94d65e79c7ce5d308e7a9646cf2316b3824669940ea6",
+      "change": "guard-a-folder-named-kit-binding-as-the-kit-serv"
+    },
+    {
+      "path": "packages/runtime/src/collect.ts",
+      "sha256": "af749fd357b2a530f31b91132e502585a67ff510fb49ce37c68e2c2b81f380fa",
+      "change": "guard-a-folder-named-kit-binding-as-the-kit-serv"
+    },
+    {
+      "path": "packages/runtime/src/index.ts",
+      "sha256": "aa32943b73ba6ad416eb9df49b555f6a4a48c1a990572b30c3c8d46619103612",
+      "change": "guard-a-folder-named-kit-binding-as-the-kit-serv"
+    },
+    {
+      "path": "packages/runtime/src/method/index.ts",
+      "sha256": "4fc2f26f11ae58c52d7114f5e3568d3b7eb3f22bd8f7d14c1808f17fc47e667d",
+      "change": "guard-a-folder-named-kit-binding-as-the-kit-serv"
+    },
+    {
+      "path": "packages/runtime/src/method/installed-kits.ts",
+      "sha256": "245a193ab8efe0baa62fe52ed680f81e5c18c50edddea0dea2e2b97c2027487a",
+      "change": "guard-a-folder-named-kit-binding-as-the-kit-serv"
+    },
+    {
+      "path": "packages/runtime/src/method/kit-base.ts",
+      "sha256": "a711f1c315dbf77e1f838ae7888667d6b9ce1a32396280f1175767e0300e534f",
+      "change": "guard-a-folder-named-kit-binding-as-the-kit-serv"
+    },
+    {
+      "path": "packages/runtime/src/method/kit-root.ts",
+      "sha256": "476aa155213ec9bcfb16784e80f92cefab9b401a376ca22d2ef7d7d03542a284",
+      "change": "guard-a-folder-named-kit-binding-as-the-kit-serv"
+    },
+    {
+      "path": "packages/runtime/src/method/kits.ts",
+      "sha256": "10c1c5b2c694b2e9560f296765c6f5ae8839ee85b196839e8a187fbae84cf945",
+      "change": "guard-a-folder-named-kit-binding-as-the-kit-serv"
+    },
+    {
+      "path": "packages/runtime/src/method/packet.ts",
+      "sha256": "5737900882531da79902d373b2558ca7a1c7c4ea892deb4363b0e79f0835ed64",
+      "change": "guard-a-folder-named-kit-binding-as-the-kit-serv"
+    },
+    {
+      "path": "packages/runtime/src/method/pin.ts",
+      "sha256": "c3874d5c0b60030130fce940d42af19bf09938e278c77cd67fcc8fb3837a4aa1",
+      "change": "guard-a-folder-named-kit-binding-as-the-kit-serv"
+    },
+    {
+      "path": "packages/runtime/src/method/resolve.ts",
+      "sha256": "43b6d5d6799f8d6c32e2b2b8c77aaa3491efc4e4c23a54ca688e74de21a84299",
+      "change": "guard-a-folder-named-kit-binding-as-the-kit-serv"
+    },
+    {
+      "path": "packages/runtime/src/method/retained.ts",
+      "sha256": "6759418a88998457c3979c7b10ce318e2f6ec886725ec4ffbb3989a9b7fcbfa2",
+      "change": "guard-a-folder-named-kit-binding-as-the-kit-serv"
+    },
+    {
+      "path": "packages/runtime/src/method/session.ts",
+      "sha256": "4cb70cf01cd3c3945756558a7c57259f95c565cc93a1efc9cc698d38d8d008af",
+      "change": "guard-a-folder-named-kit-binding-as-the-kit-serv"
+    },
+    {
+      "path": "packages/runtime/src/position.ts",
+      "sha256": "734076b9e0bfb54c3aca33faabe0e4d08893822f98ad6114b812b83a717571a4",
+      "change": "guard-a-folder-named-kit-binding-as-the-kit-serv"
+    },
+    {
+      "path": "packages/runtime/src/publication.ts",
+      "sha256": "df8bfc0265836c05718bf05fe9004ec2b38f9d596142cc345d026fc5ad9947b0",
+      "change": "guard-a-folder-named-kit-binding-as-the-kit-serv"
+    },
+    {
+      "path": "packages/runtime/tests/applies.test.ts",
+      "sha256": "89e352ac8f2f13130d9c388a87d8e85287121415811b9d2112bdffe4a37afda4",
+      "change": "guard-a-folder-named-kit-binding-as-the-kit-serv"
+    },
+    {
+      "path": "packages/runtime/tests/golden/governance-at-law-act.json",
+      "sha256": "800adb1f5d649443dc9ada2cf6a51c6cee9422dd5d019ef90b11c9fd67c59c97",
+      "change": "guard-a-folder-named-kit-binding-as-the-kit-serv"
+    },
+    {
+      "path": "packages/runtime/tests/golden/governance-at-law.json",
+      "sha256": "55132e97d7c63af8b6d194433c088a08c0e7b4f1eea0e1e5095be27bd6735703",
+      "change": "guard-a-folder-named-kit-binding-as-the-kit-serv"
+    },
+    {
+      "path": "packages/runtime/tests/golden/k0.json",
+      "sha256": "3c6df32dced73031b43ccba058d7a961de4771e93b92a4fc9d6a4a0d920fcb5c",
+      "change": "guard-a-folder-named-kit-binding-as-the-kit-serv"
+    },
+    {
+      "path": "packages/runtime/tests/golden/sequence-depth-2.json",
+      "sha256": "9ceeaf206d0254ff82ba6c5150282af1746354a64bbec19436ba809a51a6acae",
+      "change": "guard-a-folder-named-kit-binding-as-the-kit-serv"
+    },
+    {
+      "path": "packages/runtime/tests/golden/word-law.json",
+      "sha256": "a261d81ccff5e5babe052aa51fc645c8f19fb34e19871a1b3f0ec2d3ea3eaded",
+      "change": "guard-a-folder-named-kit-binding-as-the-kit-serv"
+    },
+    {
+      "path": "packages/runtime/tests/home-folders.test.ts",
+      "sha256": "54b5dad346f98b0cc26755eb7ca985a5c7f94b3bd78014c52ee3be623237295c",
+      "change": "guard-a-folder-named-kit-binding-as-the-kit-serv"
+    },
+    {
+      "path": "packages/runtime/tests/install-guard.test.ts",
+      "sha256": "39ce2b2051df25433f41c7360b73a231fd737be2f172e7f8870c24cb743df61e",
+      "change": "guard-a-folder-named-kit-binding-as-the-kit-serv"
+    },
+    {
+      "path": "packages/runtime/tests/kit-base.test.ts",
+      "sha256": "c387a233671d8c795ae3f8137a3a07f966bbb32de453e5d90e90bcfb2ed58693",
+      "change": "guard-a-folder-named-kit-binding-as-the-kit-serv"
+    },
+    {
+      "path": "packages/runtime/tests/kit-root.test.ts",
+      "sha256": "906f5b7d82e605b0557649ced34c4bdaa1f077e7c115f5ef1e146d20760bf643",
+      "change": "guard-a-folder-named-kit-binding-as-the-kit-serv"
+    },
+    {
+      "path": "packages/runtime/tests/kits-package.test.ts",
+      "sha256": "ffb6eaaf2d8f34dd657ab9f9f7cd81f5140cca73d73a4ce61419fd56181e6b3f",
+      "change": "guard-a-folder-named-kit-binding-as-the-kit-serv"
+    },
+    {
+      "path": "packages/runtime/tests/locator.test.ts",
+      "sha256": "41ca31f9b49f3b75cd4bb8a1f73f5c0ae936cc9aa076b1154478115a6bdd4caa",
+      "change": "guard-a-folder-named-kit-binding-as-the-kit-serv"
+    },
+    {
+      "path": "packages/runtime/tests/method.test.ts",
+      "sha256": "e47f51b1a807f0c6c6e2575ac40999df2964a60c5d7b27b97529dc7af9d56a09",
+      "change": "guard-a-folder-named-kit-binding-as-the-kit-serv"
+    },
+    {
+      "path": "packages/runtime/tests/position.test.ts",
+      "sha256": "75ba8d4fb45021ca21507fecc5c40328221ffd97fcdaa35f62b861d40b5a9847",
+      "change": "guard-a-folder-named-kit-binding-as-the-kit-serv"
+    },
+    {
+      "path": "packages/runtime/tests/publication.test.ts",
+      "sha256": "15ba1313777be93784205e84f78464e7798b018e4e8881d87af806bc0f502ee4",
+      "change": "guard-a-folder-named-kit-binding-as-the-kit-serv"
+    },
+    {
+      "path": "packages/service-contracts/SPEC.md",
+      "sha256": "739d961bb6fdd2e064c648952c0b6d7fb92799f208ea981d785e73e0070c52dd",
+      "change": "name-a-host-admitted-agent-on-session-start"
+    },
+    {
+      "path": "packages/service-contracts/package.json",
+      "sha256": "31cb7726c6d6faa0fbf43d33e1ca0c1c272621fa13b18c8ed4043008fd9a872f",
+      "cohortOnly": true,
+      "change": "name-a-host-admitted-agent-on-session-start"
+    },
+    {
+      "path": "packages/service-contracts/src/index.ts",
+      "sha256": "9476913471b99fd637537034b22880609a118f0ec57c294d3b5ab76beadb80c1",
+      "change": "name-a-host-admitted-agent-on-session-start"
+    },
+    {
+      "path": "packages/service-contracts/src/session-lifecycle.ts",
+      "sha256": "ae3922cab3ebaba6111b020f0f03219d22ed756edbc61db8da6c7fd99a647a1c",
+      "change": "name-a-host-admitted-agent-on-session-start"
+    },
+    {
+      "path": "packages/service-contracts/tests/contracts.test.ts",
+      "sha256": "bf540e322f0f88ee17334426222d949190bf858619d6fcd6cbccd9b2e781df3e",
+      "change": "name-a-host-admitted-agent-on-session-start"
+    },
+    {
+      "path": "packages/service-contracts/tests/session-lifecycle.test.ts",
+      "sha256": "622d515c96359d9a43447db5b5b576d7378e97f98df3058042dc45c68e8d8a73",
+      "change": "name-a-host-admitted-agent-on-session-start"
+    },
+    {
+      "path": "packages/workspace-runtime/SPEC.md",
+      "sha256": "b15698634cc4e50236ab1c4d69895fe5795622c08641bca8f831fb15ffab76e1",
+      "change": "plain-catalog-names-for-the-shipped-contracts"
+    },
+    {
+      "path": "packages/workspace-runtime/package.json",
+      "sha256": "ccd8670cae4a66543cbc844d29d6284105517d099d390ca8644a03fa7dc6ea19",
+      "cohortOnly": true,
+      "change": "plain-catalog-names-for-the-shipped-contracts"
+    },
+    {
+      "path": "packages/workspace-runtime/src/authoring.ts",
+      "sha256": "60d82fd2ad7d4cca05e1e51800e35c77a4cc2991a74bd6df43fdb33848b7b586",
+      "change": "plain-catalog-names-for-the-shipped-contracts"
+    },
+    {
+      "path": "packages/workspace-runtime/src/templates.ts",
+      "sha256": "e0a96a82dcc284d844faa40b29abc0c096ab6467233d1bcd744fa2d268bff065",
+      "change": "plain-catalog-names-for-the-shipped-contracts"
+    },
+    {
+      "path": "packages/workspace-runtime/tests/authoring-criteria.test.ts",
+      "sha256": "a4cc6793b78178da9b12b103b5a2c4e69e2a0def34bf72c357c7542bf37890b5",
+      "change": "plain-catalog-names-for-the-shipped-contracts"
+    },
+    {
+      "path": "packages/workspace-runtime/tests/bind.test.ts",
+      "sha256": "0a4318b4c2316756503d98dcb9992a715b9616671f8877a1038142c6e08f54cc",
+      "change": "plain-catalog-names-for-the-shipped-contracts"
+    },
+    {
+      "path": "packages/workspace-runtime/tests/generate-playbook.test.ts",
+      "sha256": "b30ab1e2b2086b9af20ddd743f37d484afb02ec0811c3917bb4b406717ac1210",
+      "change": "plain-catalog-names-for-the-shipped-contracts"
+    },
+    {
+      "path": "packages/workspace-runtime/tests/publication-fixture.ts",
+      "sha256": "08ccd60801798697d54f7a13b20143107db106ea75b0ce63d9867496465a0f52",
+      "change": "plain-catalog-names-for-the-shipped-contracts"
+    },
+    {
+      "path": "packages/workspace-runtime/tests/templates.test.ts",
+      "sha256": "1d1b49a18435fa50c7e1e9b09f6495d7fe7279cf62d4bea303096d93caca164d",
+      "change": "plain-catalog-names-for-the-shipped-contracts"
+    },
+    {
+      "path": "releases/current.json",
+      "sha256": "e7456ef89e640f5f7a381e9c3aff245e8f2b06010606b5b15acce645a36a7a58",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "releases/native/bases/08eaab3e1a6215d78283b82a94a0228367ac7bd78d0a746c56db79c8d7546c3a.ia.tgz",
+      "sha256": "08eaab3e1a6215d78283b82a94a0228367ac7bd78d0a746c56db79c8d7546c3a",
+      "change": "language-base-compat"
+    },
+    {
+      "path": "releases/native/bases/62ecd5092f364b40e335e9e509ef512ac8030eb5689e72a5d0ff1e073cb13cfb.ia.tgz",
+      "sha256": "62ecd5092f364b40e335e9e509ef512ac8030eb5689e72a5d0ff1e073cb13cfb",
+      "change": "language-base-compat"
+    },
+    {
+      "path": "releases/native/bases/7b36e4b4959a7bead1c57906cd346b419f32570dac0ac764af805ad20cd63b16.ia.tgz",
+      "sha256": "7b36e4b4959a7bead1c57906cd346b419f32570dac0ac764af805ad20cd63b16",
+      "change": "language-base-compat"
+    },
+    {
+      "path": "releases/native/bases/7db20e0dbbc2b88701ea24991886b4a8e08d419dda469cce5caff66911f81e4c.ia.tgz",
+      "sha256": "7db20e0dbbc2b88701ea24991886b4a8e08d419dda469cce5caff66911f81e4c",
+      "change": "language-base-compat"
+    },
+    {
+      "path": "releases/native/bases/df626d1dc4949649ba7203842b29b4f064e0552e8db8c2c41ff74b6462b81b75.ia.tgz",
+      "sha256": "df626d1dc4949649ba7203842b29b4f064e0552e8db8c2c41ff74b6462b81b75",
+      "change": "language-base-compat"
+    },
+    {
+      "path": "releases/native/bases/ee6e65018df2ebef705913d9da1947f040edf44c2e7ade6c9750c6fa0185985e.ia.tgz",
+      "sha256": "ee6e65018df2ebef705913d9da1947f040edf44c2e7ade6c9750c6fa0185985e",
+      "change": "language-base-compat"
+    },
+    {
+      "path": "releases/native/current.json",
+      "sha256": "5aaea931907fab1b5d76b4dc31d95af046b3697babace76acc7e8da76eba4a34",
+      "change": "language-base-compat"
+    },
+    {
+      "path": "releases/native/language-bases.json",
+      "sha256": "88864bc85eed50c9ca6d093c90822f0abf7276840715408183938b7a37c4c800",
+      "change": "language-base-compat"
+    },
+    {
+      "path": "releases/native/language-compat.json",
+      "sha256": "b88384b5003614def22b4ff68a34932ef176ac37600a487d7bd96159a3d7683a",
+      "change": "language-base-compat"
+    },
+    {
+      "path": "releases/native/notes.json",
+      "sha256": "aea324bcf6d6acc752d02cc4197b7bd5b7c0d4fbdd980638e3ecbecbd07d5413",
+      "change": "language-base-compat"
+    },
+    {
+      "path": "tools/compliance/check.test.ts",
+      "sha256": "729bb955580c8ceef9857d4ad08596253e140d4f3a57f1e9dcfe33e4129a8342",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/compliance/check.ts",
+      "sha256": "badcb859fe355ff016aff302d7c811eb51a03707eb8e8d2d6c7f70bcea283ae9",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/compliance/inventory.ts",
+      "sha256": "8635b30c47516ff5d1e4b69747fc7bc70b9c95a81da6aed72a48f2f7dc3848be",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/compliance/publication-fixtures.test.ts",
+      "sha256": "a1ea8aff32626824fed754cac06cb36ab797c4409a9a692f6320fa6d52ea9122",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/distribution/SPEC.md",
+      "sha256": "b85aa584b20fceff5803cedf2d4257906d52bd33123853e4c6153d27309084d5",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/distribution/host-payload.mjs",
+      "sha256": "ad065d6821a30e46d9c024a3b8624147e9847b101fc45eb3926cfae725e54f2d",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/distribution/host-payload.test.ts",
+      "sha256": "53eee140277bbb7edca0f2617c6a41183b34a9907c7538e6d0b5a48ae5196c6b",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/distribution/qualify-conformance.mjs",
+      "sha256": "774a877dae9778b1a3cf039dbe130c13f854caba252611ce3cbced2a3dff1f23",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/distribution/qualify-kb.mjs",
+      "sha256": "d146bc386a80dd698eaf3fc49315a573009665dd1b49336fe66922906a7bccde",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/distribution/resources.mjs",
+      "sha256": "a98f7b0f1a4500d30bbfe9533d8fb4c5baf265bb2e76c9c42e763f06d837856b",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/distribution/system-package-policy.json",
+      "sha256": "28902affac9a99bfa1bbc8e94ae0539e027c211372aebcb9badefe5aa2625d7a",
+      "cohortOnly": true,
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/native/SPEC.md",
+      "sha256": "04af03b088c3b6139f0b4ab1ab56955d15b6d8fb9e50db5b5cea7db2c90dbbbb",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/native/language-base.test.ts",
+      "sha256": "fd467b92ff15a700179397015076ed1ed20b54800bc73ea99b3579595a5c1aa3",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/native/language-base.ts",
+      "sha256": "8e8b3e6e0e2feea9d14c645b13cabfc6ba8758ba5edfb79febd85ab891ba844d",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/native/language-bases.test.ts",
+      "sha256": "a611a7129471747820065f83584dd0ac289e059f6837a024dc5b859369feb694",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/native/language-bases.ts",
+      "sha256": "4cf39458a4f6dd016e9835deb51ced7d5a066fe5cab2b06614d1844a92878a6a",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/native/language-compat.test.ts",
+      "sha256": "7cedc506ba8493a78acac865dc2ad4387ed1f58c943f843fa6411c052c563221",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/native/language-compat.ts",
+      "sha256": "d63e9a2ec85c7b32775c7fc0e11f5ba9b5932928d8536f22f72fd6cba76e1a34",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/native/public-language.ts",
+      "sha256": "d8da3aa8432ccc1e0351ef69ae22336875d608799dce317968e79adfe4bbbe94",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/release/SPEC.md",
+      "sha256": "21c4939206e0d1336f8495915f9baf0736fbeda04cd8f1a421dd370f97602b2e",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/release/fixtures/published-kits/PROVENANCE.json",
+      "sha256": "6ac58af845fe4678995e02e66ef900ececd02fc8dc747ad37414d344944dd697",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/release/fixtures/published-kits/generate.mjs",
+      "sha256": "bba4515032f8fe76f16378a3ec2e75bf3a680e1c874b5ec1e6980f475e81b230",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/release/fixtures/published-kits/kits.json.gz",
+      "sha256": "380db04af370827ed4b31d190830fe02390499dd2d7e06bd5ce9e65b02d40bd1",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/release/language-compat-gate.test.ts",
+      "sha256": "c7f9704acd17dc1022c07bbaa7af59ac7133ba6f92631d0782991448db624994",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/release/language-compat-gate.ts",
+      "sha256": "2492d20eecc79ad2753e433ace5c861939a81401a1b754c8aaf2e513b155a8d2",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/release/native-version.ts",
+      "sha256": "ccfa37857162247f514c47a1d8469a154487d8129feb018b3ce18b47251c4e28",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/release/recipe.mjs",
+      "sha256": "e4375ffc854c659ce0166ace4eceeb2a1f552112d8e5cc4639e629ff6432c060",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/scale-probe/SPEC.md",
+      "sha256": "69206d4024035d84c4cab47c1c490de6192520419e0268673c6b201b108c5e5b",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/scale-probe/capture.mjs",
+      "sha256": "7c035ab69fad133f4efa2dca9b7f23fcfba6d916ac380a44689cb29c670952e1",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/scale-probe/compare.d.mts",
+      "sha256": "72d93813e878df62caf012cdf018c29954e43f3fb65cbe76f6f35a775091665a",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/scale-probe/compare.mjs",
+      "sha256": "b5079fdfbdb561db4562d0f33a0826db35e3563b61ac85614a2ba68afa278889",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/scale-probe/generate.d.mts",
+      "sha256": "279ab841c320ccbbfa7bbaecdf50bd463e226403c6321654167a0d2b56058943",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/scale-probe/generate.mjs",
+      "sha256": "81e06ce363cbb07bc153bec84c77fb553bfa0a06580211f27c9c799b4f3564bb",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/scale-probe/measure.mjs",
+      "sha256": "9ff78b3545accbc5bfeb8b94182a56a1f1e779df746c82cf8992a7b2c660bf4f",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/scale-probe/normalise.d.mts",
+      "sha256": "415778d54ca45f545170138f55ea545254e2a5df347cdc6812e3c1a7286a4c75",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/scale-probe/normalise.mjs",
+      "sha256": "a22086680fb738cc37c0511f4c3b3fbb0eef12841c44b41f9e9d84876dc4cb8c",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/scale-probe/probe.d.mts",
+      "sha256": "6e63a8aef0d6b9e7424aeb6e31ca0805c6b366e70364e170173c2792e841d8d4",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/scale-probe/probe.mjs",
+      "sha256": "5a45fb58d2de5264ae97794d69c70aa0e466caaec3e6e9e2b7cff46e5a3f2eab",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/scale-probe/scale-probe.test.ts",
+      "sha256": "2fd3ac54d6311471e362198ac8805cf6807eb5ae3ff9434eb668b0e81da96596",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/scale-probe/trees.json",
+      "sha256": "07144ba1a41fde78e092427c4c6c5a7404eca0a7b003241a8fdbd4096aea75b9",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/systems/execute.test.ts",
+      "sha256": "ed5ffd8259230f62ea92ec80a984d55c9ab6b1e4e111982bce71580b8be72517",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/systems/fixtures/native/.ia/src/systems/template-system/cases/render-captured-template-success.ia",
+      "sha256": "31725c2f8364d88533a31bb73a4597e2db227293118fec41c5b9cdd08beda161",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/systems/fixtures/native/.ia/src/systems/template-system/contract.ia",
+      "sha256": "3fe830513b302260c47ed8d7bf680bf25e8b288fcdb9f5081170d6b7f3eb4859",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/systems/fixtures/native/.ia/src/systems/template-system/operations/render-captured-template.ia",
+      "sha256": "47f86f19f15f82177fd10c2a94f19a4f79c5a028d994611cb3385c179068d173",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/testing/schedule.json",
+      "sha256": "1ca3ff182f8d1fc8a5e491386d057cf79cb4ffb0af8a0bcaec02aba8e6f4f793",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    },
+    {
+      "path": "tools/testing/tasks.json",
+      "sha256": "c4991d77480d805a69672a73bf1a24afb47fc4ea6d6c92766f1939f8a5eece7a",
+      "change": "db-docs-and-tests-use-the-plain-rule-and-profile"
+    }
+  ]
+}

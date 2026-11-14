@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import * as installedSDK from '@inventarch/agent-composition-system';
+import { captureWorkspace } from '@inventarch/workspace-runtime';
 import { Engine } from '@inventarch/agent-system';
 import { copy, digest, memoryStore } from '@inventarch/session-system';
 import { sqliteStore } from '@inventarch/session-system/sqlite';
@@ -10,9 +11,29 @@ import { readFileSync, writeFileSync, renameSync } from 'node:fs';
 
 export const readPath = '.ia/src/systems/agent-system/records/installed-read-label.ia';
 export const evaluator = 'installed-read-example-policy-v1';
-export function readFixture(SDK, root) {
-  const baseline = SDK.captureWorkspace(root),
-    { revision: _revision, ...body } = baseline;
+const canonicalReadPaths = [
+  '.ia/src/systems/agent-composition-system/operations/read-captured-source.ia',
+  '.ia/src/systems/agent-composition-system/records/read-captured-source-binding.ia',
+];
+/**
+ * The canonical read records as they were written when names carried their version. `mode` is 'plain' (the shipped
+ * records), 'legacy' (old names, compiled against the retained original entries) or 'aliased' (old names, compiled
+ * through `installedReadAliases()` to the plain entries).
+ */
+export function readFixture(SDK, root, mode = 'plain') {
+  const baseline = captureWorkspace(root),
+    { revision: _revision, ...captured } = baseline;
+  const oldNames = (text) =>
+    text.replace(/^(\s+(?:handler|input|output|implementation) captured-source-read(?:-input|-output)?)$/gm, '$1-v1');
+  const body =
+    mode === 'plain'
+      ? captured
+      : {
+          ...captured,
+          sources: captured.sources.map((row) =>
+            canonicalReadPaths.includes(row.path) ? { ...row, text: oldNames(row.text) } : row,
+          ),
+        };
   const placement = { placement: { kind: 'authored', band: 100, reach: '' }, provenance: 'workspace' };
   const sources = [
     {
@@ -22,12 +43,12 @@ export function readFixture(SDK, root) {
     },
     {
       path: '.ia/src/systems/agent-composition-system/operations/read-captured-source.ia',
-      text: '#! ia 1.0\n@operation read-captured-source\n  meaning\n    says "Read one exact captured native source through the first-party adapter."\n    answers "Which captured bytes are selected?"\n  execution\n    handler captured-source-read-v1\n    effects read-only\n    input captured-source-read-input-v1\n    output captured-source-read-output-v1\n    profile governed-v1\n    recovery repeatable\n  relationships\n    implements @contract agent-composition-runtime-contract#REQ-RT-CAPTURED-INPUT\n    implements @contract agent-composition-runtime-contract#REQ-RT-CAPTURED-READ\n    implements @contract agent-composition-runtime-contract#REQ-RT-CAPTURED-REFUSE\n',
+      text: '#! ia 1.0\n@operation read-captured-source\n  meaning\n    says "Read one exact captured native source through the first-party adapter."\n    answers "Which captured bytes are selected?"\n  execution\n    handler captured-source-read\n    effects read-only\n    input captured-source-read-input\n    output captured-source-read-output\n    profile governed\n    recovery repeatable\n  relationships\n    implements @contract agent-composition-runtime-contract#REQ-RT-CAPTURED-INPUT\n    implements @contract agent-composition-runtime-contract#REQ-RT-CAPTURED-READ\n    implements @contract agent-composition-runtime-contract#REQ-RT-CAPTURED-REFUSE\n',
       location: placement,
     },
     {
       path: '.ia/src/systems/agent-composition-system/records/read-captured-source-binding.ia',
-      text: '#! ia 1.0\n\n@execution-binding read-captured-source-binding\n  meaning\n    says "Select the fixed installed first-party captured-source read adapter."\n    answers "Which declared implementation can an explicitly selected harness bind for captured reads?"\n  binding\n    kind operation\n    target @operation read-captured-source\n    implementation captured-source-read-v1\n',
+      text: '#! ia 1.0\n\n@execution-binding read-captured-source-binding\n  meaning\n    says "Select the fixed installed first-party captured-source read adapter."\n    answers "Which declared implementation can an explicitly selected harness bind for captured reads?"\n  binding\n    kind operation\n    target @operation read-captured-source\n    implementation captured-source-read\n',
       location: placement,
     },
     {
@@ -112,19 +133,25 @@ export function readFixture(SDK, root) {
     },
   ];
   // Reuse the explicitly selected canonical operation; never duplicate or silently replace its bytes.
-  const added = sources.filter((source) => {
-    const existing = body.sources.find((row) => row.path === source.path);
-    if (!existing) return true;
-    assert.ok(
-      [
-        '.ia/src/systems/agent-composition-system/operations/read-captured-source.ia',
-        '.ia/src/systems/agent-composition-system/records/read-captured-source-binding.ia',
-      ].includes(source.path),
-      'Unexpected fixture/native path collision',
-    );
-    assert.equal(existing.text.trim(), source.text.trim(), 'Canonical installed read declaration differs');
-    return false;
-  });
+  const added = sources
+    .map((source) =>
+      mode !== 'plain' && canonicalReadPaths.includes(source.path)
+        ? { ...source, text: oldNames(source.text) }
+        : source,
+    )
+    .filter((source) => {
+      const existing = body.sources.find((row) => row.path === source.path);
+      if (!existing) return true;
+      assert.ok(
+        [
+          '.ia/src/systems/agent-composition-system/operations/read-captured-source.ia',
+          '.ia/src/systems/agent-composition-system/records/read-captured-source-binding.ia',
+        ].includes(source.path),
+        'Unexpected fixture/native path collision',
+      );
+      assert.equal(existing.text.trim(), source.text.trim(), 'Canonical installed read declaration differs');
+      return false;
+    });
   const next = { ...body, sources: [...body.sources, ...added].sort((a, b) => a.path.localeCompare(b.path, 'en')) },
     capture = { ...next, revision: digest(next) };
   const installedRead = SDK.installedReadCatalog(),
@@ -193,6 +220,7 @@ export function readFixture(SDK, root) {
     harness: 'installed-read-example-harness',
     entry: 'installed-read-example-entry',
     catalog,
+    ...(mode === 'aliased' ? { aliases: SDK.installedReadAliases() } : {}),
   });
   assert(compilation.ok, JSON.stringify(compilation));
   const compiled = compilation.manifest,

@@ -1,0 +1,19 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "none",
+  "title": "Regenerated vocabulary and language compatibility assets",
+  "summary": "The bundled vocabulary assets carry the new native system versions. The bundled language bases and compatibility index keep every published base, 3.3.0 included, and add 3.3.1, the base this release builds, as the newest; a workspace locked to a published base still restores offline, and the language floors the CLI computes are unchanged. No consumer-facing change.",
+  "packages": [
+    "@inventarch/cli",
+    "@inventarch/mcp-door"
+  ],
+  "paths": [
+    ".ia/authoring.resources.json",
+    "CLAUDE.md",
+    "apps/cli/",
+    "apps/mcp-door/",
+    "docs/",
+    "examples/",
+    "tools/"
+  ]
+}

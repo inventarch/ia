@@ -4,15 +4,19 @@
  * the disk), that a decline spawns nothing, and that the terminal is restored on quit, on a throw and on a signal.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { hostname } from 'node:os';
+import { delimiter, join } from 'node:path';
 import { PassThrough } from 'node:stream';
 import { afterAll, describe, expect, it } from 'vitest';
-import type { Check, CheckStatus, DoctorView } from '../src/doctor.js';
+import type { Check, CheckStatus, DoctorRequest, DoctorView } from '../src/doctor.js';
+import { collectDoctor } from '../src/doctor.js';
 import type { Fix } from '../src/fix.js';
 import { iaFix } from '../src/fix.js';
 import type { LocalCli } from '../src/local-cli.js';
 import type { ProcessHooks } from '../src/console/app.js';
+import type { Runner } from '../src/console/batch-run.js';
+import { defaultRunner } from '../src/console/batch-run.js';
 import { consoleSignals, resolveRepo, runConsole } from '../src/console/app.js';
 import type { SpawnDoctor } from '../src/console/load.js';
 import type { Offer, Step } from '../src/console/offers.js';
@@ -23,6 +27,8 @@ import { windowsShellArgs } from '../src/program.js';
 import type { ConsoleCheck, ConsoleState } from '../src/console/state.js';
 import type { TerminalIO } from '../src/console/terminal.js';
 import { readTracked, trackWorkspaces } from '../src/tracked.js';
+import { fixture, repo } from './batch-fixture.js';
+import { TRACKED_LOCK_FILE } from '../src/tracked-lock.js';
 import { cleanup, scratch } from './scratch-fixture.js';
 
 afterAll(cleanup);
@@ -574,8 +580,8 @@ const view = (checks: readonly Check[]): DoctorView => ({
   counts: { ok: 0, warn: 0, fail: 0, unknown: 0, info: 0 },
 });
 const settle = () => new Promise((resolve) => setTimeout(resolve, 5));
-async function until(condition: () => boolean, what: string): Promise<void> {
-  for (let tries = 0; tries < 400; tries += 1) {
+async function until(condition: () => boolean, what: string, attempts = 400): Promise<void> {
+  for (let tries = 0; tries < attempts; tries += 1) {
     if (condition()) return;
     await settle();
   }
@@ -605,7 +611,7 @@ const fakeHooks = (terminal: FakeTerminal): Hooks => {
 };
 function launch(
   extra: {
-    collect?: () => DoctorView;
+    collect?: (request: DoctorRequest) => DoctorView;
     spawn?: RunIO['spawn'];
     spawnDoctor?: SpawnDoctor;
     prepare?: (root: string) => void;
@@ -696,6 +702,103 @@ describe('runConsole', () => {
     expect(await run.exit).toBe(0);
     expect(signals[1]?.aborted).toBe(true);
     expect(run.restored()).toBe(true);
+  });
+  /** A workspace pinning the CLI with its own copy installed, so each load asks whether that copy is committed. */
+  const withCopy = (root: string): void => {
+    writeFileSync(join(root, 'package.json'), JSON.stringify({ devDependencies: { '@inventarch/cli': '3.6.0' } }));
+    const copy = join(root, 'node_modules/@inventarch/cli');
+    mkdirSync(join(copy, 'dist'), { recursive: true });
+    writeFileSync(
+      join(copy, 'package.json'),
+      JSON.stringify({ name: '@inventarch/cli', version: '3.6.0', bin: { ia: './dist/main.js' } }),
+    );
+    writeFileSync(join(copy, 'dist/main.js'), '');
+  };
+  it.skipIf(process.platform === 'win32')(
+    'asks git whether the workspace copy is committed once for the console’s life, not at each load or doctor row',
+    async () => {
+      // A git that logs each call's arguments and tracks nothing, first on the PATH of the process the console asks from.
+      const bin = scratch('console-git-shim');
+      const log = join(bin, 'calls.log');
+      writeFileSync(join(bin, 'git'), `#!/bin/sh\necho "$*" >> '${log}'\nexit 0\n`);
+      chmodSync(join(bin, 'git'), 0o755);
+      const path = process.env['PATH'];
+      process.env['PATH'] = `${bin}${delimiter}${path ?? ''}`;
+      try {
+        let loads = 0;
+        // The copy's rows hold one fix, so a step runs on the copy (`repoOf`).
+        const report = {
+          status: 0,
+          stdout: JSON.stringify({
+            version: 1,
+            checks: [check('records', 'fail', { fix: iaFix(['validate'], 'none').fix, remedy: 'ia validate' })],
+            counts: {},
+          }),
+        };
+        const run = launch({
+          // Tracked too, so the all-workspaces table (`loadAll`) reads the same copy.
+          prepare: (root) => {
+            withCopy(root);
+            mkdirSync(join(root, 'home'), { recursive: true });
+            trackWorkspaces(join(root, 'home'), [root]);
+          },
+          // The real collector: its `cli-version` row asks about the same copy, so it must use the same memo.
+          collect: collectDoctor,
+          spawnDoctor: () => {
+            loads += 1;
+            return Promise.resolve(report);
+          },
+        });
+        await until(run.entered, 'the console');
+        for (const wanted of [2, 3]) {
+          run.stdin.write('r');
+          await until(() => loads === wanted, `load ${wanted}`);
+        }
+        await until(() => run.terminal.out.includes('Fix record errors'), 'the offer');
+        run.stdin.write('\r');
+        await until(() => run.terminal.out.includes('Press any key to return to the console.'), 'the step to finish');
+        expect(run.spawned).toHaveLength(1);
+        run.stdin.write('x');
+        await until(() => loads >= 4, 'the reload after the step');
+        const before = loads;
+        run.stdin.write('\t');
+        await until(() => loads > before, 'the table row');
+        await until(() => run.terminal.out.includes('Attention 1'), 'the table row to land');
+        run.stdin.write('q');
+        expect(await run.exit).toBe(0);
+        // Only the question about the copy; the lockfile question (`ls-files -- <lockfiles>`) is another one.
+        const asked = readFileSync(log, 'utf8')
+          .trim()
+          .split('\n')
+          .filter((line) => line.endsWith('/node_modules/@inventarch/cli ls-files -- .'));
+        expect(asked).toHaveLength(1);
+      } finally {
+        if (path === undefined) delete process.env['PATH'];
+        else process.env['PATH'] = path;
+      }
+    },
+  );
+  it('a quit during the first load aborts it, never enters the screen, and exits 0', async () => {
+    const signals: (AbortSignal | undefined)[] = [];
+    const run = launch({
+      prepare: withCopy,
+      // The first load's doctor ends only when it is aborted.
+      spawnDoctor: (_entry, _root, signal) => {
+        signals.push(signal);
+        return new Promise((settle) => signal?.addEventListener('abort', () => settle({ status: null, stdout: '' })));
+      },
+    });
+    await until(() => signals.length === 1, 'the first load');
+    expect(run.entered()).toBe(false);
+    expect(signals[0]?.aborted).toBe(false);
+    // The process ending, as `q` ends it (the console has no keys to read before its first screen).
+    run.hooks.listeners.get('exit')!();
+    expect(await run.exit).toBe(0);
+    expect(signals[0]?.aborted).toBe(true);
+    await settle();
+    expect(run.entered()).toBe(false);
+    expect(run.terminal.raw).not.toContain(true);
+    expect(run.hooks.listeners.size).toBe(0);
   });
   it('a throw inside the loop restores the terminal and exits 1', async () => {
     let loads = 0;
@@ -979,10 +1082,21 @@ describe('runConsole', () => {
   });
 });
 
+const unprivileged = process.platform === 'win32' || process.getuid?.() === 0;
 /** The end of a long value, which the folder line always shows. */
 const tail = (text: string): string => text.slice(-12);
 /** The console started outside any workspace, with `tracked` workspaces in its IA home's tracked list. */
-function launchAll(tracked = 0, extra: { copies?: boolean; spawnDoctor?: SpawnDoctor; inside?: boolean } = {}) {
+async function launchAll(
+  tracked = 0,
+  extra: {
+    copies?: boolean;
+    spawnDoctor?: SpawnDoctor;
+    inside?: boolean;
+    collect?: () => DoctorView;
+    runner?: Runner;
+    before?: (roots: string[]) => void;
+  } = {},
+) {
   const base = scratch('console-all');
   const cwd = join(base, 'outside'),
     home = join(base, 'home');
@@ -1002,7 +1116,8 @@ function launchAll(tracked = 0, extra: { copies?: boolean; spawnDoctor?: SpawnDo
     );
     writeFileSync(join(installed, 'dist/bin.js'), '');
   }
-  if (roots.length > 0) trackWorkspaces(home, roots);
+  if (roots.length > 0) await trackWorkspaces(home, roots);
+  extra.before?.(roots);
   // `inside`: the console starts in the first tracked workspace, whose own view is then the home one.
   const start = extra.inside === true && roots[0] !== undefined ? roots[0] : cwd;
   const terminal = new FakeTerminal();
@@ -1016,7 +1131,7 @@ function launchAll(tracked = 0, extra: { copies?: boolean; spawnDoctor?: SpawnDo
     cwd: start,
     packageRoot: RUNNING,
     version: '3.5.1',
-    collect: () => view([check('node', 'ok'), check('records', 'ok'), check('root', 'ok')]),
+    collect: extra.collect ?? (() => view([check('node', 'ok'), check('records', 'ok'), check('root', 'ok')])),
     spawn: async () => 0,
     setTimer: ((callback: () => void) => {
       timers.push(callback);
@@ -1025,14 +1140,90 @@ function launchAll(tracked = 0, extra: { copies?: boolean; spawnDoctor?: SpawnDo
     clearTimer: (() => {}) as typeof clearTimeout,
     hooks,
     ...(extra.spawnDoctor === undefined ? {} : { spawnDoctor: extra.spawnDoctor }),
+    ...(extra.runner === undefined ? {} : { runner: extra.runner }),
   });
   const shows = (text: string) => () => terminal.out.includes(text);
   return { base, cwd, home, roots, terminal, stdin, timers, hooks, exit, shows };
 }
 
+describe('opening a failed repository after a batch', () => {
+  /** A batch whose repository is refused once its worktree exists, stopped at "Press any key", the reload held. */
+  async function failedBatch() {
+    let release: (run: { status: number; stdout: string }) => void = () => {};
+    const reading = new Promise<{ status: number; stdout: string }>((settle) => {
+      release = settle;
+    });
+    // git and the worktree are faked; the copy in it is what makes opening it run a doctor.
+    const runner: Runner = async (_file, args) => {
+      const ok = (stdout = '') => ({ status: 0, stdout, stderr: '' });
+      if (args.includes('add')) {
+        const tree = args[args.indexOf('-b') + 2]!;
+        const installed = join(tree, 'node_modules/@inventarch/cli');
+        mkdirSync(join(tree, '.ia/src'), { recursive: true });
+        mkdirSync(join(installed, 'dist'), { recursive: true });
+        writeFileSync(join(tree, 'package.json'), JSON.stringify({ devDependencies: { '@inventarch/cli': '3.5.0' } }));
+        writeFileSync(
+          join(installed, 'package.json'),
+          JSON.stringify({ name: '@inventarch/cli', version: '3.5.0', bin: { ia: './dist/bin.js' } }),
+        );
+        writeFileSync(join(installed, 'dist/bin.js'), '');
+        return ok();
+      }
+      if (args.some((arg) => arg.startsWith('refs/heads/'))) return { status: 1, stdout: '', stderr: '' };
+      if (args.includes('symbolic-ref')) return ok('refs/remotes/origin/main\n');
+      return ok('abc123\n');
+    };
+    const fix = iaFix(['restore', '--apply'], 'repo').fix!;
+    const run = await launchAll(1, {
+      runner,
+      collect: () => view([check('records', 'fail', { fix }), check('root', 'ok')]),
+      spawnDoctor: () => reading,
+      before: (roots) => {
+        spawnSync('git', ['init', '--quiet'], { cwd: roots[0]! });
+      },
+    });
+    await until(run.shows('ws0'), 'the row to load');
+    run.stdin.write(' ');
+    run.stdin.write('b');
+    await until(run.shows('BATCH'), 'the batch list');
+    run.stdin.write('\r');
+    await until(run.shows('WOULD'), 'the preview');
+    run.stdin.write('\r');
+    await until(run.shows('Run this batch?'), 'the confirmation');
+    run.stdin.write('y\n');
+    await until(run.shows('Open a failed repo'), 'the next list');
+    run.stdin.write('1\n');
+    await until(run.shows('Press any key'), 'the wait');
+    const mark = run.terminal.out.length;
+    run.stdin.write('x');
+    await until(() => run.terminal.out.slice(mark).includes('Reading'), 'the note that it is being read');
+    return { run, mark, release };
+  }
+  it.skipIf(process.platform === 'win32')(
+    'no key reaches another workspace’s offers while it reads; its own view follows',
+    async () => {
+      const { run, mark, release } = await failedBatch();
+      // Help, then enter: on the console's own state these would draw its view and run its first offer.
+      run.stdin.write('?');
+      run.stdin.write('\r');
+      await settle();
+      expect(run.terminal.out.slice(mark)).not.toContain('KEYS');
+      release({ status: 0, stdout: JSON.stringify({ version: 1, checks: [], counts: {} }) });
+      await until(() => run.terminal.out.slice(mark).includes('esc back'), 'the opened workspace');
+      run.stdin.write('\x03');
+      expect(await run.exit).toBe(0);
+    },
+  );
+  it.skipIf(process.platform === 'win32')('q still quits while it reads', async () => {
+    const { run } = await failedBatch();
+    run.stdin.write('q');
+    expect(await run.exit).toBe(0);
+  });
+});
+
 describe('the all-workspaces view', () => {
   it('outside a workspace lands on all workspaces', async () => {
-    const run = launchAll();
+    const run = await launchAll();
     await until(run.shows('Tracked 0'), 'the all-workspaces view');
     expect(run.terminal.out).toContain('› Find workspaces in a folder…');
     expect(run.terminal.out).toContain('No workspaces are tracked yet.');
@@ -1040,7 +1231,7 @@ describe('the all-workspaces view', () => {
     expect(await run.exit).toBe(0);
   });
   it('enter on a row opens its repo view and esc returns', async () => {
-    const run = launchAll(1);
+    const run = await launchAll(1);
     await until(run.shows('Healthy 1'), 'the row to load');
     run.stdin.write('\r');
     await until(run.shows('esc back'), 'the repo view');
@@ -1054,8 +1245,52 @@ describe('the all-workspaces view', () => {
     run.stdin.write('q');
     expect(await run.exit).toBe(0);
   });
+  // A real chmod: discovery walks up from a root it cannot read, so such a row must never open as another place.
+  it.skipIf(unprivileged)('an unreadable row reads unreadable and does not open', async () => {
+    const denied: string[] = [];
+    try {
+      const run = await launchAll(1, {
+        before: (roots) => {
+          chmodSync(roots[0]!, 0o000);
+          denied.push(roots[0]!);
+        },
+      });
+      await until(run.shows('Unreadable 1'), 'the row to be set aside');
+      expect(run.terminal.out).toContain('Healthy 0');
+      run.stdin.write('\r');
+      await until(run.shows('ws0 is unreadable.'), 'the refusal to open it');
+      expect(run.terminal.out).not.toContain('esc back');
+      run.stdin.write('q');
+      expect(await run.exit).toBe(0);
+    } finally {
+      for (const path of denied) chmodSync(path, 0o755);
+    }
+  });
+  it.skipIf(unprivileged)(
+    'an opened workspace whose root turns unreadable goes back to the table on refresh',
+    async () => {
+      const denied: string[] = [];
+      try {
+        const run = await launchAll(1);
+        await until(run.shows('Healthy 1'), 'the row to load');
+        run.stdin.write('\r');
+        await until(run.shows('esc back'), 'the repo view');
+        chmodSync(run.roots[0]!, 0o000);
+        denied.push(run.roots[0]!);
+        const mark = run.terminal.out.length;
+        run.stdin.write('r');
+        await until(() => run.terminal.out.slice(mark).includes('ws0 is unreadable.'), 'the table');
+        expect(run.terminal.out.slice(mark)).toContain('space select');
+        expect(run.terminal.out.slice(mark)).toContain('Unreadable 1');
+        run.stdin.write('q');
+        expect(await run.exit).toBe(0);
+      } finally {
+        for (const path of denied) chmodSync(path, 0o755);
+      }
+    },
+  );
   it('f opens the folder line in text mode: b, q and j are typed, not commands', async () => {
-    const run = launchAll(1);
+    const run = await launchAll(1);
     await until(run.shows('Healthy 1'), 'the row to load');
     run.stdin.write('f');
     await until(run.shows(`${tail(run.base)}▌`), 'the folder line');
@@ -1070,7 +1305,7 @@ describe('the all-workspaces view', () => {
     expect(await run.exit).toBe(0);
   });
   it('an arrow key split across chunks inside the folder line is not Escape', async () => {
-    const run = launchAll();
+    const run = await launchAll();
     await until(run.shows('Tracked 0'), 'the view');
     run.stdin.write('f');
     await until(run.shows('Folder: '), 'the folder line');
@@ -1086,7 +1321,7 @@ describe('the all-workspaces view', () => {
     expect(await run.exit).toBe(0);
   });
   it('a lone Esc cancels the folder line after the timer', async () => {
-    const run = launchAll();
+    const run = await launchAll();
     await until(run.shows('Tracked 0'), 'the view');
     run.stdin.write('f');
     await until(run.shows('Folder: '), 'the folder line');
@@ -1103,7 +1338,7 @@ describe('the all-workspaces view', () => {
     expect(await run.exit).toBe(0);
   });
   it('paste and backspace edit the line; enter submits', async () => {
-    const run = launchAll(1);
+    const run = await launchAll(1);
     mkdirSync(join(run.base, 'fresh', '.ia/src'), { recursive: true });
     await until(run.shows('Healthy 1'), 'the row to load');
     run.stdin.write('f');
@@ -1130,8 +1365,48 @@ describe('the all-workspaces view', () => {
     run.stdin.write('q');
     expect(await run.exit).toBe(0);
   });
+  it("a tracking that waits on a live owner's lock drops other keys, and q ends the wait, leaving that lock as it was", async () => {
+    const run = await launchAll(1);
+    mkdirSync(join(run.base, 'fresh', '.ia/src'), { recursive: true });
+    await until(run.shows('Healthy 1'), 'the row to load');
+    // Another owner on this host, still running (this process), holds the store lock for as long as the test needs.
+    const lock = join(run.home, TRACKED_LOCK_FILE);
+    writeFileSync(
+      lock,
+      JSON.stringify({
+        token: 'planted',
+        start: null,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        host: hostname(),
+        pid: process.pid,
+      }),
+    );
+    const before = readFileSync(lock),
+      tracked = readTracked(run.home);
+    run.stdin.write('f');
+    await until(run.shows('Folder: '), 'the folder line');
+    run.stdin.write('\r');
+    await until(run.shows('FOUND IN'), 'the found list');
+    const mark = run.terminal.out.length;
+    // Enter starts the tracking, which waits on the lock; the `f` after it would open the folder line again.
+    run.stdin.write('\r');
+    run.stdin.write('f');
+    await new Promise((settled) => setTimeout(settled, 150));
+    expect(run.terminal.out.slice(mark)).not.toContain('Folder: ');
+    expect(run.hooks.exits).toEqual([]);
+    const quit = Date.now();
+    run.stdin.write('q');
+    expect(await run.exit).toBe(0);
+    expect(Date.now() - quit).toBeLessThan(2_000);
+    expect(readFileSync(lock)).toEqual(before);
+    // The wait was stopped, not left running: once the lock goes, nothing takes it and the list is unchanged.
+    rmSync(lock);
+    await new Promise((settled) => setTimeout(settled, 200));
+    expect(existsSync(lock)).toBe(false);
+    expect(readTracked(run.home)).toEqual(tracked);
+  });
   it('b focuses the batch list only in keys mode', async () => {
-    const run = launchAll(1);
+    const run = await launchAll(1);
     await until(run.shows('Healthy 1'), 'the row to load');
     expect(run.terminal.out).toContain('› [ ]');
     run.stdin.write('b');
@@ -1160,7 +1435,7 @@ const markedReport = (marker: string) => ({
     counts: {},
   }),
 });
-const escapeKey = async (run: ReturnType<typeof launchAll>): Promise<void> => {
+const escapeKey = async (run: Awaited<ReturnType<typeof launchAll>>): Promise<void> => {
   const timers = run.timers.length;
   run.stdin.write('\x1b');
   await until(() => run.timers.length > timers, 'the escape timer');
@@ -1178,9 +1453,40 @@ describe('refreshing a workspace opened from the table', () => {
         : Promise.resolve(markedReport(`fresh ${root.slice(-3)}`));
     return { pending, state, spawnDoctor };
   }
+  it("a refresh of an opened root that went missing runs no copy, not even the surrounding workspace's", async () => {
+    const spawned: string[] = [];
+    const spawnDoctor: SpawnDoctor = (_entry, root) => {
+      spawned.push(root);
+      return Promise.resolve(markedReport(`fresh ${root.slice(-3)}`));
+    };
+    const run = await launchAll(1, { copies: true, spawnDoctor });
+    await until(run.shows('Attention 1'), 'the row');
+    run.stdin.write('\r');
+    await until(run.shows('esc back'), 'the repo view');
+    // The folder around the root becomes a workspace with its own copy, which discovery would reach by walking up.
+    mkdirSync(join(run.base, '.ia/src'), { recursive: true });
+    writeFileSync(join(run.base, 'package.json'), JSON.stringify({ devDependencies: { '@inventarch/cli': '3.5.0' } }));
+    const around = join(run.base, 'node_modules/@inventarch/cli');
+    mkdirSync(join(around, 'dist'), { recursive: true });
+    writeFileSync(
+      join(around, 'package.json'),
+      JSON.stringify({ name: '@inventarch/cli', version: '3.5.0', bin: { ia: './dist/bin.js' } }),
+    );
+    writeFileSync(join(around, 'dist/bin.js'), '');
+    rmSync(join(run.roots[0]!, '.ia'), { recursive: true });
+    spawned.length = 0;
+    const mark = run.terminal.out.length;
+    run.stdin.write('r');
+    await until(() => run.terminal.out.slice(mark).includes('ws0 is missing.'), 'the table');
+    await settle();
+    expect(spawned).toEqual([]);
+    expect(run.terminal.out.slice(mark)).toContain('Missing 1');
+    run.stdin.write('q');
+    expect(await run.exit).toBe(0);
+  });
   it('a refresh that finishes after Escape or q is discarded, and the console keeps running', async () => {
     const doctor = held();
-    const run = launchAll(2, { copies: true, spawnDoctor: doctor.spawnDoctor });
+    const run = await launchAll(2, { copies: true, spawnDoctor: doctor.spawnDoctor });
     await until(run.shows('Attention 2'), 'both rows');
     for (const leave of ['escape', 'q'] as const) {
       run.stdin.write('\r');
@@ -1204,7 +1510,7 @@ describe('refreshing a workspace opened from the table', () => {
   });
   it('a refresh of one repo that finishes after another is opened never shows in it', async () => {
     const doctor = held();
-    const run = launchAll(2, { copies: true, spawnDoctor: doctor.spawnDoctor });
+    const run = await launchAll(2, { copies: true, spawnDoctor: doctor.spawnDoctor });
     await until(run.shows('Attention 2'), 'both rows');
     run.stdin.write('\r');
     await until(run.shows('esc back'), 'the first repo');
@@ -1233,7 +1539,7 @@ describe('refreshing a workspace opened from the table', () => {
   });
   it('a home refresh that finishes after a workspace is opened from the table never shows in it', async () => {
     const doctor = held();
-    const run = launchAll(2, { copies: true, spawnDoctor: doctor.spawnDoctor, inside: true });
+    const run = await launchAll(2, { copies: true, spawnDoctor: doctor.spawnDoctor, inside: true });
     await until(run.shows('fresh ws0'), 'the home view');
     run.stdin.write('\t');
     await until(run.shows('Attention 2'), 'both rows');
@@ -1288,7 +1594,7 @@ describe('refreshing a workspace opened from the table', () => {
         });
       });
     };
-    const run = launchAll(5, { copies: true, spawnDoctor });
+    const run = await launchAll(5, { copies: true, spawnDoctor });
     await until(() => calls.length === 5 && run.terminal.out.includes('first'), 'four held runs and the first row');
     run.stdin.write('\r');
     await until(run.shows('esc back'), 'the first repo');
@@ -1313,5 +1619,169 @@ describe('refreshing a workspace opened from the table', () => {
     await new Promise((resolve) => setTimeout(resolve, 40));
     expect(calls.length).toBe(after);
     expect(most).toBeLessThanOrEqual(4);
+  });
+});
+
+/** A doctor report whose one failing check carries a repo-writing fix, so its row offers a batchable fix. */
+const batchableReport = {
+  status: 0,
+  stdout: JSON.stringify({
+    version: 1,
+    checks: [
+      { id: 'cli-version', title: 'cli', status: 'ok', detail: 'copy', remedy: null, fix: null },
+      {
+        id: 'records',
+        title: 'records',
+        status: 'warn',
+        detail: 'stale',
+        remedy: null,
+        fix: { program: 'ia', argv: ['restore', '--apply'], flow: 'preview-apply', writesTo: 'repo' },
+      },
+    ],
+    counts: {},
+  }),
+};
+/**
+ * The console outside any workspace, with one tracked workspace in a real git repository (a bare origin, git on its PATH)
+ * whose doctor offers a batchable fix, and a runner that holds its first call until `release()` and then runs every call
+ * for real. `settleHook` runs, synchronously, the moment the runner's `finally` has cleared the console's wait on the
+ * first call: no wait is open then, so only the batch's own controller can stop it.
+ */
+function launchBatch(extra: { settleHook?: () => void } = {}) {
+  const fx = fixture('console-app-batch');
+  const top = repo(fx, 'ws').top;
+  const home = join(fx.dir, 'home');
+  const cwd = join(fx.dir, 'outside');
+  mkdirSync(home, { recursive: true });
+  mkdirSync(cwd, { recursive: true });
+  writeFileSync(join(top, 'package.json'), JSON.stringify({ devDependencies: { '@inventarch/cli': '3.5.0' } }));
+  const installed = join(top, 'node_modules/@inventarch/cli');
+  mkdirSync(join(installed, 'dist'), { recursive: true });
+  writeFileSync(
+    join(installed, 'package.json'),
+    JSON.stringify({ name: '@inventarch/cli', version: '3.5.0', bin: { ia: './dist/bin.js' } }),
+  );
+  writeFileSync(join(installed, 'dist/bin.js'), '');
+  trackWorkspaces(home, [top]);
+  const env = { ...fx.env, IA_HOME: home, NO_COLOR: '1' };
+  const real = defaultRunner(env);
+  const calls: { file: string; args: readonly string[] }[] = [];
+  let release: () => void = () => {};
+  const gate = new Promise<void>((open) => {
+    release = open;
+  });
+  const runner: Runner = (file, args, options) => {
+    calls.push({ file, args: [...args] });
+    const result = calls.length === 1 ? gate.then(() => real(file, args, options)) : real(file, args, options);
+    const hook = extra.settleHook;
+    if (calls.length !== 1 || hook === undefined) return result;
+    const finallyOf = result.finally.bind(result);
+    // The console clears its wait in `.finally`; the hook runs right after that callback.
+    return Object.assign(result, {
+      finally: (callback?: (() => void) | null) =>
+        finallyOf(() => {
+          callback?.();
+          hook();
+        }),
+    });
+  };
+  const terminal = new FakeTerminal();
+  const stdin = new PassThrough();
+  const hooks = fakeHooks(terminal);
+  const exit = runConsole({
+    io: terminal,
+    input: stdin,
+    env,
+    cwd,
+    packageRoot: RUNNING,
+    version: '3.5.1',
+    collect: () => view([check('node', 'ok'), check('records', 'ok'), check('root', 'ok')]),
+    spawn: async () => 0,
+    runner,
+    setTimer: (() => 1 as unknown as ReturnType<typeof setTimeout>) as unknown as typeof setTimeout,
+    clearTimer: (() => {}) as typeof clearTimeout,
+    hooks,
+    spawnDoctor: () => Promise.resolve(batchableReport),
+  });
+  const shows = (text: string) => () => terminal.out.includes(text);
+  const worktreeAdds = () => calls.filter((call) => call.args.includes('worktree') && call.args.includes('add'));
+  return { terminal, stdin, hooks, exit, calls, release: () => release(), shows, worktreeAdds };
+}
+/** Selects the one row, picks the batch offer, confirms its preview and answers the confirmation until the runner is in. */
+async function startBatch(run: ReturnType<typeof launchBatch>): Promise<void> {
+  await until(run.shows('Attention 1'), 'the row to load', LONG);
+  run.stdin.write(' ');
+  await until(run.shows('[x]'), 'the row selected');
+  run.stdin.write('b');
+  await settle();
+  run.stdin.write('\r');
+  await until(run.shows(' WOULD'), 'the batch preview');
+  run.stdin.write('\r');
+  await until(run.shows('Run this batch? [y/N]'), 'the confirmation');
+  run.stdin.write('y\r');
+  await until(() => run.calls.length >= 1, 'the runner to be in the first command', LONG);
+}
+
+/** Real git repositories are made and queried here, which a loaded Windows machine does slowly. */
+const BATCH_TIMEOUT = 120_000;
+const LONG = 8000;
+describe('the batch the console runs', () => {
+  it(
+    'Ctrl-C reaches the running batch: nothing further starts, and the console comes back',
+    async () => {
+      const run = launchBatch();
+      await startBatch(run);
+      // The terminal's signal, while a batch command runs: it stops the batch, not the console.
+      run.hooks.listeners.get('SIGINT')!();
+      run.release();
+      await until(run.shows('Press any key to return to the console.'), 'the batch to end', LONG);
+      expect(run.terminal.out).toContain('stopped: the batch was stopped');
+      expect(run.worktreeAdds()).toEqual([]);
+      expect(run.hooks.exits).toEqual([]);
+      const mark = run.terminal.out.length;
+      run.stdin.write(' ');
+      await until(() => run.terminal.out.slice(mark).includes('space select'), 'the console to repaint', LONG);
+      run.stdin.write('q');
+      expect(await run.exit).toBe(0);
+    },
+    BATCH_TIMEOUT,
+  );
+  it(
+    'quit aborts a batch that is running between two commands',
+    async () => {
+      const holder: { run?: ReturnType<typeof launchBatch> } = {};
+      holder.run = launchBatch({ settleHook: () => holder.run!.hooks.listeners.get('SIGTERM')!() });
+      const run = holder.run;
+      await startBatch(run);
+      run.release();
+      expect(await run.exit).toBe(143);
+      await until(run.shows('stopped: the batch was stopped'), 'the batch to see its signal', LONG);
+      expect(run.worktreeAdds()).toEqual([]);
+    },
+    BATCH_TIMEOUT,
+  );
+});
+
+describe('quit with a workspace refresh pending', () => {
+  it('Ctrl-C in an opened workspace aborts its refresh in flight', async () => {
+    const signals: (AbortSignal | undefined)[] = [];
+    const spawnDoctor: SpawnDoctor = (_entry, _root, signal) => {
+      signals.push(signal);
+      // The table's read answers; the refresh holds its slot until it is aborted.
+      if (signals.length === 1) return Promise.resolve(markedReport('first'));
+      return new Promise((answer) => {
+        signal?.addEventListener('abort', () => answer({ status: null, stdout: '' }));
+      });
+    };
+    const run = await launchAll(1, { copies: true, spawnDoctor });
+    await until(run.shows('first'), 'the row to load');
+    run.stdin.write('\r');
+    await until(run.shows('esc back'), 'the opened workspace');
+    run.stdin.write('r');
+    await until(() => signals.length === 2, 'the refresh to start');
+    expect(signals[1]?.aborted).toBe(false);
+    run.stdin.write('\x03');
+    expect(await run.exit).toBe(0);
+    expect(signals[1]?.aborted).toBe(true);
   });
 });

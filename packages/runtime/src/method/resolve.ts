@@ -220,6 +220,10 @@ export function resolveMethod(request: MethodRequest, context: MethodContext): M
   // A binding may name a kit by its folder, as findKit reads it: the lock is asked about the kit's canonical id. A kit
   // only the lock's package entries install is named, as its store copy is, by its id's last segment. Both lookups only
   // read, so the refusal still comes before anything is written.
+  // The reference is read in the order the resolver serves kits, so the guard asks about the kit that would run: an exact
+  // id first, as findKit tries every id before any folder, then a folder in workspaceKits' order: bundled, the lock's
+  // entry rows (lock order, first row wins, whether or not the store holds it yet), IA home. Like workspaceKits, a carried
+  // copy of a kit the entries name yields its folder to those rows, and that folder only names the kit as a last resort.
   const canonicalId = (ref: string): string => {
     let carried: Kit[] = [];
     try {
@@ -227,21 +231,26 @@ export function resolveMethod(request: MethodRequest, context: MethodContext): M
     } catch {
       carried = [];
     }
-    const id = canonicalKitId(ref, carried);
-    if (id !== ref || workspaceRoot === null) return id;
     let locked: readonly LockedKit[] = [];
     try {
-      locked = lockedPackageKits(workspaceRoot);
+      locked = lockedPackageKits(workspaceRoot!);
     } catch {
       locked = [];
     }
-    return locked.find((row) => row.id === ref || row.id.slice(row.id.indexOf('/') + 1) === ref)?.id ?? ref;
+    if ([...locked, ...carried].some((kit) => kit.id === ref)) return ref;
+    const kept = carried.filter((kit) => !locked.some((row) => row.id === kit.id) && kit.folder === ref);
+    return (
+      kept.find((kit) => kit.origin === 'bundled')?.id ??
+      locked.find((row) => row.id.slice(row.id.indexOf('/') + 1) === ref)?.id ??
+      kept[0]?.id ??
+      canonicalKitId(ref, carried)
+    );
   };
   const kitId = unbound ? binding.kit : canonicalId(binding.kit);
   if (!unbound) requireKitInstalled(workspaceRoot!, { id: kitId });
 
   const keyPin = pin?.keys?.[activityKey] ?? null;
-  const savedKit = pin?.kits?.[binding.kit] ?? null;
+  const savedKit = pin?.kits?.[kitId] ?? null;
   let carried: Kit | undefined;
   // A kit a package entry installs is read from the store: one the store lacks refuses, never read from another copy.
   const unrestored = workspaceRoot === null ? undefined : at().missing.find((row) => row.id === kitId);
@@ -337,7 +346,11 @@ export function resolveMethod(request: MethodRequest, context: MethodContext): M
 
   const readerInfo = { version: VERSION, source: 'in-process' };
   assertReadable(kit, readerInfo);
-  const kitRoot = kitReadRoot(kit, context.restore, context.cache === undefined ? { env } : { base: context.cache });
+  const { root: kitRoot, base } = kitReadRoot(
+    kit,
+    context.restore,
+    context.cache === undefined ? { env } : { base: context.cache },
+  );
   const key = scopeKey(request.entry, request.activity, { shape: request.shape, phase: request.phase });
   if (request.seat)
     note(
@@ -547,6 +560,7 @@ export function resolveMethod(request: MethodRequest, context: MethodContext): M
         cliVersion: readerInfo.version,
         cliSource: readerInfo.source,
         kitRoot,
+        base,
         kitInstalled: Boolean(installed),
         run: request.run ?? null,
         latencyMs: 0,

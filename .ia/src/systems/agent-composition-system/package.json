@@ -1,6 +1,6 @@
 {
   "name": "@inventarch/agent-composition-system",
-  "version": "3.5.1",
+  "version": "3.8.0",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -10,88 +10,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./resources": {
-      "development": "./src/resources.ts",
-      "types": "./dist/resources.d.ts",
-      "default": "./dist/resources.js"
-    },
-    "./projections": {
-      "development": "./src/projections.ts",
-      "types": "./dist/projections.d.ts",
-      "default": "./dist/projections.js"
-    },
-    "./templates": {
-      "development": "./src/templates.ts",
-      "types": "./dist/templates.d.ts",
-      "default": "./dist/templates.js"
-    },
     "./tools": {
       "development": "./src/tools.ts",
       "types": "./dist/tools.d.ts",
       "default": "./dist/tools.js"
-    },
-    "./sources": {
-      "development": "./src/sources.ts",
-      "types": "./dist/sources.d.ts",
-      "default": "./dist/sources.js"
-    },
-    "./authoring": {
-      "development": "./src/authoring.ts",
-      "types": "./dist/authoring.d.ts",
-      "default": "./dist/authoring.js"
-    },
-    "./authoring-manifest": {
-      "development": "./src/authoring-manifest.ts",
-      "types": "./dist/authoring-manifest.d.ts",
-      "default": "./dist/authoring-manifest.js"
-    },
-    "./lifecycle": {
-      "development": "./src/lifecycle.ts",
-      "types": "./dist/lifecycle.d.ts",
-      "default": "./dist/lifecycle.js"
-    },
-    "./lifecycle-profile": {
-      "development": "./src/lifecycle-profile.ts",
-      "types": "./dist/lifecycle-profile.d.ts",
-      "default": "./dist/lifecycle-profile.js"
-    },
-    "./adapters": {
-      "development": "./src/adapters.ts",
-      "types": "./dist/adapters.d.ts",
-      "default": "./dist/adapters.js"
-    },
-    "./local-store": {
-      "development": "./src/local-store.ts",
-      "types": "./dist/local-store.d.ts",
-      "default": "./dist/local-store.js"
-    },
-    "./internal/adapters": {
-      "types": "./dist/adapters.d.ts",
-      "default": "./dist/adapters.js"
-    },
-    "./internal/authoring-format": {
-      "types": "./dist/authoring-format.d.ts",
-      "default": "./dist/authoring-format.js"
-    },
-    "./internal/authoring-index": {
-      "types": "./dist/authoring-index.d.ts",
-      "default": "./dist/authoring-index.js"
-    },
-    "./internal/authoring-manifest": {
-      "types": "./dist/authoring-manifest.d.ts",
-      "default": "./dist/authoring-manifest.js"
-    },
-    "./internal/authoring-types": {
-      "types": "./dist/authoring-types.d.ts",
-      "default": "./dist/authoring-types.js"
-    },
-    "./internal/authoring": {
-      "types": "./dist/authoring.d.ts",
-      "default": "./dist/authoring.js"
-    },
-    "./internal/candidate": {
-      "types": "./dist/candidate.d.ts",
-      "default": "./dist/candidate.js"
     },
     "./internal/catalog": {
       "types": "./dist/catalog.d.ts",
@@ -104,10 +26,6 @@
     "./internal/compiled": {
       "types": "./dist/compiled.d.ts",
       "default": "./dist/compiled.js"
-    },
-    "./internal/corpus": {
-      "types": "./dist/corpus.d.ts",
-      "default": "./dist/corpus.js"
     },
     "./internal/execution": {
       "types": "./dist/execution.d.ts",
@@ -133,82 +51,6 @@
       "types": "./dist/installed-read.d.ts",
       "default": "./dist/installed-read.js"
     },
-    "./internal/installed-source-policy": {
-      "types": "./dist/installed-source-policy.d.ts",
-      "default": "./dist/installed-source-policy.js"
-    },
-    "./internal/lifecycle-profile": {
-      "types": "./dist/lifecycle-profile.d.ts",
-      "default": "./dist/lifecycle-profile.js"
-    },
-    "./internal/lifecycle-rows": {
-      "types": "./dist/lifecycle-rows.d.ts",
-      "default": "./dist/lifecycle-rows.js"
-    },
-    "./internal/lifecycle-transport": {
-      "types": "./dist/lifecycle-transport.d.ts",
-      "default": "./dist/lifecycle-transport.js"
-    },
-    "./internal/lifecycle": {
-      "types": "./dist/lifecycle.d.ts",
-      "default": "./dist/lifecycle.js"
-    },
-    "./internal/local-store": {
-      "types": "./dist/local-store.d.ts",
-      "default": "./dist/local-store.js"
-    },
-    "./internal/projection-codex": {
-      "types": "./dist/projection-codex.d.ts",
-      "default": "./dist/projection-codex.js"
-    },
-    "./internal/projection-format": {
-      "types": "./dist/projection-format.d.ts",
-      "default": "./dist/projection-format.js"
-    },
-    "./internal/projection-host": {
-      "types": "./dist/projection-host.d.ts",
-      "default": "./dist/projection-host.js"
-    },
-    "./internal/projection-routine": {
-      "types": "./dist/projection-routine.d.ts",
-      "default": "./dist/projection-routine.js"
-    },
-    "./internal/projections": {
-      "types": "./dist/projections.d.ts",
-      "default": "./dist/projections.js"
-    },
-    "./internal/publication": {
-      "types": "./dist/publication.d.ts",
-      "default": "./dist/publication.js"
-    },
-    "./internal/resource-context": {
-      "types": "./dist/resource-context.d.ts",
-      "default": "./dist/resource-context.js"
-    },
-    "./internal/resource-files": {
-      "types": "./dist/resource-files.d.ts",
-      "default": "./dist/resource-files.js"
-    },
-    "./internal/resource-format": {
-      "types": "./dist/resource-format.d.ts",
-      "default": "./dist/resource-format.js"
-    },
-    "./internal/resource-sources": {
-      "types": "./dist/resource-sources.d.ts",
-      "default": "./dist/resource-sources.js"
-    },
-    "./internal/resources": {
-      "types": "./dist/resources.d.ts",
-      "default": "./dist/resources.js"
-    },
-    "./internal/sources": {
-      "types": "./dist/sources.d.ts",
-      "default": "./dist/sources.js"
-    },
-    "./internal/task-capture-format": {
-      "types": "./dist/task-capture-format.d.ts",
-      "default": "./dist/task-capture-format.js"
-    },
     "./internal/task-capture": {
       "types": "./dist/task-capture.d.ts",
       "default": "./dist/task-capture.js"
@@ -220,10 +62,6 @@
     "./internal/task-teaching-closure": {
       "types": "./dist/task-teaching-closure.d.ts",
       "default": "./dist/task-teaching-closure.js"
-    },
-    "./internal/templates": {
-      "types": "./dist/templates.d.ts",
-      "default": "./dist/templates.js"
     },
     "./internal/tools": {
       "types": "./dist/tools.d.ts",
@@ -273,77 +111,9 @@
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
       },
-      "./resources": {
-        "types": "./dist/resources.d.ts",
-        "default": "./dist/resources.js"
-      },
-      "./projections": {
-        "types": "./dist/projections.d.ts",
-        "default": "./dist/projections.js"
-      },
-      "./templates": {
-        "types": "./dist/templates.d.ts",
-        "default": "./dist/templates.js"
-      },
       "./tools": {
         "types": "./dist/tools.d.ts",
         "default": "./dist/tools.js"
-      },
-      "./sources": {
-        "types": "./dist/sources.d.ts",
-        "default": "./dist/sources.js"
-      },
-      "./authoring": {
-        "types": "./dist/authoring.d.ts",
-        "default": "./dist/authoring.js"
-      },
-      "./authoring-manifest": {
-        "types": "./dist/authoring-manifest.d.ts",
-        "default": "./dist/authoring-manifest.js"
-      },
-      "./lifecycle": {
-        "types": "./dist/lifecycle.d.ts",
-        "default": "./dist/lifecycle.js"
-      },
-      "./lifecycle-profile": {
-        "types": "./dist/lifecycle-profile.d.ts",
-        "default": "./dist/lifecycle-profile.js"
-      },
-      "./adapters": {
-        "types": "./dist/adapters.d.ts",
-        "default": "./dist/adapters.js"
-      },
-      "./local-store": {
-        "types": "./dist/local-store.d.ts",
-        "default": "./dist/local-store.js"
-      },
-      "./internal/adapters": {
-        "types": "./dist/adapters.d.ts",
-        "default": "./dist/adapters.js"
-      },
-      "./internal/authoring-format": {
-        "types": "./dist/authoring-format.d.ts",
-        "default": "./dist/authoring-format.js"
-      },
-      "./internal/authoring-index": {
-        "types": "./dist/authoring-index.d.ts",
-        "default": "./dist/authoring-index.js"
-      },
-      "./internal/authoring-manifest": {
-        "types": "./dist/authoring-manifest.d.ts",
-        "default": "./dist/authoring-manifest.js"
-      },
-      "./internal/authoring-types": {
-        "types": "./dist/authoring-types.d.ts",
-        "default": "./dist/authoring-types.js"
-      },
-      "./internal/authoring": {
-        "types": "./dist/authoring.d.ts",
-        "default": "./dist/authoring.js"
-      },
-      "./internal/candidate": {
-        "types": "./dist/candidate.d.ts",
-        "default": "./dist/candidate.js"
       },
       "./internal/catalog": {
         "types": "./dist/catalog.d.ts",
@@ -356,10 +126,6 @@
       "./internal/compiled": {
         "types": "./dist/compiled.d.ts",
         "default": "./dist/compiled.js"
-      },
-      "./internal/corpus": {
-        "types": "./dist/corpus.d.ts",
-        "default": "./dist/corpus.js"
       },
       "./internal/execution": {
         "types": "./dist/execution.d.ts",
@@ -385,82 +151,6 @@
         "types": "./dist/installed-read.d.ts",
         "default": "./dist/installed-read.js"
       },
-      "./internal/installed-source-policy": {
-        "types": "./dist/installed-source-policy.d.ts",
-        "default": "./dist/installed-source-policy.js"
-      },
-      "./internal/lifecycle-profile": {
-        "types": "./dist/lifecycle-profile.d.ts",
-        "default": "./dist/lifecycle-profile.js"
-      },
-      "./internal/lifecycle-rows": {
-        "types": "./dist/lifecycle-rows.d.ts",
-        "default": "./dist/lifecycle-rows.js"
-      },
-      "./internal/lifecycle-transport": {
-        "types": "./dist/lifecycle-transport.d.ts",
-        "default": "./dist/lifecycle-transport.js"
-      },
-      "./internal/lifecycle": {
-        "types": "./dist/lifecycle.d.ts",
-        "default": "./dist/lifecycle.js"
-      },
-      "./internal/local-store": {
-        "types": "./dist/local-store.d.ts",
-        "default": "./dist/local-store.js"
-      },
-      "./internal/projection-codex": {
-        "types": "./dist/projection-codex.d.ts",
-        "default": "./dist/projection-codex.js"
-      },
-      "./internal/projection-format": {
-        "types": "./dist/projection-format.d.ts",
-        "default": "./dist/projection-format.js"
-      },
-      "./internal/projection-host": {
-        "types": "./dist/projection-host.d.ts",
-        "default": "./dist/projection-host.js"
-      },
-      "./internal/projection-routine": {
-        "types": "./dist/projection-routine.d.ts",
-        "default": "./dist/projection-routine.js"
-      },
-      "./internal/projections": {
-        "types": "./dist/projections.d.ts",
-        "default": "./dist/projections.js"
-      },
-      "./internal/publication": {
-        "types": "./dist/publication.d.ts",
-        "default": "./dist/publication.js"
-      },
-      "./internal/resource-context": {
-        "types": "./dist/resource-context.d.ts",
-        "default": "./dist/resource-context.js"
-      },
-      "./internal/resource-files": {
-        "types": "./dist/resource-files.d.ts",
-        "default": "./dist/resource-files.js"
-      },
-      "./internal/resource-format": {
-        "types": "./dist/resource-format.d.ts",
-        "default": "./dist/resource-format.js"
-      },
-      "./internal/resource-sources": {
-        "types": "./dist/resource-sources.d.ts",
-        "default": "./dist/resource-sources.js"
-      },
-      "./internal/resources": {
-        "types": "./dist/resources.d.ts",
-        "default": "./dist/resources.js"
-      },
-      "./internal/sources": {
-        "types": "./dist/sources.d.ts",
-        "default": "./dist/sources.js"
-      },
-      "./internal/task-capture-format": {
-        "types": "./dist/task-capture-format.d.ts",
-        "default": "./dist/task-capture-format.js"
-      },
       "./internal/task-capture": {
         "types": "./dist/task-capture.d.ts",
         "default": "./dist/task-capture.js"
@@ -472,10 +162,6 @@
       "./internal/task-teaching-closure": {
         "types": "./dist/task-teaching-closure.d.ts",
         "default": "./dist/task-teaching-closure.js"
-      },
-      "./internal/templates": {
-        "types": "./dist/templates.d.ts",
-        "default": "./dist/templates.js"
       },
       "./internal/tools": {
         "types": "./dist/tools.d.ts",

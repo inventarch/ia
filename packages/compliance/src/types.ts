@@ -33,6 +33,14 @@ export const COMP_CODES = [
   'IA-COMP-ADOPTION-FAILED',
   'IA-COMP-NOT-EVALUATED',
   'IA-COMP-FIXTURE-MISMATCH',
+  'IA-COMP-CANON-WORK-PLACEMENT',
+  'IA-COMP-CANON-KIT-WORDS',
+  'IA-COMP-CANON-KIT-WORKSPACE',
+  'IA-COMP-CANON-TEACHING-LINKS',
+  'IA-COMP-CANON-SOURCE-ROOTS',
+  'IA-COMP-CANON-KIT-SCRIPTS',
+  'IA-COMP-CANON-MANDATE-WIDEN',
+  'IA-COMP-CANON-LOCAL-TIGHTEN',
 ] as const;
 export type CompCode = (typeof COMP_CODES)[number];
 /** Evaluator-catalog, obligation and receipt codes (C25-C29). A separate inventory: the repository

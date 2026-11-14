@@ -10,7 +10,12 @@ import { LANG_CODES } from '../../packages/language/src/index.js';
 import { GRAPH_CODES } from '../../packages/graph/src/index.js';
 import { COMP_CODES, EVIDENCE_CODES } from '../../packages/compliance/src/index.js';
 import { loadCorpus } from '../../packages/compliance/src/conformance/corpus.js';
-import { companionSuffixes, fileDigest, inventoryDigest } from '../../packages/compliance/src/conformance/inventory.js';
+import {
+  CONFORMANCE_PROFILE,
+  companionSuffixes,
+  fileDigest,
+  inventoryDigest,
+} from '../../packages/compliance/src/conformance/inventory.js';
 import type { ConformanceInventory, InventoryFixture } from '../../packages/compliance/src/conformance/inventory.js';
 import { runRefusalFixtures } from '../../packages/compliance/src/conformance/refusals.js';
 import { HOOK_CODES, PUBLICATION_CODES, RUNTIME_CODES, RUNTIME_ESCALATIONS } from '../../packages/runtime/src/index.js';
@@ -52,7 +57,7 @@ function fixtures(root: string): InventoryFixture[] {
   }
   return listed.sort((a, b) => compare(a.path, b.path));
 }
-/** The package-v1 inventory of this tree: what verifyFixtures runs, and what it reports as out of profile. */
+/** The package-profile inventory of this tree: what verifyFixtures runs, and what it reports as out of profile. */
 export function generateInventory(root: string): { text: string; digest: string; inventory: ConformanceInventory } {
   const sources = conformanceSources(root),
     folders = publicSystemNames(root) as string[],
@@ -63,7 +68,7 @@ export function generateInventory(root: string): { text: string; digest: string;
   ].map((result) => result.assessment.scope);
   if (new Set(boundaries).size !== boundaries.length) throw new Error('Duplicate boundary case scope');
   const inventory: ConformanceInventory = {
-    profile: 'package-v1',
+    profile: CONFORMANCE_PROFILE,
     fixtures: fixtures(root),
     corpus: sources,
     folders,

@@ -56,10 +56,10 @@ for (const verdict of verified.verdicts.filter((v) => ['COMP-KERNEL', 'COMP-FIXT
   console.log(verdict.check, verdict.outcome, verdict.basis);
 // COMP-FIXTURES pass verified
 // COMP-KERNEL pass verified
-console.log(verified.conformance.profile); // package-v1
+console.log(verified.conformance.profile); // package
 ```
 
-`verifyKernel()` regenerates the kernel from the floor and compares it with the running `@inventarch/language`; `verifyFixtures()` runs the `package-v1` profile of the fixtures this package ships. `verified.conformance.fixtures.outOfProfile` names the suites that profile does not run: hooks, the runtime, escalation, execution and publication.
+`verifyKernel()` regenerates the kernel from the floor and compares it with the running `@inventarch/language`; `verifyFixtures()` runs the `package` profile of the fixtures this package ships. `verified.conformance.fixtures.outOfProfile` names the suites that profile does not run: hooks, the runtime, escalation, execution and publication.
 
 ## 🧭 What it does
 
@@ -101,5 +101,5 @@ Finding codes are `COMP_CODES` and `EVIDENCE_CODES` (`IA-COMP-*`); language and 
 - [LANGUAGE.md](LANGUAGE.md): the packaged summary of the words this release ships
 - [Architecture reference](../../docs/reference/architecture/README.md#which-package-to-use) and the [host plugin specification](../../docs/specs/host-plugin-distribution/README.md)
 - Neighbours in the dependency direction: [`@inventarch/language`](../language/README.md) and [`@inventarch/graph`](../graph/README.md) before it; [`@inventarch/db`](../db/README.md) after it
-- In this repository, `pnpm compliance:check` runs these checks over the native corpus, the conformance fixtures and the `package-v1` inventory
+- In this repository, `pnpm compliance:check` runs these checks over the native corpus, the conformance fixtures and the `package` inventory
 - [Root README](../../README.md)

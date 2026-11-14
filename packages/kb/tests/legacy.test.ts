@@ -41,4 +41,17 @@ describe('legacy wire contract', () => {
     }
     expect(() => verifyPortable({ ...portable, extra: true })).toThrow();
   });
+  it('keeps its original 8 MiB selected byte limit', () => {
+    const megabyte = 1024 * 1024;
+    const sealed = (extra: number) => {
+      const bodies = Array.from({ length: 8 }, (_, i) => {
+        const text = 'x'.repeat(i < 7 ? megabyte : megabyte - Buffer.byteLength(native) + extra);
+        return { path: 'docs/b' + i + '.md', text, sha256: hash(text) };
+      });
+      const content = { ...envelope, files: [envelope.files[0]!, ...bodies] };
+      return { ...content, digest: hash(stableSerialize(content)) };
+    };
+    expect(verifyPortable(sealed(0)).files).toHaveLength(9);
+    expect(() => verifyPortable(sealed(1))).toThrow('Portable byte limit exceeded');
+  });
 });

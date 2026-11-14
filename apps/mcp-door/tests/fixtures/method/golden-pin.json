@@ -3,7 +3,7 @@
   "revision": 2,
   "workspace": {
     "root": "<ROOT>/consumer",
-    "revision": "0ba03680a3138194731be3ec00ab07e743550bf6c13048cfaaa2fd407a032a03"
+    "revision": "62f89db7d82ef18d3ad6212d23d7367dd8046957c6e20c4583db6984da1b4707"
   },
   "task": "golden",
   "kits": {

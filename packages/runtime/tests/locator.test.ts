@@ -682,7 +682,7 @@ it('reads the authoring guide reference and the template resource of an adopted 
   put(
     root,
     `${vendor}/.ia/src/systems/template-system/records/template.ia`,
-    '#! ia 1.0\n@template located-template\n  meaning\n    says "Renders a captured resource."\n    answers "Which resource does it render?"\n  template\n    filename "out.json"\n    parameters []\n    lines []\n    profile structured-v1\n    resource "templates/located.json"\n',
+    '#! ia 1.0\n@template located-template\n  meaning\n    says "Renders a captured resource."\n    answers "Which resource does it render?"\n  template\n    filename "out.json"\n    parameters []\n    lines []\n    profile structured\n    resource "templates/located.json"\n',
   );
   const pinned = readInputs(resolve(root, vendor), { adopted: [] })
     .sources.filter((s) => !s.path.startsWith('.ia/src/floor/'))

@@ -35,7 +35,7 @@
  * COMP-FIXTURES are both verified passes, and says which is not. Without it the exit is as before.
  */
 import { EVIDENCE_DIRECTORY } from '@inventarch/db';
-import type { EvidenceWrite } from '@inventarch/db';
+import type { EvidenceWrite, LawStatus } from '@inventarch/db';
 import { readHostPin } from '@inventarch/distribution/host-home';
 import { installationTrust } from '@inventarch/distribution/implementations';
 import type { HostTrust } from '@inventarch/distribution/implementations';
@@ -125,6 +125,22 @@ const ACTIONS: Readonly<Record<string, string>> = {
     'Add an unconditional implementing case for the named requirement, or withdraw the requirement.',
   'IA-COMP-DISCRIMINATOR-FOREIGN':
     'Declare the owning system as a direct requirement, or move the record to a system that already requires it.',
+  'IA-COMP-CANON-WORK-PLACEMENT':
+    'Move the plan, milestone, task, decision or specification to a workspace-authored record outside .ia/src/systems/, then run "ia validate" again.',
+  'IA-COMP-CANON-KIT-WORDS':
+    'Remove the discriminators from the kit system, and list the owning system of every word its records use under requires, then run "ia validate" again.',
+  'IA-COMP-CANON-KIT-WORKSPACE':
+    'Remove composition.steward and composition.sources from the kit workspace, then run "ia validate" again.',
+  'IA-COMP-CANON-TEACHING-LINKS':
+    'Point the teaching link at an existing file or section under .ia/src/, or remove it, then run "ia validate" again.',
+  'IA-COMP-CANON-SOURCE-ROOTS':
+    'Remove the nested .ia/src, or release or adopt it as its own workspace (a release.json or distributions.lock.json beside it), then run "ia validate" again.',
+  'IA-COMP-CANON-KIT-SCRIPTS':
+    'Remove the script from the kit, or move it into the .ia/src/systems/<system>/ folder of a system that holds an execution-binding, then run "ia validate" again.',
+  'IA-COMP-CANON-MANDATE-WIDEN':
+    'Remove the move or path the cited mandate does not allow from the citing mandate, or widen the cited mandate, then run "ia validate" again.',
+  'IA-COMP-CANON-LOCAL-TIGHTEN':
+    'Give the local law or convention the subject word of the canon law it cites and a severity at least as strong, or stop citing that law, then run "ia validate" again.',
 };
 
 /** The next action for a check verification did not evaluate: its evaluator is built in, so there is none to supply. */
@@ -150,6 +166,16 @@ const countsOf = (findings: readonly Finding[]) => ({
   warnings: findings.filter((finding) => finding.severity === 'warning').length,
   notEvaluated: findings.filter((finding) => NOT_EVALUATED.has(finding.code)).length,
 });
+const lawCounts = (laws: readonly LawStatus[]) => ({
+  lawsPending: laws.filter((law) => law.state === 'pending').length,
+  lawsSuspended: laws.filter((law) => law.state === 'suspended').length,
+});
+const LAW_STATE: Readonly<Record<LawStatus['state'], string>> = {
+  enforced: 'enforced',
+  pending: 'pending (enforcement pending)',
+  'not-evaluated': 'not evaluated',
+  suspended: 'suspended',
+};
 const findingKey = (finding: Finding): string =>
   JSON.stringify([finding.code, finding.path, finding.line, finding.message]);
 
@@ -190,6 +216,8 @@ export interface ValidationView {
   readonly bindings: ValidationBindings;
   /** Every admitted `@check` bound, unfiltered. */
   readonly checkBindings: ValidationChecks;
+  /** Every admitted `@law` with its status, unfiltered. A pending, not-evaluated or suspended law never fails a run. */
+  readonly laws: readonly LawStatus[];
   /** What this validate request recorded as evidence. */
   readonly evidence: EvidenceWrite;
   /**
@@ -312,6 +340,7 @@ export function collectValidation(
         checks: checkNames(reported.reader.report.verdicts),
         bindings: session.bindings(trust),
         checkBindings,
+        laws: reported.laws(),
         evidence,
         evidenceStatus: session.admission().status,
         ...(verifying === undefined ? {} : { conformance: conformanceOf(verifying.reader.report) }),
@@ -359,11 +388,12 @@ export function validationEnvelope(view: ValidationView, options: ValidationOpti
     authoredRevision: view.authoredRevision,
     status: view.status,
     reportOutcome: view.outcome,
-    counts: countsOf(view.findings),
+    counts: { ...countsOf(view.findings), ...lawCounts(view.laws) },
     findings: shown,
     truncated: shown.length < reported.length,
     bindings: view.bindings,
     checks: view.checkBindings,
+    laws: view.laws,
     evidence: view.evidence,
     ...(view.conformance === undefined ? {} : { conformance: view.conformance }),
   };
@@ -397,6 +427,34 @@ const resultRows = (rows: readonly ResultRow[], caps: Capabilities): readonly st
     ),
   );
 };
+/** The Laws section: the count of each state, then each law with its state, severity and what enforces or suspends it. */
+const lawsSection = (laws: readonly LawStatus[], caps: Capabilities): readonly string[] => {
+  const states = Object.keys(LAW_STATE) as LawStatus['state'][],
+    count = (state: LawStatus['state']) => laws.filter((law) => law.state === state).length;
+  const rows: ResultRow[] = laws.map((law) => ({
+    symbol: law.state === 'enforced' ? 'success' : 'unknown',
+    identity: law.identity,
+    result: `${LAW_STATE[law.state]}, ${law.severity}`,
+    reason:
+      law.state === 'suspended'
+        ? `suspended by ${law.suspendedBy ?? 'an improvement'}; its findings report as warnings`
+        : law.state === 'pending'
+          ? 'no check enforces it yet, so it never blocks'
+          : law.state === 'not-evaluated'
+            ? `${listed(law.checks)} did not produce a built-in result, so it never blocks`
+            : `enforced by ${listed(law.checks)}`,
+  }));
+  return [
+    sectionLabel('Laws', caps),
+    ...entry(
+      [words(states.map((state) => `${count(state)} ${LAW_STATE[state]}`).join(', ') + '.')],
+      { depth: 1, symbol: 'info' },
+      caps,
+    ),
+    ...resultRows(rows, caps),
+  ];
+};
+
 /** The Checks section: the catalog any non-built-in check binds against, one entry per check, then what was recorded. */
 const checksSection = (view: ValidationView, caps: Capabilities): readonly string[] => {
   const { catalog, results } = view.checkBindings,
@@ -693,6 +751,7 @@ export function renderValidation(view: ValidationView, options: ValidationOption
   if (view.conformance !== undefined) blocks.push(conformanceSection(view, view.conformance, caps));
   if (view.checkBindings.results.length > 0) blocks.push(checksSection(view, caps));
   if (view.bindings.results.length > 0) blocks.push(bindingsSection(view.bindings, caps));
+  if (view.laws.length > 0) blocks.push(lawsSection(view.laws, caps));
   blocks.push(
     entry(
       [

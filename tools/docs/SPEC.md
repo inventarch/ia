@@ -12,6 +12,7 @@ Parse Markdown once and enforce documentation ownership, links, catalog identity
 - [catalog.mjs](catalog.mjs).
 - [check.ts](check.ts).
 - [link-parity.test.ts](link-parity.test.ts) — behavior and refusal coverage.
+- [teaching-scanner-parity.test.ts](teaching-scanner-parity.test.ts) — the db teaching-link scanner agrees with the Markdown parser on the shipped `.ia/src` corpus.
 - [markdown.d.mts](markdown.d.mts) — interface declaration; implementation checking is tracked separately.
 - [markdown.mjs](markdown.mjs).
 - [teaching-links.mjs](teaching-links.mjs).

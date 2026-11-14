@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, realpathSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { expect, it } from 'vitest';
 import { COPILOT_FOLDER } from '@inventarch/distribution/hosts';
@@ -103,6 +103,28 @@ it('refuses a directory with no .ia/src, naming ia init, through the committed a
       message: expect.stringContaining('.ia/src is absent'),
       next: `Run "ia init ${quote(realpathSync(bare))}" first.`,
     });
+  }
+});
+
+it('an empty .ia/src counts as a workspace for the guard: both routes plan, with no ia init and no not-a-workspace refusal', async () => {
+  const { env } = await initialized();
+  const empty = scratch('host-empty-source');
+  mkdirSync(resolve(empty, '.ia/src'), { recursive: true });
+  for (const argv of [
+    ['host', 'claude', '--commit', '--root', empty, '--json'],
+    ['host', 'claude', '--root', empty, '--json'],
+  ]) {
+    const planned = await run(argv, { env });
+    expect(planned.exitCode, `${argv.join(' ')}: ${planned.stdout}`).toBe(0);
+    expect(planned.stdout).not.toContain('ia init');
+    expect(planned.stdout).not.toContain('not a workspace');
+    const envelope = JSON.parse(planned.stdout);
+    expect(envelope).toMatchObject({ command: 'host', host: 'claude' });
+    // The ordinary route lists its plan elements; a conflict there still exits 0, so check each one. The --commit envelope has none.
+    if (!argv.includes('--commit')) {
+      expect(envelope.plan.elements.length, argv.join(' ')).toBeGreaterThan(0);
+      for (const element of envelope.plan.elements) expect(element.conflict, `${element.id}`).toBeNull();
+    }
   }
 });
 

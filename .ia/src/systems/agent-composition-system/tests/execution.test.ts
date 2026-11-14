@@ -7,7 +7,8 @@ import type { EngineHost, Grant } from '@inventarch/agent-system';
 import { digest, memoryStore } from '@inventarch/session-system';
 import type { Json } from '@inventarch/session-system';
 import type { CandidateEnvelope, CandidateScope } from '@inventarch/runtime';
-import { candidateValidation, compileHarness, Corpus, executionManifest, installed } from '../src/index.js';
+import { compileHarness, executionManifest, installed } from '../src/index.js';
+import { candidateValidation, Corpus } from '@inventarch/workspace-runtime';
 
 import { executionFixture, executionCatalog as inspectionCatalog } from './execution-fixture.js';
 

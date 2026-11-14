@@ -15,15 +15,17 @@ import { afterAll, beforeAll, expect, it } from 'vitest';
 import { applyInstallation, cacheArchive, planInstallation } from '@inventarch/distribution/install';
 import { packDistribution } from '@inventarch/distribution/pack';
 import { folderKits, readReleases } from '@inventarch/runtime/method';
-import { MethodTools, restoreKit } from '../src/method.js';
+import { MethodTools } from '../src/method.js';
 import { Protocol } from '../src/protocol.js';
+import { restoreInPlace } from './kit-base.js';
 
 /**
  * The door at a workspace whose lock installs kits from an npm package of kits (contract C7b, ia-kb `dec-133`). npm is
  * transport only: the engine installs the package entry's kits as ordinary releases in the workspace store, and the
  * door reads them from there. The kit is the ia-kb kit of `fixtures/method/plugin.json.gz` (marketplace 63f5d75,
  * Apache-2.0; `fixtures/method/PROVENANCE.json`), packed here with this package's language base into exactly the
- * archive its `releases.json` names for 0.9.0, so the entry pins the published release.
+ * archive its `releases.json` names for 0.9.0, so the entry pins the published release. The kit keeps its published
+ * lock (`kit-base.ts`); its archive does not carry the lock.
  */
 const fixtures = new URL('./fixtures/', import.meta.url);
 const BASE = JSON.parse(readFileSync(new URL('../assets/base.json', import.meta.url), 'utf8')) as {
@@ -45,7 +47,7 @@ beforeAll(() => {
     mkdirSync(dirname(join(plugin, path)), { recursive: true });
     writeFileSync(join(plugin, path), text);
   }
-  // `ia pack` of the fixture kit, in a copy restored with the language base it locks.
+  // `ia pack` of the fixture kit, in a copy restored with the language base the door chooses for it (`kit-base.ts`).
   const source = join(root, 'kits', 'ia-kb');
   for (const [path, text] of Object.entries(files))
     if (path.startsWith('config/kits/ia-kb/')) {
@@ -53,7 +55,7 @@ beforeAll(() => {
       mkdirSync(dirname(target), { recursive: true });
       writeFileSync(target, text);
     }
-  restoreKit(source, folderKits(join(root, 'kits'))[0]!);
+  restoreInPlace(source, folderKits(join(root, 'kits'))[0]!);
   const packed = packDistribution(source, readFileSync(join(source, '.ia', 'release.json'), 'utf8'));
   const released = readReleases(source).releases.find((row) => row.version === '0.9.0')!;
   kit = {
@@ -132,6 +134,12 @@ it('reads a kit the package entry installs from the workspace store, as an insta
   const packet = answer.value as { closure: Record<string, unknown>; envelope: Record<string, unknown> };
   expect(packet.closure).toMatchObject({ kit: 'inventarch/ia-kb-kit', version: '0.9.0', archive: kit.archive });
   expect(packet.envelope).toMatchObject({ kitInstalled: true });
+  // The installed kit's lock is synthesized from the workspace lock, which installs this door's newest base.
+  expect(packet.envelope['base']).toEqual({
+    locked: { version: BASE.version, archive: BASE.archive },
+    effective: { version: BASE.version, archive: BASE.archive },
+    mode: 'exact',
+  });
   // The bundled copy of the same kit is never read in its place.
   const bundled = tools(join(plugin, 'config', 'kits')).call('method:session', {}).value as { kits: unknown[] };
   expect(bundled.kits).toEqual([{ kit: 'inventarch/ia-kb-kit', version: '0.9.0', source: 'installed' }]);

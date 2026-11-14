@@ -1,12 +1,36 @@
-import { readFileSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
+import { readFileSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { DirectedEdgeRow } from '@inventarch/graph';
+import { PHASES } from '@inventarch/language';
 import type { Location } from '@inventarch/language';
 import { expect, it } from 'vitest';
+import { runBounded } from '@tools/testing/subprocess.js';
+import { EditorDatabase } from '../src/editor/index.js';
 import { open } from '../src/index.js';
+import type { Handle, Scope } from '../src/index.js';
 import { methodId, methodPath, put, workspace } from './workspace.js';
 
 const code = (value: string) => expect.objectContaining({ code: `IA-DB-${value}` });
+/** Every read a scope token binds (D08, D09), a child scope among them. */
+const scopedReads = (db: Handle, within: string): readonly (() => unknown)[] => [
+  () => db.records({ within }),
+  () => db.get(methodId, { within }),
+  () => db.referencedBy(methodId, { within }),
+  () => db.directedView(methodId, { within }),
+  () => db.resolveSeat(methodPath, { within }),
+  () => db.inertDeclarations({ within }),
+  () => db.words({ within }),
+  () => db.roots({ within }),
+  () => db.resolve({ kind: 'identity', identity: methodId }, { within }),
+  () => db.search('fixture', { within }),
+  () => db.traverse({ start: [methodId], within }),
+  () => db.snapshot({ within }),
+  () => db.staleness(methodId, { within }),
+  () => db.readiness(methodId, '0'.repeat(64), { within }),
+  () => db.isCompleteScope(within),
+  () => db.resolveScope({ within }),
+];
 it('issues opaque immutable scope bindings, inherits them on reads and intersects allowlists', () => {
   const db = open(workspace(), { cache: false }),
     ids = [methodId],
@@ -106,25 +130,12 @@ it('checks unknown, foreign and closed tokens on every scoped read', () => {
     other = open(workspace(false), { cache: false }),
     foreign = other.resolveScope();
   for (const within of ['forged', foreign.token])
-    for (const read of [
-      () => db.records({ within }),
-      () => db.get(methodId, { within }),
-      () => db.referencedBy(methodId, { within }),
-      () => db.directedView(methodId, { within }),
-      () => db.resolveSeat(methodPath, { within }),
-      () => db.words({ within }),
-      () => db.roots({ within }),
-      () => db.resolve({ kind: 'identity', identity: methodId }, { within }),
-      () => db.search('fixture', { within }),
-      () => db.traverse({ start: [methodId], within }),
-      () => db.snapshot({ within }),
-      () => db.resolveScope({ within }),
-    ])
-      expect(read).toThrow(code('SCOPE-UNAVAILABLE'));
+    for (const read of scopedReads(db, within)) expect(read).toThrow(code('SCOPE-UNAVAILABLE'));
   const scope = db.resolveScope();
   db.close();
   expect(() => db.records({ within: scope.token })).toThrow(code('CLOSED'));
   expect(() => db.resolveScope()).toThrow(code('CLOSED'));
+  expect(() => db.isIssuedScope(scope.token)).toThrow(code('CLOSED'));
 });
 it('keeps tokens on identical refresh but never revives them after input change and restoration', () => {
   const root = workspace(),
@@ -134,6 +145,9 @@ it('keeps tokens on identical refresh but never revives them after input change 
   const before = db.records({ within: scope.token });
   db.refresh();
   expect(db.records({ within: scope.token })).toEqual(before);
+  // It reads the objects of the current view, not those it was issued against.
+  expect(db.records({ within: scope.token })[0]).toBe(db.records()[0]);
+  expect(db.records({ within: scope.token })[0]).not.toBe(before[0]);
   put(root, methodPath, original + '\n# change\n');
   db.refresh();
   expect(() => db.records({ within: scope.token })).toThrow(code('STALE'));
@@ -143,6 +157,188 @@ it('keeps tokens on identical refresh but never revives them after input change 
   expect(db.revision).toBe(scope.revision);
   expect(() => db.records({ within: scope.token })).toThrow(code('STALE'));
   expect(() => db.resolveScope({ within: next.token })).toThrow(code('STALE'));
+});
+/** D08c: the scopes a reader holds. A client's token outlives this many newer scopes however long it sits unread. */
+const HELD_SCOPES = 4096;
+/** Declares `count` reaches over `root`, `reach/0` and on, each with a source of its own, so that each has its own views. */
+function declareReaches(count: number, root: string, locations: Record<string, Location> = {}) {
+  const source = readFileSync(resolve(root, methodPath), 'utf8');
+  for (let index = 0; index < count; index++) {
+    const path = `.ia/src/reach-${index}.ia`;
+    put(root, path, source.replace('@playbook sample-procedure', `@playbook reach-${index}`));
+    locations[path] = { placement: { kind: 'authored', band: 100, reach: `reach/${index}` }, provenance: 'workspace' };
+  }
+  return locations;
+}
+it('evicts the least recently used scope past 4,096, and its token refuses as a stale one does', () => {
+  const db = open(workspace(), { cache: false }),
+    kept = db.resolveScope({ identities: [methodId] }),
+    evicted = db.resolveScope({ identities: [methodId] });
+  for (let held = 2; held < HELD_SCOPES; held++) db.resolveScope();
+  // Full, nothing has left: the oldest still reads, and that read leaves `evicted` the least recently used.
+  expect(db.records({ within: kept.token }).map((r) => r.identity)).toEqual([methodId]);
+  const newest = db.resolveScope({ identities: [] });
+  for (const read of scopedReads(db, evicted.token)) expect(read).toThrow(code('STALE'));
+  // Refused, never read wider, and what stays keeps its own boundary.
+  expect(db.records({ within: kept.token }).map((r) => r.identity)).toEqual([methodId]);
+  expect(db.records({ within: newest.token })).toEqual([]);
+});
+it('tells a token evicted long ago from a token this reader never issued, and keeps the token a UUID', () => {
+  const db = open(workspace(false), { cache: false }),
+    other = open(workspace(false), { cache: false }),
+    evicted = db.resolveScope().token,
+    foreign = other.resolveScope().token;
+  expect(evicted).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  for (let held = 0; held < 2 * HELD_SCOPES; held++) db.resolveScope();
+  expect(db.isIssuedScope(evicted)).toBe(true);
+  expect(() => db.records({ within: evicted })).toThrow(code('STALE'));
+  const tampered = `${evicted.slice(0, -1)}${evicted.endsWith('0') ? '1' : '0'}`,
+    spliced = `${randomUUID().slice(0, 24)}${evicted.slice(24)}`;
+  for (const within of [tampered, spliced, foreign, randomUUID(), '', 'forged']) {
+    expect(db.isIssuedScope(within), within).toBe(false);
+    expect(() => db.records({ within }), within).toThrow(code('SCOPE-UNAVAILABLE'));
+  }
+});
+it('never evicts a pinned scope, which goes stale all the same when the inputs change', () => {
+  const root = workspace(false),
+    db = open(root, { cache: false }),
+    pinned = db.resolveScope({ pinned: true }),
+    unpinned = db.resolveScope();
+  // A child is a scope of its own: it holds its parent's boundary, not its parent's pin.
+  const child = db.resolveScope({ within: pinned.token });
+  for (let held = 0; held < HELD_SCOPES; held++) db.resolveScope();
+  expect(db.records({ within: pinned.token })).toEqual(db.records());
+  for (const token of [unpinned.token, child.token]) expect(() => db.records({ within: token })).toThrow(code('STALE'));
+  put(root, '.ia/src/new.ia', '#! ia 1.0\n');
+  db.refresh();
+  expect(() => db.records({ within: pinned.token })).toThrow(code('STALE'));
+  // Like any token, it does not revive when the inputs it was issued against come back.
+  rmSync(resolve(root, '.ia/src/new.ia'));
+  db.refresh();
+  expect(db.revision).toBe(pinned.revision);
+  expect(() => db.records({ within: pinned.token })).toThrow(code('STALE'));
+});
+it('holds pinned scopes outside the bound: they take no ordinary place, and nothing comes back already evicted', () => {
+  const db = open(workspace(false), { cache: false });
+  for (let pinned = 0; pinned < 2 * HELD_SCOPES; pinned++) db.resolveScope({ pinned: true });
+  const oldest = db.resolveScope(),
+    next = db.resolveScope();
+  expect(db.records({ within: oldest.token })).toEqual(db.records());
+  for (let held = 2; held < HELD_SCOPES; held++) db.resolveScope();
+  // All 4,096 ordinary scopes fit beside the pins, and the next one evicts an ordinary scope.
+  expect(db.records({ within: oldest.token })).toEqual(db.records());
+  db.resolveScope();
+  expect(() => db.records({ within: next.token })).toThrow(code('STALE'));
+  expect(db.records({ within: oldest.token })).toEqual(db.records());
+});
+it('lets go of what a refresh replaced while earlier tokens go on reading, and of every scope on close', async () => {
+  const child = await runBounded(
+    process.execPath,
+    [
+      '--expose-gc',
+      '--conditions=development',
+      '--import',
+      'tsx',
+      resolve(import.meta.dirname, 'release-child.ts'),
+      workspace(),
+    ],
+    { cwd: resolve(import.meta.dirname, '../../..'), env: { ...process.env, NODE_OPTIONS: '' }, timeoutMs: 30_000 },
+  );
+  expect(child.status, child.stderr).toBe(0);
+  expect(JSON.parse(child.stdout)).toEqual({
+    replacedCollected: [true, true, true],
+    currentCollected: false,
+    tokensRead: [true, true, true],
+    closedCollected: [true, true],
+  });
+});
+it('reads through a scope and narrows it the same once its view has left the held views', () => {
+  const root = workspace(),
+    overlay = '.ia/src/overlay.ia';
+  put(root, overlay, readFileSync(resolve(root, methodPath), 'utf8'));
+  const locations = declareReaches(3, root, {
+    [methodPath]: { placement: { kind: 'adopted', band: 90, reach: '' }, provenance: 'methodology' },
+    [overlay]: { placement: { kind: 'authored', band: 100, reach: 'team' }, provenance: 'workspace' },
+  });
+  const db = open(root, { cache: false, locations }),
+    /** Three reaches read whole and at every phase leave no view held but the root one. */
+    readOtherViews = () => {
+      for (let reach = 0; reach < 3; reach++)
+        for (const phase of [null, ...PHASES]) db.resolveScope({ root: `reach/${reach}`, phase });
+    },
+    parent = db.resolveScope({ identities: [methodId] }),
+    narrowed = db.resolveScope({ within: parent.token, root: 'team' }),
+    phased = db.resolveScope({ phase: 'act', identities: [methodId] }),
+    independent = db.resolveScope({ root: 'team', identities: [methodId] }),
+    whole = db.resolveScope({ phase: 'act' }),
+    scopes: readonly Scope[] = [parent, narrowed, phased, independent, whole];
+  const before = scopes.map((scope) => db.snapshot({ within: scope.token }));
+  expect(before.slice(0, 4).map((snapshot) => snapshot.records.map((record) => record.source.path))).toEqual([
+    [methodPath],
+    [],
+    [methodPath],
+    [overlay],
+  ]);
+  readOtherViews();
+  expect(scopes.map((scope) => db.snapshot({ within: scope.token }))).toEqual(before);
+  // A child taken now intersects the same occurrences: the winner at `team` is still no occurrence of the parent's.
+  const child = db.resolveScope({ within: parent.token, root: 'team' });
+  expect(db.records({ within: child.token })).toEqual([]);
+  expect(() => db.get(methodId, { within: child.token })).toThrow(code('OUT-OF-SCOPE'));
+  // A scope that keeps its whole view bounds a child the same once that view is gone.
+  readOtherViews();
+  const inside = db.resolveScope({ within: whole.token, identities: [methodId, 'absent'] });
+  expect(db.records({ within: inside.token }).map((record) => record.identity)).toEqual([methodId]);
+  const team = db.resolveScope({ within: whole.token, root: 'team' });
+  expect(() => db.get(methodId, { within: team.token })).toThrow(code('OUT-OF-SCOPE'));
+});
+it('holds 16 views of its inputs, the least recently used leaving first and the root view never', () => {
+  const root = workspace(),
+    editor = new EditorDatabase(root, { locations: declareReaches(3, root) }),
+    snapshot = editor.current,
+    whole = snapshot.inspect(),
+    kept = snapshot.inspect({ root: 'reach/0' }),
+    evicted = snapshot.inspect({ root: 'reach/1' });
+  try {
+    snapshot.inspect({ root: 'reach/2' });
+    for (const phase of PHASES)
+      for (const location of ['', 'reach/0', 'reach/2']) snapshot.inspect({ root: location, phase });
+    // Full, nothing has left: this read leaves `evicted` the least recently used but for the root view.
+    expect(snapshot.inspect({ root: 'reach/0' })).toBe(kept);
+    snapshot.inspect({ root: 'reach/1', phase: 'act' });
+    const again = snapshot.inspect({ root: 'reach/1' });
+    expect(again).not.toBe(evicted);
+    expect(again.graph.revision).toBe(evicted.graph.revision);
+    expect(snapshot.inspect({ root: 'reach/0' })).toBe(kept);
+    expect(snapshot.inspect()).toBe(whole);
+  } finally {
+    editor.close();
+  }
+});
+it('reads every location below one declared reach through one view, each read naming its own root', () => {
+  const root = workspace(),
+    editor = new EditorDatabase(root, { locations: declareReaches(1, root) }),
+    snapshot = editor.current,
+    reachId = 'governance-system/definition/procedure/reach-0';
+  try {
+    // A root names no view of its own, so naming a thousand builds and holds none.
+    expect(snapshot.inspect({ root: 'elsewhere' })).toBe(snapshot.inspect());
+    expect(snapshot.inspect({ root: 'reach/0-other' })).toBe(snapshot.inspect());
+    expect(snapshot.inspect({ root: 'elsewhere/deep', phase: 'act' })).toBe(snapshot.inspect({ phase: 'act' }));
+    expect(snapshot.inspect({ root: 'reach/0/deep' })).toBe(snapshot.inspect({ root: 'reach/0' }));
+    expect(snapshot.inspect({ root: 'reach/0' })).not.toBe(snapshot.inspect());
+    // The reach still decides what is admitted, and each read still names the root it was asked for.
+    expect(snapshot.get(reachId, { root: 'reach/0/deep' })?.identity).toBe(reachId);
+    expect(snapshot.get(reachId, { root: 'elsewhere' })).toBeUndefined();
+    expect(snapshot.snapshot({ root: 'elsewhere/deep' }).root).toBe('elsewhere/deep');
+    const scope = snapshot.resolveScope({ root: 'reach/0/deep', phase: 'act' });
+    expect(scope.root).toBe('reach/0/deep');
+    expect(snapshot.snapshot({ within: scope.token })).toMatchObject({ root: 'reach/0/deep', phase: 'act' });
+    expect(() => snapshot.resolveScope({ within: scope.token, root: 'reach/0' })).toThrow(code('SCOPE-MISMATCH'));
+    expect(snapshot.resolveScope({ within: scope.token, root: 'reach/0/deep/er' }).root).toBe('reach/0/deep/er');
+  } finally {
+    editor.close();
+  }
 });
 it('prunes resolution, scoped BM25 and traversal before any excluded intermediary or gated edge', () => {
   const root = workspace(),

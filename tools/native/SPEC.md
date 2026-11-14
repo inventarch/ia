@@ -6,6 +6,7 @@ Compile and validate native corpora, repository architecture/work policy, public
 
 ## Modules
 
+- [canon-cases.test.ts](canon-cases.test.ts) — every canon case evaluator names an existing test file and a test in it with exactly that title.
 - [check.test.ts](check.test.ts) — behavior and refusal coverage.
 - [check.ts](check.ts).
 - [compile.ts](compile.ts).
@@ -15,6 +16,10 @@ Compile and validate native corpora, repository architecture/work policy, public
 - [public-manifest.d.mts](public-manifest.d.mts) — generated from the checked implementation for package test consumers.
 - [language-base.test.ts](language-base.test.ts) — behavior and refusal coverage.
 - [language-base.ts](language-base.ts).
+- [language-bases.test.ts](language-bases.test.ts) — behavior and refusal coverage.
+- [language-bases.ts](language-bases.ts) — the ledger of published `inventarch/language` bases: `releases/native/language-bases.json` and each verified archive under `releases/native/bases/<digest>.ia.tgz`; `--fetch <version> --from <npm-spec>` adds one from a published npm tarball and trusts it only when its digest matches.
+- [language-compat.test.ts](language-compat.test.ts) — behavior and refusal coverage.
+- [language-compat.ts](language-compat.ts) — the compatibility index: one schema catalogue per published base, written to `releases/native/language-compat.json` (pretty) and `apps/cli/assets/language-compat.json` (compact). Each word lists its sections, its fields (type, required, and an `id` field's values, a `ref` field's target, a `text` field's form) and its edge rules (predicate, direction, target, required, cardinality).
 - [public-fixture.test.ts](public-fixture.test.ts) — behavior and refusal coverage.
 - [public-fixture.ts](public-fixture.ts).
 - [public-language.test.ts](public-language.test.ts) — behavior and refusal coverage.
@@ -28,6 +33,7 @@ Compile and validate native corpora, repository architecture/work policy, public
 - [release-work.ts](release-work.ts).
 - [repository-architecture.test.ts](repository-architecture.test.ts) — behavior and refusal coverage.
 - [repository-architecture.ts](repository-architecture.ts).
+- [stewardship.test.ts](stewardship.test.ts) — behavior and refusal coverage.
 - [work-example.test.ts](work-example.test.ts) — behavior and refusal coverage.
 
 ## Commands
@@ -39,6 +45,9 @@ Compile and validate native corpora, repository architecture/work policy, public
 - `pnpm vocabulary:check`: `node --conditions=development --import tsx tools/native/public-vocabulary.ts --check`.
 - `pnpm vocabulary:generate`: `node --conditions=development --import tsx tools/native/public-vocabulary.ts --write`.
 - `pnpm language-base:generate`: `node --conditions=development --import tsx tools/native/language-base.ts --write`.
+- `pnpm language-bases:fetch`: `node --conditions=development --import tsx tools/native/language-bases.ts`; adds a published base to the ledger (`--fetch <version> --from <npm-spec>`).
+- `pnpm language-compat:check`: `node --conditions=development --import tsx tools/native/language-compat.ts --check`; part of `pnpm build`.
+- `pnpm language-compat:generate`: `node --conditions=development --import tsx tools/native/language-compat.ts --write`.
 
 Commands report success as exit 0 and evaluated failure as exit 1. Corrected strict parsers use exit 2 for usage errors. Existing command-specific defaults, flags and refusal behavior are described below; a check never implies a write.
 
@@ -56,7 +65,7 @@ Source-aware Node/tsx and pinned package dependencies. Package APIs remain in th
 
 ## Validation
 
-Task ownership: `tools:test-native`, `native:check`, `public-language:check`, `vocabulary:check`, `language-base:generate`. `tools/testing/tasks.json` declares platform, timeout, prerequisite, output and input-profile contracts; `nx.json` defines their actual file/runtime inputs. Live discovery and mutation tests validate coverage and caching.
+Task ownership: `tools:test-native`, `native:check`, `public-language:check`, `vocabulary:check`, `language-base:generate`, `language-compat:check`. `tools/testing/tasks.json` declares platform, timeout, prerequisite, output and input-profile contracts; `nx.json` defines their actual file/runtime inputs. Live discovery and mutation tests validate coverage and caching.
 
 ## Invariants
 

@@ -18,7 +18,7 @@
     scope [@workspace runner-workspace]
     moves [Observation]
   execution
-    contract runner-read-v1
+    contract runner-read
     limit-steps 16
     limit-model-calls 4
     limit-operations 1
@@ -30,10 +30,10 @@
   composition
     operations [@operation read-captured-source]
   execution
-    input runner-task-v1
-    outcomes runner-outcomes-v1
-    context-profile runner-context-v1
-    mapping-profile runner-identity-v1
+    input runner-task
+    outcomes runner-outcomes
+    context-profile runner-context
+    mapping-profile runner-identity
     effects [read]
 
 @agent-profile runner-reader-profile
@@ -46,8 +46,8 @@
     capabilities [@capability runner-read]
   execution
     role reader
-    outcomes runner-outcomes-v1
-    mandate-contract runner-read-v1
+    outcomes runner-outcomes
+    mandate-contract runner-read
 
 @workspace runner-workspace
   meaning
@@ -63,8 +63,8 @@
   binding
     kind entry
     target @agent-profile runner-reader-profile
-    implementation runner-entry-v1
-    mapping runner-identity-v1
+    implementation runner-entry
+    mapping runner-identity
 
 @harness runner-conformance
   meaning
@@ -75,4 +75,4 @@
     profiles [@agent-profile runner-reader-profile]
     bindings [@execution-binding read-captured-source-binding, @execution-binding runner-entry]
   execution
-    host-profile runner-local-v1
+    host-profile runner-local

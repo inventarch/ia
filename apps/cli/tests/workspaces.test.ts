@@ -2,11 +2,23 @@
  * `ia workspaces list | add | find | remove` (consumer CLI contract §2.16), in process. Every run points IA_HOME at a
  * scratch home, so no test reads or writes the real tracked list.
  */
-import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
+import { hostname } from 'node:os';
 import { resolve, sep } from 'node:path';
 import { afterAll, expect, it } from 'vitest';
+import { stringWidth } from '../src/console/width.js';
 import { TRACKED_FILE } from '../src/tracked.js';
-import { stacked } from '../src/workspaces.js';
+import { TRACKED_LOCK_FILE } from '../src/tracked-lock.js';
+import { listSummary, stacked, table } from '../src/workspaces.js';
 import { cleanup, run, scratch } from './workspace-fixture.js';
 
 afterAll(cleanup);
@@ -392,4 +404,149 @@ it('list keeps to 80 columns with a 128-character id, and --json keeps it whole'
   for (const text of listed.stdout.split('\n')) expect(text.length, text).toBeLessThanOrEqual(80);
   expect(listed.stdout).toContain(id.slice(0, 8));
   expect(JSON.parse((await run(['workspaces', 'list', '--json'], { env })).stdout).workspaces[0].id).toBe(id);
+});
+it('prints roots with each control character as visible escape text, and leaves --json unchanged', async () => {
+  const { home: at, env } = home(),
+    root = `${sep}gone\u001b]0;title\u0007\u001b[2J`,
+    row = { id: 'odd', root, added: '2026-01-01T00:00:00.000Z' };
+  mkdirSync(at, { recursive: true });
+  writeFileSync(resolve(at, TRACKED_FILE), JSON.stringify({ format: 'ia-tracked-workspaces-1', workspaces: [row] }));
+  const listed = await run(['workspaces', 'list'], { env });
+  expect(listed.exitCode, listed.stderr).toBe(0);
+  expect(listed.stdout).not.toMatch(/[\u0007\u001b]/);
+  expect(listed.stdout).toContain(`${sep}gone\\u001b]0;title\\u0007\\u001b[2J`);
+  const json = await run(['workspaces', 'list', '--json'], { env });
+  expect(json.stdout).toBe(
+    `{"version":1,"workspaces":[{"id":"odd","root":${JSON.stringify(root)},"label":null,"added":"2026-01-01T00:00:00.000Z","state":"missing"}]}\n`,
+  );
+});
+
+it('the table aligns wide ids and roots by display width, and never splits a cluster', () => {
+  const rows = [
+    { id: '工作区', state: 'present', root: `${sep}工作区${sep}${'根'.repeat(60)}${sep}repo` },
+    { id: 'plain', state: 'missing', root: `${sep}old` },
+    { id: '🧪🧪', state: 'new', root: `${sep}${'🧪'.repeat(60)}` },
+  ] as const;
+  const caps = { color: false, ascii: false, width: 60 };
+  const lines = table(rows, caps);
+  // Every state starts at one column: the id column is padded by what the id takes on screen.
+  const columns = lines.slice(1).map((text) => stringWidth(text.slice(0, text.search(/[✔▲+]/u))));
+  expect(new Set(columns).size, lines.join('\n')).toBe(1);
+  for (const text of lines) {
+    expect(stringWidth(text), text).toBeLessThanOrEqual(caps.width);
+    expect(text).not.toMatch(/\p{Cs}/u);
+  }
+});
+
+it('stacked rows of wide text fit every width, from 1 to 80 columns, and never split a cluster', () => {
+  const rows = [
+    { id: '工作区'.repeat(20), state: 'present', root: `${sep}${'根'.repeat(60)}${sep}repo` },
+    { id: '🧪'.repeat(20), state: 'missing', root: `${sep}${'🧪'.repeat(40)}` },
+  ] as const;
+  for (const ascii of [false, true])
+    for (let width = 1; width <= 80; width += 1)
+      for (const text of stacked(rows, { color: false, ascii, width })) {
+        expect(stringWidth(text), `${ascii ? 'ascii' : 'unicode'} ${width}: ${text}`).toBeLessThanOrEqual(width);
+        expect(text).not.toMatch(/\p{Cs}/u);
+      }
+});
+
+it('list keeps a CJK and emoji root inside the terminal width', async () => {
+  const { env } = home(),
+    root = workspaceAt(resolve(scratch('workspaces'), `工作区🧪${'根'.repeat(40)}`), 'demo');
+  expect((await run(['workspaces', 'add', root], { env })).exitCode).toBe(0);
+  const listed = await run(['workspaces', 'list'], { env: { ...env, NO_COLOR: '1' }, isTTY: true, columns: 60 });
+  const row = listed.stdout.split('\n').find((text) => text.includes('demo'))!;
+  expect(stringWidth(row), row).toBeLessThanOrEqual(60);
+  expect(row).not.toMatch(/\p{Cs}/u);
+});
+
+it.skipIf(process.platform === 'win32' || process.getuid?.() === 0)(
+  'list reports a root it cannot read as unreadable, by a real chmod',
+  async () => {
+    const { env } = home(),
+      guarded = resolve(scratch('workspaces'), 'guarded'),
+      root = workspaceAt(resolve(guarded, 'repo'), 'demo');
+    expect((await run(['workspaces', 'add', root], { env })).exitCode).toBe(0);
+    chmodSync(guarded, 0o000);
+    try {
+      const listed = await run(['workspaces', 'list', '--json'], { env });
+      expect(JSON.parse(listed.stdout).workspaces[0].state).toBe('unreadable');
+      const human = await run(['workspaces', 'list'], { env: { ...env, NO_COLOR: '1' }, isTTY: true, columns: 80 });
+      expect(flat(human.stdout)).toContain('1 tracked: 0 present, 0 missing, 1 unreadable.');
+      expect(human.stdout).toMatch(/unreadable {2}/);
+    } finally {
+      chmodSync(guarded, 0o755);
+    }
+  },
+);
+
+it.skipIf(process.platform === 'win32' || process.getuid?.() === 0)(
+  'add refuses a root it cannot read as unreadable, not as holding no .ia/src, by a real chmod',
+  async () => {
+    const { env } = home(),
+      guarded = resolve(realpathSync(scratch('workspaces')), 'guarded'),
+      root = workspaceAt(resolve(guarded, 'repo'), 'demo');
+    // Denied at a parent the real path itself fails; denied at the root only the look at .ia/src does.
+    for (const denied of [guarded, root]) {
+      chmodSync(denied, 0o000);
+      try {
+        const refused = await run(['workspaces', 'add', root, '--json'], { env });
+        expect(refused.exitCode).toBe(3);
+        const body = JSON.parse(refused.stdout);
+        expect(body.code).toBe('IA-DB-ROOT-INVALID');
+        expect(body.message).toBe(`${root} cannot be read (EACCES), so ia cannot tell whether it is a workspace`);
+        expect(body.message).not.toContain('holds no .ia/src');
+        expect(body.next).toContain(`"ia workspaces add ${spelled(root)}"`);
+        expect(body.next).not.toContain('ia init');
+      } finally {
+        chmodSync(denied, 0o755);
+      }
+    }
+    expect((await run(['workspaces', 'add', root], { env })).exitCode).toBe(0);
+  },
+);
+
+it('remove and find --apply stop at the signal while a live owner holds the lock, leaving that lock and the list', async () => {
+  const { home: at, env } = home(),
+    folder = scratch('workspaces-signal'),
+    kept = workspaceAt(resolve(folder, 'kept'), 'kept');
+  workspaceAt(resolve(folder, 'fresh'), 'fresh');
+  expect((await run(['workspaces', 'add', kept], { env })).exitCode).toBe(0);
+  const listed = readFileSync(resolve(at, TRACKED_FILE));
+  // Another owner on this host, still running (this process), holds the store lock throughout.
+  const lock = resolve(at, TRACKED_LOCK_FILE);
+  writeFileSync(
+    lock,
+    JSON.stringify({
+      token: 'planted',
+      start: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      host: hostname(),
+      pid: process.pid,
+    }),
+  );
+  const before = readFileSync(lock);
+  for (const argv of [
+    ['workspaces', 'remove', 'kept'],
+    ['workspaces', 'find', folder, '--apply', '--yes'],
+  ]) {
+    const controller = new AbortController();
+    const pending = run(argv, { env, signal: controller.signal });
+    await new Promise((settled) => setTimeout(settled, 100));
+    const signalled = performance.now();
+    controller.abort();
+    expect((await pending).exitCode, argv.join(' ')).toBe(130);
+    expect(performance.now() - signalled).toBeLessThan(3_000);
+    expect(readFileSync(lock).equals(before)).toBe(true);
+    expect(readFileSync(resolve(at, TRACKED_FILE)).equals(listed)).toBe(true);
+  }
+});
+
+it('the list summary counts each state, and names unreadable only when a row is', () => {
+  const of = (...states: ('present' | 'missing' | 'unreadable')[]) => listSummary(states.map((state) => ({ state })));
+  expect(of('present', 'present')).toBe('2 tracked: 2 present, 0 missing.');
+  expect(of('present', 'missing', 'missing')).toBe('3 tracked: 1 present, 2 missing.');
+  expect(of('unreadable', 'present', 'missing', 'unreadable')).toBe('4 tracked: 1 present, 1 missing, 2 unreadable.');
+  expect(of('unreadable')).toBe('1 tracked: 0 present, 0 missing, 1 unreadable.');
 });

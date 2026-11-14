@@ -3,7 +3,7 @@
  * few doctor runs at once, each row classified from the statuses its checks report (never from its offers), and the
  * summary's counts. Doctor collection and the copies' runs are injected; the roots are real directories.
  */
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import type { Extension } from '../src/consumer.js';
@@ -11,7 +11,18 @@ import type { Check, CheckStatus, DoctorView } from '../src/doctor.js';
 import type { TrackedWorkspace } from '../src/tracked.js';
 import type { DoctorRun } from '../src/console/state.js';
 import type { RepoRow } from '../src/console/workspaces-state.js';
-import { classify, loadAll, loadingRow, summarize } from '../src/console/workspaces-state.js';
+import { doctorProcess } from '../src/console/load.js';
+import {
+  classify,
+  loadAll,
+  loadingRow,
+  NOT_ITSELF,
+  ownRoot,
+  setAside,
+  summarize,
+} from '../src/console/workspaces-state.js';
+import type { ConsoleState } from '../src/console/state.js';
+import { trackedState } from '../src/tracked.js';
 import { cleanup, scratch } from './scratch-fixture.js';
 
 afterAll(cleanup);
@@ -68,6 +79,16 @@ const base = (tracked: readonly TrackedWorkspace[]) => ({
   version: '3.5.1',
   collect: () => view([...RUNNING, check('node'), check('records'), check('cli-version'), check('kits', 'unknown')]),
 });
+const unprivileged = process.platform === 'win32' || process.getuid?.() === 0;
+/** Runs `check` with `directories` denied to this user, so a stat below each fails with EACCES. */
+async function denied<T>(directories: readonly string[], check: () => Promise<T>): Promise<T> {
+  for (const directory of directories) chmodSync(directory, 0o000);
+  try {
+    return await check();
+  } finally {
+    for (const directory of directories) chmodSync(directory, 0o755);
+  }
+}
 async function load(input: Omit<Parameters<typeof loadAll>[0], 'onRow'>): Promise<RepoRow[]> {
   const rows: RepoRow[] = input.tracked.map(loadingRow);
   await loadAll({ ...input, onRow: (index, row) => (rows[index] = row) });
@@ -119,6 +140,59 @@ describe('loadAll', () => {
     expect(rows.map((row) => row.state)).toEqual(['ready', 'missing', 'missing']);
     expect(collected).toEqual([present.root]);
     expect(rows.map(classify)).toEqual(['healthy', 'missing', 'missing']);
+  });
+  // A root that cannot be read must never load: discovery walks up from it, so it would read as the workspace around
+  // it, or as outside any workspace, with that place's offers. A real chmod, not a stub.
+  it.skipIf(unprivileged)('unreadable rows never load as another workspace', async () => {
+    const parent = workspace('parent');
+    const nested = { id: 'nested', root: join(parent.root, 'nested'), added: parent.added };
+    mkdirSync(join(nested.root, '.ia/src'), { recursive: true });
+    const lone = workspace('lone');
+    const collected: string[] = [];
+    const rows = await denied([nested.root, lone.root], () =>
+      load({
+        ...base([nested, lone]),
+        collect: (request) => {
+          collected.push(request.cwd);
+          return view([check('records')]);
+        },
+        signal: new AbortController().signal,
+      }),
+    );
+    expect(rows.map((row) => row.state)).toEqual(['unreadable', 'unreadable']);
+    expect(rows.map((row) => [row.console, row.offers])).toEqual([
+      [null, []],
+      [null, []],
+    ]);
+    expect(rows.map(classify)).toEqual(['unreadable', 'unreadable']);
+    expect(collected).toEqual([]);
+  });
+  it.skipIf(unprivileged)('a root that turns unreadable while it loads is not taken for another', async () => {
+    const parent = workspace('parent-late');
+    const nested = { id: 'nested', root: join(parent.root, 'nested'), added: parent.added };
+    mkdirSync(join(nested.root, '.ia/src'), { recursive: true });
+    const lone = workspace('lone-late');
+    const locked: string[] = [];
+    try {
+      const rows = await load({
+        ...base([nested, lone]),
+        // Collected before discovery: denying the root here is the race between the check and the load.
+        collect: (request) => {
+          chmodSync(request.cwd, 0o000);
+          locked.push(request.cwd);
+          return view([check('records')]);
+        },
+        signal: new AbortController().signal,
+      });
+      expect(locked).toEqual([nested.root, lone.root]);
+      expect(rows.map((row) => row.state)).toEqual(['unreadable', 'unreadable']);
+      expect(rows.map((row) => [row.console, row.offers])).toEqual([
+        [null, []],
+        [null, []],
+      ]);
+    } finally {
+      for (const path of locked) chmodSync(path, 0o755);
+    }
   });
   it('at most limit doctor runs at once', async () => {
     const tracked = ['a', 'b', 'c', 'd', 'e', 'f'].map((name) => workspace(name, '3.5.0'));
@@ -358,6 +432,7 @@ describe('summarize', () => {
     const rows: RepoRow[] = [
       loadingRow(tracked),
       { ...loadingRow(tracked), state: 'missing' },
+      { ...loadingRow(tracked), state: 'unreadable' },
       { ...ready([{ id: 'records', status: 'unknown' }]), state: 'failed', failure: 'exit 3' },
       ready([{ id: 'node', status: 'fail' }]),
       ready([{ id: 'records', status: 'warn' }]),
@@ -370,19 +445,131 @@ describe('summarize', () => {
       latest: '3.5.2',
       global: '3.5.1',
       behind: true,
-      tracked: 8,
+      tracked: 9,
       healthy: 2,
       attention: 2,
       failing: 1,
       warning: 1,
       missing: 1,
+      unreadable: 1,
       failed: 1,
       unchecked: 1,
       loading: 1,
     });
-    const { tracked: total, healthy, failing, warning, missing, failed, unchecked, loading } = summary;
-    expect(total).toBe(healthy + failing + warning + missing + failed + unchecked + loading);
+    const { tracked: total, healthy, failing, warning, missing, unreadable, failed, unchecked, loading } = summary;
+    expect(total).toBe(healthy + failing + warning + missing + unreadable + failed + unchecked + loading);
     expect(summarize([], { latest: null }, '3.5.1')).toMatchObject({ latest: null, behind: false, tracked: 0 });
     expect(summarize([], { latest: '3.5.1' }, '3.5.1').behind).toBe(false);
+  });
+});
+
+describe("the bound on a workspace copy's doctor", () => {
+  /** A doctor that treats SIGTERM as the consumer route does, as no reason to end, and would run on for `ms`. */
+  const stubborn = (ms: number) => {
+    const dir = scratch('console-doctor-bound');
+    const entry = join(dir, 'doctor.mjs');
+    const pidFile = join(dir, 'pid');
+    writeFileSync(
+      entry,
+      [
+        "import { writeFileSync } from 'node:fs';",
+        "process.on('SIGTERM', () => {});",
+        `writeFileSync(${JSON.stringify(pidFile)}, String(process.pid));`,
+        `setTimeout(() => process.exit(0), ${ms});`,
+        '',
+      ].join('\n'),
+    );
+    return { dir, entry, pidFile };
+  };
+  const alive = (pid: number): boolean => {
+    try {
+      process.kill(pid, 0);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const pidOf = async (file: string): Promise<number> => {
+    for (let tries = 0; tries < 400; tries += 1) {
+      if (existsSync(file) && readFileSync(file, 'utf8') !== '') return Number(readFileSync(file, 'utf8'));
+      await new Promise((settle) => setTimeout(settle, 10));
+    }
+    throw new Error('the doctor never started');
+  };
+  it('a doctor that outlasts its SIGTERM is killed and reported as timed out, well before its own end', async () => {
+    const { dir, entry, pidFile } = stubborn(60_000);
+    const started = Date.now();
+    const run = await doctorProcess({ ...process.env }, 1_000)(entry, dir);
+    expect(run).toMatchObject({ status: null, timedOut: true });
+    expect(Date.now() - started).toBeLessThan(20_000);
+    expect(alive(await pidOf(pidFile))).toBe(false);
+  });
+  it('a doctor that ends cleanly after its timeout still reads as timed out, not as no JSON', async () => {
+    const { dir, entry } = stubborn(1_500);
+    const run = await doctorProcess({ ...process.env }, 500)(entry, dir);
+    expect(run).toMatchObject({ status: null, timedOut: true });
+  });
+  it.skipIf(process.platform === 'win32')(
+    'an abort settles only once the doctor has ended, so its slot stays held',
+    async () => {
+      const { dir, entry, pidFile } = stubborn(60_000);
+      const controller = new AbortController();
+      const running = doctorProcess({ ...process.env }, 30_000)(entry, dir, controller.signal);
+      const pid = await pidOf(pidFile);
+      controller.abort();
+      await running;
+      expect(alive(pid)).toBe(false);
+    },
+  );
+  it('a doctor that answers in time answers as before', async () => {
+    const dir = scratch('console-doctor-answer');
+    const entry = join(dir, 'doctor.mjs');
+    writeFileSync(entry, "process.stdout.write('{}'); process.exitCode = 1;\n");
+    expect(await doctorProcess({ ...process.env }, 20_000)(entry, dir)).toEqual({ status: 1, stdout: '{}' });
+  });
+});
+
+describe('setAside and ownRoot', () => {
+  const at = (root: string): TrackedWorkspace => ({ id: 'demo', root, added: '2026-01-01T00:00:00.000Z' });
+  it('a root that reads present but did not load as itself is failed, never unreadable', () => {
+    const root = join(scratch('set-aside'), 'demo');
+    mkdirSync(join(root, '.ia/src'), { recursive: true });
+    expect(setAside(at(root))).toMatchObject({ state: 'failed', failure: NOT_ITSELF, console: null, offers: [] });
+  });
+  it('a gone root, and one under a file (ENOTDIR), are missing', () => {
+    const base = scratch('set-aside');
+    const file = join(base, 'a-file');
+    writeFileSync(file, '');
+    for (const root of [join(base, 'gone'), join(file, 'demo')]) {
+      expect(trackedState({ root }), root).toBe('missing');
+      expect(setAside(at(root))).toMatchObject({ state: 'missing', failure: null, console: null, offers: [] });
+    }
+  });
+  it('takes the state it is given rather than reading the root again', () => {
+    const root = join(scratch('set-aside'), 'gone');
+    expect(setAside(at(root), 'unreadable').state).toBe('unreadable');
+    expect(setAside(at(root), 'missing').state).toBe('missing');
+  });
+  it('ownRoot is the tracked root itself, whichever way it is spelled, never the workspace around it', () => {
+    const base = scratch('own-root');
+    const root = join(base, 'demo');
+    mkdirSync(join(root, '.ia/src'), { recursive: true });
+    const loaded = (at: string | null) => ({ root: at }) as unknown as ConsoleState;
+    expect(ownRoot(root, loaded(root))).toBe(true);
+    expect(ownRoot(root, loaded(join(root, '.')))).toBe(true);
+    expect(ownRoot(root, loaded(base))).toBe(false);
+    expect(ownRoot(root, loaded(null))).toBe(false);
+  });
+  it('a volume that reports no inode never makes two folders one: it falls back to the exact real path', () => {
+    const parent = join(scratch('own-ino'), 'parent'),
+      child = join(parent, 'child');
+    const loaded = (at: string) => ({ root: at }) as unknown as ConsoleState;
+    const same = () => ({ dev: 1n, ino: 7n });
+    const none = () => ({ dev: 1n, ino: 0n });
+    // A stat that answers one identity for both is one root; an inode of 0 or all ones is no identity at all.
+    expect(ownRoot(child, loaded(parent), same)).toBe(true);
+    expect(ownRoot(child, loaded(parent), none)).toBe(false);
+    expect(ownRoot(child, loaded(parent), () => ({ dev: 1n, ino: 2n ** 64n - 1n }))).toBe(false);
+    expect(ownRoot(parent, loaded(parent), none)).toBe(true);
   });
 });

@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
-import { digest, memoryStore } from '@inventarch/session-system';
+import { copy, digest, memoryStore } from '@inventarch/session-system';
 import { sqliteStore } from '@inventarch/session-system/sqlite';
 import type { Json, SessionStore } from '@inventarch/session-system';
 import { Engine, manifestDigest } from '../src/index.js';
@@ -31,7 +31,7 @@ const contract = (): ExecutionContract => ({
   limits: {},
   delegation: [{ profile: 'child', limits: { modelCalls: 1, children: 0, depth: 0 } }],
   checks: [],
-  completionEvaluator: 'ia.completion.v1',
+  completionEvaluator: 'completion',
   repairAttempts: 1,
   maxAttempts: 2,
 });
@@ -778,9 +778,9 @@ it.each(['caller', 'deadline'] as const)(
   },
 );
 
-function independent(f: ReturnType<typeof fixture>) {
+function independent(f: ReturnType<typeof fixture>, rule: string = 'independent-exact-candidate') {
   f.manifest.profiles['author']!.contract!.review = {
-    rule: 'independent-exact-candidate-v1',
+    rule: rule as 'independent-exact-candidate',
     reviewer: 'bob',
     mandate: 'review-mandate',
     policyRevision: 'policy-1',
@@ -799,8 +799,8 @@ function independent(f: ReturnType<typeof fixture>) {
   f.host.authorizeReview = async () => structuredClone(authority);
   return authority;
 }
-async function independentAccepted(f: ReturnType<typeof fixture>) {
-  const authority = independent(f),
+async function independentAccepted(f: ReturnType<typeof fixture>, rule?: string) {
+  const authority = independent(f, rule),
     { engine, proposal: p } = await offered(f);
   await expect(
     engine.review('session', 'alice', p.id, p.revision, p.digest, true, 'self', 'self'),
@@ -850,7 +850,7 @@ it('records an independent review without transferring session ownership and app
     actor: 'bob',
     review: {
       reviewer: 'bob',
-      rule: 'independent-exact-candidate-v1',
+      rule: 'independent-exact-candidate',
       authority: { mandate: 'review-mandate', policyRevision: 'policy-1' },
     },
   });
@@ -914,3 +914,86 @@ it('rechecks independent authority after asynchronous effect preflight', async (
   await expect(f.engine().advance('session', 'alice')).rejects.toMatchObject({ code: 'IA-ENGINE-AUTHORITY-DENIED' });
   expect(f.writes()).toBe(0);
 });
+
+/** Stored sessions written before the rename carry the original review rule literal: read them back unchanged. */
+function storedReviewRule(f: ReturnType<typeof fixture>, rule: string) {
+  const read = f.store.read.bind(f.store);
+  f.store.read = async (id) => {
+    const state = copy(await read(id));
+    for (const p of Object.values(state.proposals)) if (p.review) p.review.rule = rule;
+    for (const d of Object.values(state.decisions)) if (d.review) d.review.rule = rule;
+    return state;
+  };
+}
+const published = (request: ModelRequest) => ({
+  type: 'outcome' as const,
+  kind: 'deliverable' as const,
+  message: 'Applied',
+  continuation: 'finish' as const,
+  artifacts: [
+    (request.history.find((row) => (row as { target?: string }).target === 'publish') as { receipt: string }).receipt,
+  ],
+});
+it('writes the plain operator review rule and the plain completion evaluator', async () => {
+  const f = fixture(),
+    { proposal } = await offered(f);
+  expect(proposal.review!.rule).toBe('operator-exact-candidate');
+  expect((await f.store.read('session')).runs['root']!.contract).toMatchObject({ evaluator: 'completion' });
+});
+it.each(['operator-exact-candidate', 'operator-exact-candidate-v1'])(
+  'applies a stored review carrying the %s rule and refuses an unknown rule',
+  async (rule) => {
+    const f = fixture(),
+      { action } = await accepted(f);
+    storedReviewRule(f, rule);
+    let n = 0;
+    scripted(f, (request) => (n++ === 0 ? action : published(request)));
+    const state = await f.engine().advance('session', 'alice');
+    expect(state.runs['root']!.status).toBe('completed');
+    expect(f.writes()).toBe(1);
+    const unknown = fixture(),
+      next = await accepted(unknown);
+    storedReviewRule(unknown, 'operator-exact-candidate-v2');
+    scripted(unknown, () => next.action);
+    await expect(unknown.engine().advance('session', 'alice')).rejects.toMatchObject({
+      code: 'IA-ENGINE-REVIEW-INVALID',
+    });
+    expect(unknown.writes()).toBe(0);
+  },
+);
+it.each(['independent-exact-candidate', 'independent-exact-candidate-v1'])(
+  'accepts the %s independent policy, records the plain rule and reads an old stored review',
+  async (rule) => {
+    const f = fixture(),
+      { action } = await independentAccepted(f, rule);
+    expect(Object.values((await f.store.read('session')).proposals)[0]!.review!.rule).toBe(
+      'independent-exact-candidate',
+    );
+    storedReviewRule(f, 'independent-exact-candidate-v1');
+    let n = 0;
+    scripted(f, (request) => (n++ === 0 ? action : published(request)));
+    const state = await f.engine().advance('session', 'alice');
+    expect(state.runs['root']!.status).toBe('completed');
+    expect(f.writes()).toBe(1);
+  },
+);
+it('refuses an unknown independent policy rule, an operator rule under an independent policy and an unknown completion evaluator', () => {
+  const unknown = fixture();
+  independent(unknown, 'independent-exact-candidate-v2');
+  expect(() => unknown.engine()).toThrow('Unsupported independent review policy');
+  const operator = fixture();
+  independent(operator, 'operator-exact-candidate');
+  expect(() => operator.engine()).toThrow('Unsupported independent review policy');
+  const evaluator = fixture();
+  evaluator.manifest.profiles['author']!.contract!.completionEvaluator = 'completion-v2' as 'completion';
+  expect(() => evaluator.engine()).toThrow('Unsupported completion or recovery contract');
+});
+it.each(['completion', 'ia.completion.v1'] as const)(
+  'accepts a stored manifest naming the %s evaluator',
+  (evaluator) => {
+    const f = fixture();
+    f.manifest.profiles['author']!.contract!.completionEvaluator = evaluator;
+    f.manifest.profiles['child']!.contract!.completionEvaluator = evaluator;
+    expect(() => f.engine()).not.toThrow();
+  },
+);

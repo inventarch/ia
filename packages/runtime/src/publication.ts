@@ -102,15 +102,26 @@ export function qualifyPublicationRoot(root: string): string {
       // The only interpolation is a validated drive letter, never authored/model text.
       // Query the drive directly; CIM adds a cold WMI service dependency to every CLI process.
       const script = `$ErrorActionPreference='Stop'; $drive=[System.IO.DriveInfo]::new('${drive}\\'); @{DriveType=[int]$drive.DriveType; FileSystem=$drive.DriveFormat} | ConvertTo-Json -Compress`;
-      // Cold PowerShell startup exceeded 10s on Windows CI (35559311967).
-      // Keep qualification bounded and fail closed; only successful probes are cached.
-      const info = JSON.parse(
+      // Cold PowerShell startup exceeded 10s on Windows CI (35559311967), and on a slow runner a cold-start stall has
+      // outlasted two 30 s tries, each a new process (43231185301). Keep each probe bounded and fail closed, but give a
+      // probe that timed out up to two more tries; any other failure refuses at once, and only successful probes are
+      // cached.
+      const probe = () =>
         execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
           encoding: 'utf8',
           windowsHide: true,
           timeout: 30_000,
-        }).trim(),
-      ) as { DriveType?: number; FileSystem?: string };
+        });
+      let output: string;
+      for (let tries = 1; ; tries++) {
+        try {
+          output = probe();
+          break;
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'ETIMEDOUT' || tries === 3) throw error;
+        }
+      }
+      const info = JSON.parse(output.trim()) as { DriveType?: number; FileSystem?: string };
       if (info?.DriveType !== 3 || info.FileSystem !== 'NTFS')
         return fail('IA-PUBLICATION-UNAVAILABLE', 'Remote or unqualified publication filesystem');
       localVolumes.add(drive);

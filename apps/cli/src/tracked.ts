@@ -9,11 +9,12 @@
  * `IA-CLI-TRACKED-INVALID` and never overwritten. A root is stored as its real path and compared by device and inode
  * (`sameRoot`), so a junction, a trailing separator or another case on Windows is the same row; where the volume
  * reports no inode, by exact real path. A row whose root is gone stays in the list as `missing` until it is removed by
- * name.
+ * name. A root that cannot be examined (EACCES or EPERM, for example) is `unreadable`, never `missing`: it may well
+ * still be there.
  */
 import { lstatSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { basename, isAbsolute, join, resolve } from 'node:path';
-import { pathKey, unidentified, within } from '@inventarch/db/internal/paths';
+import { pathKey, sameIdentity, within } from '@inventarch/db/internal/paths';
 import { readHomeFile, writeHomeFile } from '@inventarch/distribution/ia-home';
 import { inertCommandRoot } from '@inventarch/runtime';
 import { UsageError } from './args.js';
@@ -38,8 +39,8 @@ export interface TrackedWorkspace {
   /** ISO-8601 UTC. */
   readonly added: string;
 }
-/** `missing`: the root is gone, or no longer holds `.ia/src`. */
-export type TrackedState = 'present' | 'missing';
+/** `missing`: the root is gone, or no longer holds `.ia/src`. `unreadable`: looking failed, so neither is known. */
+export type TrackedState = 'present' | 'missing' | 'unreadable';
 
 type Raw = Readonly<Record<string, unknown>>;
 /** The file as read: the whole document, kept for its unknown keys, and each row beside its own raw object. */
@@ -72,12 +73,16 @@ const isFile = (path: string): boolean => {
     return false;
   }
 };
+const errorCode = (error: unknown): string => (error as NodeJS.ErrnoException).code ?? '';
+/** Nothing is at this path. Any other stat failure (EACCES, EPERM, a link loop) says nothing about what is there. */
+const absent = (error: unknown): boolean => ['ENOENT', 'ENOTDIR'].includes(errorCode(error));
 type Identity = { readonly dev: bigint; readonly ino: bigint };
-const identity = (path: string): Identity | undefined => {
+/** A root's identity, undefined when it is gone, or `unreadable` when the stat failed for any other reason. */
+const identity = (path: string): Identity | undefined | 'unreadable' => {
   try {
     return statSync(path, { bigint: true, throwIfNoEntry: false });
-  } catch {
-    return undefined;
+  } catch (error) {
+    return absent(error) ? undefined : 'unreadable';
   }
 };
 /** The exact real path; the resolved spelling when even that cannot be read. */
@@ -91,23 +96,20 @@ const realOrResolved = (path: string, real: (path: string) => string): string =>
 /**
  * One root, whichever way it is spelled. While both paths exist the answer is their device and inode and nothing else,
  * so two directories whose names differ only by case (on a volume that keeps them apart) are two roots. Where either
- * side reports no identity, their real paths are compared exactly, never folded, so two directories are never one row.
- * Only when one of them is gone is the folded spelling compared, as the volume would fold it.
+ * side reports no identity or cannot be read (EACCES or EPERM, for example), their real paths are compared exactly,
+ * never folded, so two directories are never one row. Only when one of them is gone is the folded spelling compared, as
+ * the volume would fold it.
  */
 export function sameRoot(
   a: string,
   b: string,
-  stat: (path: string) => Identity | undefined = identity,
+  stat: (path: string) => Identity | undefined | 'unreadable' = identity,
   real: (path: string) => string = realpathSync.native,
 ): boolean {
   const left = stat(a),
     right = stat(b);
-  if (left !== undefined && right !== undefined) {
-    // An identity the volume did not supply (`unidentified`: an inode of 0, which covers a device and inode both 0, or
-    // all ones) never means "the same file".
-    if (unidentified(left.ino) || unidentified(right.ino)) return realOrResolved(a, real) === realOrResolved(b, real);
-    return left.dev === right.dev && left.ino === right.ino;
-  }
+  if (left === 'unreadable' || right === 'unreadable') return realOrResolved(a, real) === realOrResolved(b, real);
+  if (left !== undefined && right !== undefined) return sameIdentity(a, b, left, right, real);
   return pathKey(resolve(a)) === pathKey(resolve(b));
 }
 
@@ -158,8 +160,15 @@ function save(home: string, loaded: Loaded, rows: readonly object[]): void {
 export function readTracked(home: string): readonly TrackedWorkspace[] {
   return load(home).rows.map((entry) => entry.row);
 }
-export function trackedState(row: TrackedWorkspace): TrackedState {
-  return isDirectory(join(row.root, '.ia/src')) ? 'present' : 'missing';
+export function trackedState(
+  row: Pick<TrackedWorkspace, 'root'>,
+  stat: (path: string) => { isDirectory(): boolean } | undefined = (path) => statSync(path, { throwIfNoEntry: false }),
+): TrackedState {
+  try {
+    return stat(join(row.root, '.ia/src'))?.isDirectory() === true ? 'present' : 'missing';
+  } catch (error) {
+    return absent(error) ? 'missing' : 'unreadable';
+  }
 }
 
 /** Lower-cased, every character outside the id rule a `-`, then trimmed so it starts with a letter or digit. */
@@ -206,14 +215,30 @@ export function defaultTrackId(root: string): string {
   return slug(names.length === 1 ? names[0]! : basename(root));
 }
 
-/** The real path of a directory holding `.ia/src`, or `IA-DB-ROOT-INVALID` as root discovery refuses (§1.2). */
+/**
+ * The real path of a directory holding `.ia/src`, or `IA-DB-ROOT-INVALID` as root discovery refuses (§1.2). A directory
+ * that cannot be examined is refused under the same code, saying so: it may be a workspace, so `ia init` is no remedy.
+ */
 function workspaceRoot(directory: string): string {
   const absolute = resolve(directory);
   let real: string | undefined;
   try {
     real = realpathSync(absolute);
-  } catch {
-    real = undefined;
+    statSync(join(real, '.ia/src'), { throwIfNoEntry: false });
+  } catch (error) {
+    if (!absent(error)) {
+      const path = commandPath(absolute),
+        access = 'Give yourself read and search permission on it and the folders above it';
+      throw new Refusal(
+        'IA-DB-ROOT-INVALID',
+        `${absolute} cannot be read (${errorCode(error) || (error as Error).message}), so ia cannot tell whether it is a workspace`,
+        3,
+        { path: absolute },
+        path !== undefined
+          ? `${access}, then run "ia workspaces add ${path}".`
+          : `${access}, then from that directory run "ia workspaces add ."; ${PATH_OMITTED}.`,
+      );
+    }
   }
   if (real === undefined || !isDirectory(join(real, '.ia/src'))) {
     const path = commandPath(absolute),
@@ -393,7 +418,7 @@ export function trackWorkspace(
   input: Input,
   now: Date = new Date(),
   lock: LockOptions = {},
-): { readonly status: 'added' | 'already'; readonly row: TrackedWorkspace } {
+): Promise<{ readonly status: 'added' | 'already'; readonly row: TrackedWorkspace }> {
   return withTrackedLock(
     home,
     () => {
@@ -420,50 +445,64 @@ export function trackWorkspaces(
   home: string,
   roots: readonly string[],
   now: Date = new Date(),
-): readonly TrackedWorkspace[] {
-  return withTrackedLock(home, () => {
-    const loaded = load(home);
-    const rows = loaded.rows.map((entry) => entry.row),
-      added: TrackedWorkspace[] = [];
-    for (const root of roots) {
-      const result = admit(home, loaded.path, rows, { root }, now, added);
-      if (result.status === 'already') continue;
-      rows.push(result.row);
-      added.push(result.row);
-    }
-    if (added.length > 0) save(home, loaded, [...loaded.rows.map((entry) => entry.raw), ...added]);
-    return added;
-  });
+  lock: LockOptions = {},
+): Promise<readonly TrackedWorkspace[]> {
+  return withTrackedLock(
+    home,
+    () => {
+      const loaded = load(home);
+      const rows = loaded.rows.map((entry) => entry.row),
+        added: TrackedWorkspace[] = [];
+      for (const root of roots) {
+        const result = admit(home, loaded.path, rows, { root }, now, added);
+        if (result.status === 'already') continue;
+        rows.push(result.row);
+        added.push(result.row);
+      }
+      if (added.length > 0) save(home, loaded, [...loaded.rows.map((entry) => entry.raw), ...added]);
+      return added;
+    },
+    lock,
+  );
 }
 
 /**
  * Removes the row with this id, or else the row whose root this is, read against `cwd`; a gone root still matches by
  * its spelling. Refuses as `IA-CLI-TRACKED-UNKNOWN` when no row matches.
  */
-export function untrackWorkspace(home: string, idOrRoot: string, cwd: string): TrackedWorkspace {
-  return withTrackedLock(home, () => {
-    const loaded = load(home);
-    let index = loaded.rows.findIndex((entry) => entry.row.id === idOrRoot);
-    if (index === -1) {
-      const root = resolve(cwd, idOrRoot);
-      index = loaded.rows.findIndex((entry) => sameRoot(entry.row.root, root));
-    }
-    if (index === -1)
-      throw new Refusal(
-        'IA-CLI-TRACKED-UNKNOWN',
-        `No tracked workspace has the id or root ${idOrRoot}`,
-        3,
-        null,
-        'Run "ia workspaces list" for the tracked ids and roots.',
+export function untrackWorkspace(
+  home: string,
+  idOrRoot: string,
+  cwd: string,
+  lock: LockOptions = {},
+): Promise<TrackedWorkspace> {
+  return withTrackedLock(
+    home,
+    () => {
+      const loaded = load(home);
+      let index = loaded.rows.findIndex((entry) => entry.row.id === idOrRoot);
+      if (index === -1) {
+        const root = resolve(cwd, idOrRoot);
+        index = loaded.rows.findIndex((entry) => sameRoot(entry.row.root, root));
+      }
+      if (index === -1)
+        throw new Refusal(
+          'IA-CLI-TRACKED-UNKNOWN',
+          `No tracked workspace has the id or root ${idOrRoot}`,
+          3,
+          null,
+          'Run "ia workspaces list" for the tracked ids and roots.',
+        );
+      const removed = loaded.rows[index]!.row;
+      save(
+        home,
+        loaded,
+        loaded.rows.filter((_, at) => at !== index).map((entry) => entry.raw),
       );
-    const removed = loaded.rows[index]!.row;
-    save(
-      home,
-      loaded,
-      loaded.rows.filter((_, at) => at !== index).map((entry) => entry.raw),
-    );
-    return removed;
-  });
+      return removed;
+    },
+    lock,
+  );
 }
 
 /** Never walked into: package installs, git's own folder, and the worktrees `ia` keeps beside a repository. */

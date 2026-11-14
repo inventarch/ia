@@ -12,7 +12,7 @@ import { resolveRepo } from '../src/console/app.js';
 import type { Step } from '../src/console/offers.js';
 import { planBatch } from '../src/console/batch-plan.js';
 import type { RepoResult, Runner } from '../src/console/batch-run.js';
-import { defaultRunner, gitTop, METADATA_OPS, runBatch } from '../src/console/batch-run.js';
+import { defaultRunner, enclosingTop, gitTop, METADATA_OPS, runBatch } from '../src/console/batch-run.js';
 import { commitPassed, ghReady, nextChoices, pushAndOpenPrs, removeWorktrees } from '../src/console/batch-next.js';
 import { batchScreen, previewLines } from '../src/console/batch-screen.js';
 import type { RepoRow } from '../src/console/workspaces-state.js';
@@ -40,7 +40,7 @@ async function batch(fx: Fixture, rows: readonly RepoRow[], offerId = 'fix:gener
     rows,
     new Set(rows.keys()),
     { iaHome: join(fx.dir, 'home') },
-    { top: (root) => gitTop(root, fx.env) },
+    { top: (root) => gitTop(root, fx.env), enclosing: (path) => enclosingTop(path, fx.env) },
   );
   const results = await runBatch(
     plan,
@@ -115,7 +115,7 @@ describe('nextChoices', () => {
       roots.map((root) => rowOf(root, [upgrade])),
       new Set([0, 1, 2]),
       { iaHome: resolve('/srv/ia-home') },
-      { top: (root) => root },
+      { top: (root) => root, enclosing: () => null },
     );
     const choices = nextChoices(
       plan.repos.map((entry) => result({ root: entry.root })),
@@ -135,7 +135,7 @@ describe('the preview', () => {
       [rowOf(root, [relock(root)]), rowOf(resolve('/srv/repos/beta'), [relock(resolve('/srv/repos/beta'))])],
       new Set([0, 1]),
       { iaHome: resolve('/srv/ia-home') },
-      { top: (path) => (path.endsWith('beta') ? null : path) },
+      { top: (path) => (path.endsWith('beta') ? null : path), enclosing: () => null },
     );
     return previewLines({ choice: { offerId: 'fix:generation', title: 'Re-lock', repos: 2 }, ...plan });
   };
@@ -157,7 +157,7 @@ describe('the preview', () => {
       'The offers were read from each local checkout, but each worktree starts from that base: a change the checkout has and the base lacks is not in it, and a repository whose workspace the base does not hold is refused.',
     );
     expect(lines).toContain(
-      'The install runs no lifecycle script and, where git tracks the lockfile, is frozen to it: npm ci --ignore-scripts, pnpm install --frozen-lockfile --ignore-scripts, yarn install --frozen-lockfile --ignore-scripts (Yarn 2 and later: --immutable --mode=skip-build) or bun install --frozen-lockfile --ignore-scripts. A step listed under it may still run scripts: a package-manager step such as npm install -D runs as shown. A commit afterwards holds what it and the steps write.',
+      'The install runs no lifecycle script and, for pnpm, no pnpmfile hook (Yarn 2 and later yarnPath and plugins, and .npmrc settings, still apply) and, where git tracks the lockfile, is frozen to it: npm ci --ignore-scripts, pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile, yarn install --frozen-lockfile --ignore-scripts (Yarn 2 and later: --immutable --mode=skip-build) or bun install --frozen-lockfile --ignore-scripts. A step listed under it may still run scripts: a package-manager step such as npm install -D runs as shown. A commit afterwards holds what it and the steps write.',
     );
   });
 });
@@ -173,7 +173,7 @@ describe('the preview of an offer whose first step is the install', () => {
       [rowOf(root, [offer])],
       new Set([0]),
       { iaHome: resolve('/srv/ia-home') },
-      { top: (path) => path },
+      { top: (path) => path, enclosing: () => null },
     );
     const lines = previewLines({ choice: { offerId: 'fix:cli-version', title: 'Install', repos: 1 }, ...plan });
     expect(lines).toContain("  install  by the first step, the package manager's own install");
@@ -606,7 +606,7 @@ describe('git routing variables', () => {
       rows,
       new Set([0]),
       { iaHome: join(fx.dir, 'home') },
-      { top: (root) => gitTop(root, routed) },
+      { top: (root) => gitTop(root, routed), enclosing: (path) => enclosingTop(path, routed) },
     );
     expect(plan.repos[0]?.refused).toBeNull();
     const recorded = recorder(defaultRunner(routed));
@@ -633,30 +633,67 @@ describe('git routing variables', () => {
     expect(git(top, ['symbolic-ref', 'HEAD'], fx.env)).toBe(branch);
     expect(readFileSync(join(top, '.git', 'index')).equals(index)).toBe(true);
     expect(git(top, ['status', '--porcelain'], fx.env)).toBe(porcelain);
-    // No recorded child (git on either side, the install, the steps, gh) was handed a routing variable.
+    // No recorded child (git on either side, the install, the steps, gh) was handed a routing variable, and the only
+    // command-line configuration it gets is the batch's own empty core.askPass.
     expect(recorded.calls.length).toBeGreaterThan(5);
-    for (const call of recorded.calls)
+    for (const call of recorded.calls) {
+      expect(Object.keys(call.env).filter((name) => /^GIT_(DIR|WORK_TREE|INDEX_FILE)$/i.test(name))).toEqual([]);
       expect(
-        Object.keys(call.env).filter((name) =>
-          /^GIT_(DIR|WORK_TREE|INDEX_FILE|CONFIG_(COUNT|KEY_\d+|VALUE_\d+))$/i.test(name),
+        Object.fromEntries(
+          Object.entries(call.env).filter(([name]) => /^GIT_CONFIG_(COUNT|KEY_\d+|VALUE_\d+)$/i.test(name)),
         ),
-      ).toEqual([]);
+      ).toEqual({ GIT_CONFIG_COUNT: '1', GIT_CONFIG_KEY_0: 'core.askPass', GIT_CONFIG_VALUE_0: '' });
+    }
+  });
+});
+
+describe('the push', () => {
+  it('names one ref: push.followTags does not carry a local tag along with it', async () => {
+    const fx = withGh('batch-next-follow-tags');
+    const { top } = repo(fx, 'alpha');
+    git(top, ['tag', '-a', 'v-local', '-m', 'local only'], fx.env);
+    git(top, ['config', 'push.followTags', 'true'], fx.env);
+    const { results } = await batch(fx, [rowOf(top, [relock(top)])]);
+    const run = defaultRunner(fx.env);
+    const committed = await commitPassed(results, 'Re-lock', run, fx.env);
+    const opened = await pushAndOpenPrs(committed, run, fx.env);
+    expect(opened[0]?.error).toBeNull();
+    expect(git(top, ['ls-remote', 'origin', 'chore/ia-fix-generation'], fx.env)).not.toBe('');
+    expect(git(top, ['ls-remote', '--tags', 'origin'], fx.env)).toBe('');
+  });
+  it('runs ssh in batch mode, and leaves a core.sshCommand to the user', async () => {
+    const fx = withGh('batch-next-ssh');
+    const plain = repo(fx, 'plain');
+    const own = repo(fx, 'own');
+    git(own.top, ['config', 'core.sshCommand', 'ssh -i /keys/work'], fx.env);
+    const { results } = await batch(fx, [rowOf(plain.top, [relock(plain.top)]), rowOf(own.top, [relock(own.top)])]);
+    const recorded = recorder(defaultRunner(fx.env));
+    const committed = await commitPassed(results, 'Re-lock', recorded.run, fx.env);
+    await pushAndOpenPrs(committed, recorded.run, fx.env);
+    const pushes = recorded.calls.filter((call) => call.args.includes('push'));
+    expect(pushes.map((call) => call.env['GIT_SSH_COMMAND'])).toEqual(['ssh -o BatchMode=yes', undefined]);
   });
 });
 
 describe('the batch screen', () => {
-  const screen = async (fx: Fixture, top: string, answers: readonly (string | null)[]) => {
+  const screen = async (
+    fx: Fixture,
+    top: string,
+    answers: readonly (string | null)[],
+    nextSignals: readonly AbortSignal[] = [],
+  ) => {
     const rows = [rowOf(top, [relock(top)])];
     const plan = planBatch(
       'fix:generation',
       rows,
       new Set([0]),
       { iaHome: join(fx.dir, 'home') },
-      { top: (root) => gitTop(root, fx.env) },
+      { top: (root) => gitTop(root, fx.env), enclosing: (path) => enclosingTop(path, fx.env) },
     );
     const printed: string[] = [];
     const asked: string[] = [];
     const left = [...answers];
+    const signals = [...nextSignals];
     const outcome = await batchScreen(
       { choice: { offerId: 'fix:generation', title: 'Re-lock', repos: 1 }, ...plan },
       { packageRoot: fx.running, version: '3.5.1' },
@@ -670,6 +707,7 @@ describe('the batch screen', () => {
         resolveRepo: (root: string) => resolveRepo(root, fx.env, fx.running),
         env: fx.env,
         signal: new AbortController().signal,
+        ...(nextSignals.length > 0 ? { nextSignal: () => signals.shift() ?? new AbortController().signal } : {}),
       },
     );
     return { plan, printed, asked, outcome };
@@ -690,6 +728,8 @@ describe('the batch screen', () => {
     const worktree = ran.plan.repos[0]!.worktree;
     expect(ran.outcome).toEqual({ next: 'return' });
     expect(ran.printed.some((line) => line.startsWith('ok     chore/ia-fix-generation'))).toBe(true);
+    // The base this repository really resolved to, not the preview's rule for finding one.
+    expect(ran.printed.some((line) => line.startsWith('ok ') && line.includes('from origin/main'))).toBe(true);
     // The commit was the first choice; it then leaves the list.
     expect(ran.printed.some((line) => /^ok {5}chore\/ia-fix-generation .* committed [0-9a-f]+$/.test(line))).toBe(true);
     expect(git(worktree, ['log', '-1', '--format=%s'], fx.env).trim()).toBe('chore: Re-lock');
@@ -698,5 +738,36 @@ describe('the batch screen', () => {
       'Choose a number, or press enter to return: ',
       'Choose a number, or press enter to return: ',
     ]);
+  });
+  const stopped = () => {
+    const stop = new AbortController();
+    stop.abort();
+    return stop.signal;
+  };
+  const alpha = (fx: Fixture) =>
+    repo(fx, 'alpha', {
+      'package.json': JSON.stringify({ devDependencies: { '@inventarch/cli': '3.5.0' } }),
+      'package-lock.json': '{}',
+    }).top;
+  it('a Ctrl-C during Commit leaves Commit to choose again, and the second choice commits', async () => {
+    const fx = fixture('batch-next-screen-stop-commit');
+    const top = alpha(fx);
+    const ran = await screen(fx, top, ['y', '1', '1', ''], [stopped(), new AbortController().signal]);
+    const worktree = ran.plan.repos[0]!.worktree;
+    expect(ran.printed.filter((line) => line.endsWith('not committed: stopped'))).toHaveLength(1);
+    expect(ran.printed.filter((line) => line.includes('Commit the one that passed'))).toHaveLength(2);
+    expect(ran.printed.some((line) => /^ok {5}chore\/ia-fix-generation .* committed [0-9a-f]+$/.test(line))).toBe(true);
+    expect(git(worktree, ['log', '-1', '--format=%s'], fx.env).trim()).toBe('chore: Re-lock');
+  });
+  it('a Ctrl-C during Commit, push and open PRs leaves both choices to choose again', async () => {
+    const fx = withGh('batch-next-screen-stop-pr');
+    const top = alpha(fx);
+    const ran = await screen(fx, top, ['y', '2', '2', ''], [stopped(), new AbortController().signal]);
+    const worktree = ran.plan.repos[0]!.worktree;
+    expect(ran.printed.some((line) => line.endsWith(': not opened: not pushed: stopped'))).toBe(true);
+    expect(ran.printed.filter((line) => line.includes('Commit, push and open PRs'))).toHaveLength(2);
+    expect(ran.printed.filter((line) => line.includes('Commit the one that passed'))).toHaveLength(2);
+    expect(git(worktree, ['log', '-1', '--format=%s'], fx.env).trim()).toBe('chore: Re-lock');
+    expect(readLog<{ argv: string[] }>(join(fx.dir, 'gh.log')).some((call) => call.argv.includes('create'))).toBe(true);
   });
 });

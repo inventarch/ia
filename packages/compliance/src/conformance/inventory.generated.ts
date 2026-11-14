@@ -2,7 +2,7 @@
 import type { ConformanceInventory } from './inventory.js';
 
 export const INVENTORY: ConformanceInventory = {
-  "profile": "package-v1",
+  "profile": "package",
   "fixtures": [
     {
       "path": "cases/fail/duplicate-given.ia",
@@ -1965,6 +1965,14 @@ export const INVENTORY: ConformanceInventory = {
   "boundaries": [
     "boundary/IA-COMP-ADOPTION-FAILED",
     "boundary/IA-COMP-BOOTSTRAP-ORDER",
+    "boundary/IA-COMP-CANON-KIT-SCRIPTS",
+    "boundary/IA-COMP-CANON-KIT-WORDS",
+    "boundary/IA-COMP-CANON-KIT-WORKSPACE",
+    "boundary/IA-COMP-CANON-LOCAL-TIGHTEN",
+    "boundary/IA-COMP-CANON-MANDATE-WIDEN",
+    "boundary/IA-COMP-CANON-SOURCE-ROOTS",
+    "boundary/IA-COMP-CANON-TEACHING-LINKS",
+    "boundary/IA-COMP-CANON-WORK-PLACEMENT",
     "boundary/IA-COMP-CHECK-CONFLICT",
     "boundary/IA-COMP-CHECK-UNKNOWN",
     "boundary/IA-COMP-CONSENT-EMPTY",
@@ -2037,6 +2045,14 @@ export const INVENTORY: ConformanceInventory = {
   "requiredCodes": [
     "IA-COMP-ADOPTION-FAILED",
     "IA-COMP-BOOTSTRAP-ORDER",
+    "IA-COMP-CANON-KIT-SCRIPTS",
+    "IA-COMP-CANON-KIT-WORDS",
+    "IA-COMP-CANON-KIT-WORKSPACE",
+    "IA-COMP-CANON-LOCAL-TIGHTEN",
+    "IA-COMP-CANON-MANDATE-WIDEN",
+    "IA-COMP-CANON-SOURCE-ROOTS",
+    "IA-COMP-CANON-TEACHING-LINKS",
+    "IA-COMP-CANON-WORK-PLACEMENT",
     "IA-COMP-CATALOG-BUILTIN-OVERRIDE",
     "IA-COMP-CATALOG-CODEC-UNKNOWN",
     "IA-COMP-CATALOG-DIGEST-CONFLICT",
@@ -2230,4 +2246,4 @@ export const INVENTORY: ConformanceInventory = {
   ]
 };
 
-export const INVENTORY_DIGEST = "030084fc86ce6024a2626780e774691157561a3a44a9c7ac2cf2cb72dd77a73a";
+export const INVENTORY_DIGEST = "fc61fb5d35abe5bbecf5b428089834919c29ab57a51867af1cab86d8b93f526d";

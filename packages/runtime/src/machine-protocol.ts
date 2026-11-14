@@ -192,7 +192,7 @@ export const MACHINE_PROTOCOL: MachineProtocol = freeze({
     'scope issues a token that bounds later reads by phase or identities, and by root only where sources declare a reach. It is optional: without within, a call reads the initial boundary.',
     'context delivers the cited procedure cells and governance that apply to a coordinate; select chooses exactly one binding among candidates, or refuses.',
     'get, records, resolve, search and traverse read admitted records inside the scope; pass within to stay inside a narrowed one.',
-    'A token lives as long as the process that issued it: one CLI invocation, or the MCP server process. A CLI invocation performs one operation, so its reads always cover the initial boundary; narrowing takes scope, then within, in one MCP session.',
+    'A token lives at most as long as the process that issued it: one CLI invocation, or the MCP server process. A CLI invocation performs one operation, so its reads always cover the initial boundary; narrowing takes scope, then within, in one MCP session. A process holds the 4,096 scopes most recently issued or read: a token left unread past that refuses with IA-DB-STALE, reads nothing, and is replaced by issuing another scope.',
     "report is privileged inspection of the whole workspace's admission, served by the CLI only.",
     'Version 2 adds read: the body behind one locator inside the scope, with its digest. The Door and the MCP door serve it; on the CLI the consumer verb ia read returns the same body and digest, and the machine routes stay the version 1 operations.',
     "Version 2 also adds next: one plan's delivery view inside the scope, its tasks in prerequisite order with their verdicts, computed per call and never stored. The Door and the MCP door serve it, and on the CLI the consumer verb ia next prints the same view. Its refusals carry next, the one command to run, and the plans or the cycle they name.",
@@ -572,7 +572,7 @@ export const MACHINE_PROTOCOL: MachineProtocol = freeze({
     {
       topic: 'Token lifetime',
       cli: 'One invocation: a token printed by one run cannot be passed to the next, so every CLI read covers the initial boundary.',
-      mcp: 'The server process: a token stays valid across calls until the server exits.',
+      mcp: 'At most the server process, and a token can expire within it: the server holds the 4,096 scopes most recently issued or read, so one left unread past that refuses with IA-DB-STALE and reads nothing. Call ia_scope for a new token, with the same narrowing.',
     },
     {
       topic: 'Workspace',

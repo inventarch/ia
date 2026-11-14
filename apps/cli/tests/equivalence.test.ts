@@ -111,6 +111,51 @@ it('reports the declarations that declare nothing through both entrypoints, from
   expect(consumer['status']).toBe(machine['status']);
 });
 
+it('ia-distribution validate agrees on every law, and a pending law exits 0 in both', async () => {
+  const root = resolve(scratch('equivalence-laws'), 'workspace'),
+    env = { ...process.env, IA_HOME: resolve(scratch('equivalence-laws-home'), '.ia') };
+  expect((await spawned(MAIN, ['init', root, '--apply', '--yes', '--json'], env)).status).toBe(0);
+  const law = (name: string, enforcedBy?: string) =>
+    `@law ${name}
+  meaning
+    says "Law ${name}."
+    answers "What does law ${name} require?"
+  governance
+    severity blocking
+${
+  enforcedBy === undefined
+    ? ''
+    : `  relationships
+    enforced-by @check ${enforcedBy}
+`
+}`;
+  const check = `@check schema-gate
+  meaning
+    says "Gate."
+    answers "What does the gate evaluate?"
+  check
+    runs COMP-SCHEMA
+    scope "*"
+`;
+  writeFileSync(
+    resolve(root, '.ia/src/laws.ia'),
+    `#! ia 1.0
+
+${law('lonely-law')}
+${law('gated-law', 'schema-gate')}
+${check}`,
+  );
+  const consumer = result(await spawned(MAIN, ['validate', '--root', root, '--json'], env), 'stdout', 0, 'ia validate'),
+    machine = result(await spawned(DISTRIBUTION, ['validate', '--root', root], env), 'stdout', 0, 'native validate');
+  const laws = machine['laws'] as readonly { identity: string; state: string }[];
+  expect(laws.map((law) => [law.identity.split('/').at(-1), law.state])).toEqual([
+    ['gated-law', 'enforced'],
+    ['lonely-law', 'pending'],
+  ]);
+  expect(consumer['laws']).toEqual(laws);
+  expect(consumer['counts']).toMatchObject({ lawsPending: 1, lawsSuspended: 0 });
+});
+
 it('produces one archive through ia pack --json and ia-distribution pack', async () => {
   const root = packable();
   // Both write outside the root, so neither run can perturb the source the other fingerprints.

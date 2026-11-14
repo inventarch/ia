@@ -4,19 +4,19 @@
    [x] ▲ atlas                 ▲ 3.5.0  ✔ 0      ▲ drift ▲ 2   ▲ ia 3.5.0 render…│ atlas
    [x] ▲ app                   ▲ 3.4.1  ✖ 3      ✔ ok    ▲ 4   — not reported    │   worktree /srv/repos/.ia-worktrees/atlas-ia-3-5-1
    [ ] ✔ ia                    ✔ 3.5.1  ✔ 0      —       ✔ 0   — not reported    │   branch   chore/ia-3-5-1
-   [ ] ? notes                 ? ?      ? ?      ? ?     ? ?   ? ?               │   run      1. npm install -D @inventarch/cli@3.5.1
-   [ ] — gone                  missing                                           │            2. ia restore --apply --root
-   [ ] ? old                   ? ?      ? ?      ? ?     ? ?   ? ?               │               /srv/repos/.ia-worktrees/atlas-ia-3-5-1
-                                                                                 │ app
- BATCH ON 2 SELECTED                                                             │   refused: origin has no HEAD, main or master
-  › Upgrade CLI to 3.5.1                                                2 repos  │ LEFT FOR AFTER, ONCE
-    Re-lock                                                              1 repo  │   ia host claude --user --apply
- MORE                                                                            │ nothing is pushed; enter runs it
-    Find workspaces in a folder…                                                 │
-                                                                                 │
-                                                                                 │
-                                                                                 │
-                                                                                 │
+   [ ] ? notes                 ? ?      ? ?      ? ?     ? ?   ? ?               │   base     origin's default branch after git fetch
+   [ ] — gone                  missing                                           │            origin (origin/HEAD, else origin/main, else
+   [ ] ? old                   ? ?      ? ?      ? ?     ? ?   ? ?               │            origin/master)
+                                                                                 │   install  by the first step, the package manager's own
+ BATCH ON 2 SELECTED                                                             │            install
+  › Upgrade CLI to 3.5.1                                                2 repos  │   run      1. npm install -D @inventarch/cli@3.5.1
+    Re-lock                                                              1 repo  │            2. ia restore --apply --root
+ MORE                                                                            │               /srv/repos/.ia-worktrees/atlas-ia-3-5-1
+    Find workspaces in a folder…                                                 │ app
+                                                                                 │   refused: origin has no HEAD, main or master
+                                                                                 │ LEFT FOR AFTER, ONCE
+                                                                                 │   ia host claude --user --apply
+                                                                                 │ nothing is pushed; enter runs it
                                                                                  │
                                                                                  │
                                                                                  │

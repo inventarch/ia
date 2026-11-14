@@ -3,7 +3,16 @@
  * roots kept apart from the MCP door's `workspace-locations.json`, and the bounded folder walk `ia workspaces find`
  * reads. Every home and workspace is a scratch directory.
  */
-import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { resolve } from 'node:path';
 import { afterAll, expect, it } from 'vitest';
 import { Refusal } from '../src/consumer.js';
@@ -33,9 +42,9 @@ function workspaceAt(root: string, ...names: readonly string[]): string {
   names.forEach((name, index) => writeFileSync(resolve(root, `.ia/src/w${index}.ia`), `@workspace ${name}\n`));
   return root;
 }
-const refusalOf = (action: () => unknown): Refusal => {
+const refusalOf = async (action: () => unknown): Promise<Refusal> => {
   try {
-    action();
+    await action();
   } catch (error) {
     if (error instanceof Refusal) return error;
     throw error;
@@ -48,10 +57,10 @@ it('readTracked is empty when the file is absent', () => {
   expect(readTracked(home())).toEqual([]);
 });
 
-it('adds a workspace with its @workspace name as id', () => {
+it('adds a workspace with its @workspace name as id', async () => {
   const at = home(),
     root = workspaceAt(resolve(scratch('tracked'), 'repo'), 'team-kb');
-  const { status, row } = trackWorkspace(at, { root }, NOW);
+  const { status, row } = await trackWorkspace(at, { root }, NOW);
   expect(status).toBe('added');
   expect(row).toEqual({ id: 'team-kb', root: realpathSync(root), added: NOW.toISOString() });
   expect(readTracked(at)).toEqual([row]);
@@ -68,26 +77,27 @@ it('falls back to the folder name when no single @workspace is declared', () => 
   expect(defaultTrackId(none)).toBe('my-repo');
 });
 
-it('adding a root again through a link changes nothing', () => {
+it('adding a root again through a link changes nothing', async () => {
   const at = home(),
     parent = scratch('tracked'),
     root = workspaceAt(resolve(parent, 'repo'), 'linked'),
     link = resolve(parent, 'link');
   symlinkSync(root, link, process.platform === 'win32' ? 'junction' : 'dir');
-  expect(trackWorkspace(at, { root }, NOW).status).toBe('added');
-  const again = trackWorkspace(at, { root: link + (process.platform === 'win32' ? '\\' : '/') }, NOW);
+  expect((await trackWorkspace(at, { root }, NOW)).status).toBe('added');
+  const again = await trackWorkspace(at, { root: link + (process.platform === 'win32' ? '\\' : '/') }, NOW);
   expect(again.status).toBe('already');
   expect(again.row.root).toBe(realpathSync(root));
-  if (process.platform === 'win32') expect(trackWorkspace(at, { root: root.toUpperCase() }).status).toBe('already');
+  if (process.platform === 'win32')
+    expect((await trackWorkspace(at, { root: root.toUpperCase() })).status).toBe('already');
   expect(readTracked(at)).toHaveLength(1);
 });
 
-it('refuses an id another root holds', () => {
+it('refuses an id another root holds', async () => {
   const at = home(),
     first = workspaceAt(resolve(scratch('tracked'), 'ia'), 'ia'),
     second = workspaceAt(resolve(scratch('tracked'), 'ia'), 'ia');
-  trackWorkspace(at, { root: first }, NOW);
-  const refusal = refusalOf(() => trackWorkspace(at, { root: second }, NOW));
+  await trackWorkspace(at, { root: first }, NOW);
+  const refusal = await refusalOf(() => trackWorkspace(at, { root: second }, NOW));
   expect(refusal.code).toBe('IA-CLI-TRACKED-ID');
   expect(refusal.exit).toBe(3);
   expect(refusal.message).toContain(realpathSync(first));
@@ -98,15 +108,15 @@ it('refuses an id another root holds', () => {
   expect(readTracked(at)).toHaveLength(1);
   // The suggested id is free, so the next command it names succeeds.
   const suggested = /--id (\S+)"/.exec(refusal.next!)![1]!;
-  expect(trackWorkspace(at, { root: second, id: suggested }, NOW).row.id).toBe(suggested);
+  expect((await trackWorkspace(at, { root: second, id: suggested }, NOW)).row.id).toBe(suggested);
 });
 
-it('refuses two found roots that would take one id in the same write, naming both as found, not tracked', () => {
+it('refuses two found roots that would take one id in the same write, naming both as found, not tracked', async () => {
   const at = home(),
     parent = scratch('tracked'),
     first = workspaceAt(resolve(parent, 'one'), 'app'),
     second = workspaceAt(resolve(parent, 'two'), 'app');
-  const refusal = refusalOf(() => trackWorkspaces(at, [first, second], NOW));
+  const refusal = await refusalOf(() => trackWorkspaces(at, [first, second], NOW));
   expect(refusal.code).toBe('IA-CLI-TRACKED-ID');
   expect(refusal.exit).toBe(3);
   expect(refusal.message).toBe(
@@ -118,12 +128,12 @@ it('refuses two found roots that would take one id in the same write, naming bot
   expect(readTracked(at)).toEqual([]);
   // The next command it names succeeds, and the same write then tracks the other root under the id.
   const suggested = /--id (\S+)"/.exec(refusal.next!)![1]!;
-  expect(trackWorkspace(at, { root: second, id: suggested }, NOW).row.id).toBe(suggested);
-  expect(trackWorkspaces(at, [first, second], NOW).map((row) => row.id)).toEqual(['app']);
+  expect((await trackWorkspace(at, { root: second, id: suggested }, NOW)).row.id).toBe(suggested);
+  expect((await trackWorkspaces(at, [first, second], NOW)).map((row) => row.id)).toEqual(['app']);
   expect(readTracked(at).map((row) => row.id)).toEqual([suggested, 'app']);
 });
 
-it('suggests a different free id for each found root that clashes, so every remedy succeeds', () => {
+it('suggests a different free id for each found root that clashes, so every remedy succeeds', async () => {
   const at = home(),
     parent = scratch('tracked'),
     roots = ['one', 'two', 'three'].map((name) => realpathSync(workspaceAt(resolve(parent, name, 'app')))),
@@ -132,46 +142,46 @@ it('suggests a different free id for each found root that clashes, so every reme
   const clashes = idClashes([], found);
   expect(clashes.map((clash) => clash.suggestion)).toEqual(['app-2', 'app-3']);
   // Following both remedies leaves the first root its id, and the same write then tracks it.
-  for (const clash of clashes) trackWorkspace(at, { root: clash.root, id: clash.suggestion }, NOW);
-  expect(trackWorkspaces(at, roots, NOW).map((row) => row.id)).toEqual(['app']);
+  for (const clash of clashes) await trackWorkspace(at, { root: clash.root, id: clash.suggestion }, NOW);
+  expect((await trackWorkspaces(at, roots, NOW)).map((row) => row.id)).toEqual(['app']);
   expect(readTracked(at)).toHaveLength(3);
 });
 
-it('refuses a new id or label for a root already tracked', () => {
+it('refuses a new id or label for a root already tracked', async () => {
   const at = home(),
     root = workspaceAt(resolve(scratch('tracked'), 'repo'), 'repo');
-  trackWorkspace(at, { root }, NOW);
-  expect(trackWorkspace(at, { root, id: 'repo' }).status).toBe('already');
+  await trackWorkspace(at, { root }, NOW);
+  expect((await trackWorkspace(at, { root, id: 'repo' })).status).toBe('already');
   for (const input of [{ id: 'other' }, { label: 'Mine' }]) {
-    const refusal = refusalOf(() => trackWorkspace(at, { root, ...input }));
+    const refusal = await refusalOf(() => trackWorkspace(at, { root, ...input }));
     expect(refusal.code).toBe('IA-CLI-TRACKED-EXISTS');
     expect(refusal.next).toContain('ia workspaces remove repo');
   }
 });
 
-it('refuses an id outside the id rule as usage', () => {
+it('refuses an id outside the id rule as usage', async () => {
   const root = workspaceAt(resolve(scratch('tracked'), 'repo'));
-  expect(() => trackWorkspace(home(), { root, id: '-bad' })).toThrow(/id/);
+  await expect(trackWorkspace(home(), { root, id: '-bad' })).rejects.toThrow(/id/);
 });
 
-it('refuses a root inside the IA home', () => {
+it('refuses a root inside the IA home', async () => {
   const at = home(),
     inside = workspaceAt(resolve(at, 'nested'));
-  const refusal = refusalOf(() => trackWorkspace(at, { root: inside }, NOW));
+  const refusal = await refusalOf(() => trackWorkspace(at, { root: inside }, NOW));
   expect(refusal.code).toBe('IA-DIST-PATH-UNSAFE');
   expect(existsSync(file(at))).toBe(false);
 });
 
-it('refuses a directory with no .ia/src', () => {
+it('refuses a directory with no .ia/src', async () => {
   const at = home();
   for (const root of [scratch('tracked'), resolve(scratch('tracked'), 'absent')]) {
-    const refusal = refusalOf(() => trackWorkspace(at, { root }, NOW));
+    const refusal = await refusalOf(() => trackWorkspace(at, { root }, NOW));
     expect(refusal.code).toBe('IA-DB-ROOT-INVALID');
   }
   expect(existsSync(file(at))).toBe(false);
 });
 
-it('keeps unknown fields', () => {
+it('keeps unknown fields', async () => {
   const at = home(),
     first = workspaceAt(resolve(scratch('tracked'), 'first'), 'first'),
     second = workspaceAt(resolve(scratch('tracked'), 'second'), 'second');
@@ -184,36 +194,48 @@ it('keeps unknown fields', () => {
       note: 'y',
     }),
   );
-  trackWorkspace(at, { root: second }, NOW);
+  await trackWorkspace(at, { root: second }, NOW);
   const written = JSON.parse(readFileSync(file(at), 'utf8'));
   expect(written.note).toBe('y');
   expect(written.workspaces[0].entry).toBe('x');
   expect(written.workspaces.map((row: { id: string }) => row.id)).toEqual(['first', 'second']);
 });
 
-it('refuses a malformed file and leaves it as it was', () => {
+it('refuses a malformed file and leaves it as it was', async () => {
   const root = workspaceAt(resolve(scratch('tracked'), 'repo'), 'repo');
-  for (const text of [
-    '{ not json',
-    JSON.stringify({ format: 'ia-tracked-workspaces-2', workspaces: [] }),
-    JSON.stringify({ format: TRACKED_FORMAT, workspaces: [{ id: 'x', root: 'relative', added: NOW.toISOString() }] }),
-  ]) {
+  const added = NOW.toISOString();
+  const withRows = (...rows: unknown[]) => JSON.stringify({ format: TRACKED_FORMAT, workspaces: rows });
+  const cases: readonly (readonly [string, string])[] = [
+    ['{ not json', ''],
+    ['[]', 'it is not a JSON object'],
+    [JSON.stringify({ format: 'ia-tracked-workspaces-2', workspaces: [] }), 'not ' + TRACKED_FORMAT],
+    [JSON.stringify({ format: TRACKED_FORMAT, workspaces: {} }), 'workspaces is not a list'],
+    [withRows(1), 'workspaces[0] is not an object'],
+    [withRows({ id: 'bad id', root, added }), 'workspaces[0] has no valid id'],
+    [withRows({ id: 'x', root: 'relative', added }), 'x names no absolute root'],
+    [withRows({ id: 'x', root }), 'x has no added time'],
+    [withRows({ id: 'x', root, added: 5 }), 'x has no added time'],
+    [withRows({ id: 'x', root, added, label: 5 }), 'x has a label that is not text'],
+    [withRows({ id: 'x', root, added }, { id: 'x', root, added }), 'x is listed twice'],
+  ];
+  for (const [text, why] of cases) {
     const at = home();
     mkdirSync(at, { recursive: true });
     writeFileSync(file(at), text);
     for (const action of [() => readTracked(at), () => trackWorkspace(at, { root }, NOW)]) {
-      const refusal = refusalOf(action);
+      const refusal = await refusalOf(action);
       expect(refusal.code).toBe('IA-CLI-TRACKED-INVALID');
       expect(refusal.where?.path).toBe(file(at));
+      expect(refusal.message).toContain(why);
     }
     expect(readFileSync(file(at), 'utf8')).toBe(text);
   }
 });
 
-it('a row whose root is gone is missing, never dropped', () => {
+it('a row whose root is gone is missing, never dropped', async () => {
   const at = home(),
     root = workspaceAt(resolve(scratch('tracked'), 'repo'), 'repo');
-  const { row } = trackWorkspace(at, { root }, NOW);
+  const { row } = await trackWorkspace(at, { root }, NOW);
   expect(trackedState(row)).toBe('present');
   rmSync(resolve(root, '.ia'), { recursive: true });
   expect(trackedState(row)).toBe('missing');
@@ -221,39 +243,39 @@ it('a row whose root is gone is missing, never dropped', () => {
   expect(trackedState(row)).toBe('missing');
   expect(readTracked(at)).toEqual([row]);
   // Adding another workspace keeps the missing row.
-  trackWorkspace(at, { root: workspaceAt(resolve(scratch('tracked'), 'other'), 'other') }, NOW);
+  await trackWorkspace(at, { root: workspaceAt(resolve(scratch('tracked'), 'other'), 'other') }, NOW);
   expect(readTracked(at).map((entry) => entry.id)).toEqual(['repo', 'other']);
 });
 
-it('untrack by id and by root', () => {
+it('untrack by id and by root', async () => {
   const at = home(),
     parent = scratch('tracked'),
     first = workspaceAt(resolve(parent, 'first'), 'first'),
     second = workspaceAt(resolve(parent, 'second'), 'second');
-  trackWorkspace(at, { root: first }, NOW);
-  trackWorkspace(at, { root: second }, NOW);
-  expect(untrackWorkspace(at, 'first', parent).id).toBe('first');
+  await trackWorkspace(at, { root: first }, NOW);
+  await trackWorkspace(at, { root: second }, NOW);
+  expect((await untrackWorkspace(at, 'first', parent)).id).toBe('first');
   // A relative root is read against the cwd, and a gone root still matches by its spelling.
   const gone = realpathSync(second);
   rmSync(second, { recursive: true });
-  expect(untrackWorkspace(at, gone, resolve(parent, 'elsewhere')).id).toBe('second');
-  trackWorkspace(at, { root: workspaceAt(first, 'first') }, NOW);
-  expect(untrackWorkspace(at, './first', parent).root).toBe(realpathSync(first));
+  expect((await untrackWorkspace(at, gone, resolve(parent, 'elsewhere'))).id).toBe('second');
+  await trackWorkspace(at, { root: workspaceAt(first, 'first') }, NOW);
+  expect((await untrackWorkspace(at, './first', parent)).root).toBe(realpathSync(first));
   expect(readTracked(at)).toEqual([]);
 });
 
-it('untrack refuses an unknown id', () => {
+it('untrack refuses an unknown id', async () => {
   const at = home();
-  const refusal = refusalOf(() => untrackWorkspace(at, 'nothing', scratch('tracked')));
+  const refusal = await refusalOf(() => untrackWorkspace(at, 'nothing', scratch('tracked')));
   expect(refusal.code).toBe('IA-CLI-TRACKED-UNKNOWN');
   expect(refusal.next).toContain('ia workspaces list');
 });
 
-it('never writes workspace-locations.json', () => {
+it('never writes workspace-locations.json', async () => {
   const at = home(),
     root = workspaceAt(resolve(scratch('tracked'), 'repo'), 'repo');
-  trackWorkspace(at, { root }, NOW);
-  untrackWorkspace(at, 'repo', root);
+  await trackWorkspace(at, { root }, NOW);
+  await untrackWorkspace(at, 'repo', root);
   expect(existsSync(resolve(at, 'workspace-locations.json'))).toBe(false);
 });
 
@@ -333,16 +355,19 @@ it('sameRoot compares exact real paths when either side reports no identity (ino
   expect(sameRoot('/w/alias', '/w/a', stat, real)).toBe(true);
 });
 
-it.skipIf(process.platform !== 'linux')('tracks, finds and removes two directories that differ only by case', () => {
-  const at = home(),
-    parent = scratch('tracked'),
-    lower = workspaceAt(resolve(parent, 'repo'), 'lower'),
-    upper = workspaceAt(resolve(parent, 'REPO'), 'upper');
-  trackWorkspace(at, { root: lower }, NOW);
-  expect(trackWorkspace(at, { root: upper }, NOW).status).toBe('added');
-  expect(untrackWorkspace(at, upper, parent).id).toBe('upper');
-  expect(readTracked(at).map((row) => row.id)).toEqual(['lower']);
-});
+it.skipIf(process.platform !== 'linux')(
+  'tracks, finds and removes two directories that differ only by case',
+  async () => {
+    const at = home(),
+      parent = scratch('tracked'),
+      lower = workspaceAt(resolve(parent, 'repo'), 'lower'),
+      upper = workspaceAt(resolve(parent, 'REPO'), 'upper');
+    await trackWorkspace(at, { root: lower }, NOW);
+    expect((await trackWorkspace(at, { root: upper }, NOW)).status).toBe('added');
+    expect((await untrackWorkspace(at, upper, parent)).id).toBe('upper');
+    expect(readTracked(at).map((row) => row.id)).toEqual(['lower']);
+  },
+);
 
 it('find applies the exclusions to the starting folder itself', () => {
   const at = home(),
@@ -363,4 +388,78 @@ it('find applies the exclusions to the starting folder itself', () => {
   expect(findWorkspaces(ordinary, { iaHome: at })).toEqual([realpathSync(ordinary)]);
   // Only the folder given is judged: one below a dot folder is walked as usual.
   expect(findWorkspaces(resolve(above, 'inner'), { iaHome: at })).toEqual([realpathSync(resolve(above, 'inner'))]);
+});
+
+/** Runs `check` with `directory` denied to this user, so a stat below it fails with EACCES; a real chmod, not a stub. */
+async function denied<T>(directory: string, check: () => T | Promise<T>): Promise<T> {
+  chmodSync(directory, 0o000);
+  try {
+    return await check();
+  } finally {
+    chmodSync(directory, 0o755);
+  }
+}
+const listRows = (at: string, rows: readonly { readonly id: string; readonly root: string }[]): void => {
+  mkdirSync(at, { recursive: true });
+  writeFileSync(
+    file(at),
+    JSON.stringify({ format: TRACKED_FORMAT, workspaces: rows.map((row) => ({ ...row, added: NOW.toISOString() })) }),
+  );
+};
+const unprivileged = process.platform === 'win32' || process.getuid?.() === 0;
+
+it.skipIf(unprivileged)('remove under EACCES takes the row spelled exactly, never its case variant', async () => {
+  const at = home(),
+    parent = realpathSync(scratch('tracked')),
+    guarded = resolve(parent, 'guarded');
+  mkdirSync(resolve(guarded, 'repo/.ia/src'), { recursive: true });
+  const lower = resolve(guarded, 'repo'),
+    upper = resolve(guarded, 'REPO');
+  listRows(at, [
+    { id: 'lower', root: lower },
+    { id: 'upper', root: upper },
+  ]);
+  const removed = await denied(guarded, () => untrackWorkspace(at, upper, parent));
+  expect(removed.id).toBe('upper');
+  expect(readTracked(at).map((row) => row.id)).toEqual(['lower']);
+});
+
+it.skipIf(unprivileged)('a root that exists but cannot be read is unreadable, not missing', async () => {
+  const parent = realpathSync(scratch('tracked')),
+    guarded = resolve(parent, 'guarded'),
+    root = resolve(guarded, 'repo');
+  mkdirSync(resolve(root, '.ia/src'), { recursive: true });
+  const row = { id: 'repo', root, added: NOW.toISOString() };
+  expect(await denied(guarded, () => trackedState(row))).toBe('unreadable');
+  expect(trackedState(row)).toBe('present');
+  expect(trackedState({ ...row, root: resolve(guarded, 'gone') })).toBe('missing');
+  writeFileSync(resolve(guarded, 'plain'), '');
+  expect(trackedState({ ...row, root: resolve(guarded, 'plain') })).toBe('missing');
+});
+
+it('sameRoot compares exact real paths when either side cannot be read, never folded', () => {
+  const stat = (path: string) =>
+    path === '/w/held' ? 'unreadable' : path === '/w/REPO' ? { dev: 1n, ino: 2n } : undefined;
+  const real = (path: string): string => {
+    if (path === '/w/REPO') return path;
+    throw new Error('EACCES');
+  };
+  expect(sameRoot('/w/held', '/w/HELD', stat, real)).toBe(false);
+  expect(sameRoot('/w/held', '/w/REPO', stat, real)).toBe(false);
+  expect(sameRoot('/w/REPO', '/w/held', stat, real)).toBe(false);
+  expect(sameRoot('/w/held', '/w/held', stat, real)).toBe(true);
+});
+
+it('trackedState reads a stat that failed from its code: ENOENT and ENOTDIR are missing, anything else unreadable', () => {
+  const row = { root: '/w/repo' };
+  const failing = (code: string) => (): never => {
+    throw Object.assign(new Error(), { code });
+  };
+  expect(trackedState(row, failing('ENOTDIR'))).toBe('missing');
+  expect(trackedState(row, failing('ENOENT'))).toBe('missing');
+  for (const code of ['EACCES', 'EPERM', 'ELOOP', ''] as const)
+    expect(trackedState(row, failing(code))).toBe('unreadable');
+  expect(trackedState(row, () => undefined)).toBe('missing');
+  expect(trackedState(row, () => ({ isDirectory: () => false }))).toBe('missing');
+  expect(trackedState(row, () => ({ isDirectory: () => true }))).toBe('present');
 });

@@ -1,15 +1,26 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  copyFileSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  renameSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { resolve, sep } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { CORE_TOKENS } from '../src/commands.js';
 import { iaHomeOf } from '../src/discovery.js';
 import {
   committed,
+  EXITED,
   HANDOFF_FROM,
   handOff,
   handoffTarget,
   NO_HANDOFF,
+  rememberCommitted,
   rootFromArgv,
   runnableCopy,
 } from '../src/handoff.js';
@@ -257,6 +268,74 @@ describe('committed', () => {
     expect(git(w, 'add', '-f', 'node_modules/@inventarch/cli/package.json').status).toBe(0);
     expect(committed(copy)).toBe(true);
   });
+
+  /** A tracked copy in a fresh repository. */
+  const tracked = (prefix: string): string => {
+    const w = workspace(prefix);
+    const copy = resolve(w, 'node_modules/@inventarch/cli');
+    expect(git(w, 'init', '-q').status).toBe(0);
+    expect(git(w, 'add', '-f', 'node_modules/@inventarch/cli/package.json').status).toBe(0);
+    return copy;
+  };
+  /** Runs `body` with PATH set to `dir`, then puts PATH back. */
+  const withPath = <T>(dir: string, body: () => T): T => {
+    const before = process.env['PATH'];
+    process.env['PATH'] = dir;
+    try {
+      return body();
+    } finally {
+      if (before === undefined) delete process.env['PATH'];
+      else process.env['PATH'] = before;
+    }
+  };
+  /** A directory whose `git` always exits non-zero (a copy of node on Windows, which rejects git's arguments). */
+  const failingGit = (): string => {
+    const dir = scratch('handoff-git-stub');
+    if (process.platform === 'win32') copyFileSync(process.execPath, resolve(dir, 'git.exe'));
+    else {
+      put(resolve(dir, 'git'), '#!/bin/sh\nexit 128\n');
+      chmodSync(resolve(dir, 'git'), 0o755);
+    }
+    return dir;
+  };
+
+  it('answers for the repository whatever GIT_* variables the caller set', () => {
+    const copy = tracked('handoff-git-env');
+    // An empty index in another file: git answers (exit 0, nothing listed) unless the variable is dropped.
+    const index = resolve(scratch('handoff-git-index'), 'empty-index');
+    const w = resolve(copy, '../../..');
+    const emptied = spawnSync('git', ['read-tree', '--empty'], {
+      cwd: w,
+      env: { ...process.env, GIT_INDEX_FILE: index },
+    });
+    expect(emptied.status).toBe(0);
+    const names = ['GIT_INDEX_FILE'] as const;
+    const values = { GIT_INDEX_FILE: index };
+    const before = names.map((name) => process.env[name]);
+    for (const name of names) process.env[name] = values[name];
+    try {
+      expect(committed(copy)).toBe(true);
+    } finally {
+      names.forEach((name, index) => {
+        if (before[index] === undefined) delete process.env[name];
+        else process.env[name] = before[index];
+      });
+    }
+  });
+  it('refuses a copy inside a work tree when git exits non-zero', () => {
+    const copy = tracked('handoff-git-fails');
+    expect(withPath(failingGit(), () => committed(copy))).toBe(true);
+  });
+  it('refuses a copy inside a work tree when git cannot be found', () => {
+    const copy = tracked('handoff-git-missing');
+    expect(withPath(scratch('handoff-git-empty'), () => committed(copy))).toBe(true);
+  });
+  it('does not refuse a copy outside any repository when git exits non-zero or cannot be found', () => {
+    const w = workspace('handoff-git-norepo');
+    const copy = resolve(w, 'node_modules/@inventarch/cli');
+    expect(withPath(failingGit(), () => committed(copy))).toBe(false);
+    expect(withPath(scratch('handoff-git-empty'), () => committed(copy))).toBe(false);
+  });
 });
 
 describe('handOff', () => {
@@ -279,5 +358,181 @@ describe('handOff', () => {
     const before = counts();
     expect(handOff(child("process.kill(process.pid, 'SIGTERM');"), [], { ...process.env }, 'x')).toBe(130);
     expect(counts()).toEqual(before);
+  });
+});
+
+describe('rememberCommitted', () => {
+  it('asks once per copy, however often it is asked', () => {
+    const asked: string[] = [];
+    const ask = rememberCommitted((packageRoot) => (asked.push(packageRoot), packageRoot === '/a'));
+    expect([ask('/a'), ask('/a'), ask('/b'), ask('/b'), ask('/a')]).toEqual([true, true, false, false, true]);
+    expect(asked).toEqual(['/a', '/b']);
+  });
+  it('is its own memo: another one asks again, so nothing outlives the console that made it', () => {
+    let asked = 0;
+    const probe = () => ((asked += 1), false);
+    rememberCommitted(probe)('/a');
+    rememberCommitted(probe)('/a');
+    expect(asked).toBe(2);
+  });
+  it('does not keep a question git could not answer: it reads as the work tree does now and is asked again', () => {
+    const answers: (boolean | null)[] = [null, true, false];
+    const ask = rememberCommitted(() => answers.shift()!);
+    expect(ask('/a')).toBe(false);
+    expect(ask('/a')).toBe(true);
+    expect(ask('/a')).toBe(true);
+  });
+  it('serves runnableCopy: the copy is refused or run from the remembered answer', () => {
+    const w = workspace('remember-runnable');
+    let asked = 0;
+    const ask = rememberCommitted(() => ((asked += 1), false));
+    expect(runnableCopy(w, { env: {}, running: '/elsewhere', committed: ask })).toMatchObject({ version: '9.9.9' });
+    expect(runnableCopy(w, { env: {}, running: '/elsewhere', committed: ask })).toMatchObject({ version: '9.9.9' });
+    expect(asked).toBe(1);
+  });
+  it('asks again when another copy is moved into the path, so a committed one moved in is refused', () => {
+    const w = workspace('remember-replaced');
+    const copy = resolve(w, 'node_modules/@inventarch/cli');
+    let asked = 0;
+    let tracked = false;
+    const ask = rememberCommitted(() => ((asked += 1), tracked));
+    expect(runnableCopy(w, { env: {}, running: '/elsewhere', committed: ask })).toMatchObject({ version: '9.9.9' });
+    // The same copy again is not asked about; another one, which the repository commits, replaces it at that path.
+    expect(runnableCopy(w, { env: {}, running: '/elsewhere', committed: ask })).toMatchObject({ version: '9.9.9' });
+    renameSync(copy, resolve(scratch('remember-replaced-old'), 'cli'));
+    renameSync(cliPackage(resolve(scratch('remember-replaced-new'), 'cli')), copy);
+    tracked = true;
+    expect(runnableCopy(w, { env: {}, running: '/elsewhere', committed: ask })).toBeNull();
+    expect(asked).toBe(2);
+  });
+  it('asks again once the repository starts tracking the copy, so a newly committed copy is refused', () => {
+    const git = (cwd: string, ...args: string[]) => spawnSync('git', args, { cwd, encoding: 'utf8' });
+    const w = workspace('remember-tracked');
+    expect(git(w, 'init', '-q').status).toBe(0);
+    let asked = 0;
+    const ask = rememberCommitted((packageRoot) => ((asked += 1), committed(packageRoot)));
+    expect(runnableCopy(w, { env: {}, running: '/elsewhere', committed: ask })).toMatchObject({ version: '9.9.9' });
+    expect(runnableCopy(w, { env: {}, running: '/elsewhere', committed: ask })).toMatchObject({ version: '9.9.9' });
+    expect(asked).toBe(1);
+    expect(git(w, 'add', '-f', 'node_modules/@inventarch/cli/package.json').status).toBe(0);
+    expect(runnableCopy(w, { env: {}, running: '/elsewhere', committed: ask })).toBeNull();
+    expect(asked).toBe(2);
+  });
+  it('asks again in a linked worktree once it starts tracking the copy, through its .git file', () => {
+    const git = (cwd: string, ...args: string[]) => spawnSync('git', args, { cwd, encoding: 'utf8' });
+    const main = scratch('remember-worktree-main');
+    expect(git(main, 'init', '-q').status).toBe(0);
+    expect(
+      git(main, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '--allow-empty', '-m', 'x').status,
+    ).toBe(0);
+    // Outside the main checkout, so only the worktree's `gitdir:` line leads to the index it uses.
+    const w = resolve(scratch('remember-worktree'), 'linked');
+    expect(git(main, 'worktree', 'add', '-q', w).status).toBe(0);
+    mkdirSync(resolve(w, '.ia/src'), { recursive: true });
+    putJson(resolve(w, 'package.json'), { devDependencies: { '@inventarch/cli': '9.9.9' } });
+    cliPackage(resolve(w, 'node_modules/@inventarch/cli'));
+    let asked = 0;
+    const ask = rememberCommitted((packageRoot) => ((asked += 1), committed(packageRoot)), {});
+    expect(runnableCopy(w, { env: {}, running: '/elsewhere', committed: ask })).toMatchObject({ version: '9.9.9' });
+    expect(runnableCopy(w, { env: {}, running: '/elsewhere', committed: ask })).toMatchObject({ version: '9.9.9' });
+    expect(asked).toBe(1);
+    expect(git(w, 'add', '-f', 'node_modules/@inventarch/cli/package.json').status).toBe(0);
+    expect(runnableCopy(w, { env: {}, running: '/elsewhere', committed: ask })).toBeNull();
+    expect(asked).toBe(2);
+  });
+  it('keeps the exit of a copy with no repository above it: asked once, however often it is asked', () => {
+    // A workspace outside every repository: git exits 128 for it every time, and nothing there can be tracked.
+    const w = workspace('remember-no-repo');
+    const copy = resolve(w, 'node_modules/@inventarch/cli');
+    let asked = 0;
+    const ask = rememberCommitted(() => ((asked += 1), EXITED), {});
+    expect([ask(copy), ask(copy), ask(copy)]).toEqual([false, false, false]);
+    expect(asked).toBe(1);
+  });
+  it('asks again after an exit inside a repository, since the repository is what failed', () => {
+    const w = workspace('remember-exit-in-repo');
+    expect(spawnSync('git', ['init', '-q'], { cwd: w }).status).toBe(0);
+    const copy = resolve(w, 'node_modules/@inventarch/cli');
+    let asked = 0;
+    const ask = rememberCommitted(() => ((asked += 1), EXITED), {});
+    expect([ask(copy), ask(copy)]).toEqual([true, true]);
+    expect(asked).toBe(2);
+  });
+  it('asks again after an exit when a .git that git rejects sits above the copy: the work tree refuses it', () => {
+    const w = workspace('remember-exit-stub');
+    put(resolve(w, '.git'), 'not a repository');
+    const copy = resolve(w, 'node_modules/@inventarch/cli');
+    let asked = 0;
+    const ask = rememberCommitted(() => ((asked += 1), EXITED), {});
+    expect([ask(copy), ask(copy)]).toEqual([true, true]);
+    expect(asked).toBe(2);
+  });
+  it('asks again once a repository appears above a copy remembered as having none', () => {
+    const w = workspace('remember-repo-appears');
+    const copy = resolve(w, 'node_modules/@inventarch/cli');
+    const ask = rememberCommitted(undefined, {});
+    expect(ask(copy)).toBe(false);
+    expect(ask(copy)).toBe(false);
+    expect(spawnSync('git', ['init', '-q'], { cwd: w }).status).toBe(0);
+    expect(spawnSync('git', ['add', '-f', 'node_modules/@inventarch/cli/package.json'], { cwd: w }).status).toBe(0);
+    expect(ask(copy)).toBe(true);
+  });
+  // The git shims are POSIX shell scripts, which Windows does not run.
+  it.skipIf(process.platform === 'win32')(
+    'keeps only an answer git gave with exit 0: a failed, timed-out or missing git is asked again',
+    () => {
+      const real = spawnSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).stdout.trim();
+      expect(real).not.toBe('');
+      // An untracked copy inside a repository: git's answer (not committed) differs from the work tree's (refused).
+      const w = workspace('remember-shim');
+      expect(spawnSync('git', ['init', '-q'], { cwd: w }).status).toBe(0);
+      const copy = resolve(w, 'node_modules/@inventarch/cli');
+      /** A git that logs each call and fails the first one as `first` says, then runs the real git. */
+      const shim = (prefix: string, first: string): { dir: string; calls: () => number } => {
+        const dir = scratch(prefix);
+        const log = resolve(dir, 'calls.log');
+        put(
+          resolve(dir, 'git'),
+          `#!/bin/sh\necho x >> '${log}'\nif [ ! -e '${log}.done' ]; then : > '${log}.done'; ${first}; fi\nexec '${real}' "$@"\n`,
+        );
+        chmodSync(resolve(dir, 'git'), 0o755);
+        return {
+          dir,
+          calls: () => readFileSync(log, 'utf8').trim().split('\n').length,
+        };
+      };
+      const withPath = <T>(dir: string, body: () => T): T => {
+        const before = process.env['PATH'];
+        process.env['PATH'] = dir;
+        try {
+          return body();
+        } finally {
+          if (before === undefined) delete process.env['PATH'];
+          else process.env['PATH'] = before;
+        }
+      };
+      for (const [prefix, first] of [
+        ['remember-shim-128', 'exit 128'],
+        ['remember-shim-timeout', 'exec /bin/sleep 5'],
+      ] as const) {
+        const git = shim(prefix, first);
+        const ask = rememberCommitted(undefined, {});
+        expect(withPath(git.dir, () => [ask(copy), ask(copy), ask(copy)])).toEqual([true, false, false]);
+        expect(git.calls()).toBe(2);
+      }
+      // No git on the path at first: the work tree's answer, not kept; git found next time is asked.
+      const git = shim('remember-shim-missing', 'true');
+      const ask = rememberCommitted(undefined, {});
+      expect(withPath(scratch('remember-shim-empty'), () => ask(copy))).toBe(true);
+      expect(withPath(git.dir, () => [ask(copy), ask(copy)])).toEqual([false, false]);
+      expect(git.calls()).toBe(1);
+    },
+  );
+  it('does not remember while a GIT_ variable chooses the repository, since the disk then cannot say what changed', () => {
+    let asked = 0;
+    const ask = rememberCommitted(() => ((asked += 1), false), { GIT_DIR: '/somewhere/.git' });
+    ask('/a');
+    ask('/a');
+    expect(asked).toBe(2);
   });
 });

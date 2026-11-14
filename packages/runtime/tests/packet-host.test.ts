@@ -238,14 +238,40 @@ it("renders entryCount(packet) entries in the packet's field order, on a fresh i
       }
     expect(items(entryOf(output, 'claude', 'repository'), 'Systems').length, name).toBe(output.packet.systems.length);
   }
-  // This repository's packet names its one participant.
+  // This repository's packet names the language participant and the eleven public system stewards, each with its mandate.
   const own = entryOf(outputs[1]![1], 'claude', 'repository');
-  expect(items(own, 'Participants')).toEqual([
+  const systems = [
+    'agent-system',
+    'agent-composition-system',
+    'authoring-system',
+    'compliance-system',
+    'governance-system',
+    'hook-authoring-system',
+    'learning-system',
+    'session-system',
+    'template-system',
+    'work-system',
+    'workspace-system',
+  ];
+  const participants = items(own, 'Participants');
+  expect(participants).toHaveLength(12);
+  expect(participants).toContain(
     '- `agent-system/binding/agent/language-participant`: The IDE agent operating in the language workspace, any vendor.',
-  ]);
-  expect(items(own, 'Mandates')).toEqual([
+  );
+  for (const system of systems)
+    expect(
+      participants.filter((line) => line.startsWith(`- \`agent-system/binding/agent/public-${system}-steward\`: `)),
+      system,
+    ).toHaveLength(1);
+  const mandates = items(own, 'Mandates');
+  expect(mandates).toHaveLength(12);
+  expect(mandates).toContain(
     '- `agent-system/policy/mandate/language-mandate`: participant `agent-system/binding/agent/language-participant`; moves Observation, Verification, Synthesis, Delegation, Execution; scope `workspace-system/definition/workspace/language-workspace`; covers `.ia/src/`',
-  ]);
+  );
+  for (const system of systems)
+    expect(mandates, system).toContain(
+      `- \`agent-system/policy/mandate/public-${system}-stewardship\`: participant \`agent-system/binding/agent/public-${system}-steward\`; moves Observation, Verification, Synthesis; scope \`workspace-system/definition/workspace/language-workspace\`; covers \`.ia/src/systems/${system}/\``,
+    );
 });
 
 it('renders byte-equal packet sections for claude and codex, and for both targets: only the path differs', () => {

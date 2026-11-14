@@ -1,12 +1,12 @@
 import { registryWorkspace } from './adopt.js';
 import { HostPluginError, lowerPlugin, readPlugin } from '@inventarch/workspace-runtime/internal/host-plugin';
-import { adoptedBindings } from '@inventarch/db';
+import { adoptedBindings, refusesInstallation } from '@inventarch/db';
 import { adoptionId, OPEN_ATTRIBUTES, planAdoption, applyAdoption } from '@inventarch/distribution/registry';
 import type { WorkspaceRelease } from '@inventarch/distribution/registry';
 import { readBase, PIN_PATH, PACKAGE_ID, DAMAGED } from './bundled-base.js';
 import { canonical } from './plugin-sources.js';
 import type { Base, BasePin } from './bundled-base.js';
-export { readBase, PIN_PATH, baseArchivePath, PACKAGE_ID } from './bundled-base.js';
+export { readBase, readBases, PIN_PATH, baseArchivePath, PACKAGE_ID } from './bundled-base.js';
 export type { Base, BasePin } from './bundled-base.js';
 /**
  * `ia init`: docs/specs/consumer-cli-contract/README.md §2.1, implementing
@@ -141,6 +141,7 @@ import { findProgram, programEnv, programHome } from './program.js';
 import type { Session } from './session.js';
 import { codeOf, openSession } from './session.js';
 import { commandPath, PATH_OMITTED, readTracked, trackedRow, trackWorkspace } from './tracked.js';
+import { DESCRIPTOR_PATH } from './workspace-state.js';
 import type { AdviceContext, Capabilities, Field, SymbolName } from './render.js';
 import {
   atom,
@@ -290,12 +291,8 @@ export interface Applied {
   readonly host?: HostApplied;
 }
 
-/**
- * Relative to the `@inventarch/cli` package root, as `assets/vocabulary.json` is (vocabulary.ts CATALOGUE_PATH). The
- * base package's id is read from this pin and appears nowhere in this source: the pin is the only authority for those
- * bytes.
- */
-export const DESCRIPTOR_PATH = '.ia/release.json';
+/** Re-exported so `@inventarch/cli/internal/init` keeps the 3.5.0 export; the constant now lives in workspace-state.ts. */
+export { DESCRIPTOR_PATH } from './workspace-state.js';
 export const STARTER_VERSION = '0.1.0';
 /** The installer's lock, `acquire()` at apps/distribution/src/install.ts:70; `INSTALL_PATHS` does not name it. */
 export const INSTALL_LOCK = '.ia/distributions/install-lock.json';
@@ -1752,9 +1749,11 @@ async function offerTracking(context: Context, root: string, result: Result): Pr
   }
   if (!yes) return result;
   try {
-    const { row } = trackWorkspace(home, { root: real });
+    const { row } = await trackWorkspace(home, { root: real }, new Date(), { signal: host.signal });
     return said(`Tracked ${row.id} in your workspace list.`);
   } catch (error) {
+    // A signal while the offer waits for the list's lock declines it, as one at the question does.
+    if (host.signal?.aborted) return answeredInterruption(result);
     const refusal = refusalOf(error);
     return said(`Not tracked: ${refusal.message}.${refusal.next === null ? '' : ` ${refusal.next}`}`);
   }
@@ -2037,7 +2036,8 @@ export function collectMigration(request: MigrationRequest): MigrationView {
   let records: readonly Compiled[], admitted: boolean;
   try {
     records = session.reader.records();
-    admitted = session.admission().status === 'admitted';
+    // A canon finding never refuses (Task 13e): `ia validate` is its gate.
+    admitted = !session.admission().findings.some(refusesInstallation);
   } finally {
     session.close();
   }
@@ -2349,8 +2349,9 @@ const MIGRATED = 'The workspace is migrated.';
 const MIGRATED_CAPTURED = 'The workspace is migrated and captured.';
 const MIGRATED_UNCAPTURED = 'The workspace is migrated but not captured.';
 /**
- * The admission step `ia init` and `ia init --migrate` share: zero error findings, then each planned starter record as
- * the compiled graph holds it at its path, never string-constructed, with every record the graph holds.
+ * The admission step `ia init` and `ia init --migrate` share: zero error findings but canon ones (Task 13e), then each
+ * planned starter record as the compiled graph holds it at its path, never string-constructed, with every record the
+ * graph holds.
  * `done` opens each refusal's next action with what the command completed before it, if anything.
  */
 function admitStarter(
@@ -2361,7 +2362,7 @@ function admitStarter(
 ): { readonly compiled: readonly Compiled[]; readonly records: readonly Compiled[] } {
   const session = openWorkspaceSession({ root });
   try {
-    const errors = session.admission().findings.filter((finding) => finding.severity === 'error');
+    const errors = session.admission().findings.filter(refusesInstallation);
     if (errors.length > 0)
       throw new Refusal(
         'IA-CLI-FAILED',

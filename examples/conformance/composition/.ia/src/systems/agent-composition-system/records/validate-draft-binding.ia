@@ -7,4 +7,4 @@
   binding
     kind operation
     target @operation validate-draft
-    implementation draft-validate-v1
+    implementation draft-validate

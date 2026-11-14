@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import * as installedSDK from '@inventarch/agent-composition-system';
+import { captureWorkspace } from '@inventarch/workspace-runtime';
 import { Engine } from '@inventarch/agent-system';
 import { open } from '@inventarch/db';
 import { copy, digest, memoryStore } from '@inventarch/session-system';
@@ -41,7 +42,7 @@ export async function qualifySpecReadBoundary(SDK, nativeRoot, output) {
   for (const source of seed.capture.sources) if (source.path.startsWith('.ia/src/')) put(source.path, source.text);
   put(anchorPath, anchor);
   put(bodyPath, bodyText);
-  const capture = SDK.captureWorkspace(out);
+  const capture = captureWorkspace(out);
   assert(!capture.sources.some((source) => source.path === bodyPath));
   const compilation = SDK.compileHarness(capture, {
     harness: 'installed-read-example-harness',
@@ -63,7 +64,7 @@ export async function qualifySpecReadBoundary(SDK, nativeRoot, output) {
     manifest,
     catalog: seed.catalog,
     principal,
-    currentCapture: () => SDK.captureWorkspace(out),
+    currentCapture: () => captureWorkspace(out),
   });
   const reader = open(out, { cache: false }),
     store = memoryStore();
@@ -115,7 +116,7 @@ export async function qualifySpecReadBoundary(SDK, nativeRoot, output) {
     },
     verifyManifest: async (value) =>
       digest(value) === digest(manifest) &&
-      SDK.captureWorkspace(out).revision === capture.revision &&
+      captureWorkspace(out).revision === capture.revision &&
       SDK.installedImplementationDigest() ===
         seed.catalog.operations[SDK.INSTALLED_READ.implementation].value.implementationDigest,
     context: async () => ({ capture: capture.revision }),

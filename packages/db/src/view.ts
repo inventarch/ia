@@ -24,6 +24,7 @@ import {
 import type { Assessment, Report, SystemFolder } from '@inventarch/compliance';
 import type { InputSnapshot } from './inputs.js';
 import { EVIDENCE_DIRECTORY, evidenceSource, systemMember } from './inputs.js';
+import { canonFileAssessments } from './canon/files.js';
 import { bindChecks } from './checks.js';
 import { conformanceOf } from './conformance.js';
 import { reproducesEvidence } from './evidence.js';
@@ -135,6 +136,18 @@ interface Context {
 export const occurrenceKey = (record: CompiledRecord): string =>
   JSON.stringify([record.identity, record.source.path, record.source.line]);
 const compare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+/**
+ * D08c: the reaches `sources` declare, the workspace root among them, shallowest first: the only places where the
+ * sources in view can change (D03).
+ */
+export const declaredReaches = (sources: readonly Pick<RevisionSource, 'location'>[]): readonly string[] =>
+  [...new Set(['', ...sources.map((s) => canonicalRoot(s.location.placement.reach))])].sort(compare);
+/**
+ * D08c: the reach that decides what `location` reads. The reaches above a location nest, so the deepest selects every
+ * source any of them does, and a view built there differs from one built at `location` only in the location it names.
+ */
+export const reachAt = (declared: readonly string[], location: string): string =>
+  declared.filter((reach) => reaches(reach, location)).at(-1)!;
 /** A diagnostic as an unadmitted occurrence carries it. */
 const findingOf = (diagnostic: {
   readonly code: string;
@@ -295,7 +308,7 @@ export interface ViewOptions {
    */
   readonly checks?: 'strict' | 'structural';
   /**
-   * D10: `verify` runs compliance's `package-v1` conformance profile in-process (C31) and binds its COMP-KERNEL and
+   * D10: `verify` runs compliance's `package` conformance profile in-process (C31) and binds its COMP-KERNEL and
    * COMP-FIXTURES evidence to each view's graph, so their verdicts are verified instead of not-evaluated; without it,
    * as for every existing reader, nothing runs. Only the report differs: D14 evidence is admitted from the unverified
    * report (`View.unverified`), so admission, the evidence read and the graph are the same.
@@ -452,8 +465,8 @@ function views(
   };
   // Registry visibility can change only at a declared reach. Inspect those
   // finite contexts before authority so bands cannot conceal duplicate REQ ids.
-  for (const reach of [...new Set(['', ...inputSources.map((s) => s.location.placement.reach)])].sort(compare))
-    analyze(reach);
+  const reachList = declaredReaches(inputSources);
+  for (const reach of reachList) analyze(reach);
   const requirements = new Map<string, { id: string; identity: string; path: string; line: number }>();
   for (const context of contexts.values())
     for (const record of context.records)
@@ -478,7 +491,7 @@ function views(
   let declared: readonly DeclaredRoot[] | undefined, repository: string | undefined;
   const build = (requested = '', phase?: Phase): View => {
     const location = canonicalRoot(requested),
-      context = analyze(location),
+      context = analyze(reachAt(reachList, location)),
       registry = context.registry;
     // Independent-file compilation cannot decide external targets. Graph owns
     // those final findings; refused owners retain their primary source fault.
@@ -722,6 +735,12 @@ function views(
         sourceDiagnostics,
         folders: folders.filter((f) => !blockedFolders.has(f.path)),
         admission: observations,
+        // Canon file rules (C12, A6, C6) read the checkout. Their own channel keeps them unfiltered, so an advisory
+        // law's warnings and its passing verdict reach the report (the admission channel drops passing assessments).
+        canonFiles: canonFileAssessments(input.root, [...graph.nodes.values()], {
+          graph,
+          ...(input.installed ? { installed: input.installed } : {}),
+        }),
         ...(options.checks === 'structural' ? { checks: 'structural' as const } : {}),
       },
       unverified = evaluate(graph, evaluated),

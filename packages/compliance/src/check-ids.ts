@@ -17,5 +17,13 @@ export const CHECK_IDS = Object.freeze([
   'COMP-STEWARD',
   'COMP-BOOTSTRAP',
   'COMP-CHECK',
+  'CANON-WORK-PLACEMENT',
+  'CANON-KIT-WORDS',
+  'CANON-KIT-WORKSPACE',
+  'CANON-TEACHING-LINKS',
+  'CANON-SOURCE-ROOTS',
+  'CANON-KIT-SCRIPTS',
+  'CANON-MANDATE-NARROW',
+  'CANON-LOCAL-TIGHTEN',
 ] as const);
 export const isBuiltinCheck = (id: string): boolean => (CHECK_IDS as readonly string[]).includes(id);

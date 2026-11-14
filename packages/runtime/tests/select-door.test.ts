@@ -107,6 +107,13 @@ it('serves scoped JSON operations from a privately owned door and rejects unknow
       ok: true,
       result: { root: 'team', records: [expect.objectContaining({ identity: methodId })] },
     });
+    // A root names no view of its own, and an answer still names the root it was asked for (db D08c).
+    const deeper = door.request({ operation: 'scope', params: { root: 'team/deep/er' } });
+    expect(deeper).toMatchObject({ ok: true, result: { root: 'team/deep/er' } });
+    if (!deeper.ok) return;
+    expect(
+      door.request({ operation: 'records', params: { within: (deeper.result as Scope).token, root: 'team/deep/er' } }),
+    ).toMatchObject({ ok: true, result: { root: 'team/deep/er' } });
     expect(
       door.request({
         operation: 'resolve',
@@ -197,6 +204,78 @@ it('preserves named lower-layer errors and guards privileged reports and foreign
   } finally {
     door.close();
     other.close();
+  }
+});
+it('answers IA-DB-STALE for a token it evicted, on every operation, and keeps serving its initial boundary unread', () => {
+  const door = new Door(workspace(), { cache: false, boundary: { identities: [methodId, 'outside'] } });
+  const issue = (params: object): string => {
+    const got = door.request({ operation: 'scope', params });
+    if (!got.ok) throw new Error('Fixture scope failed');
+    return (got.result as Scope).token;
+  };
+  try {
+    const kept = issue({}),
+      evicted = issue({ identities: [methodId] }),
+      coordinate = { phase: 'act', primitive: 'Decision' };
+    // Issued through `kept`, which that keeps recently used, so that no call here reads the initial scope (db D08c).
+    for (let held = 0; held < 4096; held++) issue({ within: kept });
+    const stale = { ok: false, code: 'IA-DB-STALE', message: expect.stringContaining('issue a new scope') };
+    for (const [operation, params] of [
+      ['scope', {}],
+      ['context', { text: 'x', coordinate }],
+      ['select', { text: 'x', coordinate, candidates: [methodId] }],
+      ['get', { identity: methodId }],
+      ['records', {}],
+      ['resolve', { reference: { kind: 'identity', identity: methodId } }],
+      ['search', { text: 'fixture' }],
+      ['traverse', { start: [methodId] }],
+      ['read', { locator: methodId }],
+      ['next', {}],
+      ['position', {}],
+    ] as const)
+      expect(door.request({ operation, params: { ...params, within: evicted } }), operation).toEqual(stale);
+    for (const params of [{ within: kept }, {}])
+      expect(door.request({ operation: 'records', params })).toMatchObject({
+        ok: true,
+        result: { records: [expect.objectContaining({ identity: methodId })] },
+      });
+    // Only a host pins a scope: a client that could would hold scopes past the bound.
+    expect(door.request({ operation: 'scope', params: { pinned: true } })).toMatchObject({
+      ok: false,
+      code: 'IA-RUNTIME-REQUEST-INVALID',
+    });
+    // What the door never issued keeps the published refusal, a token of another door among them.
+    const other = new Door(workspace(), { cache: false });
+    try {
+      const foreign = other.request({ operation: 'scope' });
+      if (!foreign.ok) throw new Error('Fixture scope failed');
+      for (const within of ['forged', (foreign.result as Scope).token])
+        expect(door.request({ operation: 'records', params: { within } })).toEqual({
+          ok: false,
+          code: 'IA-DB-SCOPE-UNAVAILABLE',
+          message: 'IA-DB-SCOPE-UNAVAILABLE: Token was not issued by this door',
+        });
+    } finally {
+      other.close();
+    }
+  } finally {
+    door.close();
+  }
+  expect(door.request({ operation: 'records' })).toMatchObject({ ok: false, code: 'IA-DB-CLOSED' });
+});
+it('keeps its pinned initial scope out of the bound, so 4,096 ordinary tokens fit beside it', () => {
+  const door = new Door(workspace(), { cache: false });
+  const issue = (): string => {
+    const got = door.request({ operation: 'scope' });
+    if (!got.ok) throw new Error('Fixture scope failed');
+    return (got.result as Scope).token;
+  };
+  try {
+    const oldest = issue();
+    for (let newer = 0; newer < 4095; newer++) issue();
+    expect(door.request({ operation: 'records', params: { within: oldest } })).toMatchObject({ ok: true });
+  } finally {
+    door.close();
   }
 });
 // The MCP door parses each stdin line as JSON and hands the tool arguments to Door.request as its params; a door

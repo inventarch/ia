@@ -1,0 +1,133 @@
+#! ia 1.0
+
+@mandate public-agent-system-stewardship
+  meaning
+    says "The bounded authority of the agent-system steward over the agent-system folder of the public language workspace."
+    answers "Which moves may the agent-system steward make over the agent-system folder?"
+  governance
+    requires "Claim no host permission or execution from this mandate."
+  authority
+    participant @agent public-agent-system-steward
+    moves [Observation, Verification, Synthesis]
+    scope [@workspace language-workspace]
+    covers [".ia/src/systems/agent-system/"]
+
+@mandate public-agent-composition-system-stewardship
+  meaning
+    says "The bounded authority of the agent-composition-system steward over the agent-composition-system folder of the public language workspace."
+    answers "Which moves may the agent-composition-system steward make over the agent-composition-system folder?"
+  governance
+    requires "Claim no host permission or execution from this mandate."
+  authority
+    participant @agent public-agent-composition-system-steward
+    moves [Observation, Verification, Synthesis]
+    scope [@workspace language-workspace]
+    covers [".ia/src/systems/agent-composition-system/"]
+
+@mandate public-authoring-system-stewardship
+  meaning
+    says "The bounded authority of the authoring-system steward over the authoring-system folder of the public language workspace."
+    answers "Which moves may the authoring-system steward make over the authoring-system folder?"
+  governance
+    requires "Claim no host permission or execution from this mandate."
+  authority
+    participant @agent public-authoring-system-steward
+    moves [Observation, Verification, Synthesis]
+    scope [@workspace language-workspace]
+    covers [".ia/src/systems/authoring-system/"]
+
+@mandate public-compliance-system-stewardship
+  meaning
+    says "The bounded authority of the compliance-system steward over the compliance-system folder of the public language workspace."
+    answers "Which moves may the compliance-system steward make over the compliance-system folder?"
+  governance
+    requires "Claim no host permission or execution from this mandate."
+  authority
+    participant @agent public-compliance-system-steward
+    moves [Observation, Verification, Synthesis]
+    scope [@workspace language-workspace]
+    covers [".ia/src/systems/compliance-system/"]
+
+@mandate public-governance-system-stewardship
+  meaning
+    says "The bounded authority of the governance-system steward over the governance-system folder of the public language workspace."
+    answers "Which moves may the governance-system steward make over the governance-system folder?"
+  governance
+    requires "Claim no host permission or execution from this mandate."
+  authority
+    participant @agent public-governance-system-steward
+    moves [Observation, Verification, Synthesis]
+    scope [@workspace language-workspace]
+    covers [".ia/src/systems/governance-system/"]
+
+@mandate public-hook-authoring-system-stewardship
+  meaning
+    says "The bounded authority of the hook-authoring-system steward over the hook-authoring-system folder of the public language workspace."
+    answers "Which moves may the hook-authoring-system steward make over the hook-authoring-system folder?"
+  governance
+    requires "Claim no host permission or execution from this mandate."
+  authority
+    participant @agent public-hook-authoring-system-steward
+    moves [Observation, Verification, Synthesis]
+    scope [@workspace language-workspace]
+    covers [".ia/src/systems/hook-authoring-system/"]
+
+@mandate public-learning-system-stewardship
+  meaning
+    says "The bounded authority of the learning-system steward over the learning-system folder of the public language workspace."
+    answers "Which moves may the learning-system steward make over the learning-system folder?"
+  governance
+    requires "Claim no host permission or execution from this mandate."
+  authority
+    participant @agent public-learning-system-steward
+    moves [Observation, Verification, Synthesis]
+    scope [@workspace language-workspace]
+    covers [".ia/src/systems/learning-system/"]
+
+@mandate public-session-system-stewardship
+  meaning
+    says "The bounded authority of the session-system steward over the session-system folder of the public language workspace."
+    answers "Which moves may the session-system steward make over the session-system folder?"
+  governance
+    requires "Claim no host permission or execution from this mandate."
+  authority
+    participant @agent public-session-system-steward
+    moves [Observation, Verification, Synthesis]
+    scope [@workspace language-workspace]
+    covers [".ia/src/systems/session-system/"]
+
+@mandate public-template-system-stewardship
+  meaning
+    says "The bounded authority of the template-system steward over the template-system folder of the public language workspace."
+    answers "Which moves may the template-system steward make over the template-system folder?"
+  governance
+    requires "Claim no host permission or execution from this mandate."
+  authority
+    participant @agent public-template-system-steward
+    moves [Observation, Verification, Synthesis]
+    scope [@workspace language-workspace]
+    covers [".ia/src/systems/template-system/"]
+
+@mandate public-work-system-stewardship
+  meaning
+    says "The bounded authority of the work-system steward over the work-system folder of the public language workspace."
+    answers "Which moves may the work-system steward make over the work-system folder?"
+  governance
+    requires "Claim no host permission or execution from this mandate."
+  authority
+    participant @agent public-work-system-steward
+    moves [Observation, Verification, Synthesis]
+    scope [@workspace language-workspace]
+    covers [".ia/src/systems/work-system/"]
+
+@mandate public-workspace-system-stewardship
+  meaning
+    says "The bounded authority of the workspace-system steward over the workspace-system folder of the public language workspace."
+    answers "Which moves may the workspace-system steward make over the workspace-system folder?"
+  governance
+    requires "Claim no host permission or execution from this mandate."
+  authority
+    participant @agent public-workspace-system-steward
+    moves [Observation, Verification, Synthesis]
+    scope [@workspace language-workspace]
+    covers [".ia/src/systems/workspace-system/"]

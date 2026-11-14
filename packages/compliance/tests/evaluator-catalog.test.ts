@@ -6,6 +6,7 @@ import {
   CHECK_IDS,
   EVALUATION_PROFILES,
   EVALUATOR_CATALOG_FORMAT,
+  EVALUATOR_CATALOG_FORMAT_VERSION,
   EVIDENCE_CODES,
   EVIDENCE_RECEIPT_FORMAT,
   acceptEvaluatorOutput,
@@ -39,11 +40,13 @@ import type {
 } from '../src/index.js';
 import { inputs, records, registry, sources } from './native.js';
 
+const current = { format: EVALUATOR_CATALOG_FORMAT, formatVersion: EVALUATOR_CATALOG_FORMAT_VERSION } as const;
 const hex = (c: string) => `sha256:${c.repeat(64)}`;
 const codecs: readonly EvaluatorCodec[] = [
-  { id: 'acme-typing-input@1', validate: (v) => typeof v === 'object' },
+  { id: 'acme-typing-input', version: 1, validate: (v) => typeof v === 'object' },
   {
-    id: 'acme-typing-result@1',
+    id: 'acme-typing-result',
+    version: 1,
     validate: (v) => typeof v === 'object' && v !== null && typeof (v as { files?: unknown }).files === 'number',
   },
 ];
@@ -52,8 +55,8 @@ const typing = {
   contractVersion: '1.0.0',
   implementationVersion: '2.1.0',
   implementationDigest: hex('a'),
-  inputSchemaId: 'acme-typing-input@1',
-  outputSchemaId: 'acme-typing-result@1',
+  inputCodec: { id: 'acme-typing-input', version: 1 },
+  outputCodec: { id: 'acme-typing-result', version: 1 },
   supportedScopes: ['package'],
   effects: ['read', 'process'],
   environmentProfile: { id: 'node-22-offline', credentials: 'none' },
@@ -79,8 +82,8 @@ const legacy = {
   implementationDigest: hex('d'),
   availability: { status: 'revoked', reason: 'Superseded after advisory 7' },
 };
-function build(entries: readonly unknown[], format = EVALUATOR_CATALOG_FORMAT) {
-  return createEvaluatorCatalog({ format, entries }, { codecs });
+function build(entries: readonly unknown[], format?: string) {
+  return createEvaluatorCatalog(format === undefined ? { ...current, entries } : { format, entries }, { codecs });
 }
 function catalogOf(entries: readonly unknown[] = [typing, coverage, lint, legacy]): EvaluatorCatalog {
   const result = build(entries);
@@ -122,7 +125,7 @@ describe('evaluator catalog v1 construction (C25)', () => {
     expect(codesOf(build([{ ...typing, id: 'comp-check' }]))).toEqual(['IA-COMP-CATALOG-BUILTIN-OVERRIDE']);
     expect(codesOf(build([{ ...typing, id: 'COMP-CHECK' }]))).toEqual(['IA-COMP-CATALOG-BUILTIN-OVERRIDE']);
     const custom = createEvaluatorCatalog(
-      { format: EVALUATOR_CATALOG_FORMAT, entries: [typing] },
+      { ...current, entries: [typing] },
       { codecs, builtins: ['acme-strict-typing'] },
     );
     expect(codesOf(custom)).toEqual(['IA-COMP-CATALOG-BUILTIN-OVERRIDE']);
@@ -140,7 +143,7 @@ describe('evaluator catalog v1 construction (C25)', () => {
   it('refuses an unknown format major, an unsupported contract major and malformed format text', () => {
     expect(codesOf(build([typing], 'ia-evaluator-catalog/2.0'))).toEqual(['IA-COMP-CATALOG-VERSION']);
     expect(codesOf(build([typing], 'something-else'))).toEqual(['IA-COMP-CATALOG-VERSION']);
-    expect(build([typing], 'ia-evaluator-catalog/1.3').ok).toBe(true);
+    expect(codesOf(build([typing], 'ia-evaluator-catalog/1.3'))).toEqual(['IA-COMP-CATALOG-ENTRY-INVALID']);
     expect(codesOf(build([{ ...typing, contractVersion: '2.0.0' }]))).toEqual(['IA-COMP-CATALOG-VERSION']);
   });
   it('refuses non-positive or non-integral limits', () => {
@@ -154,10 +157,12 @@ describe('evaluator catalog v1 construction (C25)', () => {
       expect(codesOf(build([{ ...typing, limits }]))).toEqual(['IA-COMP-CATALOG-LIMITS']);
   });
   it('refuses unknown codec IDs and codec versions the host did not register', () => {
-    expect(codesOf(build([{ ...typing, inputSchemaId: 'acme-typing-input@2' }]))).toEqual([
+    expect(codesOf(build([{ ...typing, inputCodec: { id: 'acme-typing-input', version: 2 } }]))).toEqual([
       'IA-COMP-CATALOG-CODEC-UNKNOWN',
     ]);
-    expect(codesOf(build([{ ...typing, outputSchemaId: 'unknown@1' }]))).toEqual(['IA-COMP-CATALOG-CODEC-UNKNOWN']);
+    expect(codesOf(build([{ ...typing, outputCodec: { id: 'unknown', version: 1 } }]))).toEqual([
+      'IA-COMP-CATALOG-CODEC-UNKNOWN',
+    ]);
   });
   it('refuses malformed entries, unknown fields, ambient credentials and unsanitized reasons', () => {
     const bad = [
@@ -778,12 +783,13 @@ describe('receipts and transition admission (C28)', () => {
     const throwing = acceptEvaluatorOutput(
       (
         createEvaluatorCatalog(
-          { format: EVALUATOR_CATALOG_FORMAT, entries: [typing] },
+          { ...current, entries: [typing] },
           {
             codecs: [
               codecs[0]!,
               {
-                id: 'acme-typing-result@1',
+                id: 'acme-typing-result',
+                version: 1,
                 validate: () => {
                   throw new Error(secret);
                 },
@@ -1110,10 +1116,7 @@ describe('evaluator catalog rules D1-D6 and the redaction and directive fixes', 
     expect(verified.reliedTrust).toBe('service-associated');
   });
   it('D4: only CHECK_IDS are built-in; reserved ids block overrides but never pass or resolve', () => {
-    const reserved = createEvaluatorCatalog(
-      { format: EVALUATOR_CATALOG_FORMAT, entries: [typing] },
-      { codecs, builtins: ['APPS-ANYTHING'] },
-    );
+    const reserved = createEvaluatorCatalog({ ...current, entries: [typing] }, { codecs, builtins: ['APPS-ANYTHING'] });
     expect(reserved.ok).toBe(true);
     if (!reserved.ok) return;
     expect(reserved.catalog.builtins).toEqual([...CHECK_IDS]);
@@ -1124,7 +1127,7 @@ describe('evaluator catalog rules D1-D6 and the redaction and directive fixes', 
     expect(
       codesOf(
         createEvaluatorCatalog(
-          { format: EVALUATOR_CATALOG_FORMAT, entries: [{ ...typing, id: 'apps-anything' }] },
+          { ...current, entries: [{ ...typing, id: 'apps-anything' }] },
           { codecs, builtins: ['APPS-ANYTHING'] },
         ),
       ),
@@ -1136,10 +1139,7 @@ describe('evaluator catalog rules D1-D6 and the redaction and directive fixes', 
     expect(codesOf(resolveObligations(input))).toContain('IA-COMP-OBLIGATION-UNRESOLVED');
     for (const builtins of [[1], 'APPS', [''], ['bad id']])
       expect(() =>
-        createEvaluatorCatalog(
-          { format: EVALUATOR_CATALOG_FORMAT, entries: [] },
-          { codecs, builtins: builtins as unknown as string[] },
-        ),
+        createEvaluatorCatalog({ ...current, entries: [] }, { codecs, builtins: builtins as unknown as string[] }),
       ).toThrow(TypeError);
   });
   it('D5: an unavailable catalog evaluator leaves COMP-CHECK not-evaluated in reports; revoked fails', () => {
@@ -1159,12 +1159,8 @@ describe('evaluator catalog rules D1-D6 and the redaction and directive fixes', 
       'not-evaluated',
     );
   });
-  it('D6: strict-typing-v1 maps to three required catalog obligations that presence never satisfies', () => {
-    expect(EVALUATION_PROFILES['strict-typing-v1']).toEqual([
-      'configuration',
-      'included-file-coverage',
-      'compiler-run',
-    ]);
+  it('D6: strict-typing maps to three required catalog obligations that presence never satisfies', () => {
+    expect(EVALUATION_PROFILES['strict-typing']).toEqual(['configuration', 'included-file-coverage', 'compiler-run']);
     const binding = {
       occurrence: 'governance-system/rule/law/strict-typing',
       word: 'law' as const,
@@ -1177,19 +1173,27 @@ describe('evaluator catalog rules D1-D6 and the redaction and directive fixes', 
       },
       input: { project: 'tsconfig.json' },
     };
-    const occurrences = profileOccurrences('strict-typing-v1', binding);
+    const occurrences = profileOccurrences('strict-typing', binding);
     expect(occurrences.map((o) => [o.requirement, o.runs, o.required])).toEqual([
-      ['strict-typing-v1/configuration', 'acme-strict-typing', true],
-      ['strict-typing-v1/included-file-coverage', 'acme-file-coverage', true],
-      ['strict-typing-v1/compiler-run', 'acme-strict-typing', true],
+      ['strict-typing/configuration', 'acme-strict-typing', true],
+      ['strict-typing/included-file-coverage', 'acme-file-coverage', true],
+      ['strict-typing/compiler-run', 'acme-strict-typing', true],
     ]);
     expect(() =>
-      profileOccurrences('strict-typing-v1', {
+      profileOccurrences('strict-typing', {
         ...binding,
         evaluators: { ...binding.evaluators, 'compiler-run': 'COMP-CHECK' },
       }),
     ).toThrow(TypeError);
-    expect(() => profileOccurrences('strict-typing-v2' as 'strict-typing-v1', binding)).toThrow(TypeError);
+    expect(() => profileOccurrences('strict-typing-v2' as 'strict-typing', binding)).toThrow(TypeError);
+    // The original id stays an accepted alias: it maps to the same requirements and names them after itself, so
+    // receipts written under it keep matching.
+    expect(EVALUATION_PROFILES['strict-typing-v1']).toEqual(EVALUATION_PROFILES['strict-typing']);
+    expect(profileOccurrences('strict-typing-v1', binding).map((o) => [o.requirement, o.runs, o.required])).toEqual([
+      ['strict-typing-v1/configuration', 'acme-strict-typing', true],
+      ['strict-typing-v1/included-file-coverage', 'acme-file-coverage', true],
+      ['strict-typing-v1/compiler-run', 'acme-strict-typing', true],
+    ]);
     const input = baseInput();
     input.occurrences = [...occurrences];
     input.adoptions = [{ identity: 'governance-system/rule/law/strict-typing', source: 'package', mandatory: false }];
@@ -1320,7 +1324,7 @@ describe('evaluator catalog rules D1-D6 and the redaction and directive fixes', 
   it('catalog top level is exactly {format, entries}; the digest includes the minor version', () => {
     expect(
       codesOf(
-        createEvaluatorCatalog({ format: EVALUATOR_CATALOG_FORMAT, entries: [typing], revocations: [] } as never, {
+        createEvaluatorCatalog({ ...current, entries: [typing], revocations: [] } as never, {
           codecs,
         }),
       ),
@@ -1417,11 +1421,12 @@ describe('evaluator catalog rules D1-D6 and the redaction and directive fixes', 
     expect(facts.packages).toEqual(['core']);
     expect(result.obligations.find((o) => o.requirement === 'compiler-run')!.applicability.status).toBe('undetermined');
     const normalizing = createEvaluatorCatalog(
-      { format: EVALUATOR_CATALOG_FORMAT, entries: [typing] },
+      { ...current, entries: [typing] },
       {
         codecs: [
           {
-            id: 'acme-typing-input@1',
+            id: 'acme-typing-input',
+            version: 1,
             validate: (v) =>
               typeof v === 'object' && v !== null && typeof (v as { project?: unknown }).project === 'string',
             normalize: (v) => ({ project: (v as { project: string }).project.toLowerCase() }),

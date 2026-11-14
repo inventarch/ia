@@ -155,6 +155,7 @@ it('a journal without pending.json picks after on an exact afterActive match, be
   expect(intactCollections(root)).toEqual({
     collections: [],
     unknown: [{ id: 'acme/kit', members: ['acme/x', 'acme/y'] }],
+    named: [],
     problems: [],
   });
 });
@@ -193,6 +194,25 @@ it('an unknown entry is cleared by reinstalling its collection and by removing a
   ]);
   // Gone once none is.
   expect(mergeKitCollections(withUnknown, [], lockOf(Z1), lockText(lockOf(Z1))).unknown).toEqual([]);
+});
+
+it('keeps the requests the user named only while a recorded collection lists them and the lock requests them', () => {
+  const lock = lockOf(X1, Y1, Z1);
+  // z is named but no collection lists it, so nothing needs the mark.
+  const record = mergeKitCollections(null, [K1], lock, lockText(lock), ['acme/x', 'acme/z']);
+  expect(record.named).toEqual(['acme/x']);
+  const text = serializeKitCollections(record);
+  expect(JSON.parse(text)).toMatchObject({ named: ['acme/x'] });
+  expect(decodeKitCollections(text)).toEqual(record);
+  // Carried by a later merge that names nothing, and dropped once the lock no longer requests it.
+  expect(mergeKitCollections(record, [], lock, lockText(lock)).named).toEqual(['acme/x']);
+  const withoutX = lockOf(Y1, Z1);
+  expect(mergeKitCollections(record, [], withoutX, lockText(withoutX)).named).toBeUndefined();
+  // A record without the key keeps its bytes, and a mark that is not a distribution id is unreadable.
+  expect(serializeKitCollections(recordFor(lock, K1))).not.toContain('named');
+  expect(() => decodeKitCollections(text.replace('"acme/x"\n  ]\n}', '"--root=/x"\n  ]\n}'))).toThrow(
+    /not a distribution id/,
+  );
 });
 
 it('members are joined to the plan lock’s exact pins', () => {

@@ -1,7 +1,13 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { INSTALLED_READ, installedReadAdapters, installedReadCatalog } from '@inventarch/agent-composition-system';
+import {
+  compiledAliases,
+  INSTALLED_READ,
+  INSTALLED_READ_LEGACY,
+  installedReadAdapters,
+  installedReadCatalog,
+} from '@inventarch/agent-composition-system';
 import type { CompiledHarness, CompositionCatalog } from '@inventarch/agent-composition-system';
 import type { Manifest, OperationAdapter, OperationContext } from '@inventarch/agent-system';
 import type { Capture } from '@inventarch/workspace-runtime';
@@ -23,6 +29,7 @@ export function bindOperations(input: {
 }) {
   const bindings = executionBindings(input.reader);
   const fixed = installedReadCatalog();
+  const aliases = compiledAliases(input.compiled);
   const entryUrl = import.meta.resolve('@inventarch/agent-composition-system');
   const extension = entryUrl.endsWith('.ts') ? 'ts' : 'js';
   const codePath = fileURLToPath(new URL(`./installed-read.${extension}`, entryUrl));
@@ -34,11 +41,16 @@ export function bindOperations(input: {
   for (const operation of Object.values(input.manifest.operations)) {
     const selected = input.compiled.bindings.find((row) => row.kind === 'operation' && row.target === operation.id);
     const binding = bindings.find((row) => row.identity === selected?.identity);
+    // A record may still name the original read; the binding then pinned the original entry or, aliased, the plain one.
+    const written = selected?.implementation,
+      ids = [INSTALLED_READ, INSTALLED_READ_LEGACY].find(
+        (candidate) =>
+          candidate.implementation === (written === undefined ? undefined : (aliases.operations?.[written] ?? written)),
+      );
     const available =
       operation.id === INSTALLED_READ.operation &&
-      selected?.implementation === INSTALLED_READ.implementation &&
-      canonical(input.catalog.operations[INSTALLED_READ.implementation]) ===
-        canonical(fixed.operations[INSTALLED_READ.implementation]);
+      ids !== undefined &&
+      canonical(input.catalog.operations[ids.implementation]) === canonical(fixed.operations[ids.implementation]);
     const result =
       binding &&
       bindExecution(
@@ -48,13 +60,13 @@ export function bindOperations(input: {
               status: 'present',
               operations: [
                 {
-                  id: INSTALLED_READ.implementation,
+                  id: written!,
                   status: 'available',
                   version: 1,
-                  operation: INSTALLED_READ.operation,
-                  handler: INSTALLED_READ.handler,
-                  input: INSTALLED_READ.input,
-                  output: INSTALLED_READ.output,
+                  operation: ids!.operation,
+                  handler: ids!.handler,
+                  input: ids!.input,
+                  output: ids!.output,
                   module: `runtime/node_modules/@inventarch/agent-composition-system/${extension === 'ts' ? 'src' : 'dist'}/installed-read.${extension}`,
                   digest: codeDigest,
                   packages: ['@inventarch/agent-composition-system'],

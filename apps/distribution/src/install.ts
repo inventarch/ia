@@ -11,7 +11,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { open, readInputs } from '@inventarch/db';
+import { open, readInputs, refusesInstallation } from '@inventarch/db';
 import {
   canonicalDistributionJson as json,
   decodeActivationPointer,
@@ -83,6 +83,11 @@ export interface InstallOptions {
    * still removes the rows whose members it moved.
    */
   readonly collections?: readonly ExpandedCollection[];
+  /**
+   * The lock requests this operation counts as named by the user (kit-collections.ts `KitCollections.named`); the record
+   * keeps each one a recorded collection also lists.
+   */
+  readonly named?: readonly string[];
 }
 /** The workspace archive cache: `<digest>.ia.tgz` files only, each written once by `cacheArchive`. */
 export const ARCHIVE_CACHE = '.ia/distributions/cache';
@@ -267,24 +272,43 @@ function acquire(root: string, recovering = false): () => void {
   };
 }
 /**
+ * A record this build cannot decode is not an absent one: the merge would replace it and lose its collection rows.
+ * Checked at the start of an apply, before any store or generation file, and again where the merge is made.
+ */
+function refuseUnreadableCollections(root: string, read: ReturnType<typeof readKitCollections>): void {
+  if (read.state !== 'invalid') return;
+  // With no lock there is nothing installed for the record to describe, so the refusal claims no installed package.
+  const kept = existsSync(join(root, INSTALL_PATHS.lock))
+    ? ' (the installed packages stay)'
+    : ' (the workspace has no package lock yet, so nothing installed is at stake)';
+  fail(
+    'COLLECTIONS-UNREADABLE',
+    `${read.problem}; the next apply would replace it and lose the collection rows it holds${kept}. ` +
+      `Restore the file from version control or a backup, or move ${KIT_COLLECTIONS} aside if its collections may be forgotten, then run the command again`,
+  );
+}
+/**
  * The collections journal this apply writes, or null when the record does not change. The merge starts from the record
  * that describes the lock before the operation, or from none when it describes another (an older CLI changed the lock).
- * A record left with no collection and no unknown entry is removed rather than written empty.
+ * A record left with no collection and no unknown entry is removed rather than written empty. A record that cannot be
+ * decoded refuses (`IA-DIST-COLLECTIONS-UNREADABLE`) rather than being replaced.
  */
 function collectionsChange(
   root: string,
   plan: InstallationPlan,
   expanded: readonly ExpandedCollection[],
   pending: { readonly beforeActive: string | null; readonly beforeLock: string | null; readonly afterLock: string },
+  named: readonly string[] = [],
 ): CollectionsJournal | null {
   const read = readKitCollections(root);
+  refuseUnreadableCollections(root, read);
   // The file's own bytes, readable or not, so a rollback puts back exactly what was there.
   const before = bytes(root, KIT_COLLECTIONS, DISTRIBUTION_LIMITS.metadata)?.toString('utf8') ?? null;
   const current =
     read.state === 'present' && pending.beforeLock !== null && read.record.lock === sha256(pending.beforeLock)
       ? read.record
       : null;
-  const merged = mergeKitCollections(current, expanded, plan.lock, pending.afterLock);
+  const merged = mergeKitCollections(current, expanded, plan.lock, pending.afterLock, named);
   const after = emptyRecord(merged) ? null : serializeKitCollections(merged);
   if (after === before) return null;
   return { formatVersion: 1, beforeActive: pending.beforeActive, afterActive: json(plan.pointer), before, after };
@@ -293,11 +317,16 @@ function collectionsChange(
  * Whether applying `plan` now would write `.ia/kit-collections.json`: the same merge the apply makes, against the lock
  * on disk, so a preview can name the record among the files it would write.
  */
-export function collectionsWouldChange(plan: InstallationPlan, expanded: readonly ExpandedCollection[]): boolean {
+export function collectionsWouldChange(
+  plan: InstallationPlan,
+  expanded: readonly ExpandedCollection[],
+  named: readonly string[] = [],
+): boolean {
   const root = workspace(plan.root),
     beforeLock = bytes(root, INSTALL_PATHS.lock, DISTRIBUTION_LIMITS.metadata)?.toString('utf8') ?? null;
   return (
-    collectionsChange(root, plan, expanded, { beforeActive: null, beforeLock, afterLock: json(plan.lock) }) !== null
+    collectionsChange(root, plan, expanded, { beforeActive: null, beforeLock, afterLock: json(plan.lock) }, named) !==
+    null
   );
 }
 export function applyInstallation(
@@ -312,6 +341,7 @@ export function applyInstallation(
     noPending(root);
     // A collections journal no pending.json stands beside was left by a recovery that did not read it; settle it first.
     settleOrphanJournal(root);
+    refuseUnreadableCollections(root, readKitCollections(root));
     if (
       json(state(root)) !== json(plan.binding) ||
       json(planInstallation(root, plan.lock, plan.operation)) !== json(plan)
@@ -341,7 +371,7 @@ export function applyInstallation(
     }
     const reader = open(root, { cache: false, candidateInstallation: plan.pointer });
     try {
-      if (reader.report.findings.some((f) => f.severity === 'error'))
+      if (reader.report.findings.some(refusesInstallation))
         fail('ADMISSION-FAILED', 'Staged installation failed native admission');
     } finally {
       reader.close();
@@ -358,7 +388,7 @@ export function applyInstallation(
     };
     // Built before pending.json is written, so a collection whose member the lock lacks refuses with nothing to recover
     // (the immutable store and generation files already written change nothing that counts).
-    const collections = collectionsChange(root, plan, options.collections ?? [], pending);
+    const collections = collectionsChange(root, plan, options.collections ?? [], pending, options.named);
     replace(root, INSTALL_PATHS.pending, Buffer.from(json(pending)));
     checkpoint('pending');
     if (json(state(root)) !== json(plan.binding)) fail('STALE-PLAN', 'Workspace changed after pending write');

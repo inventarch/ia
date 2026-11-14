@@ -4,7 +4,8 @@ import { readFileSync } from 'node:fs';
 import { digest } from '@inventarch/session-system';
 import { EditorSnapshot } from '@inventarch/db/editor';
 import { compileHarness, installed, executionManifest } from '../src/index.js';
-import type { Capture, CompiledHarness } from '../src/index.js';
+import type { CompiledHarness } from '../src/index.js';
+import type { Capture } from '@inventarch/workspace-runtime';
 import { admitSourceCapture } from '@inventarch/workspace-runtime/sources';
 
 import { compilerCapture, compilerCatalog as catalogWithDigest } from './compiler-fixture.js';
@@ -205,7 +206,7 @@ it('refuses missing handlers, digest mismatches, physical-owner drift and legacy
     owner: 'authoring-system',
   });
   refused(captured, 'IA-COMPOSITION-CONFLICT', wrong);
-  refused(modified('operations/sample-read.ia', '    profile governed-v1\n', ''), 'IA-COMPOSITION-UNAVAILABLE');
+  refused(modified('operations/sample-read.ia', '    profile governed\n', ''), 'IA-COMPOSITION-UNAVAILABLE');
   const unpinned = sampleCatalog('ide');
   unpinned.operations['fixture-read-v1'] = installed({
     ...unpinned.operations['fixture-read-v1']!.value,
@@ -449,7 +450,7 @@ it('pins explicit independent reviewer policy through mandate composition into t
   const catalog = sampleCatalog('ide'),
     base = catalog.mandates['sample-task-v1']!.value;
   const review = {
-    rule: 'independent-exact-candidate-v1' as const,
+    rule: 'independent-exact-candidate' as const,
     reviewer: 'reviewer-bob',
     mandate: 'separate-review-mandate',
     policyRevision: 'policy-1',
@@ -462,6 +463,36 @@ it('pins explicit independent reviewer policy through mandate composition into t
   catalog.mandates['sample-task-v1'] = installed({ ...base, review: { ...review, policyRevision: 'policy-2' } });
   expect(() => executionManifest(compiled, catalog)).toThrow('Installed contract changed');
   catalog.mandates['sample-task-v1'] = installed({ ...base, review: { ...review, mandate: '' } });
+  refused(captured, 'IA-COMPOSITION-CONFLICT', catalog);
+});
+
+it('accepts the plain governed profile and its original governed-v1 spelling, and refuses any other profile', () => {
+  const sample = (profile: string) =>
+    compileHarness(modified('operations/sample-read.ia', '    profile governed\n', `    profile ${profile}\n`), {
+      ...options(),
+      catalog: sampleCatalog('ide'),
+      entry: 'sample-entry',
+    });
+  expect(sample('governed')).toMatchObject({ ok: true });
+  expect(sample('governed-v1')).toMatchObject({ ok: true });
+  expect(sample('governed-v2')).toMatchObject({ ok: false, diagnostics: [{ code: 'IA-COMPOSITION-UNAVAILABLE' }] });
+});
+
+it('writes the plain completion evaluator and accepts the original independent review rule in an installed mandate', () => {
+  const catalog = sampleCatalog('ide'),
+    base = catalog.mandates['sample-task-v1']!.value,
+    review = { reviewer: 'reviewer-bob', mandate: 'separate-review-mandate', policyRevision: 'policy-1' };
+  for (const profile of Object.values(executionManifest(good(captured, catalog), catalog).profiles))
+    expect(profile.contract!.completionEvaluator).toBe('completion');
+  const old = { ...review, rule: 'independent-exact-candidate-v1' as const };
+  catalog.mandates['sample-task-v1'] = installed({ ...base, review: old });
+  const compiled = good(captured, catalog);
+  for (const profile of Object.values(executionManifest(compiled, catalog).profiles))
+    expect(profile.contract!.review).toEqual(old);
+  catalog.mandates['sample-task-v1'] = installed({
+    ...base,
+    review: { ...review, rule: 'independent-exact-candidate-v2' as 'independent-exact-candidate' },
+  });
   refused(captured, 'IA-COMPOSITION-CONFLICT', catalog);
 });
 

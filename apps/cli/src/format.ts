@@ -9,7 +9,7 @@
  */
 import { readdirSync } from 'node:fs';
 import { isAbsolute, resolve } from 'node:path';
-import { formatSource, readWorkspaceFile, replace } from '@inventarch/distribution/services';
+import { formatSource, readWorkspaceFile, recheckFormat, replace } from '@inventarch/distribution/services';
 import type { Context, Result } from './consumer.js';
 import { Refusal, requireRoot, respell } from './consumer.js';
 import { codeOf, openSession } from './session.js';
@@ -97,7 +97,8 @@ export function collectFormat(
   try {
     session = openSession(root);
     const files: FormatFile[] = [],
-      drafts: Draft[] = [];
+      drafts: Draft[] = [],
+      drafted: { readonly text: string; readonly reread: () => string }[] = [];
     const baseRevision = session.reader.revision;
     for (const path of paths) {
       const current = text(root, path);
@@ -108,7 +109,8 @@ export function collectFormat(
       // per file rather than ending the run — a whole-tree check must not stop at the packaged floor.
       let outcome: ReturnType<typeof formatSource>;
       try {
-        outcome = formatSource({ session, path, text: current, reread: () => text(root, path) });
+        // Each source is drafted against the one session; the staleness check runs once, after the loop.
+        outcome = formatSource({ session, path, text: current, reread: () => text(root, path), defer: true });
       } catch (error) {
         if (codeOf(error, '') !== 'IA-DIST-PATH-UNSAFE') throw error;
         files.push({
@@ -122,6 +124,7 @@ export function collectFormat(
         files.push({ path, status: 'refused', findings: outcome.diagnostics });
         continue;
       }
+      drafted.push({ text: current, reread: () => text(root, path) });
       if (outcome.text === current) {
         files.push({ path, status: 'unchanged', findings: outcome.findings });
         continue;
@@ -129,6 +132,10 @@ export function collectFormat(
       files.push({ path, status: write ? 'rewritten' : 'differs', findings: outcome.findings });
       drafts.push({ path, text: outcome.text });
     }
+    // The staleness check formatSource used to make after every drafted source, made once: the workspace is still
+    // at the revision every draft was made at, and every drafted source still reads as it did. A run that drafted
+    // nothing (every file refused or outside the formatter) checks nothing, as before.
+    if (drafted.length > 0) recheckFormat(session, baseRevision, drafted);
     // Phase two. Every draft was produced and rechecked before the first byte is written, so a refusal in the
     // middle of the selection cannot leave half the files rewritten and half stale.
     if (write) for (const draft of drafts) replace(root, draft.path, Buffer.from(draft.text, 'utf8'));
