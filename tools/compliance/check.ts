@@ -97,7 +97,7 @@ export function readFixtures(root: string): { fixtures: LanguageFixture[]; stray
   }
   return { fixtures: fixtures.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0)), strays: strays.sort() };
 }
-/** The package-v1 inventory gate: drift between the tree and the generated inventory fails COMP-FIXTURES. */
+/** The package-profile inventory gate: drift between the tree and the generated inventory fails COMP-FIXTURES. */
 function inventoryFindings(root: string): Finding[] {
   try {
     checkInventory(root);

@@ -30,6 +30,14 @@ export const EXCLUDED = new Set(['@modelcontextprotocol/client', '@inventarch/se
  */
 export const IMPLEMENTATIONS = Object.freeze([
   Object.freeze({
+    id: 'captured-source-read',
+    package: '@inventarch/agent-composition-system',
+    module: 'dist/installed-read.js',
+    declaration: 'installedReadCatalog',
+  }),
+  // The id this implementation shipped under before names stopped carrying their version. A workspace whose binding
+  // still names it binds the same handler module, so the catalog keeps listing it beside the plain id.
+  Object.freeze({
     id: 'captured-source-read-v1',
     package: '@inventarch/agent-composition-system',
     module: 'dist/installed-read.js',

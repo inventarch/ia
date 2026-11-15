@@ -87,7 +87,7 @@ export function committedReader(repository: string, commit: string, timeout = 10
         listed = null;
       } else {
         let nameBytes = 0;
-        for (const row of rows) nameBytes += Buffer.byteLength(row.path) + 1;
+        for (const row of rows) nameBytes += row.bytes + 1;
         if (nameBytes > OUTPUT_LIMIT) fail('Repository output byte limit exceeded', 'IA-KB-SOURCE-UNAVAILABLE');
         listed = byPath(rows);
         names = rows.map((row) => row.path);
@@ -226,28 +226,56 @@ interface Row {
   readonly id: string;
   readonly size: number;
   readonly path: string;
+  /** The path's length in bytes, as Git wrote it. */
+  readonly bytes: number;
+  /** Whether `path` spells the path's bytes exactly: false when they are not UTF-8 and `path` is their lossy decoding. */
+  readonly exact: boolean;
 }
-/** `ls-tree -lz` rows: `<mode> SP <type> SP <id> SP+ <size or -> TAB <path>`, each ended by NUL. */
+/**
+ * `ls-tree -lz` rows: `<mode> SP <type> SP <id> SP+ <size or -> TAB <path>`, each ended by NUL. A Git path is bytes. One
+ * that is not UTF-8 keeps the lossy name a name-only listing gives it, but is not `exact`, so its blob is never fetched
+ * under that name: reading the name gives what reading it path by path gives, a refusal unless another path really has
+ * that name.
+ */
 function parseRows(out: Buffer): Row[] {
-  return out
-    .toString('utf8')
-    .split('\0')
-    .filter(Boolean)
-    .map((entry) => {
-      const match = /^(\d{6}) (\w+) ([a-f0-9]{40,64}) +(-|\d+)\t([\s\S]*)$/.exec(entry);
-      if (!match) return fail('Selected committed blob identity unavailable');
-      return {
-        mode: match[1]!,
-        type: match[2]!,
-        id: match[3]!,
-        size: match[4] === '-' ? 0 : Number(match[4]),
-        path: match[5]!,
-      };
+  const strict = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }),
+    rows: Row[] = [];
+  for (let at = 0; at < out.length; ) {
+    const nul = out.indexOf(0, at),
+      end = nul < 0 ? out.length : nul,
+      entry = out.subarray(at, end);
+    at = end + 1;
+    if (entry.length === 0) continue;
+    const tab = entry.indexOf(0x09),
+      match =
+        tab < 0 ? null : /^(\d{6}) (\w+) ([a-f0-9]{40,64}) +(-|\d+)$/.exec(entry.subarray(0, tab).toString('utf8'));
+    if (!match) return fail('Selected committed blob identity unavailable');
+    const name = entry.subarray(tab + 1);
+    let path: string,
+      exact = true;
+    try {
+      path = strict.decode(name);
+    } catch {
+      path = name.toString('utf8');
+      exact = false;
+    }
+    rows.push({
+      mode: match[1]!,
+      type: match[2]!,
+      id: match[3]!,
+      size: match[4] === '-' ? 0 : Number(match[4]),
+      path,
+      bytes: name.length,
+      exact,
     });
+  }
+  return rows;
 }
+/** The rows by path. A row whose path is not `exact` is left out, so its lossy name is looked up as `read` looks it up. */
 function byPath(rows: readonly Row[]): Map<string, readonly Row[]> {
   const map = new Map<string, Row[]>();
   for (const row of rows) {
+    if (!row.exact) continue;
     const list = map.get(row.path) ?? [];
     list.push(row);
     map.set(row.path, list);

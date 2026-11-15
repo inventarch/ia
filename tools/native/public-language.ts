@@ -92,7 +92,7 @@ export function exampleCatalog(): CompositionCatalog {
     },
     operations: {},
     evaluators: {},
-    entries: { 'example-entry-v1': installed({ target: 'agent-profile', mapping: 'example-identity' }) },
+    entries: { 'example-entry': installed({ target: 'agent-profile', mapping: 'example-identity' }) },
     mappings: { 'example-identity': installed({ kind: 'identity' }) },
   };
 }

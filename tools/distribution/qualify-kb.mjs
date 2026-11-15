@@ -151,6 +151,9 @@ try {
   assert.deepEqual(rpc.find((m) => m.id === 2).result.structuredContent, read);
   assert.equal(rpc.find((m) => m.id === 3).result.structuredContent.value.results[0].identity, id);
   assert.deepEqual(beforeTree(), before, 'Read-only commands changed repository bytes');
+  // git only does local work here, with no hook, no signing and the message on the command line, so it never waits
+  // on anyone. Its bound is the hang guard every other process here has, not a speed check: a Windows runner has
+  // taken more than 10 s for the wide add below.
   const git = (...args) =>
     execFileSync(
       'git',
@@ -163,7 +166,7 @@ try {
         workspace,
         ...args,
       ],
-      { env, encoding: 'utf8', windowsHide: true, timeout: 10000 },
+      { env, encoding: 'utf8', windowsHide: true, timeout: 120000 },
     ).trim();
   git('init', '--quiet');
   git('config', 'core.autocrlf', 'false');

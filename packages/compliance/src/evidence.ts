@@ -430,14 +430,17 @@ export function acceptEvaluatorOutput(
     const result = envelope['result'];
     if (result !== 'passed' && result !== 'failed')
       return error('Evaluator reported a result other than passed or failed');
-    const codec = codecOf(catalog, entry.outputSchemaId);
+    const codec = codecOf(catalog, entry.outputCodec);
     let valid = false;
     try {
       valid = codec !== undefined && codec.validate(envelope['evidence']) === true;
     } catch {
       valid = false;
     }
-    if (!valid) return error(`Evaluator output did not satisfy codec ${entry.outputSchemaId}`);
+    if (!valid)
+      return error(
+        `Evaluator output did not satisfy codec ${entry.outputCodec.id} version ${entry.outputCodec.version}`,
+      );
     return outcomeOf(
       result,
       result === 'failed' ? bounded(envelope['diagnostics'], options.secrets ?? []) : [],

@@ -38,6 +38,11 @@ export { validateAdoption } from './adoption.js';
 export type { AdoptionEvaluators, ClauseContext, ClauseEvaluator, ClauseResult } from './adoption.js';
 export {
   EVALUATOR_CATALOG_FORMAT,
+  EVALUATOR_CATALOG_FORMAT_VERSION,
+  EVALUATOR_CATALOG_FORMAT_VERSIONS,
+  LEGACY_EVALUATOR_CATALOG_FORMAT,
+  isCodecRef,
+  legacyCodecRef,
   EVALUATOR_CONTRACT_MAJORS,
   bindEvaluators,
   createEvaluatorCatalog,
@@ -52,6 +57,7 @@ export type {
   EvaluatorAvailability,
   EvaluatorBinding,
   EvaluatorCatalog,
+  CodecRef,
   EvaluatorCodec,
   EvaluatorEntry,
   EvaluatorLimits,
@@ -108,7 +114,13 @@ export { runLanguageFixture, fixtureCoverage } from './fixtures.js';
 export type { FixtureResult, LanguageFixture } from './fixtures.js';
 export { CLAUDE_MARKETPLACE, CLAUDE_PLUGIN, PLUGIN_MARKER, renderClaudePlugin } from './host-plugin.js';
 export type { ClaudePluginInput, PluginFile } from './host-plugin.js';
-export { CONFORMANCE_PROFILE, isConformanceEvidence, verifyFixtures, verifyKernel } from './conformance/evidence.js';
+export {
+  CONFORMANCE_PROFILE,
+  isConformanceEvidence,
+  isConformanceProfile,
+  verifyFixtures,
+  verifyKernel,
+} from './conformance/evidence.js';
 export type {
   ConformanceEvidence,
   ConformanceProfile,

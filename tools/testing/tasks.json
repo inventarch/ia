@@ -555,6 +555,7 @@
       "files": [
         "tests/compatibility.test.ts",
         "tests/compile.test.ts",
+        "tests/contract-version.test.ts",
         "tests/contracts.test.ts",
         "tests/execution.test.ts",
         "tests/installed-catalog.test.ts",
@@ -933,7 +934,7 @@
           ]
         },
         {
-          "case": "tests/console-app.test.ts > opening a failed repository after a batch no key reaches another workspace’s offers while it reads; its own view follows",
+          "case": "tests/console-app.test.ts > opening a failed repository after a batch no key reaches another workspace\u2019s offers while it reads; its own view follows",
           "reason": "The case drives the console through a batch against a faked git and a real worktree layout; it has not been checked on Windows, so it runs on Linux and macOS only.",
           "platforms": [
             "windows"
@@ -961,7 +962,7 @@
           ]
         },
         {
-          "case": "tests/console-app.test.ts > runConsole asks git whether the workspace copy is committed once for the console’s life, not at each load or doctor row",
+          "case": "tests/console-app.test.ts > runConsole asks git whether the workspace copy is committed once for the console\u2019s life, not at each load or doctor row",
           "reason": "The case counts git calls through a POSIX shell shim placed on PATH, which Windows does not run.",
           "platforms": [
             "windows"
@@ -1470,7 +1471,7 @@
           ]
         },
         {
-          "case": "tests/console-batch-run.test.ts > the .cmd route passes cmd.exe’s own characters through intact",
+          "case": "tests/console-batch-run.test.ts > the .cmd route passes cmd.exe\u2019s own characters through intact",
           "reason": "Only Windows runs a package manager's .cmd shim through cmd.exe; the POSIX twin passes shell characters through a shell-script shim.",
           "platforms": [
             "linux",
@@ -1499,35 +1500,35 @@
           ]
         },
         {
-          "case": "tests/console-batch-run.test.ts > a failed git worktree add a branch that moved away from the base is not this run’s to delete, and the result says it is left",
+          "case": "tests/console-batch-run.test.ts > a failed git worktree add a branch that moved away from the base is not this run\u2019s to delete, and the result says it is left",
           "reason": "The post-checkout hook that fails the add is a POSIX shell script with an executable bit; Windows runs no such hook.",
           "platforms": [
             "windows"
           ]
         },
         {
-          "case": "tests/console-batch-run.test.ts > a command’s whole process tree a timeout kills a process the command started, not only the command",
+          "case": "tests/console-batch-run.test.ts > a command\u2019s whole process tree a timeout kills a process the command started, not only the command",
           "reason": "The case reaches a process group and signals; Windows has neither, and ends a tree another way.",
           "platforms": [
             "windows"
           ]
         },
         {
-          "case": "tests/console-batch-run.test.ts > a command’s whole process tree the command has no terminal of its own to stop on: opening one fails at once rather than waiting",
+          "case": "tests/console-batch-run.test.ts > a command\u2019s whole process tree the command has no terminal of its own to stop on: opening one fails at once rather than waiting",
           "reason": "The case runs /bin/sh and /dev/tty, which Windows does not have; a process group of its own is a POSIX notion.",
           "platforms": [
             "windows"
           ]
         },
         {
-          "case": "tests/console-batch-run.test.ts > a command’s whole process tree the batch’s stop reaches the command and what it started, through its signal, not a process listener",
+          "case": "tests/console-batch-run.test.ts > a command\u2019s whole process tree the batch\u2019s stop reaches the command and what it started, through its signal, not a process listener",
           "reason": "The case runs /bin/sh and signals a process group; Windows has neither.",
           "platforms": [
             "windows"
           ]
         },
         {
-          "case": "tests/console-batch-run.test.ts > a command’s whole process tree a command started after the stop runs: the clean-up of a failed add is not interrupted",
+          "case": "tests/console-batch-run.test.ts > a command\u2019s whole process tree a command started after the stop runs: the clean-up of a failed add is not interrupted",
           "reason": "The case runs /bin/sh and a process group of its own, which Windows does not have.",
           "platforms": [
             "windows"
@@ -1541,7 +1542,7 @@
           ]
         },
         {
-          "case": "tests/console-batch-run.test.ts > a PATH entry inside a selected repository an entry inside another repository of the batch is left out of every repository’s children too",
+          "case": "tests/console-batch-run.test.ts > a PATH entry inside a selected repository an entry inside another repository of the batch is left out of every repository\u2019s children too",
           "reason": "Kept with its one-repository sibling, which is POSIX only; the PATH it builds and compares is spelled the POSIX way, and Windows' case-folded Path is covered by the de-duplication cases.",
           "platforms": [
             "windows"
@@ -1562,28 +1563,28 @@
           ]
         },
         {
-          "case": "tests/console-batch-run.test.ts > a command’s whole process tree the console ending takes the running command’s tree with it",
+          "case": "tests/console-batch-run.test.ts > a command\u2019s whole process tree the console ending takes the running command\u2019s tree with it",
           "reason": "The case runs /bin/sh and signals a process group; Windows has neither.",
           "platforms": [
             "windows"
           ]
         },
         {
-          "case": "tests/console-batch-run.test.ts > a version manager’s shim is checked by its real path and starts with the name it was found by, which is how it knows what to run",
+          "case": "tests/console-batch-run.test.ts > a version manager\u2019s shim is checked by its real path and starts with the name it was found by, which is how it knows what to run",
           "reason": "The shim is a POSIX shell script reached through a symbolic link; Windows runs its .cmd twin instead.",
           "platforms": [
             "windows"
           ]
         },
         {
-          "case": "tests/console-batch-run.test.ts > a version manager’s shim a step through such a shim reaches the runner by that name",
+          "case": "tests/console-batch-run.test.ts > a version manager\u2019s shim a step through such a shim reaches the runner by that name",
           "reason": "The shim is a POSIX shell script reached through a symbolic link; Windows runs its .cmd twin instead.",
           "platforms": [
             "windows"
           ]
         },
         {
-          "case": "tests/console-batch-run.test.ts > a PATH entry inside a selected repository is left out of every child’s PATH, so a program the step starts by name cannot come from the checkout",
+          "case": "tests/console-batch-run.test.ts > a PATH entry inside a selected repository is left out of every child\u2019s PATH, so a program the step starts by name cannot come from the checkout",
           "reason": "The program the case plants is a POSIX shell script with an executable bit; Windows starts programs by extension.",
           "platforms": [
             "windows"
@@ -1832,11 +1833,11 @@
       "kind": "vitest",
       "project": "apps/mcp-door",
       "files": [
-        "tests/protocol.test.ts",
-        "tests/stdio.test.ts",
         "tests/kb.test.ts",
+        "tests/kits-package.test.ts",
         "tests/method.test.ts",
-        "tests/kits-package.test.ts"
+        "tests/protocol.test.ts",
+        "tests/stdio.test.ts"
       ],
       "profile": "installed",
       "platforms": [
@@ -2280,6 +2281,7 @@
         "tests/canon-corpus.test.ts",
         "tests/canon-laws.test.ts",
         "tests/canon-rules.test.ts",
+        "tests/catalog-codecs.test.ts",
         "tests/evaluator-catalog.test.ts",
         "tests/field-relations-baseline.test.ts",
         "tests/graph.test.ts",
@@ -2376,7 +2378,7 @@
         },
         {
           "case": "tests/host-plugin-node.test.ts > a node planted in the project or behind a relative PATH entry never starts the hook, and sh runs the recorded Node as written (crowncodes/ia#436)",
-          "reason": "On Windows the plugin hook keeps the earlier node command, which looks node up on PATH (host plugin distribution spec \u00a76.1); the injected-platform Windows rendering case checks that command byte for byte on every platform.",
+          "reason": "On Windows the plugin hook keeps the earlier node command, which looks node up on PATH (host plugin distribution spec 00a76.1); the injected-platform Windows rendering case checks that command byte for byte on every platform.",
           "platforms": [
             "windows"
           ]
@@ -2909,6 +2911,7 @@
         "tests/door-read.test.ts",
         "tests/editor.test.ts",
         "tests/entry.test.ts",
+        "tests/home-folders.test.ts",
         "tests/install-guard.test.ts",
         "tests/kit-base.test.ts",
         "tests/kit-root.test.ts",
@@ -3094,6 +3097,30 @@
           ]
         },
         {
+          "case": "tests/publication.test.ts > qualified local NTFS publication refuses spawn-error volume qualification without creating output or caching failure",
+          "reason": "Exercises the Windows PowerShell volume probe after Windows root qualification; Linux and macOS refuse the unsupported platform before reaching the probe.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > qualified local NTFS publication refuses timeout-then-invalid-json volume qualification without creating output or caching failure",
+          "reason": "Exercises the Windows PowerShell volume probe after Windows root qualification; Linux and macOS refuse the unsupported platform before reaching the probe.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > qualified local NTFS publication qualifies on a third probe after two timed out, and caches the success",
+          "reason": "Exercises the Windows PowerShell volume probe after Windows root qualification; Linux and macOS refuse the unsupported platform before reaching the probe.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
           "case": "tests/scope-key.test.ts > reads a Windows absolute path as the file system compares it",
           "reason": "Drive letters, their case and backslash separators are Windows path semantics; Linux and macOS cover absolute seat paths inside and outside the root, the root itself included, through the case that reads an absolute path inside the root.",
           "platforms": [
@@ -3171,6 +3198,7 @@
         "tests/adapters.test.ts",
         "tests/authoring-base.test.ts",
         "tests/authoring-bytes.test.ts",
+        "tests/authoring-criteria.test.ts",
         "tests/authoring-integrity.test.ts",
         "tests/authoring-lifecycle.test.ts",
         "tests/authoring-shipped.test.ts",
@@ -3578,12 +3606,12 @@
       "kind": "vitest",
       "project": ".",
       "files": [
-        "tools/distribution/host-payload.test.ts",
-        "tools/distribution/language-guide.test.ts",
-        "tools/distribution/consumer.test.ts",
-        "tools/distribution/authoring-manifest.test.ts",
         "tools/distribution/authoring-guides.test.ts",
-        "tools/distribution/generation-order.test.ts"
+        "tools/distribution/authoring-manifest.test.ts",
+        "tools/distribution/consumer.test.ts",
+        "tools/distribution/generation-order.test.ts",
+        "tools/distribution/host-payload.test.ts",
+        "tools/distribution/language-guide.test.ts"
       ],
       "profile": "corpus",
       "platforms": [
@@ -3811,18 +3839,18 @@
       "kind": "vitest",
       "project": ".",
       "files": [
-        "tools/native/public-language.test.ts",
-        "tools/native/public-fixture.test.ts",
-        "tools/native/release-work.test.ts",
-        "tools/native/repository-architecture.test.ts",
-        "tools/native/work-example.test.ts",
+        "tools/native/canon-cases.test.ts",
         "tools/native/check.test.ts",
         "tools/native/language-base.test.ts",
         "tools/native/language-bases.test.ts",
         "tools/native/language-compat.test.ts",
+        "tools/native/public-fixture.test.ts",
+        "tools/native/public-language.test.ts",
         "tools/native/public-systems.test.ts",
+        "tools/native/release-work.test.ts",
+        "tools/native/repository-architecture.test.ts",
         "tools/native/stewardship.test.ts",
-        "tools/native/canon-cases.test.ts"
+        "tools/native/work-example.test.ts"
       ],
       "profile": "corpus",
       "platforms": [
@@ -3841,6 +3869,12 @@
       "resourceClass": "io",
       "covers": [
         "vitest run --config vitest.tools.config.mts --maxWorkers=1"
+      ],
+      "skips": [
+        {
+          "case": "tools/native/language-bases.test.ts > fetching a published base records a seeded version from the seeded bytes, under the seed source",
+          "reason": "The case applies only while this tree builds the published 3.2.1 base byte for byte; the tree now builds the unreleased 3.3.0 base, and the seeded bytes are still verified by the ledger cases, which run everywhere."
+        }
       ]
     },
     {
@@ -3931,13 +3965,13 @@
       "kind": "vitest",
       "project": ".",
       "files": [
+        "tools/testing/cold-start.test.ts",
         "tools/testing/inventory.test.ts",
+        "tools/testing/manifest.test.ts",
         "tools/testing/plan.test.ts",
         "tools/testing/report.test.ts",
         "tools/testing/resources.test.ts",
         "tools/testing/subprocess.test.ts",
-        "tools/testing/cold-start.test.ts",
-        "tools/testing/manifest.test.ts",
         "tools/testing/verdict.test.ts"
       ],
       "profile": "installed",
@@ -4693,13 +4727,13 @@
       "files": [
         "tools/distribution/github-release.test.ts",
         "tools/distribution/npm-release.test.ts",
+        "tools/distribution/release-branch.test.ts",
         "tools/distribution/release-hygiene.test.ts",
         "tools/distribution/release-refusals.test.ts",
         "tools/distribution/release-setup-auth.test.ts",
         "tools/distribution/release-setup-metadata.test.ts",
         "tools/distribution/release-setup.test.ts",
-        "tools/distribution/release-versioning.test.ts",
-        "tools/distribution/release-branch.test.ts"
+        "tools/distribution/release-versioning.test.ts"
       ],
       "profile": "corpus",
       "platforms": [
@@ -5015,14 +5049,14 @@
       "kind": "vitest",
       "project": "packages/kb",
       "files": [
-        "tests/legacy.test.ts",
+        "tests/batch-reads.test.ts",
         "tests/foundation.test.ts",
         "tests/installation.test.ts",
-        "tests/package.test.ts",
-        "tests/batch-reads.test.ts",
+        "tests/legacy.test.ts",
+        "tests/limits.test.ts",
         "tests/local.test.ts",
-        "tests/protocol.test.ts",
-        "tests/limits.test.ts"
+        "tests/package.test.ts",
+        "tests/protocol.test.ts"
       ],
       "profile": "installed",
       "platforms": [
@@ -5188,6 +5222,50 @@
       ]
     },
     {
+      "id": "tools:test-scale-probe",
+      "kind": "vitest",
+      "project": ".",
+      "files": [
+        "tools/scale-probe/scale-probe.test.ts"
+      ],
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "repository-inventory",
+      "dependsOn": [],
+      "outputs": [
+        "artifacts/tests/tools-test-scale-probe"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "subprocess",
+      "covers": [
+        "vitest run --config vitest.tools.config.mts --maxWorkers=1"
+      ],
+      "skips": [
+        {
+          "case": "tools/scale-probe/scale-probe.test.ts > the capture digests a link by its target text without following it, a dangling one included",
+          "reason": "The case skips only when Windows denies file-symlink creation with EPERM; it runs wherever creation is permitted, Windows included.",
+          "platforms": [
+            "windows"
+          ],
+          "when": "file-symlink-unavailable"
+        },
+        {
+          "case": "tools/scale-probe/scale-probe.test.ts > the capture copies a relative link as a link, so a write through it changes the copy, not the tree",
+          "reason": "The case skips only when Windows denies file-symlink creation with EPERM; it runs wherever creation is permitted, Windows included.",
+          "platforms": [
+            "windows"
+          ],
+          "when": "file-symlink-unavailable"
+        }
+      ]
+    },
+    {
       "id": "tools:typecheck-js",
       "kind": "command",
       "project": ".",
@@ -5239,8 +5317,8 @@
       "kind": "vitest",
       "project": ".",
       "files": [
-        "tools/distribution/sdk-consumer.test.ts",
-        "tools/distribution/qualify-sdk.test.ts"
+        "tools/distribution/qualify-sdk.test.ts",
+        "tools/distribution/sdk-consumer.test.ts"
       ],
       "profile": "installed",
       "platforms": [

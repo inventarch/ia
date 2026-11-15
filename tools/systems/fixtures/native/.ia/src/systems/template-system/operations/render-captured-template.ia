@@ -2,12 +2,12 @@
 
 @operation render-captured-template
   meaning
-    says "Render one structured-v1 @template from its captured JSON resource into bounded draft bytes and an evidence digest through the native-template-tools harness; nothing is written."
-    answers "Which governed operation renders a structured-v1 @template from its captured JSON resource into draft bytes and an evidence digest without writing a file?"
+    says "Render one structured @template from its captured JSON resource into bounded draft bytes and an evidence digest through the native-template-tools harness; nothing is written."
+    answers "Which governed operation renders a structured @template from its captured JSON resource into draft bytes and an evidence digest without writing a file?"
   execution
-    handler captured-template-render-v1
+    handler captured-template-render
     effects draft-only
-    input captured-template-input-v1
-    output draft-result-v1
-    profile governed-v1
+    input captured-template-input
+    output draft-result
+    profile governed
     recovery repeatable
