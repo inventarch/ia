@@ -362,3 +362,96 @@ it('the built launcher refuses edits to its fixed registered source controls wit
     expect(await code(event(resolve(base, path)), base), path).toBe('IA-HOOK-PROJECTION-MANAGED');
   expect(readFileSync(resolve(base, '.claude/settings.json'), 'utf8')).toBe(registered);
 });
+
+it('normalizes Gemini BeforeTool and Antigravity PreToolUse payloads, returns { decision: "deny", reason }, and protects gemini/antigravity projection surfaces', async () => {
+  const protectedRecord = resolve(fixture, '.ia/src/systems/governance-system/records/sample-procedure.ia');
+  const ordinaryDoc = resolve(fixture, 'docs/ordinary.md');
+
+  const runRaw = async (payload: unknown, base = fixture) => {
+    const result = await runBounded(process.execPath, [launcher, '--root', base], {
+      input: JSON.stringify(payload),
+      timeoutMs: SUBPROCESS,
+    });
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe('');
+    return JSON.parse(result.stdout) as Record<string, unknown>;
+  };
+
+  // Gemini CLI BeforeTool: write_file and replace
+  for (const tool_name of ['write_file', 'replace'] as const) {
+    const denied = await runRaw({
+      hook_event_name: 'BeforeTool',
+      tool_name,
+      tool_input: { file_path: protectedRecord },
+      cwd: fixture,
+    });
+    expect(denied).toEqual({
+      decision: 'deny',
+      reason: expect.stringMatching(/^IA-HOOK-IDENTITY-UNAVAILABLE:/),
+    });
+    expect(denied).not.toHaveProperty('hookSpecificOutput');
+
+    const allowed = await runRaw({
+      hook_event_name: 'BeforeTool',
+      tool_name,
+      tool_input: { file_path: ordinaryDoc },
+      cwd: fixture,
+    });
+    expect(allowed).toEqual({});
+  }
+
+  // Antigravity PreToolUse: toolCall.name in ['write_file', 'edit_file'] and Path / AbsolutePath / TargetFile
+  for (const [name, argKey] of [
+    ['write_file', 'Path'],
+    ['edit_file', 'AbsolutePath'],
+    ['edit_file', 'TargetFile'],
+  ] as const) {
+    const denied = await runRaw({
+      cwd: fixture,
+      toolCall: { name, args: { [argKey]: protectedRecord } },
+    });
+    expect(denied).toEqual({
+      decision: 'deny',
+      reason: expect.stringMatching(/^IA-HOOK-IDENTITY-UNAVAILABLE:/),
+    });
+    expect(denied).not.toHaveProperty('hookSpecificOutput');
+
+    const allowed = await runRaw({
+      cwd: fixture,
+      toolCall: { name, args: { [argKey]: ordinaryDoc } },
+    });
+    expect(allowed).toEqual({});
+  }
+
+  // Protected surfaces for gemini and antigravity (including gemini-projection.json and antigravity-projection.json)
+  for (const relPath of [
+    'GEMINI.md',
+    '.gemini/settings.json',
+    '.gemini/skills/ia-authoring/SKILL.md',
+    '.gemini/agents/reviewer.md',
+    '.agents/mcp_config.json',
+    '.agents/agents/reviewer.md',
+    '.ia/distributions/hosts/gemini-projection.json',
+    '.ia/distributions/hosts/antigravity-projection.json',
+  ]) {
+    const geminiDenied = await runRaw({
+      hook_event_name: 'BeforeTool',
+      tool_name: 'write_file',
+      tool_input: { file_path: resolve(fixture, relPath) },
+      cwd: fixture,
+    });
+    expect(geminiDenied, `gemini ${relPath}`).toEqual({
+      decision: 'deny',
+      reason: expect.stringMatching(/^IA-HOOK-PROJECTION-MANAGED:/),
+    });
+
+    const agyDenied = await runRaw({
+      cwd: fixture,
+      toolCall: { name: 'write_file', args: { Path: resolve(fixture, relPath) } },
+    });
+    expect(agyDenied, `antigravity ${relPath}`).toEqual({
+      decision: 'deny',
+      reason: expect.stringMatching(/^IA-HOOK-PROJECTION-MANAGED:/),
+    });
+  }
+});

@@ -35,15 +35,23 @@ export interface KnowledgeOptions {
   readonly identities?: readonly string[];
   readonly expectedRevision?: string;
   readonly input?: InputOptions;
-  readonly selection?: KnowledgeSelection;
+  readonly selection?: KnowledgeSelection | null;
 }
 const snapshots = new WeakSet<KnowledgeSnapshot>();
+let lastNativeReader: { readonly revision: string; readonly reader: EditorSnapshot } | undefined;
+export function sharedNativeReader(c: Capture): EditorSnapshot {
+  if (lastNativeReader?.revision === c.revision) return lastNativeReader.reader;
+  lastNativeReader?.reader.close();
+  const reader = new EditorSnapshot(nativeInput(c));
+  lastNativeReader = { revision: c.revision, reader };
+  return reader;
+}
 export function requireSnapshot(value: KnowledgeSnapshot): void {
   if (!snapshots.has(value)) fail('Captured knowledge snapshot required');
 }
 /** Reads only bound resources of admitted, selected authored records; no index or directory creation. */
 export function captureKnowledge(root: string, options: KnowledgeOptions = {}): KnowledgeSnapshot {
-  const selector = options.selection ?? readKnowledgeSelection(root);
+  const selector = options.selection === undefined ? readKnowledgeSelection(root) : (options.selection ?? undefined);
   const selection = selector === undefined ? undefined : verifySelection(selector, true);
   if (
     options.identities !== undefined &&
@@ -53,8 +61,8 @@ export function captureKnowledge(root: string, options: KnowledgeOptions = {}): 
   )
     fail('Invalid knowledge scope');
   const c = captureWorkspace(root, selection?.sourceId ?? 'workspace', options.input);
-  const reader = new EditorSnapshot(nativeInput(c));
-  try {
+  const reader = sharedNativeReader(c);
+  {
     if (options.expectedRevision !== undefined && reader.revision !== options.expectedRevision)
       fail('Native scope revision changed', 'IA-KB-SCOPE-STALE');
     const all = reader.records(),
@@ -77,7 +85,9 @@ export function captureKnowledge(root: string, options: KnowledgeOptions = {}): 
     const files = new Map<string, Uint8Array>(),
       scope = reader.resolveScope({ identities: nodes.map((n) => n.identity) }).token;
     const selectedIds = new Set(nodes.map((n) => n.identity));
-    const installedPaths = new Set(readInstalledGeneration(root)?.sources.map((source) => source.path) ?? []);
+    const installedPaths = new Set(
+      c.activation === undefined ? [] : (readInstalledGeneration(root)?.sources.map((source) => source.path) ?? []),
+    );
     const foundationNode = (node: (typeof all)[number]) =>
       node.placement.kind === 'floor' || installedPaths.has(node.source.path);
     const closureScope = reader.resolveScope({
@@ -178,7 +188,5 @@ export function captureKnowledge(root: string, options: KnowledgeOptions = {}): 
     const value = frozen({ ...base, digest: digest(pinned), capture: c, admission });
     snapshots.add(value);
     return value;
-  } finally {
-    reader.close();
   }
 }

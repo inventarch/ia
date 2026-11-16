@@ -157,7 +157,7 @@ import {
   words,
 } from './render.js';
 
-export type HostSelection = 'claude' | 'codex' | 'none';
+export type HostSelection = HostName | 'none';
 /**
  * How the plan classifies the target. `recovery-required` is never rendered as a plan: it refuses before anything
  * reasons about the target.
@@ -264,7 +264,7 @@ export interface CaptureEffect {
 }
 /** The project effect: the host, the files its receipt lists with their digests, and the receipt's own path. */
 export interface ProjectEffect {
-  readonly host: 'claude' | 'codex';
+  readonly host: HostName;
   readonly files: readonly { readonly path: string; readonly sha256: string }[];
   readonly receipt: string;
 }
@@ -1773,7 +1773,7 @@ async function offerTracking(context: Context, root: string, result: Result): Pr
  * followed by "rerun" would send the user back to this init, which now refuses as initialized, so it names `ia host`
  * instead, which names that recovery itself. The effect is read from the receipt the projection apply just wrote.
  */
-function registerHost(context: Context, selected: 'claude' | 'codex', root: string, done: string): Projected {
+function registerHost(context: Context, selected: HostName, root: string, done: string): Projected {
   const host = `ia host ${selected} --root ${quote(root)} --apply`;
   const finish = `Run "${host}" to finish host registration.`,
     recover = `Run "${host}" for the recovery it names, then run it again to finish host registration.`;

@@ -2,7 +2,7 @@ import { EditorSnapshot } from '@inventarch/db/editor';
 import { parseLocator, readBody } from '@inventarch/runtime';
 import { nativeInput } from './foundation.js';
 import { closed, data, digest, fail, frozen, LIMITS } from './format.js';
-import { requireSnapshot } from './local.js';
+import { requireSnapshot, sharedNativeReader } from './local.js';
 import type { KnowledgeSnapshot } from './local.js';
 import { isValidated } from './validate.js';
 import type { validateContent } from './validate.js';
@@ -31,8 +31,14 @@ export function openKnowledgeView(snapshot: KnowledgeSnapshot | ReturnType<typeo
   const commit = packaged ? snapshot.portable.provenance.commit : undefined;
   const records = [...snapshot.records].sort((a, b) => (a.identity < b.identity ? -1 : 1));
   const identities = new Set(records.map((r) => r.identity));
-  let reader: EditorSnapshot | undefined = new EditorSnapshot(nativeInput(snapshot.capture));
-  const scope = reader.resolveScope({ identities: [...identities] }).token;
+  let ownedReader: EditorSnapshot | undefined, scope: string | undefined;
+  const fragmentReader = (): { readonly reader: EditorSnapshot; readonly scope: string } => {
+    const reader = packaged
+      ? (ownedReader ??= new EditorSnapshot(nativeInput(snapshot.capture)))
+      : sharedNativeReader(snapshot.capture);
+    scope ??= reader.resolveScope({ identities: [...identities] }).token;
+    return { reader, scope };
+  };
   const nativeGraphRevision = snapshot.nativeGraphRevision;
   const admission = {
     ok: snapshot.admission.ok,
@@ -68,8 +74,9 @@ export function openKnowledgeView(snapshot: KnowledgeSnapshot | ReturnType<typeo
     let body = record.body,
       bodyPin = record.bodySha256;
     if ('fragment' in parsed) {
-      const result = readBody(reader!, locator, {
-        within: scope,
+      const { reader, scope: withinScope } = fragmentReader();
+      const result = readBody(reader, locator, {
+        within: withinScope,
         read: () => fail('Native fragments read no document'),
       });
       if (!result.ok) return fail('Knowledge fragment unavailable', 'IA-KB-UNAVAILABLE');
@@ -188,8 +195,9 @@ export function openKnowledgeView(snapshot: KnowledgeSnapshot | ReturnType<typeo
     close() {
       if (active) {
         active = false;
-        reader!.close();
-        reader = undefined;
+        ownedReader?.close();
+        ownedReader = undefined;
+        scope = undefined;
         records.length = 0;
         identities.clear();
         edges = [];

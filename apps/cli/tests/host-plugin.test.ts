@@ -860,3 +860,126 @@ describe('final review: ia init --from', () => {
     expect(result.exitCode, result.stdout).toBe(0);
   });
 });
+
+describe('Track 2B: standalone plugin CLI projection for seated and multi-capability workspaces', () => {
+  it('compiles a seated workspace with >4 capabilities, rules, agents and @hook guards into standalone gemini and antigravity plugins', async () => {
+    const root = await workspace();
+    const caps = ['plan', 'task', 'retrieve', 'check', 'design', 'review']
+      .map((slug) =>
+        [
+          `@playbook pb-${slug}`,
+          '  meaning',
+          `    says "Method for ${slug}."`,
+          `    answers "How does ${slug} proceed?"`,
+          '  cognition',
+          '    orient',
+          '      primary Memory',
+          `      Memory means "Orient on ${slug} records."`,
+          '    plan',
+          '      primary Inference',
+          `      Inference means "Plan ${slug} steps."`,
+          '    act',
+          '      primary Decision',
+          `      Decision means "Execute ${slug} cleanly."`,
+          '    learn',
+          '      primary Learning',
+          `      Learning means "Capture ${slug} learnings."`,
+          '',
+          `@capability cap-${slug}`,
+          '  meaning',
+          `    says "Capability ${slug} for standalone CLI test."`,
+          `    answers "When is ${slug} used?"`,
+          '  composition',
+          `    playbooks [@playbook pb-${slug}]`,
+          '  execution',
+          '    effects [read, local-write]',
+          '',
+        ].join('\n'),
+      )
+      .join('\n');
+
+    writeFileSync(
+      join(root, '.ia/src/standalone.ia'),
+      [
+        '#! ia 1.0',
+        '',
+        '@law cli-standalone-law',
+        '  meaning',
+        '    says "Preserve canonical anchors in every edit."',
+        '    answers "What law governs edits?"',
+        '  governance',
+        '    severity blocking',
+        '    requires "Canonical anchors remain intact."',
+        '',
+        '@hook cli-guard',
+        '  meaning',
+        '    says "Blocks direct writes to locked/."',
+        '    answers "Which directory is guarded?"',
+        '  hook',
+        '    event PreToolUse',
+        '    tools [Write, Edit]',
+        '    paths ["locked/**"]',
+        '    message "locked/ is read-only."',
+        '',
+        caps,
+      ].join('\n'),
+    );
+    writeFileSync(
+      join(root, '.ia/bindings.json'),
+      JSON.stringify(
+        {
+          format: 1,
+          bindings: {
+            'work.plan': { kit: 'local', capability: 'cap-plan' },
+            'work.task': { kit: 'local', capability: 'cap-task' },
+            'knowledge.retrieve': { kit: 'local', capability: 'cap-retrieve' },
+            'knowledge.check': { kit: 'local', capability: 'cap-check' },
+            'delivery.design': { kit: 'local', capability: 'cap-design' },
+            'delivery.review': { kit: 'local', capability: 'cap-review' },
+          },
+          precedence: ['local'],
+          defaults: {},
+        },
+        null,
+        2,
+      ),
+    );
+    expect((await validate(root)).exitCode).toBe(0);
+
+    for (const host of ['gemini', 'antigravity', 'claude', 'codex'] as const) {
+      const out = join(scratch(`standalone-cli-${host}`), host);
+      const res = await run([
+        'project',
+        host,
+        '--product',
+        'plugin',
+        '--out',
+        out,
+        '--root',
+        root,
+        '--apply',
+        '--yes',
+        '--json',
+      ]);
+      expect(res.exitCode, `${host}: ${res.stdout}`).toBe(0);
+
+      const skills = readdirSync(join(out, 'skills'));
+      expect(skills.sort()).toEqual(['delivery', 'knowledge', 'work']);
+      expect(skills.length).toBeLessThanOrEqual(4);
+
+      if (host === 'antigravity') {
+        const manifest = json(readFileSync(join(out, 'plugin.json'), 'utf8'));
+        expect(Object.keys(manifest)).toEqual(['name', 'displayName', 'version', 'description', 'author']);
+        expect(existsSync(join(out, 'rules/AGENTS.md'))).toBe(true);
+        expect(existsSync(join(out, 'hooks.json'))).toBe(true);
+        expect(existsSync(join(out, 'scripts/guard.mjs'))).toBe(true);
+      } else if (host === 'gemini') {
+        const manifest = json(readFileSync(join(out, 'gemini-extension.json'), 'utf8'));
+        expect(manifest).toMatchObject({ contextFileName: 'GEMINI.md', skills: './skills/' });
+        expect(existsSync(join(out, 'GEMINI.md'))).toBe(true);
+        expect(existsSync(join(out, 'hooks/hooks.json'))).toBe(true);
+        expect(existsSync(join(out, 'scripts/guard.mjs'))).toBe(true);
+      }
+    }
+  });
+});

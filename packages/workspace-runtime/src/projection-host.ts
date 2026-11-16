@@ -32,9 +32,15 @@ export const CLAUDE_PROSE_FEATURES = Object.freeze([
   'resources',
   'conditional-guidance',
 ]);
-/** Fixed v1 table of both prose profiles: the host tool ids a native capability effect covers. No other effect maps a tool. */
+export const GEMINI_PROSE_PROFILE = 'ia.host.gemini-prose.v1';
+export const ANTIGRAVITY_PROSE_PROFILE = 'ia.host.antigravity-prose.v1';
+export const GEMINI_PROSE_FEATURES = CLAUDE_PROSE_FEATURES;
+export const ANTIGRAVITY_PROSE_FEATURES = CLAUDE_PROSE_FEATURES;
+/** Fixed v1 table of prose profiles: the host tool ids a native capability effect covers. No other effect maps a tool. */
 export const PROSE_EFFECT_TOOLS: ReadonlyMap<string, readonly string[]> = new Map([
   ['read', Object.freeze(['read', 'grep', 'glob'])],
+  ['local-write', Object.freeze(['write', 'edit'])],
+  ['external-write', Object.freeze(['bash'])],
 ]);
 /** Host-owned name mappings. Their presence is metadata support, never an execution grant. */
 export function claudeProseCatalog(
@@ -45,6 +51,9 @@ export function claudeProseCatalog(
       { id: 'read', name: 'Read' },
       { id: 'glob', name: 'Glob' },
       { id: 'grep', name: 'Grep' },
+      { id: 'write', name: 'Write' },
+      { id: 'edit', name: 'Edit' },
+      { id: 'bash', name: 'Bash' },
     ],
     inputFields: [],
   },
@@ -86,11 +95,20 @@ export function verifyCatalog(value: ProjectionCatalog): ProjectionCatalog {
   const pin = object(row['profile'], ['id', 'version', 'implementationDigest']);
   if (
     row['format'] !== 'ia.projection-catalog.v1' ||
-    !['ia.host.claude-prose.v1', CODEX_PROSE_PROFILE].includes(pin['id'] as string) ||
+    !['ia.host.claude-prose.v1', CODEX_PROSE_PROFILE, GEMINI_PROSE_PROFILE, ANTIGRAVITY_PROSE_PROFILE].includes(
+      pin['id'] as string,
+    ) ||
     pin['version'] !== 1
   )
     inputFailure('Unknown projection catalog');
-  const create = pin['id'] === CODEX_PROSE_PROFILE ? codexProseCatalog : claudeProseCatalog;
+  const create =
+    pin['id'] === CODEX_PROSE_PROFILE
+      ? codexProseCatalog
+      : pin['id'] === GEMINI_PROSE_PROFILE
+        ? geminiProseCatalog
+        : pin['id'] === ANTIGRAVITY_PROSE_PROFILE
+          ? antigravityProseCatalog
+          : claudeProseCatalog;
   return create(hash(pin['implementationDigest']), {
     models: value.models,
     tools: value.tools,
@@ -105,20 +123,60 @@ export function codexProseCatalog(
       { id: 'read', name: 'read' },
       { id: 'glob', name: 'glob' },
       { id: 'grep', name: 'grep' },
+      { id: 'write', name: 'write' },
+      { id: 'edit', name: 'edit' },
+      { id: 'bash', name: 'bash' },
     ],
     inputFields: [],
   },
 ): ProjectionCatalog {
   return proseCatalog(CODEX_PROSE_PROFILE, implementationDigest, selections);
 }
+export function geminiProseCatalog(
+  implementationDigest: string,
+  selections: Pick<ProjectionCatalog, 'models' | 'tools' | 'inputFields'> = {
+    models: [{ id: 'inherit', name: 'inherit' }],
+    tools: [
+      { id: 'read', name: 'read_file' },
+      { id: 'glob', name: 'glob' },
+      { id: 'grep', name: 'grep_search' },
+      { id: 'write', name: 'write_file' },
+      { id: 'edit', name: 'replace' },
+      { id: 'bash', name: 'run_shell_command' },
+    ],
+    inputFields: [],
+  },
+): ProjectionCatalog {
+  return proseCatalog(GEMINI_PROSE_PROFILE, implementationDigest, selections);
+}
+export function antigravityProseCatalog(
+  implementationDigest: string,
+  selections: Pick<ProjectionCatalog, 'models' | 'tools' | 'inputFields'> = {
+    models: [{ id: 'inherit', name: 'inherit' }],
+    tools: [
+      { id: 'read', name: 'read_file' },
+      { id: 'glob', name: 'read_file' },
+      { id: 'grep', name: 'read_file' },
+      { id: 'write', name: 'write_file' },
+      { id: 'edit', name: 'edit_file' },
+      { id: 'bash', name: 'run_command' },
+    ],
+    inputFields: [],
+  },
+): ProjectionCatalog {
+  return proseCatalog(ANTIGRAVITY_PROSE_PROFILE, implementationDigest, selections);
+}
 export const isCodex = (catalog: ProjectionCatalog): boolean => catalog.profile.id === CODEX_PROSE_PROFILE;
+export const isGemini = (catalog: ProjectionCatalog): boolean => catalog.profile.id === GEMINI_PROSE_PROFILE;
+export const isAntigravity = (catalog: ProjectionCatalog): boolean => catalog.profile.id === ANTIGRAVITY_PROSE_PROFILE;
 export function outputPath(
   product: 'workspace' | 'plugin',
   entry: ProjectionExport,
   catalog: ProjectionCatalog,
 ): string {
   if (isCodex(catalog)) return codexOutputPath(product, entry);
-  const prefix = product === 'workspace' ? '.claude/' : '';
+  const workspaceDir = isGemini(catalog) ? '.gemini/' : isAntigravity(catalog) ? '.agents/' : '.claude/';
+  const prefix = product === 'workspace' ? workspaceDir : '';
   return (
     prefix +
     (entry.presentation.kind === 'agent'
@@ -355,15 +413,28 @@ export function resourceMarkdown(
     .join('');
 }
 
+export function yamlFlowTools(tools: readonly string[]): string {
+  return `[${tools.map((tool) => (/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(tool) ? tool : JSON.stringify(tool))).join(', ')}]`;
+}
+
 export function frontmatter(entry: ProjectionExport, catalog: ProjectionCatalog): string {
   const p = entry.presentation,
     rows = [`name: ${entry.outputName}`, `description: ${JSON.stringify(entry.description)}`];
-  if (p.kind === 'agent')
-    rows.push(
-      `model: ${catalog.models.find((m) => m.id === p.model)!.name}`,
-      `tools: ${JSON.stringify(p.tools.map((t) => catalog.tools.find((v) => v.id === t)!.name).join(', '))}`,
-    );
-  else {
+  if (p.kind === 'agent') {
+    const mapped = [...new Set(p.tools.map((t) => catalog.tools.find((v) => v.id === t)!.name))];
+    if (isAntigravity(catalog)) {
+      rows.push('subagent: true', 'mainAgent: false', `tools: ${yamlFlowTools(mapped)}`);
+    } else if (isGemini(catalog)) {
+      const model = catalog.models.find((m) => m.id === p.model)!.name;
+      if (model !== 'inherit') rows.push(`model: ${model}`);
+      rows.push(`tools: ${yamlFlowTools(mapped)}`);
+    } else {
+      rows.push(
+        `model: ${catalog.models.find((m) => m.id === p.model)!.name}`,
+        `tools: ${JSON.stringify(mapped.join(', '))}`,
+      );
+    }
+  } else {
     if (p.kind === 'command') rows.push('disable-model-invocation: true');
     if (p.arguments.length)
       rows.push(`argument-hint: ${JSON.stringify(p.arguments.map((a) => '[' + a.name + ']').join(' '))}`);
@@ -411,6 +482,40 @@ export function serializeExport(
   ];
 }
 export function pluginFile(catalog: ProjectionCatalog, name: string, version: string): SerializedExport {
+  if (isGemini(catalog))
+    return {
+      path: 'gemini-extension.json',
+      role: 'plugin',
+      content:
+        JSON.stringify(
+          {
+            name,
+            version,
+            description: 'Generated native prose projections.',
+            contextFileName: 'GEMINI.md',
+            skills: './skills/',
+          },
+          null,
+          2,
+        ) + '\n',
+    };
+  if (isAntigravity(catalog))
+    return {
+      path: 'plugin.json',
+      role: 'plugin',
+      content:
+        JSON.stringify(
+          {
+            name,
+            displayName: name,
+            version,
+            description: 'Generated native prose projections.',
+            author: { name: 'InventArch' },
+          },
+          null,
+          2,
+        ) + '\n',
+    };
   return {
     path: isCodex(catalog) ? '.codex-plugin/plugin.json' : '.claude-plugin/plugin.json',
     role: 'plugin',
