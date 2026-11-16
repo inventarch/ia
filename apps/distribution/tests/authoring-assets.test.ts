@@ -176,3 +176,43 @@ it('revalidates authoring evidence when installing an otherwise exactly pinned a
     /authoring/i,
   );
 }, 30_000);
+it('verifies and installs an archive whose closure fails only a blocking canon law', () => {
+  // Task 13e ruling: a canon finding fails validate and preview, never the archive or its installation.
+  const append = (path: string, text: string): [string, Buffer] => [
+    path,
+    Buffer.concat([packed.files.get(path)!, Buffer.from(text)]),
+  ];
+  const laws = '.ia/src/systems/governance-system/records/canon/laws.ia',
+    work = [...packed.files.keys()].find((path) => path.startsWith('.ia/src/systems/work-system/records/canon/'))!;
+  const bytes = rewritten(
+    new Map([
+      append(
+        laws,
+        '\n@law archive-placement-law\n  meaning\n    says "Test law archive-placement-law."\n    answers "What does it require?"\n  governance\n    severity blocking\n  relationships\n    enforced-by @check archive-placement-check\n\n@check archive-placement-check\n  meaning\n    says "Test check archive-placement-check."\n    answers "What does it evaluate?"\n  check\n    runs CANON-WORK-PLACEMENT\n    scope "*"\n',
+      ),
+      append(
+        work,
+        '\n@spec archive-offending-spec\n  meaning\n    says "A specification inside a system folder."\n    answers "Which specification sits in a system folder?"\n  work\n    title "Offending"\n    status draft\n',
+      ),
+    ]),
+  );
+  const release = verifyArchive(bytes);
+  const base = distributionSnapshot({
+    sources: snapshot.sources.filter((source) => source.location.placement.kind === 'floor'),
+    folders: [],
+    floorOrigin: snapshot.floorOrigin,
+  });
+  const { lock } = resolveReleases(
+    [{ id: release.manifest.id, range: release.manifest.version }],
+    [{ release, location: `sha256:${release.archiveDigest}`, withdrawn: false }],
+    DISTRIBUTION_ENGINE_VERSION,
+  );
+  const plan = planInstallationSnapshot({
+    base,
+    current: null,
+    lock,
+    archives: new Map([[release.archiveDigest, bytes]]),
+    operation: 'install',
+  });
+  expect(plan.installedSources.some((source) => source.text.includes('@spec archive-offending-spec'))).toBe(true);
+}, 30_000);

@@ -23,8 +23,31 @@ export type OutcomeKind =
   | 'refusal'
   | 'failure';
 export type ResourceLimits = Partial<Omit<Limits, 'deadline'>> & { durationMs?: number };
+/**
+ * Rule and evaluator names carry no version: the contract's version is a field. New writes use the plain names.
+ * The original literals stay accepted so stored manifests, sessions and reviews written before the rename still
+ * verify; this explicit list is compatibility for at least one major release and nothing parses suffixes.
+ */
+export const INDEPENDENT_REVIEW_RULE = 'independent-exact-candidate' as const;
+export const OPERATOR_REVIEW_RULE = 'operator-exact-candidate' as const;
+export const COMPLETION_EVALUATOR = 'completion' as const;
+export type IndependentReviewRule = typeof INDEPENDENT_REVIEW_RULE | 'independent-exact-candidate-v1';
+export type OperatorReviewRule = typeof OPERATOR_REVIEW_RULE | 'operator-exact-candidate-v1';
+export type CompletionEvaluatorId = typeof COMPLETION_EVALUATOR | 'ia.completion.v1';
+const INDEPENDENT_REVIEW_RULES: readonly unknown[] = [INDEPENDENT_REVIEW_RULE, 'independent-exact-candidate-v1'];
+const OPERATOR_REVIEW_RULES: readonly unknown[] = [OPERATOR_REVIEW_RULE, 'operator-exact-candidate-v1'];
+const COMPLETION_EVALUATORS: readonly unknown[] = [COMPLETION_EVALUATOR, 'ia.completion.v1'];
+export function isIndependentReviewRule(value: unknown): value is IndependentReviewRule {
+  return INDEPENDENT_REVIEW_RULES.includes(value);
+}
+export function isOperatorReviewRule(value: unknown): value is OperatorReviewRule {
+  return OPERATOR_REVIEW_RULES.includes(value);
+}
+export function isCompletionEvaluator(value: unknown): value is CompletionEvaluatorId {
+  return COMPLETION_EVALUATORS.includes(value);
+}
 export interface IndependentReviewPolicy {
-  rule: 'independent-exact-candidate-v1';
+  rule: IndependentReviewRule;
   reviewer: string;
   mandate: string;
   policyRevision: string;
@@ -52,7 +75,7 @@ export interface ExecutionContract {
   limits: ResourceLimits;
   delegation: { profile: string; limits: ResourceLimits }[];
   checks: { id: string; phases: ('before-effect' | 'completion')[] }[];
-  completionEvaluator: 'ia.completion.v1';
+  completionEvaluator: CompletionEvaluatorId;
   repairAttempts: number;
   maxAttempts: number;
 }
@@ -66,7 +89,7 @@ export interface TaskContract {
   inputs: { id: string; schema: Json }[];
   outcomes: OutcomeKind[];
   completion: Profile['completion'];
-  evaluator: 'ia.completion.v1';
+  evaluator: CompletionEvaluatorId;
   escalation: 'persist-required-wait';
   artifact: ArtifactRequirement | null;
 }

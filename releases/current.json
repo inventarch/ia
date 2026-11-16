@@ -1,10 +1,10 @@
 {
   "format": "ia.npm-cohort.v1",
-  "version": "3.6.0",
+  "version": "3.8.0",
   "tag": "latest",
   "baseline": {
-    "commit": "3832a8061e9a826f8b86f7f52e7f15961ea4da91",
-    "version": "3.5.1"
+    "commit": "ae43a8e496a2db5ecf05c4439c094f1fba6a8a73",
+    "version": "3.7.0"
   },
   "cycles": [
     [

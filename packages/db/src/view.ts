@@ -24,6 +24,7 @@ import {
 import type { Assessment, Report, SystemFolder } from '@inventarch/compliance';
 import type { InputSnapshot } from './inputs.js';
 import { EVIDENCE_DIRECTORY, evidenceSource, systemMember } from './inputs.js';
+import { canonFileAssessments } from './canon/files.js';
 import { bindChecks } from './checks.js';
 import { conformanceOf } from './conformance.js';
 import { reproducesEvidence } from './evidence.js';
@@ -307,7 +308,7 @@ export interface ViewOptions {
    */
   readonly checks?: 'strict' | 'structural';
   /**
-   * D10: `verify` runs compliance's `package-v1` conformance profile in-process (C31) and binds its COMP-KERNEL and
+   * D10: `verify` runs compliance's `package` conformance profile in-process (C31) and binds its COMP-KERNEL and
    * COMP-FIXTURES evidence to each view's graph, so their verdicts are verified instead of not-evaluated; without it,
    * as for every existing reader, nothing runs. Only the report differs: D14 evidence is admitted from the unverified
    * report (`View.unverified`), so admission, the evidence read and the graph are the same.
@@ -734,6 +735,12 @@ function views(
         sourceDiagnostics,
         folders: folders.filter((f) => !blockedFolders.has(f.path)),
         admission: observations,
+        // Canon file rules (C12, A6, C6) read the checkout. Their own channel keeps them unfiltered, so an advisory
+        // law's warnings and its passing verdict reach the report (the admission channel drops passing assessments).
+        canonFiles: canonFileAssessments(input.root, [...graph.nodes.values()], {
+          graph,
+          ...(input.installed ? { installed: input.installed } : {}),
+        }),
         ...(options.checks === 'structural' ? { checks: 'structural' as const } : {}),
       },
       unverified = evaluate(graph, evaluated),

@@ -125,6 +125,34 @@ export function selects(selection: string, path: string): boolean {
   return pattern !== undefined && target !== undefined && matches(pattern, target);
 }
 
+/**
+ * G06c: whether `selection` lies within `parent` in the same dialect: every path `selection` selects, `parent` selects
+ * too. A literal path is within exactly when `selects(parent, path)`. For wildcards the same one-backtrack matcher runs
+ * over the selection's own tokens: a `parent` `*` absorbs any run of characters, `*` and `?` included; its `?` absorbs
+ * one character or `?`, never `*`; a whole-segment `**` absorbs any run of segments, `**` included; anything else only
+ * itself. That is sound (a true answer means containment) and errs only towards false on contrived pairs such as `?*`
+ * against `*`. A selection the dialect does not read selects nothing, so it lies within anything.
+ */
+export function selectionWithin(selection: string, parent: string): boolean {
+  const child = selectionSegments(selection);
+  if (child === undefined) return true;
+  const outer = selectionSegments(parent);
+  if (outer === undefined) return false;
+  const segmentWithin = (pattern: string, segment: string): boolean =>
+    wildcard(
+      [...pattern],
+      [...segment],
+      (c) => c === '*',
+      (c, d) => d !== '*' && (c === '?' || c === d),
+    );
+  return wildcard(
+    outer,
+    child,
+    (segment) => segment === '**',
+    (pattern, segment) => segment !== '**' && segmentWithin(pattern, segment),
+  );
+}
+
 /** One claim of a claimant that selects the path: its claimant field and the selection as authored. */
 export interface ClaimMatch {
   readonly field: string;

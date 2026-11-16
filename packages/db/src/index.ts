@@ -5,6 +5,8 @@ export { caseFold, linked, pathKey, sameFile, unaliased, within } from './paths.
 export type { AdoptedBinding, AdoptedSource, FloorSource, InputOptions, InputSnapshot } from './inputs.js';
 export { readWorkspaceBytes } from './inputs.js';
 export { open, Handle } from './handle.js';
+export type { LawStatus } from '@inventarch/compliance';
+export { refusesInstallation } from '@inventarch/compliance';
 export type {
   OpenOptions,
   ReadOptions,
@@ -38,3 +40,13 @@ export { RUNNER_EVIDENCE_DIRECTORY } from './inputs.js';
 export { RUNNER_EVIDENCE_FORMAT, writeRunnerEvidence } from './runner-evidence.js';
 export type { RunnerEvidenceWrite } from './runner-evidence.js';
 export type { ViewOptions } from './view.js';
+export {
+  canonFileAssessments,
+  canonKitScripts,
+  canonSourceRoots,
+  canonTeachingLinks,
+  sourceRootScope,
+  teachingFiles,
+  teachingLinkFindings,
+} from './canon/files.js';
+export { createSlugger, scanMarkdown } from './canon/links.js';

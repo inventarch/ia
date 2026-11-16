@@ -155,7 +155,7 @@ function guideRows(state: State): PrimaryGuide[] {
         schema,
         document,
         proof: metadataDigest({
-          criterion: 'primary-guide-v1',
+          criterion: 'primary-guide',
           registration,
           descriptor,
           descriptorText: nativePart(context, descriptor).text,
@@ -656,7 +656,7 @@ export function assessAuthoringMinting(
   return frozen({
     ...body,
     proof: metadataDigest({
-      criterion: 'minting-readiness-v1',
+      criterion: 'minting-readiness',
       baseline: baseline.proof,
       candidate: candidate.proof,
       body,

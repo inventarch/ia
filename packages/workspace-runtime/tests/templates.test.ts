@@ -33,7 +33,7 @@ let sequence = 0;
 function setup(
   filename = 'docs/design.md',
   resourceText = JSON.stringify(tree),
-  profile = 'structured-v1',
+  profile = 'structured',
   authored = false,
   legacy = '    parameters []\n    lines []\n',
 ) {
@@ -102,7 +102,7 @@ it('renders an exact adopted template/resource through current scope with determ
   const result = renderCapturedTemplate(fixture.capture, fixture.resources, fixture.options);
   expect(result).toMatchObject({
     status: 'rendered',
-    profile: 'structured-v1',
+    profile: 'structured',
     artifact: { path: 'docs/design.md', text: '# Fixture design\n', bytes: 17 },
   });
   expect(
@@ -112,10 +112,25 @@ it('renders an exact adopted template/resource through current scope with determ
     }),
   ).toEqual(result);
 });
+it('renders a template record written with the original structured-v1 profile and reports the plain one', () => {
+  const f = setup('docs/design.md', JSON.stringify(tree), 'structured-v1', false);
+  expect(renderCapturedTemplate(f.capture, f.resources, f.options)).toMatchObject({
+    status: 'rendered',
+    profile: 'structured',
+    artifact: { text: '# Fixture design\n' },
+  });
+});
+it.each(['structured-v2', 'unstructured'])('refuses the unknown template profile %s', (profile) => {
+  const f = setup('docs/design.md', JSON.stringify(tree), profile, false);
+  expect(renderCapturedTemplate(f.capture, f.resources, f.options)).toMatchObject({
+    status: 'refused',
+    code: 'IA-EXEC-TEMPLATE-INVALID',
+  });
+});
 it.each(['', '    parameters []\n', '    lines []\n', '    parameters []\n    lines []\n'])(
   'renders structured resources with omitted or empty legacy fields: %s',
   (legacy) => {
-    const f = setup('docs/design.md', JSON.stringify(tree), 'structured-v1', false, legacy);
+    const f = setup('docs/design.md', JSON.stringify(tree), 'structured', false, legacy);
     expect(renderCapturedTemplate(f.capture, f.resources, f.options)).toMatchObject({
       status: 'rendered',
       artifact: { text: '# Fixture design\n' },
@@ -125,7 +140,7 @@ it.each(['', '    parameters []\n', '    lines []\n', '    parameters []\n    li
 it.each(['    parameters [title]\n', '    lines ["unexpected scalar output"]\n'])(
   'refuses nonempty legacy fields on a structured template: %s',
   (legacy) => {
-    const f = setup('docs/design.md', JSON.stringify(tree), 'structured-v1', false, legacy);
+    const f = setup('docs/design.md', JSON.stringify(tree), 'structured', false, legacy);
     expect(renderCapturedTemplate(f.capture, f.resources, f.options)).toMatchObject({
       status: 'refused',
       code: 'IA-EXEC-TEMPLATE-INVALID',
@@ -238,7 +253,7 @@ it('contextually validates authored IA drafts and refuses narrow-scope probes wi
   const f = setup(
     '.ia/src/systems/fictional-review-system/draft.ia',
     JSON.stringify({ ...tree, nodes }),
-    'structured-v1',
+    'structured',
     true,
   );
   const rendered = renderCapturedTemplate(f.capture, f.resources, f.options);

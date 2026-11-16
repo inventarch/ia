@@ -136,6 +136,12 @@ export function range(value: unknown): string {
   return v;
 }
 export const satisfies = (v: string, r: string): boolean => semver.satisfies(version(v), range(r));
+/** The lowest version a range admits (`^3.2.0` → `3.2.0`), refused for a range that admits none. */
+export function rangeFloor(value: string): string {
+  const lowest = semver.minVersion(range(value));
+  if (lowest === null) refuse('Expected a SemVer range that admits a version');
+  return lowest.version;
+}
 /** Whether a comparator lets a prerelease in. `^1.0.0`'s own upper bound, `<2.0.0-0`, names one and admits none. */
 const admitsPrerelease = (comparator: semver.Comparator): boolean =>
   comparator.semver instanceof semver.SemVer &&

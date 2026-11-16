@@ -40,26 +40,50 @@ export function unaliased(path: string, real: string): boolean {
   return path === resolve(path) && !linked(path);
 }
 
-/**
- * Both exist and are the same file or directory: the same device and inode. A path that cannot be examined (a link loop, a
- * directory without search permission) is the same only as another spelling of itself, compared by `pathKey`.
- */
-export function sameFile(a: string, b: string): boolean {
-  try {
-    const left = statSync(a, { bigint: true, throwIfNoEntry: false }),
-      right = statSync(b, { bigint: true, throwIfNoEntry: false });
-    return left !== undefined && right !== undefined && left.dev === right.dev && left.ino === right.ino;
-  } catch {
-    return pathKey(resolve(a)) === pathKey(resolve(b));
-  }
-}
-
 const ALL_ONES = 2n ** 64n - 1n;
 /**
  * An inode the volume did not supply: some network and ReFS volumes on Windows report a file id of 0 or all ones, which
  * Node passes on as the inode, and those values never mean "the same file".
  */
 export const unidentified = (ino: bigint): boolean => ino === 0n || ino === ALL_ONES;
+
+/**
+ * Two existing paths with the identities the volume gave them are one file: the same device and inode; or, where either
+ * inode is `unidentified`, the same exact real path, never folded. `real` is injectable for tests; a path whose real path
+ * cannot be read stands for its resolved spelling.
+ */
+export function sameIdentity(
+  a: string,
+  b: string,
+  left: { readonly dev: bigint; readonly ino: bigint },
+  right: { readonly dev: bigint; readonly ino: bigint },
+  real: (path: string) => string = realpathSync.native,
+): boolean {
+  if (!unidentified(left.ino) && !unidentified(right.ino)) return left.dev === right.dev && left.ino === right.ino;
+  const exact = (path: string): string => {
+    try {
+      return real(path);
+    } catch {
+      return resolve(path);
+    }
+  };
+  return exact(a) === exact(b);
+}
+
+/**
+ * Both exist and are the same file or directory: the same device and inode, or, where the volume reports no inode
+ * (`unidentified`), the same exact real path. A path that cannot be examined (a link loop, a directory without search
+ * permission) is the same only as another spelling of itself, compared by `pathKey`.
+ */
+export function sameFile(a: string, b: string): boolean {
+  try {
+    const left = statSync(a, { bigint: true, throwIfNoEntry: false }),
+      right = statSync(b, { bigint: true, throwIfNoEntry: false });
+    return left !== undefined && right !== undefined && sameIdentity(a, b, left, right);
+  } catch {
+    return pathKey(resolve(a)) === pathKey(resolve(b));
+  }
+}
 
 /**
  * `child` is `parent`, or lies under it on disk. Where `parent` exists, the child's deepest existing ancestor is resolved and its

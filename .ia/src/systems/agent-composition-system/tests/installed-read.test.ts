@@ -7,8 +7,10 @@ import { resolve } from 'node:path';
 import { Engine, manifestDigest } from '@inventarch/agent-system';
 import type { OperationContext } from '@inventarch/agent-system';
 import { copy, digest, memoryStore } from '@inventarch/session-system';
+import type { Json } from '@inventarch/session-system';
 import { sqliteStore } from '@inventarch/session-system/sqlite';
 import * as SDK from '../src/index.js';
+import type { Capture } from '@inventarch/workspace-runtime';
 import * as code from '../src/installed-catalog.js';
 import { readFixture, readPath, qualifyAdmission, qualifyInstalledRead } from './installed-read-fixture.mjs';
 
@@ -19,7 +21,7 @@ afterEach(() => {
   for (const cleanup of close.splice(0)) cleanup();
   vi.restoreAllMocks();
 });
-function declaredReadCase(name: string, capture: SDK.Capture): string {
+function declaredReadCase(name: string, capture: Capture): string {
   const reader = new EditorSnapshot({
     root,
     sources: capture.sources,
@@ -104,7 +106,9 @@ it('describes and binds a fixed first-party read without invoking source or gran
   const bound = SDK.installedReadAdapters(f.capture, { ...f.options, currentCapture });
   close.push(bound.close);
   expect(currentCapture).not.toHaveBeenCalled();
-  expect(Object.keys(bound.operations)).toEqual([SDK.INSTALLED_READ.handler]);
+  expect(Object.keys(bound.operations).sort()).toEqual(
+    [SDK.INSTALLED_READ.handler, SDK.INSTALLED_READ_LEGACY.handler].sort(),
+  );
   expect(f.manifest.operations[SDK.INSTALLED_READ.operation]).toMatchObject({
     effects: ['read'],
     recovery: 'repeatable',
@@ -312,7 +316,7 @@ it.each([
     };
   let calls = 0;
   f.currentCapture.mockImplementation(() =>
-    ++calls === at ? (malformed === 'null' ? (null as unknown as SDK.Capture) : changed) : f.capture,
+    ++calls === at ? (malformed === 'null' ? (null as unknown as Capture) : changed) : f.capture,
   );
   await expect(f.adapter.execute({ path: readPath }, f.context)).rejects.toMatchObject({
     code: 'IA-INSTALLED-READ-DENIED',
@@ -342,7 +346,7 @@ it.each([1, 2])('preserves cancellation during current capture callback %s', asy
   f.currentCapture.mockImplementation(() => {
     if (++calls !== at) return f.capture;
     controller.abort(reason);
-    return null as unknown as SDK.Capture;
+    return null as unknown as Capture;
   });
   await expect(f.adapter.execute({ path: readPath }, { ...f.context, signal: controller.signal })).rejects.toBe(reason);
 });
@@ -589,3 +593,266 @@ it('keeps exact receipts, recovery and replay through a gated SQLite store under
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+// A contract's version is its entry's `version`, so the read has plain names. The original entries stay, byte for byte,
+// for harnesses pinned before that; records that still name them compile to the plain entries through the aliases.
+const oldValue = (implementationDigest: string) => ({
+  identity: 'authoring-system/binding/operation/read-captured-source',
+  owner: 'agent-composition-system',
+  handler: 'ia.captured-source.read.v1',
+  implementationDigest,
+  input: 'captured-source-read-input-v1',
+  output: 'captured-source-read-output-v1',
+  effects: ['read'],
+  recovery: 'repeatable',
+  timeoutMs: 10000,
+  maxOutputBytes: 65536,
+  preflight: 'captured-workspace',
+});
+function modeContext(mode: 'plain' | 'legacy' | 'aliased') {
+  const f = readFixture(SDK, root, mode),
+    bound = SDK.installedReadAdapters(f.capture, { ...f.options, currentCapture: () => f.capture });
+  close.push(bound.close);
+  const context: OperationContext = {
+    sessionId: 's',
+    runId: 'root',
+    attemptId: 'a',
+    invocationId: 'i',
+    principal: f.principal,
+    grant: f.grant,
+    manifest: f.manifest,
+    signal: new AbortController().signal,
+    assertCurrent: async () => {},
+  };
+  return { ...f, bound, context };
+}
+const operationPins = (compiled: SDK.CompiledHarness) =>
+  compiled.provenance.installed.filter((pin) => pin.group === 'operations').map((pin) => pin.id);
+
+it('names the read plainly and keeps the original ids as legacy', () => {
+  expect(SDK.INSTALLED_READ).toMatchObject({
+    implementation: 'captured-source-read',
+    handler: 'captured-source-read',
+    input: 'captured-source-read-input',
+    output: 'captured-source-read-output',
+  });
+  expect(SDK.INSTALLED_READ_LEGACY).toMatchObject({
+    implementation: 'captured-source-read-v1',
+    handler: 'ia.captured-source.read.v1',
+    input: 'captured-source-read-input-v1',
+    output: 'captured-source-read-output-v1',
+  });
+  expect(SDK.installedReadAliases()).toEqual({
+    operations: { 'captured-source-read-v1': 'captured-source-read' },
+    validators: {
+      'captured-source-read-input-v1': 'captured-source-read-input',
+      'captured-source-read-output-v1': 'captured-source-read-output',
+    },
+  });
+});
+it('retains the original read entries byte for byte beside the plain ones', () => {
+  const catalog = SDK.installedReadCatalog(),
+    implementationDigest = code.installedImplementationDigest();
+  const original = catalog.operations['captured-source-read-v1']!;
+  expect(original.version).toBe(1);
+  expect(original.value).toEqual(oldValue(implementationDigest));
+  expect(original.digest).toBe(digest({ version: 1, value: oldValue(implementationDigest) }));
+  const plain = catalog.operations['captured-source-read']!;
+  expect(plain.value).toEqual({
+    ...oldValue(implementationDigest),
+    handler: 'captured-source-read',
+    input: 'captured-source-read-input',
+    output: 'captured-source-read-output',
+  });
+  for (const kind of ['input', 'output'] as const)
+    expect(catalog.validators[`captured-source-read-${kind}-v1`]).toEqual(
+      catalog.validators[`captured-source-read-${kind}`],
+    );
+});
+it('compiles records that use the plain names and pins the plain entry', () => {
+  const f = modeContext('plain');
+  expect(operationPins(f.compiled)).toEqual(['captured-source-read']);
+  expect(f.compiled.provenance.aliases).toBeUndefined();
+  expect(f.manifest.operations[SDK.INSTALLED_READ.operation]!.handler).toBe('captured-source-read');
+});
+it('compiles records that still name the original ids through the aliases to the plain entry', () => {
+  const f = modeContext('aliased');
+  expect(operationPins(f.compiled)).toEqual(['captured-source-read']);
+  expect(f.compiled.provenance.aliases).toEqual([
+    { group: 'operations', from: 'captured-source-read-v1', to: 'captured-source-read' },
+    { group: 'validators', from: 'captured-source-read-input-v1', to: 'captured-source-read-input' },
+    { group: 'validators', from: 'captured-source-read-output-v1', to: 'captured-source-read-output' },
+  ]);
+  expect(f.manifest.operations[SDK.INSTALLED_READ.operation]!.handler).toBe('captured-source-read');
+  expect(SDK.compiledAliases(f.compiled)).toEqual(SDK.installedReadAliases());
+});
+it('refuses records that name the original ids when no aliases are passed and the originals are gone', () => {
+  const f = readFixture(SDK, root, 'legacy'),
+    { operations, validators } = f.catalog,
+    trimmed = { ...f.catalog, operations: { ...operations }, validators: { ...validators } };
+  delete trimmed.operations['captured-source-read-v1'];
+  expect(
+    SDK.compileHarness(f.capture, {
+      harness: 'installed-read-example-harness',
+      entry: 'installed-read-example-entry',
+      catalog: trimmed,
+    }).ok,
+  ).toBe(false);
+});
+it('keeps a harness pinned to the original read valid and dispatching by the original handler', async () => {
+  const f = modeContext('legacy');
+  expect(operationPins(f.compiled)).toEqual(['captured-source-read-v1']);
+  expect(f.compiled.provenance.aliases).toBeUndefined();
+  expect(f.manifest.operations[SDK.INSTALLED_READ.operation]!.handler).toBe('ia.captured-source.read.v1');
+  // A harness compiled against a catalog that has only the original entries still passes the bridge against the
+  // catalog that now installs the plain entries as well.
+  const originalOnly = {
+    ...f.catalog,
+    operations: Object.fromEntries(
+      Object.entries(f.catalog.operations).filter(([name]) => name !== 'captured-source-read'),
+    ),
+    validators: Object.fromEntries(
+      Object.entries(f.catalog.validators).filter(([name]) => !/^captured-source-read-(input|output)$/.test(name)),
+    ),
+  };
+  const pinned = SDK.compileHarness(f.capture, {
+    harness: 'installed-read-example-harness',
+    entry: 'installed-read-example-entry',
+    catalog: originalOnly,
+  });
+  if (!pinned.ok) throw new Error(JSON.stringify(pinned.diagnostics));
+  expect(pinned.manifest.digest).toBe(f.compiled.digest);
+  expect(SDK.executionManifest(pinned.manifest, f.catalog).digest).toBe(f.manifest.digest);
+  const adapter = f.bound.operations['ia.captured-source.read.v1']!;
+  expect(adapter.id).toBe('ia.captured-source.read.v1');
+  const result = await adapter.execute({ path: readPath, limit: 1 }, f.context);
+  expect(result.effect).toBe('none');
+  expect(result.output).toMatchObject({ revision: f.capture.revision });
+});
+it('dispatches an aliased and a plain harness by the plain handler', async () => {
+  for (const mode of ['plain', 'aliased'] as const) {
+    const f = modeContext(mode),
+      result = await f.bound.operations['captured-source-read']!.execute({ path: readPath, limit: 1 }, f.context);
+    expect(result.effect).toBe('none');
+  }
+});
+
+/**
+ * The read fixture compiled with only the read's validators aliased, so its harness pins the read operation its records
+ * name together with the validators the aliases send that operation's listed ones to. 'forward' keeps the original
+ * records and sends the original validators to the plain ones; 'reverse' keeps the plain records and sends the plain
+ * validators to the originals. `edit` changes the catalogue first; `sendTo` overrides an alias target.
+ */
+function validatorsAliased(
+  direction: 'forward' | 'reverse',
+  edit: (catalog: SDK.CompositionCatalog) => void = () => {},
+  sendTo: Partial<Record<'input' | 'output', string>> = {},
+) {
+  const f = readFixture(SDK, root, direction === 'forward' ? 'legacy' : 'plain'),
+    catalog = copy(f.catalog),
+    [listed, pinned] =
+      direction === 'forward'
+        ? [SDK.INSTALLED_READ_LEGACY, SDK.INSTALLED_READ]
+        : [SDK.INSTALLED_READ, SDK.INSTALLED_READ_LEGACY];
+  edit(catalog);
+  const compilation = SDK.compileHarness(f.capture, {
+    harness: 'installed-read-example-harness',
+    entry: 'installed-read-example-entry',
+    catalog,
+    aliases: {
+      validators: {
+        [listed.input]: sendTo.input ?? pinned.input,
+        [listed.output]: sendTo.output ?? pinned.output,
+      },
+    },
+  });
+  if (!compilation.ok) throw new Error(JSON.stringify(compilation.diagnostics));
+  const compiled = compilation.manifest,
+    manifest = SDK.executionManifest(compiled, catalog);
+  return { ...f, catalog, compiled, manifest, listed, pinned, options: { ...f.options, catalog, compiled, manifest } };
+}
+/** A read validator with one bound widened past the fixed contract. */
+function widened(id: string, side: 'input' | 'output'): SDK.Installed<{ schema: Json }> {
+  const value = copy(SDK.installedReadCatalog().validators[id]!.value),
+    properties = (value.schema as { properties: Record<string, Record<string, Json>> }).properties;
+  if (side === 'input') properties['limit']!['maximum'] = 100000;
+  else properties['text']!['maxLength'] = 100000;
+  return SDK.installed(value);
+}
+/** The read validators a harness pins. */
+const validatorPins = (compiled: SDK.CompiledHarness) =>
+  compiled.provenance.installed
+    .filter((pin) => pin.group === 'validators' && pin.id.startsWith('captured-source-read-'))
+    .map((pin) => pin.id);
+
+it.each([
+  ['forward', 'input'],
+  ['forward', 'output'],
+  ['reverse', 'input'],
+  ['reverse', 'output'],
+] as const)(
+  'refuses a changed %s-aliased %s validator the harness pins in place of the listed one',
+  (direction, side) => {
+    const pinnedId = (direction === 'forward' ? SDK.INSTALLED_READ : SDK.INSTALLED_READ_LEGACY)[side];
+    const f = validatorsAliased(direction, (catalog) => {
+      catalog.validators[pinnedId] = widened(pinnedId, side);
+    });
+    // The harness pins the changed entry, not the unchanged one its read operation lists.
+    expect(validatorPins(f.compiled)).toContain(pinnedId);
+    expect(validatorPins(f.compiled)).not.toContain(f.listed[side]);
+    expect(f.catalog.validators[f.listed[side]]).toEqual(SDK.installedReadCatalog().validators[f.listed[side]]);
+    expect(() => SDK.installedReadAdapters(f.capture, f.options)).toThrow('Installed read validator changed');
+  },
+);
+
+it('accepts and reads through a catalogue without the original validators when only the validators are aliased', async () => {
+  const f = validatorsAliased('forward', (catalog) => {
+    delete catalog.validators[SDK.INSTALLED_READ_LEGACY.input];
+    delete catalog.validators[SDK.INSTALLED_READ_LEGACY.output];
+  });
+  expect(validatorPins(f.compiled)).toEqual([SDK.INSTALLED_READ.input, SDK.INSTALLED_READ.output]);
+  const bound = SDK.installedReadAdapters(f.capture, { ...f.options, currentCapture: () => f.capture });
+  close.push(bound.close);
+  const context: OperationContext = {
+    sessionId: 's',
+    runId: 'root',
+    attemptId: 'a',
+    invocationId: 'i',
+    principal: f.principal,
+    grant: f.grant,
+    manifest: f.manifest,
+    signal: new AbortController().signal,
+    assertCurrent: async () => {},
+  };
+  const result = await bound.operations[SDK.INSTALLED_READ_LEGACY.handler]!.execute(
+    { path: readPath, limit: 1 },
+    context,
+  );
+  expect(result.effect).toBe('none');
+  expect(result.output).toMatchObject({ revision: f.capture.revision });
+});
+
+it("refuses a read validator the aliases send to a different entry outside the read's catalogue with the read's own refusal", () => {
+  const f = validatorsAliased('forward', () => {}, { input: 'installed-read-example-task-v1' });
+  // The read's input is now the example task validator: an entry outside the read's own catalogue that differs from
+  // the input validator the read lists.
+  expect(f.compiled.operations[SDK.INSTALLED_READ.operation]!.input).toEqual(
+    f.catalog.validators['installed-read-example-task-v1']!.value.schema,
+  );
+  expect(SDK.installedReadCatalog().validators['installed-read-example-task-v1']).toBeUndefined();
+  expect(() => SDK.installedReadAdapters(f.capture, f.options)).toThrow('Installed read validator changed');
+});
+
+it.each(['input', 'output'] as const)(
+  "refuses a read whose %s validator the aliases send to the read's other one",
+  (side) => {
+    const other = side === 'input' ? SDK.INSTALLED_READ.output : SDK.INSTALLED_READ.input;
+    const f = validatorsAliased('forward', () => {}, { [side]: other });
+    // The read's `side` is now the unchanged first-party validator of its other side.
+    expect(f.compiled.operations[SDK.INSTALLED_READ.operation]![side]).toEqual(
+      f.catalog.validators[other]!.value.schema,
+    );
+    expect(f.catalog.validators[other]).toEqual(SDK.installedReadCatalog().validators[other]);
+    expect(() => SDK.installedReadAdapters(f.capture, f.options)).toThrow('Installed read validator changed');
+  },
+);

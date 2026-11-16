@@ -7,6 +7,7 @@ export {
   metadataDigest,
   packageId,
   range,
+  rangeFloor,
   sha256,
   text,
   portablePath,
@@ -71,3 +72,5 @@ export type {
   RevokedOperation,
   UnavailableOperation,
 } from './implementations.js';
+export { gapsOn, languageFloor, usageOf } from './language-floor.js';
+export type { BaseCatalogue, CatalogueWord, CompatIndex, Gap, Usage } from './language-floor.js';

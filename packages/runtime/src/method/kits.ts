@@ -51,6 +51,29 @@ export function iaHome(env: NodeJS.ProcessEnv = process.env, home: string = home
   return resolve(value);
 }
 
+/**
+ * The IA home's folders, each by its plain name and the `*-v1` folder that holds it today. A later release performs
+ * the cutover (copy, verify, write the `authoritative` marker in the plain folder, then remove the `*-v1` folder) once
+ * every participant that writes these homes understands the marker; this release only reads and writes the place
+ * `homeFolder` names, and creates neither the plain folder nor the marker.
+ */
+export const HOME_FOLDERS = {
+  work: 'work-v1',
+  sessions: 'sessions-v1',
+  'kit-roots': 'kit-roots-v1',
+  'installed-kits': 'installed-kits-v1',
+  'method-closures': 'method-closures-v1',
+} as const;
+export type HomeFolderKind = keyof typeof HOME_FOLDERS;
+/** The file whose presence in a plain home folder makes that folder the authoritative one. */
+export const AUTHORITATIVE_MARKER = 'authoritative';
+
+/** The authoritative folder of one IA home folder: `<home>/<kind>` when it holds the marker, else `<home>/<kind>-v1`. */
+export function homeFolder(home: string, kind: HomeFolderKind): string {
+  const plain = join(home, kind);
+  return existsSync(join(plain, AUTHORITATIVE_MARKER)) ? plain : join(home, HOME_FOLDERS[kind]);
+}
+
 export function walk(dir: string): string[] {
   return readdirSync(dir)
     .sort()
@@ -485,6 +508,14 @@ export function kitInstallation(root: string, kitId: string): KitInstallation | 
 }
 
 /**
+ * The refusal's remedy names routes that resolve: `ia install <id>` reaches only a registry release, so the public kits,
+ * which ship in the `@inventarch/public-kits` npm package, are named by the package route (contract C7b).
+ */
+function kitNotInstalledMessage(kitId: string): string {
+  return `kit ${kitId} is bound by this repository but its lock does not install it; install the npm package that carries it with ia install --package <name> --apply --yes (the public kits ship in @inventarch/public-kits), or ia install ${kitId} --apply --yes where a registry serves it, or kit.mjs add ${kitId} --apply; then resolve again`;
+}
+
+/**
  * Presence: a repository-bound method runs a kit only while the repository's own lock installs it. Any row naming the
  * kit counts, at any version and archive: a task pin runs its own retained bytes, which may be older than the version
  * the lock now installs. A kit no row names refuses before anything is retained or run, and nothing answers for it from
@@ -492,11 +523,7 @@ export function kitInstallation(root: string, kitId: string): KitInstallation | 
  */
 export function requireKitInstalled(root: string, kit: { readonly id: string }): void {
   if (kitInstallation(root, kit.id) === null)
-    throw new MethodError(
-      `kit ${kit.id} is bound by this repository but its lock does not install it; run ia install ${kit.id} (or kit.mjs add ${kit.id}), then resolve again`,
-      'IA-CORE-KIT-NOT-INSTALLED',
-      { kit: kit.id },
-    );
+    throw new MethodError(kitNotInstalledMessage(kit.id), 'IA-CORE-KIT-NOT-INSTALLED', { kit: kit.id });
 }
 
 /**

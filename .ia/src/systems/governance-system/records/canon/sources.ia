@@ -1,0 +1,13 @@
+#! ia 1.0
+
+@convention canon-one-workspace-per-root
+  meaning
+    says "Several @workspace records may declare one source root, and sharing a root is supported. The default is one workspace per source root; share a root only for records shared by design, such as an organisation scope several departments read."
+    answers "May several workspaces declare one source root, and what is the default?"
+  governance
+    severity advisory
+    requires "Declare a source root in one workspace by default, and share it among several only for records shared by design."
+  subject
+    subject-word workspace
+  relationships
+    cites @agent public-workspace-system-steward

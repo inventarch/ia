@@ -693,7 +693,7 @@
   guidance
     select-when "Describe bounded inputs and output structure for rendering."
     avoid-when "Use @operation for a broader executable effect or @spec for maintained requirements."
-    consider "Scalar templates require parameters and lines; structured-v1 templates use their resource and may omit those legacy fields or keep empty lists."
+    consider "Scalar templates require parameters and lines; structured templates use their resource and may omit those legacy fields or keep empty lists."
   relationships
     cites @schema template
 

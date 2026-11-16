@@ -1,6 +1,11 @@
 /** C25-C29 producer-boundary observations. Synthetic local receipts qualify the pure APIs, not a live writer or service. */
 import type { Graph, Node } from '@inventarch/graph';
-import { EVALUATOR_CATALOG_FORMAT, bindEvaluators, createEvaluatorCatalog } from '../catalog.js';
+import {
+  EVALUATOR_CATALOG_FORMAT,
+  EVALUATOR_CATALOG_FORMAT_VERSION,
+  bindEvaluators,
+  createEvaluatorCatalog,
+} from '../catalog.js';
 import type { EvaluatorCatalog, EvaluatorCodec, EvaluatorEntry } from '../catalog.js';
 import {
   EVIDENCE_RECEIPT_FORMAT,
@@ -19,9 +24,10 @@ import type { EvidenceCode, Finding } from '../types.js';
 
 const hex = (value: string) => `sha256:${value.repeat(64)}`;
 const codecs: readonly EvaluatorCodec[] = [
-  { id: 'fixture-input@1', validate: () => true },
+  { id: 'fixture-input', version: 1, validate: () => true },
   {
-    id: 'fixture-output@1',
+    id: 'fixture-output',
+    version: 1,
     validate: (value) =>
       typeof value === 'object' && value !== null && typeof (value as { files?: unknown }).files === 'number',
   },
@@ -31,8 +37,8 @@ const entry: EvaluatorEntry = {
   contractVersion: '1.0.0',
   implementationVersion: '1.0.0',
   implementationDigest: hex('a'),
-  inputSchemaId: 'fixture-input@1',
-  outputSchemaId: 'fixture-output@1',
+  inputCodec: { id: 'fixture-input', version: 1 },
+  outputCodec: { id: 'fixture-output', version: 1 },
   supportedScopes: ['package'],
   effects: ['read'],
   environmentProfile: { id: 'node-offline', credentials: 'none' },
@@ -58,8 +64,13 @@ const unavailable: EvaluatorEntry = {
   implementationDigest: hex('d'),
   availability: { status: 'unavailable', reason: 'Fixture host has no implementation' },
 };
-const build = (entries: readonly unknown[], format = EVALUATOR_CATALOG_FORMAT) =>
-  createEvaluatorCatalog({ format, entries }, { codecs });
+const build = (entries: readonly unknown[], format?: string) =>
+  createEvaluatorCatalog(
+    format === undefined
+      ? { format: EVALUATOR_CATALOG_FORMAT, formatVersion: EVALUATOR_CATALOG_FORMAT_VERSION, entries }
+      : { format, entries },
+    { codecs },
+  );
 
 export function runEvidenceFixtures(graph: Graph): readonly FixtureResult[] {
   const built = build([entry, fresh, revoked, unavailable]);
@@ -163,7 +174,7 @@ export function runEvidenceFixtures(graph: Graph): readonly FixtureResult[] {
     ['IA-COMP-CATALOG-BUILTIN-OVERRIDE', () => build([{ ...entry, id: 'COMP-CHECK' }]).assessment.findings],
     [
       'IA-COMP-CATALOG-CODEC-UNKNOWN',
-      () => build([{ ...entry, inputSchemaId: 'unknown-codec@1' }]).assessment.findings,
+      () => build([{ ...entry, inputCodec: { id: 'unknown-codec', version: 1 } }]).assessment.findings,
     ],
     ['IA-COMP-EVALUATOR-UNAVAILABLE', () => validateCheck(runs(unavailable.id), catalog).findings],
     ['IA-COMP-EVALUATOR-REVOKED', () => validateCheck(runs(revoked.id), catalog).findings],

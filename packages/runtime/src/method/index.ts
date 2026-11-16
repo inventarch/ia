@@ -22,6 +22,9 @@ export {
   folderKits,
   homeKits,
   iaHome,
+  homeFolder,
+  HOME_FOLDERS,
+  AUTHORITATIVE_MARKER,
   identityOf,
   implementationDigest,
   installedKit,
@@ -38,6 +41,7 @@ export {
   sourcesDigest,
 } from './kits.js';
 export type {
+  HomeFolderKind,
   Kit,
   KitCheck,
   KitInstallation,
@@ -79,6 +83,8 @@ export type { MethodPacket } from './packet.js';
 export { closureStore, retainKit, retainedKit } from './retained.js';
 export { assertReadable, kitCache, kitReadRoot, userCache } from './kit-root.js';
 export type { KitRestore } from './kit-root.js';
+export { lockOnBase, selectKitBase } from './kit-base.js';
+export type { BasePin, KitBaseLock, KitBaseUse } from './kit-base.js';
 export { WorkspaceReader } from './reader.js';
 export type { JsonRecord, PositionAnswer } from './reader.js';
 export { RESOLVER, resolveMethod } from './resolve.js';

@@ -1,6 +1,7 @@
 # Code owners are requested for review on every pull request that touches a matching path.
 # Owners must be GitHub users or teams with write access to inventarch/ia.
 # Inventarch owns this repository; the verified operator administers repository review.
+# Two code owners, so each one's pull requests can be approved by the other (owner ruling, 2026-11-08).
 # Later lines take precedence over earlier ones.
 
-* @crowncodes
+* @crowncodes @davidbordeleau

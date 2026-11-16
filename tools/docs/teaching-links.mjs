@@ -2,8 +2,8 @@ import { existsSync } from 'node:fs';
 import { dirname, posix, resolve } from 'node:path';
 import { localTarget, parseMarkdown } from './markdown.mjs';
 
-/** Absolute URLs and in-page anchors are not local teaching targets. */
-const NOT_LOCAL = /^[a-z][a-z0-9+.-]*:|^[#/]/i;
+/** Absolute URLs (a scheme, or a `//` network path) and in-page anchors are not local teaching targets. */
+const NOT_LOCAL = /^[a-z][a-z0-9+.-]*:|^#|^\/\//i;
 /** @param {ReturnType<typeof parseMarkdown>} parsed */
 const markdownHrefs = (parsed) => parsed.links.filter((link) => link.kind !== 'html').map((link) => link.href);
 /** @param {ReadonlySet<string>} available @param {string} target */
@@ -23,6 +23,11 @@ export function teachingLinkFindings(root, files, nativePaths, exists = (path) =
     if (!parsed) throw new Error('Missing parsed teaching document');
     for (const href of markdownHrefs(parsed)) {
       if (NOT_LOCAL.test(href)) continue;
+      // A root-relative link leaves .ia/src.
+      if (href.startsWith('/')) {
+        findings.push(`${file.path}: target outside installed teaching closure: ${href}`);
+        continue;
+      }
       let decoded, fragment;
       try {
         const local = localTarget(href);

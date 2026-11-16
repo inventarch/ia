@@ -10,7 +10,7 @@ import {
   reproducesEvidence,
   writeEvidence,
 } from '@inventarch/db';
-import type { CheckBinding, CheckCatalog, EvidenceWrite, Handle } from '@inventarch/db';
+import type { CheckBinding, CheckCatalog, EvidenceWrite, Handle, LawStatus } from '@inventarch/db';
 import {
   decodeDistributionJson,
   decodeDistributionLock,
@@ -487,6 +487,11 @@ export interface WorkspaceSession {
    * same `trust` and the same joined catalog as `bindings`. Reads only; never writes.
    */
   checks(trust: HostTrust | null): ValidationChecks;
+  /**
+   * Every admitted `@law` with its status (`LawStatus`), as a validation reports it: enforcement is resolved on the
+   * graph and judged against the report's verdicts. A pending, not-evaluated or suspended law never refuses anything.
+   */
+  laws(): readonly LawStatus[];
   close(): void;
 }
 const compareText = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
@@ -597,6 +602,7 @@ export function openWorkspaceSession(options: SessionOptions): WorkspaceSession 
           : { status: joined.status, reason: joined.reason };
       return { catalog: source(joined), results: bindChecks(records, report, catalog) };
     },
+    laws: (): readonly LawStatus[] => reader.laws(),
     close: (): void => reader.close(),
   };
 }
@@ -625,6 +631,24 @@ export interface FormatRequest {
   readonly text: string;
   /** Re-reads the caller's source; a differing value means the returned draft describes stale input. */
   readonly reread?: () => string;
+  /**
+   * Leaves the staleness check to the caller, who formats many sources against one session and then calls
+   * `recheckFormat` once, before using any draft. The check is a full refresh, so making it per source rebuilt the
+   * workspace once for every file. Callers that format one source leave this unset and keep the check here.
+   */
+  readonly defer?: boolean;
+}
+/**
+ * The staleness check `formatSource` makes, for drafts it was asked to `defer`: the workspace still has the revision
+ * the drafts were made at, and every drafted source still reads as it did. It refuses as `formatSource` refuses.
+ */
+export function recheckFormat(
+  session: WorkspaceSession,
+  baseRevision: string,
+  sources: readonly { readonly text: string; readonly reread: () => string }[],
+): void {
+  if (session.reader.refresh().revision !== baseRevision || sources.some((source) => source.reread() !== source.text))
+    fail('PLAN-STALE', 'Formatting inputs changed before returning the draft');
 }
 export function formatSource(request: FormatRequest): FormatOutcome {
   const reader = request.session.reader,
@@ -639,7 +663,10 @@ export function formatSource(request: FormatRequest): FormatOutcome {
     if (error.code === 'IA-EXEC-OUTPUT-UNSAFE') fail('PATH-UNSAFE', error.message);
     return { status: 'refused', diagnostics: error.diagnostics };
   }
-  if (reader.refresh().revision !== baseRevision || (request.reread?.() ?? request.text) !== request.text)
+  if (
+    request.defer !== true &&
+    (reader.refresh().revision !== baseRevision || (request.reread?.() ?? request.text) !== request.text)
+  )
     fail('PLAN-STALE', 'Formatting inputs changed before returning the draft');
   return {
     status: 'draft',

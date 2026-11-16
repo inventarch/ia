@@ -54,7 +54,7 @@
   binding
     kind entry
     target @agent-profile example-profile
-    implementation example-entry-v1
+    implementation example-entry
     mapping example-identity
 
 @harness example-harness

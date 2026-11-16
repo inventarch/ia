@@ -331,3 +331,43 @@ describe('typed field references (G06a)', () => {
     expect(() => (native.referencesFrom as Map<string, unknown>).clear()).toThrow();
   });
 });
+
+/**
+ * Index postings are built in time linear in the records they hold. Each posting list used to scan itself before every
+ * insert, so a bucket of n identities (every record of one discriminator, kind, system, category or lane) took n²/2
+ * comparisons: 9 s for 20,000 records of one word, against 0.2 s for 2,000. The test compares the load of 12,000 records
+ * with the load of 3,000, each the best of two runs, so it holds on fast and slow runners alike: four times the records
+ * cost about four times as long when the build is linear, and twelve or more times when it is quadratic.
+ */
+describe('index postings are built in linear time', () => {
+  const many = (n: number) => {
+    const path = 'many.ia';
+    const text = `#! ia 1.0\n${Array.from({ length: n }, (_, i) => `@playbook p${String(i).padStart(6, '0')}\n`).join('\n')}`;
+    const parsed = parse(text, path);
+    expect(parsed.diagnostics).toEqual([]);
+    const compiled = compile(parsed.ast, registry, location, []);
+    expect(compiled.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
+    return { records: compiled.records, source: { path, text, location } };
+  };
+
+  const timed = (corpus: ReturnType<typeof many>) => {
+    let best = Number.POSITIVE_INFINITY;
+    let graph: Graph | undefined;
+    for (let run = 0; run < 2; run++) {
+      const started = performance.now();
+      graph = load(corpus.records, registry, { ...options, sources: [corpus.source] });
+      best = Math.min(best, performance.now() - started);
+    }
+    return { graph: graph!, ms: best };
+  };
+
+  it('loads four times the records of one word in under eight times as long, posting each identity once in order', () => {
+    const small = timed(many(3_000));
+    const large = timed(many(12_000));
+    const identities = [...large.graph.nodes.keys()];
+    expect(identities).toHaveLength(12_000);
+    expect(large.graph.byDiscriminator.get('playbook')).toEqual(identities);
+    expect(new Set(large.graph.byKind.get(large.graph.nodes.get(identities[0]!)!.kind)).size).toBe(12_000);
+    expect(large.ms / small.ms).toBeLessThan(8);
+  });
+});

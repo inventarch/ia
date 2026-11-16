@@ -135,3 +135,82 @@ it('keeps the prior generation unchanged until an explicit compatible upgrade is
   expect(JSON.stringify(previous)).toBe(saved);
   expect(previous.lock.packages[0]!.version).toBe('0.1.0');
 });
+
+const AUTHORED = {
+  placement: { kind: 'authored' as const, band: 100 as const, reach: '' },
+  provenance: 'workspace' as const,
+};
+const CANON_LAW = `#! ia 1.0
+
+@law placement-law
+  meaning
+    says "Test law placement-law."
+    answers "What does test law placement-law require?"
+  governance
+    severity blocking
+  relationships
+    enforced-by @check placement-check
+
+@check placement-check
+  meaning
+    says "Test check placement-check."
+    answers "What does test check placement-check evaluate?"
+  check
+    runs CANON-WORK-PLACEMENT
+    scope "*"
+`;
+const OFFENDING_SPEC = `#! ia 1.0
+
+@spec offending-spec
+  meaning
+    says "A specification inside a system folder."
+    answers "Which specification sits in a system folder?"
+  work
+    title "Offending"
+    status draft
+`;
+const withSources = (base: ReturnType<typeof input>['request']['base'], sources: { path: string; text: string }[]) =>
+  distributionSnapshot({
+    sources: [...base.sources, ...sources.map((source) => ({ ...source, location: AUTHORED }))],
+    folders: base.folders,
+    floorOrigin: base.floorOrigin,
+  });
+
+it('installs a closure whose only errors are canon findings, and still refuses any other admission error', () => {
+  const { target, request } = input();
+  // Task 13e ruling: a canon finding fails validate and preview, never an installation.
+  const sources = [
+    { path: '.ia/src/laws.ia', text: CANON_LAW },
+    { path: '.ia/src/systems/work-system/records/offending-spec.ia', text: OFFENDING_SPEC },
+  ];
+  const plan = planInstallationSnapshot({ ...request, base: withSources(request.base, sources) });
+  const reader = new EditorSnapshot({
+    root: '',
+    ...request.base,
+    sources: [...withSources(request.base, sources).sources, ...plan.installedSources],
+    folders: [...new Set([...request.base.folders, ...plan.inputs.systems.map((system) => system.name)])].sort(),
+    activation: plan.pointer,
+  });
+  try {
+    expect(reader.report.findings.filter((finding) => finding.severity === 'error').map((f) => f.code)).toEqual([
+      'IA-COMP-CANON-WORK-PLACEMENT',
+    ]);
+  } finally {
+    reader.close();
+  }
+  // The local installer stages and activates the same closure.
+  for (const { path, text } of sources) fixture.put(target, path, text);
+  cacheArchive(target, fixture.packed.bytes);
+  expect(applyInstallation(planInstallation(target, request.lock, 'install')).status).toBe('installed');
+
+  const bad = {
+    path: '.ia/src/bad.ia',
+    text: '#! ia 1.0\n\n@law bad-law\n  meaning\n    says "A law whose severity is not one."\n    answers "Which law has a bad severity?"\n  governance\n    severity sideways\n',
+  };
+  expect(() => planInstallationSnapshot({ ...request, base: withSources(request.base, [...sources, bad]) })).toThrow(
+    expect.objectContaining({
+      code: 'IA-DIST-ADMISSION-FAILED',
+      message: expect.stringContaining('IA-GRAPH-DIMENSION-UNKNOWN'),
+    }),
+  );
+});

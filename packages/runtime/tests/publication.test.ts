@@ -88,15 +88,21 @@ it('refuses unqualified filesystem roots', () => {
   );
 });
 describe.skipIf(process.platform !== 'win32')('qualified local NTFS publication', () => {
-  it.each(['timeout', 'invalid-json', 'remote', 'non-ntfs'] as const)(
+  it.each(['timeout', 'invalid-json', 'remote', 'non-ntfs', 'spawn-error', 'timeout-then-invalid-json'] as const)(
     'refuses %s volume qualification without creating output or caching failure',
     async (failure) => {
       vi.resetModules();
       const root = temp();
+      let calls = 0;
       const probe = vi.fn(() => {
-        if (failure === 'timeout')
+        calls++;
+        // spawn-error fails for a reason other than a timeout. timeout-then-invalid-json times out on each
+        // qualification's first probe, and its retry answers '{'.
+        if (failure === 'timeout' || (failure === 'timeout-then-invalid-json' && calls % 2 === 1))
           throw Object.assign(new Error('spawnSync powershell.exe ETIMEDOUT'), { code: 'ETIMEDOUT' });
-        return failure === 'invalid-json'
+        if (failure === 'spawn-error')
+          throw Object.assign(new Error('spawnSync powershell.exe ENOENT'), { code: 'ENOENT' });
+        return failure === 'invalid-json' || failure === 'timeout-then-invalid-json'
           ? '{'
           : JSON.stringify({
               DriveType: failure === 'remote' ? 4 : 3,
@@ -110,12 +116,17 @@ describe.skipIf(process.platform !== 'win32')('qualified local NTFS publication'
           expect(() => prepare(root, destination, files, metadata)).toThrow(
             expect.objectContaining({ code: 'IA-PUBLICATION-UNAVAILABLE' }),
           );
-        expect(probe).toHaveBeenCalledTimes(2);
-        expect(probe).toHaveBeenCalledWith(
-          'powershell.exe',
-          expect.any(Array),
-          expect.objectContaining({ timeout: 30_000, windowsHide: true }),
-        );
+        // Each qualification gives a timed-out probe up to two more tries, under the same bound; other failures refuse
+        // at once.
+        const probesPerQualification = failure === 'timeout' ? 3 : failure === 'timeout-then-invalid-json' ? 2 : 1;
+        expect(probe).toHaveBeenCalledTimes(2 * probesPerQualification);
+        for (let call = 1; call <= probe.mock.calls.length; call++)
+          expect(probe).toHaveBeenNthCalledWith(
+            call,
+            'powershell.exe',
+            expect.any(Array),
+            expect.objectContaining({ timeout: 30_000, windowsHide: true }),
+          );
         expect(existsSync(resolve(root, '.ia'))).toBe(false);
       } finally {
         vi.doUnmock('node:child_process');
@@ -123,8 +134,28 @@ describe.skipIf(process.platform !== 'win32')('qualified local NTFS publication'
       }
     },
   );
-  // The first publication includes the bounded 30s cold external NTFS probe;
-  // leave time for publication assertions and cleanup after qualification.
+  it('qualifies on a third probe after two timed out, and caches the success', async () => {
+    vi.resetModules();
+    const root = temp();
+    let calls = 0;
+    const probe = vi.fn(() => {
+      calls++;
+      if (calls <= 2) throw Object.assign(new Error('spawnSync powershell.exe ETIMEDOUT'), { code: 'ETIMEDOUT' });
+      return JSON.stringify({ DriveType: 3, FileSystem: 'NTFS' });
+    });
+    vi.doMock('node:child_process', () => ({ execFileSync: probe }));
+    try {
+      const { qualifyPublicationRoot: qualify } = await import('../src/publication.js');
+      expect(qualify(root)).toBe(resolve(root));
+      expect(qualify(root)).toBe(resolve(root));
+      expect(probe).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.doUnmock('node:child_process');
+      vi.resetModules();
+    }
+  });
+  // The first publication includes the cold external NTFS probe, up to three bounded 30s tries while they time
+  // out; leave time for publication assertions and cleanup after qualification.
   it('publishes exact bytes and inventory only after an exclusive final directory claim', async () => {
     const root = temp(),
       prepared = preparePublication(root, destination, files, metadata);
@@ -143,7 +174,7 @@ describe.skipIf(process.platform !== 'win32')('qualified local NTFS publication'
     expect(() => preparePublication(root, destination, files, metadata)).toThrow(
       expect.objectContaining({ code: 'IA-PUBLICATION-CONFLICT' }),
     );
-  }, 60_000);
+  }, 120_000);
   it('distinguishes absence, partial bytes, different provenance and tampering', async () => {
     const root = temp(),
       inspect = () => inspectPublication(root, destination, files, metadata, current);

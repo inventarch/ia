@@ -36,6 +36,7 @@ export const RECIPE_TOOL_MODULES = Object.freeze([
   'tools/native/check.ts',
   'tools/native/compile.ts',
   'tools/native/language-base.ts',
+  'tools/native/language-bases.ts',
   'tools/native/meaning.ts',
   'tools/native/public-language.ts',
   'tools/native/public-manifest.mjs',

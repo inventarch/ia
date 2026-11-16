@@ -22,11 +22,12 @@ import { inputs, records, registry } from '../../packages/compliance/tests/nativ
 import { runEvidenceFixtures } from './evidence-fixtures.js';
 
 const root = resolve(import.meta.dirname, '../..');
+// The first compliance run pays the cold external NTFS probe on Windows, up to three bounded 30s tries.
 it('binds kernel evidence to the floor used by the evaluated graph', () => {
   const { report } = checkCompliance(root);
   expect(report.verdicts.find((v) => v.check === 'COMP-KERNEL')).toMatchObject({ outcome: 'pass', basis: 'verified' });
   expect(report.conformance?.kernel?.floorDigest).toBe(KERNEL_DIGEST);
-});
+}, 120_000);
 it('cannot reuse a kernel PASS after changing the evaluated repository floor', async () => {
   const candidate = mkdtempSync(join(tmpdir(), 'ia-compliance-floor-'));
   try {
@@ -115,7 +116,7 @@ it('executes native graph, all language fixtures, all refusal-code boundaries an
   // IA-COMP-PROJECTION-INVALID retired with the projection renderers; the mandate resolver adds the default-actor and
   // two profile refusals, the `@mandate` guard its three hook refusals, and admission a second IA-COMP-FIELD-VALUE
   // boundary, the stated empty `authority.moves` it refuses.
-  expect(boundaries).toBe(120);
+  expect(boundaries).toBe(128);
   expect(qualification).toEqual({
     platform: process.platform,
     deferredPlatformCodes:

@@ -143,7 +143,9 @@ export function installsDependencies(argv: readonly string[]): argv is readonly 
  * script run (a `preinstall` or `postinstall` could follow the worktree's `.git` file back to the user's checkout) and,
  * where `locked` says the manager's lockfile is tracked, frozen to it, so the install never rewrites it. npm: `ci
  * --ignore-scripts` (`install --ignore-scripts` unlocked); pnpm, Yarn Classic and Bun: `install --frozen-lockfile
- * --ignore-scripts`; Yarn 2 and later, which has no `--ignore-scripts`: `install --immutable --mode=skip-build`.
+ * --ignore-scripts`, and for pnpm alone `--ignore-pnpmfile` too (no hook from the repository's pnpmfile, so a lockfile
+ * resolved through those hooks fails the frozen install as out of date; Yarn 2+ `yarnPath` and plugins and `.npmrc`
+ * settings still run); Yarn 2 and later, which has no `--ignore-scripts`: `install --immutable --mode=skip-build`.
  */
 export function batchInstallArgv(
   manager: PackageManager,
@@ -158,7 +160,11 @@ export function batchInstallArgv(
       ? ['--ignore-scripts']
       : berry
         ? [...(locked ? ['--immutable'] : []), '--mode=skip-build']
-        : [...(locked ? ['--frozen-lockfile'] : []), '--ignore-scripts'];
+        : [
+            ...(locked ? ['--frozen-lockfile'] : []),
+            '--ignore-scripts',
+            ...(manager === 'pnpm' ? ['--ignore-pnpmfile'] : []),
+          ];
   argv.splice(argv.indexOf('install'), 1, manager === 'npm' && locked ? 'ci' : 'install', ...flags);
   return argv;
 }

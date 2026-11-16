@@ -7,7 +7,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { afterAll, expect, it, vi } from 'vitest';
-import { within } from '../src/paths.js';
+import { sameFile, within } from '../src/paths.js';
 
 const assigned = vi.hoisted(() => new Map<string, bigint>());
 vi.mock('node:fs', async (importOriginal) => {
@@ -71,4 +71,34 @@ it('keeps device and inode where the volume reports them', () => {
   expect(within(home, sibling)).toBe(false);
   expect(within(home, resolve(home, 'new'))).toBe(true);
   expect(within(root, home)).toBe(true);
+});
+
+for (const [name, ino] of [
+  ['0', 0n],
+  ['all ones', 2n ** 64n - 1n],
+] as const)
+  it(`sameFile compares exact real paths where the volume reports inode ${name}`, () => {
+    const root = folder(),
+      first = resolve(root, 'a'),
+      second = resolve(root, 'b');
+    for (const path of [first, second]) mkdirSync(path, { recursive: true });
+    for (const path of [first, second]) assigned.set(realpathSync.native(path), ino);
+    // Raw device and inode would make these one directory: each reports the same inode on one device.
+    expect(sameFile(first, second)).toBe(false);
+    expect(sameFile(first, first)).toBe(true);
+    expect(sameFile(first, resolve(first, '..', 'a'))).toBe(true);
+    // One side unidentified is enough.
+    assigned.delete(realpathSync.native(second));
+    expect(sameFile(first, second)).toBe(false);
+    // A path that does not exist is the same file as nothing.
+    expect(sameFile(first, resolve(root, 'gone'))).toBe(false);
+  });
+
+it('sameFile keeps device and inode where the volume reports them', () => {
+  const root = folder(),
+    first = resolve(root, 'a'),
+    second = resolve(root, 'b');
+  for (const path of [first, second]) mkdirSync(path, { recursive: true });
+  expect(sameFile(first, second)).toBe(false);
+  expect(sameFile(first, resolve(first, '..', 'a'))).toBe(true);
 });

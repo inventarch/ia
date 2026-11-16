@@ -1,6 +1,7 @@
 import type { Phase } from '@inventarch/language';
 import { GraphUsageError, cell, effectiveSeverity, selectors, variants } from '@inventarch/graph';
 import type { ReadHandle, Scope } from '@inventarch/db';
+import { contradictions } from './activation.js';
 import { prepareCoordinate } from './coordinate.js';
 import type { PreparedCoordinate } from './coordinate.js';
 import { mentions, resolveMention, subjectMention } from './mentions.js';
@@ -72,12 +73,7 @@ export function collect(handle: ReadHandle, request: ContextRequest, options: Co
   for (const node of nodes) {
     const match = selectors(node, values);
     if (match.status === 'disqualified') {
-      const contradictions = node.selectors.flatMap((group) =>
-        group
-          .filter((t) => values[t.axis] !== undefined && values[t.axis] !== t.value)
-          .map((t) => `${t.axis} is ${t.value}, request is ${values[t.axis]}`),
-      );
-      omitted.push({ address: node.identity, reason: 'disqualified', detail: [...new Set(contradictions)].join('; ') });
+      omitted.push({ address: node.identity, reason: 'disqualified', detail: contradictions(node, values) });
       continue;
     }
     const selected = variants(node, values);

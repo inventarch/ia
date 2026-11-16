@@ -1,0 +1,13 @@
+#! ia 1.0
+
+@convention canon-ask-before-boundary
+  meaning
+    says "When a boundary answer is unknown or provisional, the agent surfaces it and asks the person before it creates a workspace, system, kit or distribution record."
+    answers "What does an agent do when a boundary answer is unknown or provisional?"
+  governance
+    severity advisory
+    requires "Before creating a workspace, system, kit or distribution record on an unknown or provisional boundary answer, say so and ask the person."
+  subject
+    subject-word workspace
+  relationships
+    cites @agent public-workspace-system-steward

@@ -258,8 +258,13 @@ describe('a missing binding refuses only the method it names', () => {
         { entry: 'work', activity: 'task', root: repo },
         {
           kits: { bundled, home: null },
-          restore: () => {
-            throw new Error('a refused resolve restores nothing');
+          restore: {
+            select: () => {
+              throw new Error('a refused resolve restores nothing');
+            },
+            apply: () => {
+              throw new Error('a refused resolve restores nothing');
+            },
           },
           env: { IA_HOME: home },
           store,

@@ -51,6 +51,7 @@ import {
   normalizeName,
   PIN_PATH,
   readBase,
+  readBases,
   readProvenance,
   resolveTarget,
   trackQuestion,
@@ -1697,10 +1698,39 @@ it('ships a base pin that matches the native version policy and its one archive'
   expect(shipped.version).toBe(
     JSON.parse(readFileSync(resolve(repository, 'examples/public-language/versions.json'), 'utf8')).language,
   );
-  expect(readdirSync(resolve(cli, 'assets/base'))).toEqual([`${shipped.archive}.ia.tgz`]);
+  const carried = JSON.parse(readFileSync(resolve(cli, 'assets/bases.json'), 'utf8')) as { archive: string }[];
+  expect(carried.at(-1)).toEqual(shipped);
+  expect(readdirSync(resolve(cli, 'assets/base')).sort()).toEqual(
+    carried.map((entry) => `${entry.archive}.ia.tgz`).sort(),
+  );
   const bytes = readFileSync(resolve(cli, `assets/base/${shipped.archive}.ia.tgz`));
   expect(createHash('sha256').update(bytes).digest('hex')).toBe(shipped.archive);
   expect(readBase(cli).pin).toEqual(shipped);
+});
+
+it('reads every carried base ascending, each verified, the newest being the pinned one', () => {
+  const bases = readBases(cli);
+  expect(bases.length).toBeGreaterThan(1);
+  const versions = bases.map((entry) => entry.pin.version);
+  expect(versions).toEqual([...versions].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })));
+  expect(new Set(versions).size).toBe(versions.length);
+  expect(bases.at(-1)?.pin).toEqual(readBase(cli).pin);
+  for (const entry of bases) {
+    expect(entry.manifest.id).toBe(entry.pin.id);
+    expect(entry.manifest.version).toBe(entry.pin.version);
+    expect(entry.systems).toEqual(entry.manifest.systems.map((system) => system.name));
+  }
+  const packageRoot = resolve(scratch('package'), 'cli');
+  cpSync(resolve(cli, 'assets'), resolve(packageRoot, 'assets'), { recursive: true });
+  const first = bases[0]!,
+    archive = resolve(packageRoot, `assets/base/${first.pin.archive}.ia.tgz`),
+    damaged = readFileSync(archive);
+  damaged.writeUInt8(damaged.readUInt8(damaged.length - 1) ^ 1, damaged.length - 1);
+  writeFileSync(archive, damaged);
+  expect(() => readBases(packageRoot)).toThrow();
+  expect(readBase(packageRoot).pin).toEqual(bases.at(-1)?.pin);
+  writeFileSync(resolve(packageRoot, 'assets/bases.json'), '[]');
+  expect(() => readBases(packageRoot)).toThrow('base list cannot be read');
 });
 
 it('refuses before any write when the bundled bytes do not match the pin', async () => {

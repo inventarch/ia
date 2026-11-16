@@ -8,6 +8,9 @@ Select, stage, scan and pack public/native artifacts and maintain their compatib
 
 - [distribution.d.mts](distribution.d.mts) — interface declaration; implementation checking is tracked separately.
 - [distribution.mjs](distribution.mjs).
+- [language-compat-gate.test.ts](language-compat-gate.test.ts) — behavior and refusal coverage.
+- [language-compat-gate.ts](language-compat-gate.ts) — the release gate for `inventarch/language` bases: classifies the change from the last published base (label, additive, breaking or unclassified) and refuses an `inventarch/language` native note that bumps less than the class needs; an unclassified change needs a major unless the note carries `compatibility: "reviewed-additive"`, which makes it a minor. A text field that gains or changes its form, an edge rule whose cardinality narrows, and an edge rule retargeted (keyed by predicate, direction and target, so it is one removed and one added) are breaking; a form removed or a cardinality widened is additive. When the base changed it also runs `ia floor --verify` on every fixture kit: the `ia-kb` method fixture kit and the three published public kits.
+- [fixtures/published-kits](fixtures/published-kits/PROVENANCE.json) — the kit folders of ia-authoring 0.1.4, ia-kb 0.9.4 and ia-method 0.7.3 from `@inventarch/public-kits@1.0.4`, which the gate proves on a candidate base; `generate.mjs` rewrites them from an extracted package.
 - [native-archives.ts](native-archives.ts).
 - [native-selectors.d.mts](native-selectors.d.mts) — interface declaration; implementation checking is tracked separately.
 - [native-selectors.mjs](native-selectors.mjs).
@@ -36,6 +39,7 @@ Select, stage, scan and pack public/native artifacts and maintain their compatib
 - `pnpm npm:inputs`: `node tools/release/public-pack.mjs refresh-inputs`.
 - `pnpm native:version`: `node --conditions=development --import tsx tools/release/native-version.ts`.
 - `pnpm native:release:check`: `node --conditions=development --import tsx tools/release/native-version.ts --check`.
+- `pnpm language:compat-gate`: `node --conditions=development --import tsx tools/release/language-compat-gate.ts --check`; the `language:compat-gate` task depends on `cli:build` and `language-base:generate` and is the last step of `pnpm platform:qualify`.
 
 Commands report success as exit 0 and evaluated failure as exit 1. Corrected strict parsers use exit 2 for usage errors. Existing command-specific defaults, flags and refusal behavior are described below; a check never implies a write.
 

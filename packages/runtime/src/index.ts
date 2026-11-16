@@ -15,6 +15,7 @@ export type {
   LoadedEntry,
   LoadedPlace,
   LoadedRecord,
+  OmittedRule,
   PointerTally,
   PositionBody,
   PositionCell,
@@ -25,6 +26,7 @@ export type {
   PositionUnknown,
   PositionVia,
   PositionWidening,
+  RuleRecord,
   SubjectMatch,
 } from './position.js';
 export { entryCount, renderPacket } from './packet.js';

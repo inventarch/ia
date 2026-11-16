@@ -5,19 +5,21 @@ import type { InputOptions } from '@inventarch/db';
 import { Engine } from '@inventarch/agent-system';
 import type { EngineHost, Grant, ModelAdapter, ModelResponse, Profile } from '@inventarch/agent-system';
 import {
+  compiledAliases,
   compileHarness,
   executionManifest,
   installedReadCatalog,
   INSTALLED_READ,
+  INSTALLED_READ_LEGACY,
 } from '@inventarch/agent-composition-system';
-import type { CompositionCatalog } from '@inventarch/agent-composition-system';
+import type { CatalogAliases, CompositionCatalog } from '@inventarch/agent-composition-system';
 import { captureWorkspace } from '@inventarch/workspace-runtime';
 import { canonical, copy, digest, SessionError, terminal } from '@inventarch/session-system';
 import type { Json, Limits, Mutation, Session } from '@inventarch/session-system';
 import { sqliteStore } from '@inventarch/session-system/sqlite';
 import { governingMandates, mandateAuthorityOf, profileRefusal, requireMandatesAdmitted } from '@inventarch/runtime';
 import type { Mode, ProfileMandate, ScopeKey } from '@inventarch/runtime';
-import { runnerCatalog } from './catalog.js';
+import { runnerAliases, runnerCatalog } from './catalog.js';
 import { RunnerContext } from './context.js';
 import { requireRunner, RunnerError } from './errors.js';
 import { bindOperations } from './operations.js';
@@ -31,6 +33,8 @@ export interface RunnerOptions {
   inputs?: InputOptions;
   /** These contracts are trusted host configuration, not a native grant or a module loader. */
   catalog?: CompositionCatalog;
+  /** Old contract names the supplied catalog maps to its plain entries. Without a catalog, the runner's own are used. */
+  aliases?: CatalogAliases;
   model?: ModelAdapter;
   principal?: string;
   authorize?: EngineHost['authorize'];
@@ -104,7 +108,13 @@ export function openRunner(options: RunnerOptions) {
     });
     requireRunner(harnesses.length === 1, 'IA-RUNNER-HARNESS', 'Select one harness containing the entry binding');
     const catalog = copy(options.catalog ?? runnerCatalog());
-    const result = compileHarness(capture, { harness: harnesses[0]!.identity, entry: entry.identity, catalog });
+    const aliases = options.aliases ?? (options.catalog ? undefined : runnerAliases());
+    const result = compileHarness(capture, {
+      harness: harnesses[0]!.identity,
+      entry: entry.identity,
+      catalog,
+      ...(aliases ? { aliases } : {}),
+    });
     if (!result.ok) throw new RunnerError('IA-RUNNER-COMPOSITION', canonical(result.diagnostics));
     const compiled = result.manifest,
       manifest = executionManifest(compiled, catalog);
@@ -284,13 +294,23 @@ export function openRunner(options: RunnerOptions) {
     };
     const verify = async () => {
       if (currentCapture().revision !== capture.revision) return false;
-      const fresh = compileHarness(capture, { harness: compiled.id, entry: compiled.entry.binding, catalog });
+      const fresh = compileHarness(capture, {
+        harness: compiled.id,
+        entry: compiled.entry.binding,
+        catalog,
+        aliases: compiledAliases(compiled),
+      });
+      const readPin = compiled.provenance.installed.find(
+        (pin) =>
+          pin.group === 'operations' &&
+          (pin.id === INSTALLED_READ.implementation || pin.id === INSTALLED_READ_LEGACY.implementation),
+      );
       return (
         fresh.ok &&
         fresh.manifest.digest === compiled.digest &&
         (!manifest.operations[INSTALLED_READ.operation] ||
-          canonical(installedReadCatalog().operations[INSTALLED_READ.implementation]) ===
-            canonical(catalog.operations[INSTALLED_READ.implementation]))
+          (readPin !== undefined &&
+            canonical(installedReadCatalog().operations[readPin.id]) === canonical(catalog.operations[readPin.id])))
       );
     };
     const model = options.model ?? { id: 'runner/external', generate: async () => ({ deferred: true as const }) };

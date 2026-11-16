@@ -19,7 +19,8 @@ import type {
   Traversal,
   TraverseOptions,
 } from '@inventarch/graph';
-import type { Report } from '@inventarch/compliance';
+import { lawStatuses } from '@inventarch/compliance';
+import type { LawStatus, Report } from '@inventarch/compliance';
 import { publishCache } from './cache.js';
 import type { CacheStatus } from './cache.js';
 import { DbError } from './errors.js';
@@ -410,6 +411,15 @@ export class Reader {
   get report(): Report {
     this.#assertOpen();
     return this.#state.rootView.report;
+  }
+  /**
+   * The status of every admitted `@law` of the root view: enforcement resolved on the view's graph (a node's edge
+   * targets are null here), against the report's verdicts. Reads only.
+   */
+  laws(): readonly LawStatus[] {
+    this.#assertOpen();
+    const { graph, report } = this.#state.rootView;
+    return lawStatuses([...graph.nodes.values()], report.verdicts, graph);
   }
   get refused(): readonly RefusedRecord[] {
     this.#assertOpen();

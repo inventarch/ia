@@ -337,7 +337,7 @@ it('reports validation findings from the real fixture and keeps path filters out
 
   const machine = JSON.parse((await run(['validate', '--root', fixture, '--json'])).stdout);
   expect(machine).toMatchObject({ version: 1, root: fixture, status: 'refused', reportOutcome: 'fail' });
-  expect(machine.counts).toEqual({ errors: 1, warnings: 5, notEvaluated: 5 });
+  expect(machine.counts).toEqual({ errors: 1, warnings: 5, notEvaluated: 5, lawsPending: 1, lawsSuspended: 0 });
   expect(machine.truncated).toBe(false);
 
   const severity = await run(['validate', '--root', fixture, '--severity', 'error']);
@@ -357,7 +357,7 @@ it('reports validation findings from the real fixture and keeps path filters out
   const filtered = JSON.parse(
     (await run(['validate', '--root', fixture, '.ia/src/systems/agent-system', '--json'])).stdout,
   );
-  expect(filtered.counts).toEqual({ errors: 1, warnings: 5, notEvaluated: 5 });
+  expect(filtered.counts).toEqual({ errors: 1, warnings: 5, notEvaluated: 5, lawsPending: 1, lawsSuspended: 0 });
   expect(
     filtered.findings.every((finding: { path: string }) => finding.path.startsWith('.ia/src/systems/agent-system')),
   ).toBe(true);

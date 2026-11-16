@@ -3,6 +3,7 @@ import type { Band, Kind, Lane, Phase, Predicate } from '@inventarch/language';
 import { conditionHolds, digest, effectiveSeverity, laneOf, reaches } from '@inventarch/graph';
 import type { ClaimMatch, DirectedEdgeRow, DirectedRow, Node } from '@inventarch/graph';
 import type { ReadHandle } from '@inventarch/db';
+import { activationAt } from './activation.js';
 import { RuntimeError } from './errors.js';
 import { fragmentText } from './locator.js';
 import { rootWorkspace } from './mandate-modes.js';
@@ -92,6 +93,20 @@ export interface PositionRecord {
 /** A loaded or reserved record: the tuple and the per-record digest (graph G13) of the occurrence the scope admits. */
 export interface LoadedRecord extends PositionRecord {
   readonly digest: string;
+}
+/**
+ * A reserved rule. `activation` is present only when the rule's selectors leave it undecided at the key's coordinate (an
+ * axis they name, such as move or artifact-set, is unbound): the undecided groups, `axis is value and ...`, joined by
+ * `or`. A rule without it applies at the coordinate.
+ */
+export interface RuleRecord extends LoadedRecord {
+  readonly activation?: string;
+}
+/** A blocking rule left out of `rules` because its activation contradicts the key's coordinate, as `ia context` omits it. */
+export interface OmittedRule {
+  readonly identity: string;
+  /** The contradictory terms, `axis is value, request is other`, joined by `; `. */
+  readonly detail: string;
 }
 /** The loaded entry of a seat that is no record: a location, or a workspace seat no record declares (`''`). */
 export interface LoadedPlace {
@@ -205,9 +220,12 @@ export interface PositionBody {
   readonly loaded: readonly LoadedEntry[];
   /**
    * The blocking governance candidates, and the blocking rules that apply by word to a candidate (R17), reserved
-   * outside the budget, in the governance order: the candidates of the walk without the word, so w hides none.
+   * outside the budget, in the governance order: the candidates of the walk without the word, so w hides none. Only a
+   * rule whose activation admits the key's coordinate is listed (R04); one left undecided carries `activation`.
    */
-  readonly rules: readonly LoadedRecord[];
+  readonly rules: readonly RuleRecord[];
+  /** The blocking rules the key's coordinate disqualifies by activation, by identity; never entered or pointed to. */
+  readonly omittedRules: readonly OmittedRule[];
   /** The first 48 pointers in the shape's order, of w only. */
   readonly pointers: readonly PositionPointer[];
   readonly pointerTallies: readonly PointerTally[];
@@ -590,12 +608,24 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
       if (matches.length > 0)
         matched.set(subject.identity, { hop: 0, via: { by: 'subject', label: FIELD_MATCH, matches } });
     }
+  // A blocking rule is reserved only where its activation admits the coordinate, as `ia context` delivers it (R04): a
+  // contradicted one is listed in `omittedRules` instead, and stays out of L, the pointers and the frontier, and an
+  // undecided one is listed with the groups it waits on.
+  const activations = new Map(
+    [...[...candidates].filter(blocking), ...matched.keys()].map((identity) => [
+      identity,
+      activationAt(nodes.get(identity)!, values),
+    ]),
+  );
   const rules = sorted(
-    [...[...candidates].filter(blocking), ...matched.keys()],
+    [...activations].filter(([, a]) => a.status !== 'omitted').map(([identity]) => identity),
     (identity) => ruleReach(identity).hop,
     true,
   );
-  const reserved = new Set(rules);
+  const omittedRules = [...activations]
+    .flatMap(([identity, a]) => (a.status === 'omitted' ? [{ identity, detail: a.detail }] : []))
+    .sort((a, b) => order(a.identity, b.identity));
+  const reserved = new Set(activations.keys());
   const pool = sorted(
     new Set([...seeds, ...hopReached].filter((identity) => !reserved.has(identity))),
     hopOfReach,
@@ -850,7 +880,14 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
         : loadedRecord(seatId, reachOf(seatId)),
       ...chosen.map((identity) => loadedRecord(identity, reachOf(identity))),
     ],
-    rules: rules.map((identity) => loadedRecord(identity, ruleReach(identity))),
+    rules: rules.map((identity) => {
+      const a = activations.get(identity)!;
+      return {
+        ...loadedRecord(identity, ruleReach(identity)),
+        ...(a.status === 'conditional' ? { activation: a.detail } : {}),
+      };
+    }),
+    omittedRules,
     pointers: listed.map(pointer),
     pointerTallies: wordTallies(tallied),
     appliesByWord: applies.slice(0, LISTED).map(({ identity, matches }) => {

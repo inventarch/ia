@@ -186,7 +186,7 @@ The code's prefix names the layer that raised it:
 | --- | --- | --- |
 | `IA-LANG-` | Reading the source and registering vocabulary | `IA-LANG-PRAGMA-MISSING`, `IA-LANG-INDENT-TAB`, `IA-LANG-STRING-UNTERMINATED`, `IA-LANG-DISCRIMINATOR-UNREGISTERED`, `IA-LANG-SCHEMA-MISSING`, `IA-LANG-IDENTITY-COLLISION` |
 | `IA-GRAPH-` | Identity and relationship resolution | `IA-GRAPH-IDENTITY-TIE`, `IA-GRAPH-EDGE-UNCONSENTED`, `IA-GRAPH-DIMENSION-UNKNOWN`, `IA-GRAPH-TARGET-MISSING` (warning) |
-| `IA-COMP-` | Schemas, ownership, coverage and checks | `IA-COMP-FIELD-VALUE`, `IA-COMP-DISCRIMINATOR-FOREIGN`, `IA-COMP-STEWARD-MISSING`, `IA-COMP-COVERAGE-KIND`, `IA-COMP-EDGE-UNRESOLVED` (warning), `IA-COMP-NOT-EVALUATED` (warning) |
+| `IA-COMP-` | Schemas, ownership, coverage and checks | `IA-COMP-FIELD-VALUE`, `IA-COMP-DISCRIMINATOR-FOREIGN`, `IA-COMP-STEWARD-MISSING`, `IA-COMP-COVERAGE-KIND`, `IA-COMP-EDGE-UNRESOLVED` (warning), `IA-COMP-NOT-EVALUATED` (warning), `IA-COMP-CANON-WORK-PLACEMENT`, `IA-COMP-CANON-KIT-WORDS`, `IA-COMP-CANON-KIT-WORKSPACE`, `IA-COMP-CANON-TEACHING-LINKS`, `IA-COMP-CANON-SOURCE-ROOTS`, `IA-COMP-CANON-KIT-SCRIPTS`, `IA-COMP-CANON-MANDATE-WIDEN`, `IA-COMP-CANON-LOCAL-TIGHTEN` (each error or warning, set by the enforcing law) |
 
 Fix the source the finding names, or supply the missing record, then validate again.
 

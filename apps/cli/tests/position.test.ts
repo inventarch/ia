@@ -452,3 +452,33 @@ it('keeps ia scope, ia scope --root and ia scope --params {} the frozen route ov
   ] as const)
     expect(await scope(args, cwd), args.join(' ') || '(bare)').toMatchObject({ root: '', revision });
 });
+
+// #281: the text view says when a reserved rule waits on an axis the key cannot bind, and names the rules activation
+// leaves out, with the contradictory term, as ia context omits them.
+it('prints a conditional rule with its condition and the rules activation leaves out', async () => {
+  const root = delivery();
+  writeFileSync(
+    resolve(root, RECORDS, 'plan-only.ia'),
+    `${rule('law', 'plan-only', 'blocking')}  activation\n    activate when phase is plan\n`,
+  );
+  writeFileSync(
+    resolve(root, RECORDS, 'on-move.ia'),
+    `${rule('law', 'on-move', 'blocking')}  activation\n    activate when move is Execution\n`,
+  );
+  const flags = ['--shape', 'governance', '--phase', 'act'];
+  const { body } = await positioned(root, flags);
+  expect(body.omittedRules).toEqual([
+    { identity: 'governance-system/governance/law/plan-only', detail: 'phase is plan, request is act' },
+  ]);
+  expect(body.rules.find((r) => r.identity === 'governance-system/governance/law/on-move')?.activation).toBe(
+    'move is Execution',
+  );
+  const human = await run(['position', ...flags, '--root', root]);
+  expect(human.exitCode, human.stderr).toBe(0);
+  const text = flat(human.stdout);
+  expect(text).toContain('governance-system/governance/law/on-move');
+  expect(text).toContain('applies only when move is Execution');
+  expect(text).toContain(
+    'Rules left out by activation • governance-system/governance/law/plan-only phase is plan, request is act',
+  );
+});

@@ -37,6 +37,7 @@ import {
   operationAllowed,
   taskContract,
 } from './contracts.js';
+import { isCompletionEvaluator, isIndependentReviewRule, isOperatorReviewRule } from './types.js';
 
 const json = (value: unknown): Json => JSON.parse(canonical(value)) as Json;
 const modelOutputTokens = 2048;
@@ -98,7 +99,7 @@ export class Engine {
     for (const profile of Object.values(manifest.profiles))
       if (profile.contract) {
         check(
-          profile.contract.completionEvaluator === 'ia.completion.v1' &&
+          isCompletionEvaluator(profile.contract.completionEvaluator) &&
             Number.isSafeInteger(profile.contract.repairAttempts) &&
             profile.contract.repairAttempts >= 0 &&
             Number.isSafeInteger(profile.contract.maxAttempts) &&
@@ -109,7 +110,7 @@ export class Engine {
         const review = profile.contract.review;
         check(
           review === undefined ||
-            (review.rule === 'independent-exact-candidate-v1' &&
+            (isIndependentReviewRule(review.rule) &&
               Object.keys(review).sort().join(',') === 'mandate,policyRevision,reviewer,rule' &&
               [review.reviewer, review.mandate, review.policyRevision].every(
                 (v) => typeof v === 'string' && v.trim().length > 0 && v.length <= 512,
@@ -234,16 +235,15 @@ export class Engine {
     const policy = profile.contract?.review;
     if (!policy) {
       check(
-        review.rule === 'operator-exact-candidate-v1' &&
-          review.reviewer === state.principal &&
-          review.authority === undefined,
+        isOperatorReviewRule(review.rule) && review.reviewer === state.principal && review.authority === undefined,
         'IA-ENGINE-REVIEW-INVALID',
         'Review rule does not match the installed profile',
       );
       return review.expiresAt;
     }
     check(
-      review.rule === policy.rule &&
+      isIndependentReviewRule(review.rule) &&
+        isIndependentReviewRule(policy.rule) &&
         review.reviewer === policy.reviewer &&
         review.reviewer !== state.principal &&
         review.authority?.mandate === policy.mandate &&

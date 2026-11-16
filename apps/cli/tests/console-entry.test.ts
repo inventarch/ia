@@ -1,7 +1,8 @@
 /**
  * Bare `ia` opens the console only on an interactive terminal (consumer CLI contract §1.2): argv empty, stdin and stdout
- * both TTYs, and `CI` unset or empty. Everywhere else it prints exactly today's help at exit 0. A piped child cannot be a
- * TTY, so the CI-on-a-TTY half is proven here through the injected entry with a fake `isatty`;
+ * both TTYs, `CI` unset or empty, `TERM` not `dumb`, and `IA_NO_CONSOLE` unset or empty. Everywhere else it prints exactly
+ * today's help at exit 0. A piped child cannot be a TTY, so the on-a-TTY half is proven here through the injected entry
+ * with a fake `isatty`;
  * console-entry-installed.test.ts proves the piped half against the built binary.
  */
 import { EventEmitter } from 'node:events';
@@ -20,6 +21,13 @@ describe('opensConsole', () => {
       [[], true, true, { CI: '' }, true],
       [[], true, true, { CI: '1' }, false],
       [[], true, true, { CI: 'true' }, false],
+      [[], true, true, { TERM: 'dumb' }, false],
+      [[], true, true, { TERM: 'xterm-256color' }, true],
+      [[], true, true, { TERM: '' }, true],
+      [[], true, true, { TERM: 'DUMB' }, true],
+      [[], true, true, { IA_NO_CONSOLE: '1' }, false],
+      [[], true, true, { IA_NO_CONSOLE: 'anything' }, false],
+      [[], true, true, { IA_NO_CONSOLE: '' }, true],
       [[], false, true, {}, false],
       [[], true, false, {}, false],
       [[], false, false, {}, false],

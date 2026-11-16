@@ -104,7 +104,7 @@ ia inspect work-system/definition/task/review-schema
 ia vocabulary decision --schema
 ```
 
-`ia position` prints the key it used, whether the capture is current, the body's digest, the loaded records, pointers, rules and playbooks that apply, mandates, frontier and unknowns, and ends with two `ia position` commands that widen the view. `--word` narrows the loaded records and pointers to one word but never hides a blocking rule or a mandate. A shape, phase, depth or budget outside its set or cap exits 2 and names the same call with the set or cap. With `--json` it prints `{version, ok, body, digest, hostNote}`.
+`ia position` prints the key it used, whether the capture is current, the body's digest, the loaded records, pointers, blocking rules (a rule whose activation waits on an unbound axis says `applies only when`, and rules the coordinate contradicts are listed under `Rules left out by activation`), rules and playbooks that apply, mandates, frontier and unknowns, and ends with two `ia position` commands that widen the view. `--word` narrows the loaded records and pointers to one word but never hides a blocking rule or a mandate. A shape, phase, depth or budget outside its set or cap exits 2 and names the same call with the set or cap. With `--json` it prints `{version, ok, body, digest, hostNote}`.
 
 `ia next` computes each verdict from declared prerequisites and exit evidence: a success `@observation` on the task at its current digest. It prints `work.status` as self-declared and never uses it as the basis. In a workspace with no `@plan`, it names `ia preview plan`. The view ends with the `ia position` command for the next unblocked task.
 
@@ -171,12 +171,15 @@ The example with `--compare` prints `Round trip: content-exact and a fixed point
 | `ia adopt <id>[@version]` | Plans a source-only workspace adoption: pinned source mounted at band 50, then a capture and a refresh of registered projections. `ia init --adopt` adopts at initialization. |
 | `ia update <id>` | Plans a version change for one direct request, `--to <range>`. |
 | `ia remove <id>` | Plans the removal of one direct request. |
-| `ia restore --apply` | Reinstalls the locked generation from its pinned archives. |
+| `ia restore --apply` | Reinstalls the locked generation from its pinned archives. Any published language base the CLI carries restores exactly, and restore never rewrites the lock; a base it cannot reach refuses and names `ia update inventarch/language`. |
+| `ia floor [--verify] [--json]` | Reports the minimum `inventarch/language` base the workspace's records need, the feature that sets it, and whether the declared range is `ok`, `range-too-high`, `range-too-low` or `no-floor`. `--verify` proves it by validating on each carried base. Exit 1 for `range-too-low`, `no-floor` or a verified error. |
 | `ia recover [installation\|host\|guard\|lifecycle] --root <directory>` | Finishes or rolls back an interrupted installation or host transaction. |
 
 ```sh
 ia restore --apply --yes
 ia update inventarch/language --offline
+ia update inventarch/language --apply --yes   # works on a fresh clone; moves to a carried base only when the records allow
+ia floor --verify
 ia init my-lib --system --host none --apply --yes
 ia pack --root my-lib --descriptor .ia/release.json
 ia recover --root .

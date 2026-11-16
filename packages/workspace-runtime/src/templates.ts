@@ -34,7 +34,7 @@ export type CapturedTemplateResult =
         readonly bytes: number;
         readonly sha256: string;
       };
-      readonly profile: 'structured-v1';
+      readonly profile: 'structured';
       readonly owner: ResourceOccurrence;
       readonly captureRevision: string;
       readonly viewRevision: string;
@@ -87,7 +87,9 @@ export function renderCapturedTemplate(
       record.source.line !== owner.line
     )
       invalid('Template occurrence is outside the current scope');
-    if (text(field(record, 'profile')) !== 'structured-v1') invalid('Unsupported template profile');
+    // `structured-v1` is the original spelling of the profile, accepted for compatibility for at least one major release.
+    if (!['structured', 'structured-v1'].includes(text(field(record, 'profile'))))
+      invalid('Unsupported template profile');
     for (const key of ['parameters', 'lines']) {
       const value = optionalField(record, key);
       if (value !== undefined && (value.kind !== 'list' || value.items.length))
@@ -148,7 +150,7 @@ export function renderCapturedTemplate(
     const body = {
       status: 'rendered' as const,
       artifact: { path: filename, text: rendered.text, bytes: rendered.bytes, sha256: rendered.sha256 },
-      profile: 'structured-v1' as const,
+      profile: 'structured' as const,
       owner,
       captureRevision: capture.revision,
       viewRevision: options.reader.revision,

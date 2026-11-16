@@ -3,22 +3,35 @@ import type { Manifest, OperationAdapter, OperationContext } from '@inventarch/a
 import { canonical, copy, digest, SessionError } from '@inventarch/session-system';
 import type { Json } from '@inventarch/session-system';
 import { installed } from './catalog.js';
-import type { CompositionCatalog } from './catalog.js';
+import type { CatalogAliases, CompositionCatalog } from './catalog.js';
 import type { CompiledHarness } from './compiled.js';
 import { compileHarness } from './compile.js';
 import { Corpus, verifyCapture } from '@inventarch/workspace-runtime/corpus';
 import type { Capture } from '@inventarch/workspace-runtime/corpus';
-import { executionManifest } from './execution.js';
+import { compiledAliases, executionManifest } from './execution.js';
 import { installedImplementationDigest } from './installed-catalog.js';
 
 /** Fixed first-party identities. Native/model inputs never select a module or handler. */
 export const INSTALLED_READ = Object.freeze({
   operation: 'authoring-system/binding/operation/read-captured-source',
+  implementation: 'captured-source-read',
+  handler: 'captured-source-read',
+  input: 'captured-source-read-input',
+  output: 'captured-source-read-output',
+});
+/**
+ * The ids this read shipped under before names stopped carrying their version. The catalog still installs these
+ * entries, byte for byte, so a harness pinned to them still passes `executionManifest` and still dispatches by the old
+ * handler. New compilations go to the plain entries through `installedReadAliases()`.
+ */
+export const INSTALLED_READ_LEGACY = Object.freeze({
+  operation: INSTALLED_READ.operation,
   implementation: 'captured-source-read-v1',
   handler: 'ia.captured-source.read.v1',
   input: 'captured-source-read-input-v1',
   output: 'captured-source-read-output-v1',
 });
+type ReadIds = typeof INSTALLED_READ | typeof INSTALLED_READ_LEGACY;
 export type InstalledReadCatalog = Pick<CompositionCatalog, 'validators' | 'operations'>;
 const inputSchema: Json = {
   type: 'object',
@@ -41,27 +54,44 @@ const outputSchema: Json = {
   additionalProperties: false,
 };
 
+/** Each old read name mapped to the plain name that replaces it, for the host to pass to `compileHarness`. */
+export function installedReadAliases(): CatalogAliases {
+  return {
+    operations: { [INSTALLED_READ_LEGACY.implementation]: INSTALLED_READ.implementation },
+    validators: {
+      [INSTALLED_READ_LEGACY.input]: INSTALLED_READ.input,
+      [INSTALLED_READ_LEGACY.output]: INSTALLED_READ.output,
+    },
+  };
+}
+
 /** Installed descriptions only. No capture, grant, callback or read dispatch occurs here. */
 export function installedReadCatalog(): InstalledReadCatalog {
+  const implementationDigest = installedImplementationDigest();
+  const operation = (ids: ReadIds) =>
+    installed({
+      identity: ids.operation,
+      owner: 'agent-composition-system',
+      handler: ids.handler,
+      implementationDigest,
+      input: ids.input,
+      output: ids.output,
+      effects: ['read' as const],
+      recovery: 'repeatable' as const,
+      timeoutMs: 10000,
+      maxOutputBytes: 65536,
+      preflight: 'captured-workspace' as const,
+    });
   return {
     validators: {
       [INSTALLED_READ.input]: installed({ schema: inputSchema }),
       [INSTALLED_READ.output]: installed({ schema: outputSchema }),
+      [INSTALLED_READ_LEGACY.input]: installed({ schema: inputSchema }),
+      [INSTALLED_READ_LEGACY.output]: installed({ schema: outputSchema }),
     },
     operations: {
-      [INSTALLED_READ.implementation]: installed({
-        identity: INSTALLED_READ.operation,
-        owner: 'agent-composition-system',
-        handler: INSTALLED_READ.handler,
-        implementationDigest: installedImplementationDigest(),
-        input: INSTALLED_READ.input,
-        output: INSTALLED_READ.output,
-        effects: ['read'],
-        recovery: 'repeatable',
-        timeoutMs: 10000,
-        maxOutputBytes: 65536,
-        preflight: 'captured-workspace',
-      }),
+      [INSTALLED_READ.implementation]: operation(INSTALLED_READ),
+      [INSTALLED_READ_LEGACY.implementation]: operation(INSTALLED_READ_LEGACY),
     },
   };
 }
@@ -98,31 +128,45 @@ export function installedReadAdapters(
   const expected = executionManifest(compiled, catalog);
   if (digest(expected) !== digest(manifest) || !manifest.operations[INSTALLED_READ.operation])
     denied('Manifest differs from the retained compiled closure');
-  const rebuilt = compileHarness(capture, { harness: compiled.id, entry: compiled.entry.binding, catalog });
+  const rebuilt = compileHarness(capture, {
+    harness: compiled.id,
+    entry: compiled.entry.binding,
+    catalog,
+    aliases: compiledAliases(compiled),
+  });
   if (!rebuilt.ok || rebuilt.manifest.digest !== compiled.digest)
     denied('Compiled closure differs from the retained native capture');
+  const handlers: string[] = [INSTALLED_READ.handler, INSTALLED_READ_LEGACY.handler];
   if (
     Object.values(manifest.operations).some(
-      (operation) => operation.handler === INSTALLED_READ.handler && operation.id !== INSTALLED_READ.operation,
+      (operation) => handlers.includes(operation.handler) && operation.id !== INSTALLED_READ.operation,
     )
   )
     denied('The fixed read handler cannot alias another operation');
+  // The harness pinned the plain entry or, when compiled before names stopped carrying a version, the original one.
+  const selected = [INSTALLED_READ, INSTALLED_READ_LEGACY].filter((candidate) =>
+    compiled.provenance.installed.some((pin) => pin.group === 'operations' && pin.id === candidate.implementation),
+  );
+  if (selected.length !== 1 || manifest.operations[INSTALLED_READ.operation]?.handler !== selected[0]!.handler)
+    denied('Compiled installed read pin is unavailable');
+  const ids = selected[0]!;
+  // Each validator the read lists, with the entry the harness pins for it: the same one, or the one its recorded aliases
+  // sent it to. The pinned entry must be the first-party validator the read lists.
+  const renamed = compiledAliases(compiled).validators,
+    validators = [ids.input, ids.output].map((listed) => [listed, renamed?.[listed] ?? listed] as const);
   const checkInstalled = (): void => {
     const current = installedReadCatalog();
-    for (const id of [INSTALLED_READ.input, INSTALLED_READ.output])
-      if (canonical(catalog.validators[id] ?? null) !== canonical(current.validators[id]))
+    for (const [listed, pinned] of validators)
+      if (canonical(catalog.validators[pinned] ?? null) !== canonical(current.validators[listed]))
         denied('Installed read validator changed');
-    if (
-      canonical(catalog.operations[INSTALLED_READ.implementation] ?? null) !==
-      canonical(current.operations[INSTALLED_READ.implementation])
-    )
+    if (canonical(catalog.operations[ids.implementation] ?? null) !== canonical(current.operations[ids.implementation]))
       denied('Installed read contract or implementation bytes changed');
     if (
       !compiled.provenance.installed.some(
         (pin) =>
           pin.group === 'operations' &&
-          pin.id === INSTALLED_READ.implementation &&
-          pin.digest === current.operations[INSTALLED_READ.implementation]!.digest,
+          pin.id === ids.implementation &&
+          pin.digest === current.operations[ids.implementation]!.digest,
       )
     )
       denied('Compiled installed read pin is unavailable');
@@ -175,8 +219,8 @@ export function installedReadAdapters(
     check();
     checkInstalled();
   };
-  const adapter: OperationAdapter = {
-    id: INSTALLED_READ.handler,
+  const adapter = (id: string): OperationAdapter => ({
+    id,
     execute: async (args, context) => {
       // Snapshot once before awaits; caller mutation cannot redirect an authorized read.
       const selected = copy(args);
@@ -194,9 +238,13 @@ export function installedReadAdapters(
       await authorize(context);
       return result;
     },
-  };
+  });
   return {
-    operations: Object.freeze({ [adapter.id]: adapter }),
+    // Both keys dispatch the same read: a manifest pinned before the rename names the old handler.
+    operations: Object.freeze({
+      [INSTALLED_READ.handler]: adapter(INSTALLED_READ.handler),
+      [INSTALLED_READ_LEGACY.handler]: adapter(INSTALLED_READ_LEGACY.handler),
+    }),
     close: () => {
       closed = true;
       corpus.close();

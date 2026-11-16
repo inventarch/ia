@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { closeSync, lstatSync, openSync, readdirSync, unlinkSync } from 'node:fs';
-import { adoptedBindings, open, readInputs } from '@inventarch/db';
+import { adoptedBindings, open, readInputs, refusesInstallation } from '@inventarch/db';
 import type { AdoptedSource } from '@inventarch/db';
 import { parse } from '@inventarch/language';
 import { packageId } from '@inventarch/db/distribution';
@@ -120,7 +120,7 @@ export function planAdoption(
     });
   const candidate = open(root, { adopted: mounts, cache: false });
   try {
-    if (candidate.refused.length || candidate.report.findings.some((finding) => finding.severity === 'error'))
+    if (candidate.refused.length || candidate.report.findings.some(refusesInstallation))
       fail('CLOSURE-INVALID', 'Workspace adoption fails native admission');
   } finally {
     candidate.close();

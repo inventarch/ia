@@ -1,0 +1,23 @@
+#! ia 1.0
+
+@principle canon-a13-declared-homes
+  meaning
+    says "Worked records sit in the homes their workspace declares."
+    answers "Where do a workspace's worked records belong?"
+  governance
+    severity advisory
+  subject
+    subject-word workspace
+  relationships
+    cites @agent public-workspace-system-steward
+
+@principle canon-c5b-no-consumer-records
+  meaning
+    says "A kit carries no live consumer records."
+    answers "May a kit carry the live records of the workspaces that consume it?"
+  governance
+    severity advisory
+  subject
+    subject-word distribution
+  relationships
+    cites @agent public-workspace-system-steward

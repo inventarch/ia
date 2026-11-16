@@ -89,11 +89,12 @@ export function run(argv: readonly string[]): { exitCode: number; result: unknow
         validation = validating.validation(),
         bindings = validating.bindings(trust),
         checks = validating.checks(trust),
-        evidence = recordValidation(validating, checks);
+        evidence = recordValidation(validating, checks),
+        laws = validating.laws();
       const revoked = [...bindings.results, ...checks.results].some((binding) => binding.status === 'revoked');
       return {
         exitCode: validation.status === 'refused' || revoked ? 1 : 0,
-        result: { ...validation, bindings, checks, evidence },
+        result: { ...validation, bindings, checks, evidence, laws },
       };
     } finally {
       validating.close();

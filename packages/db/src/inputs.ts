@@ -7,6 +7,7 @@ import {
   openSync,
   readdirSync,
   readFileSync,
+  readlinkSync,
   realpathSync,
   statSync,
 } from 'node:fs';
@@ -153,18 +154,28 @@ function relativePath(path: string): string {
     throw new DbError('IA-DB-PATH-UNSAFE', `Unsafe workspace path '${path}': ${String(error)}`);
   }
 }
-export function safePath(root: string, path: string): string {
+/**
+ * `vetted`, when a caller passes it, holds the folders this caller has already found to be real directories: their
+ * lstat is not repeated, and each folder newly found to be one is added. Only the source walk passes one, for the
+ * length of one walk; it checks each file's final path after reading it (`readSource`), which refuses any source read
+ * through a folder that stopped being the directory it was once vetted. A swapped folder that holds no source is
+ * listed but admits nothing.
+ */
+export function safePath(root: string, path: string, vetted?: Set<string>): string {
   const canonical = relativePath(path);
   let current = root;
   for (const segment of canonical.split('/').filter(Boolean)) {
     current = join(current, segment);
+    if (vetted?.has(current)) continue;
     try {
-      if (lstatSync(current).isSymbolicLink())
+      const stat = lstatSync(current);
+      if (stat.isSymbolicLink())
         throw new DbError(
           'IA-DB-PATH-UNSAFE',
           `Symlink/junction traversal is not admitted: ${current}`,
           relative(root, current).replaceAll('\\', '/'),
         );
+      if (vetted !== undefined && stat.isDirectory()) vetted.add(current);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue;
       throw error;
@@ -610,10 +621,88 @@ function workspaceRoot(root: string): string {
  * open, and a read that fails answer with the filesystem's error, which the walk refuses as before. Where the open
  * follows a final link (`OPENS_THROUGH_LINKS`, Windows), the name must still name the file read once it is read, as
  * package source capture checks: a link there is refused as the listing refuses one, a link to what is not a regular
- * file included, and a name that names nothing or another file is IA-DB-SOURCE-CHANGED.
+ * file included, and a name that names nothing or another file is IA-DB-SOURCE-CHANGED. Within a walk, every platform
+ * then checks the source's final path and that the file there is the file opened (`checkFinalPath`).
  */
-function readSource(root: string, child: string): Buffer {
-  const file = safePath(root, child),
+interface Walk {
+  /** Folders this walk has found to be real directories (`safePath`). */
+  readonly vetted: Set<string>;
+  /** The workspace root's final path, as the filesystem names it. */
+  readonly real: string;
+}
+// Windows and macOS volumes are case-insensitive by default, and macOS may hold names decomposed: compare as they do.
+const fold = (path: string): string =>
+  process.platform === 'win32' || process.platform === 'darwin' ? path.normalize('NFC').toLowerCase() : path;
+/**
+ * A source the walk read through folders it vetted once must still be where the walk believes it is. Its final path,
+ * which resolves every link and junction on the way, must be the workspace's final path joined with the source's own
+ * path. If not, a folder on the way was replaced by a link since the walk vetted it: the refusal names the first such
+ * folder, as `safePath` names a link it meets. The final path is resolved by name, after the read, so a folder swapped
+ * for a link and swapped back before the check would pass it: the opened file must also be the file at that path, by
+ * device and inode. When it is not, the name passed to another file or to nothing once the file was opened. On Linux
+ * the descriptor says which file it holds (`/proc/self/fd`): one the walk opened inside the workspace keeps its bytes,
+ * as a file renamed over or removed once it is opened always has. Where the platform cannot say (macOS, or a Linux
+ * without /proc), that case cannot be told from a folder swapped away and back, so it is IA-DB-SOURCE-CHANGED, as on
+ * Windows. What stays possible is a writer who swaps a folder away and back faster than these checks; IA does not
+ * guard a workspace against its own writers. The identity check of the name against the opened file
+ * (`OPENS_THROUGH_LINKS`) stays as it was.
+ */
+function checkFinalPath(root: string, child: string, file: string, walk: Walk, fd: number, opened: BigIntStats): void {
+  const segments = child.split('/'),
+    expected = join(walk.real, ...segments),
+    final = finalPath(file);
+  if (final === undefined || fold(final) === fold(expected)) {
+    if (final !== undefined) {
+      const reached = statSync(expected, { bigint: true, throwIfNoEntry: false });
+      if (reached?.isFile() === true && reached.dev === opened.dev && reached.ino === opened.ino) return;
+    }
+    if (holds(fd, expected)) return;
+    throw new DbError('IA-DB-SOURCE-CHANGED', `Source replaced during read: ${child}`);
+  }
+  for (let length = 1; length <= segments.length; length++) {
+    const named = join(root, ...segments.slice(0, length));
+    let real: string | undefined;
+    try {
+      real = realpathSync.native(named);
+    } catch {
+      real = undefined;
+    }
+    if (real === undefined || fold(real) !== fold(join(walk.real, ...segments.slice(0, length))))
+      throw new DbError(
+        'IA-DB-PATH-UNSAFE',
+        `Symlink/junction traversal is not admitted: ${named}`,
+        segments.slice(0, length).join('/'),
+      );
+  }
+  throw new DbError('IA-DB-SOURCE-CHANGED', `Source replaced during read: ${child}`);
+}
+/** The final path of `file`, or undefined when nothing is there any more. */
+function finalPath(file: string): string | undefined {
+  try {
+    return realpathSync.native(file);
+  } catch {
+    return undefined;
+  }
+}
+/**
+ * Whether the descriptor holds the file that was at `expected` when it was opened: the file still there, or, once
+ * another file is renamed over the name or the name is removed, that same file with no name left. Only Linux says
+ * (`/proc/self/fd`, which marks a file with no name left ` (deleted)`); everywhere else, and when /proc cannot be read,
+ * the answer is no.
+ */
+function holds(fd: number, expected: string): boolean {
+  if (process.platform !== 'linux') return false;
+  let held: string;
+  try {
+    held = readlinkSync(`/proc/self/fd/${fd}`);
+  } catch {
+    return false;
+  }
+  if (held === expected) return true;
+  return held === `${expected} (deleted)` && fstatSync(fd, { bigint: true }).nlink === 0n;
+}
+function readSource(root: string, child: string, walk?: Walk): Buffer {
+  const file = safePath(root, child, walk?.vetted),
     irregular = () =>
       new DbError('IA-DB-SOURCE-UNAVAILABLE', `Cannot read exact UTF-8 source ${child}: not a regular file`),
     alias = () => new DbError('IA-DB-PATH-UNSAFE', `Source alias is not admitted: ${child}`);
@@ -645,6 +734,7 @@ function readSource(root: string, child: string): Buffer {
       if (named?.isFile() !== true || named.dev !== opened.dev || named.ino !== opened.ino)
         throw new DbError('IA-DB-SOURCE-CHANGED', `Source replaced during read: ${child}`);
     }
+    if (walk !== undefined) checkFinalPath(root, child, file, walk, fd, opened);
     return bytes;
   } finally {
     closeSync(fd);
@@ -669,8 +759,10 @@ function discover(root: string, supplied: InputOptions): InputSnapshot {
       : { placement: { kind: 'authored', band: 100, reach: '' }, provenance: 'workspace' };
     sources.push(Object.freeze({ ...source, location: options.locations?.[key] ?? location(fallback) }));
   };
+  // One walk vets each folder once and checks each source's final path after reading it (`readSource`).
+  const state: Walk = { vetted: new Set<string>(), real: realpathSync.native(canonical) };
   const walk = (path: string): void => {
-    for (const entry of readdirSync(safePath(canonical, path), { withFileTypes: true }).sort((a, b) =>
+    for (const entry of readdirSync(safePath(canonical, path, state.vetted), { withFileTypes: true }).sort((a, b) =>
       compare(a.name, b.name),
     )) {
       // Colocated executable systems contain package artifacts, never corpus sources.
@@ -691,7 +783,9 @@ function discover(root: string, supplied: InputOptions): InputSnapshot {
         try {
           add({
             path: child,
-            text: new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(readSource(canonical, child)),
+            text: new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(
+              readSource(canonical, child, state),
+            ),
           });
         } catch (error) {
           if (error instanceof DbError) throw error;

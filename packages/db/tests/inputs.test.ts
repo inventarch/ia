@@ -14,6 +14,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readlinkSync,
   realpathSync,
   rmSync,
   symlinkSync,
@@ -78,6 +79,7 @@ vi.mock('node:fs', async (importOriginal) => {
     lstatSync: vi.fn(actual.lstatSync),
     readSync: vi.fn(actual.readSync),
     readFileSync: vi.fn(actual.readFileSync),
+    readlinkSync: vi.fn(actual.readlinkSync),
     closeSync: vi.fn(actual.closeSync),
   };
 });
@@ -152,6 +154,7 @@ afterEach(() => {
   vi.mocked(lstatSync).mockReset();
   vi.mocked(readSync).mockReset();
   vi.mocked(readFileSync).mockReset();
+  vi.mocked(readlinkSync).mockReset();
   vi.mocked(closeSync).mockClear();
   for (const path of temporary.splice(0)) {
     const subpath = relative(resolve(tmpdir()), resolve(path));
@@ -1160,7 +1163,9 @@ it.skipIf(process.platform === 'win32')(
     expect(actual.lstatSync(file).isSymbolicLink()).toBe(true);
   },
 );
-it.runIf(constants.O_NOFOLLOW)(
+/** On Linux the walk asks the descriptor which file it holds (`/proc/self/fd`). */
+const SAYS_WHAT_IT_HOLDS = Boolean(constants.O_NOFOLLOW) && process.platform === 'linux';
+it.runIf(SAYS_WHAT_IT_HOLDS)(
   'keeps the bytes of a corpus source whose name passes to another file once it is opened, where the open refuses links',
   async () => {
     const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
@@ -1168,7 +1173,7 @@ it.runIf(constants.O_NOFOLLOW)(
       file = resolve(root, CORPUS),
       other = resolve(root, 'other.ia');
     put(root, 'other.ia', '#! ia 1.0\n# other\n');
-    // The open refuses a link put at the name, so the walk never checks the name again: as before, it keeps what it read.
+    // The descriptor still holds the file opened inside the workspace, so the walk keeps what it read, as before.
     vi.mocked(openSync).mockImplementation((...args: Parameters<typeof openSync>) => {
       const fd = actual.openSync(...args);
       if (String(args[0]) === file && actual.existsSync(other)) actual.renameSync(other, file);
@@ -1176,6 +1181,65 @@ it.runIf(constants.O_NOFOLLOW)(
     });
     expect(corpus(root)).toMatchObject({
       sources: expect.arrayContaining([expect.objectContaining({ path: CORPUS, text: '#! ia 1.0\n# a\n' })]),
+    });
+    expect(actual.readFileSync(file, 'utf8')).toBe('#! ia 1.0\n# other\n');
+  },
+);
+it.runIf(SAYS_WHAT_IT_HOLDS)('keeps the bytes of a corpus source removed once it is opened', async () => {
+  const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+  const root = corpusWorkspace(),
+    file = resolve(root, CORPUS);
+  vi.mocked(openSync).mockImplementation((...args: Parameters<typeof openSync>) => {
+    const fd = actual.openSync(...args);
+    if (String(args[0]) === file && actual.existsSync(file)) actual.rmSync(file);
+    return fd;
+  });
+  expect(corpus(root)).toMatchObject({
+    sources: expect.arrayContaining([expect.objectContaining({ path: CORPUS, text: '#! ia 1.0\n# a\n' })]),
+  });
+  expect(actual.existsSync(file)).toBe(false);
+});
+it.runIf(SAYS_WHAT_IT_HOLDS)(
+  'refuses as changed a corpus source whose name passes to another file once it is opened, when the descriptor cannot say what it holds',
+  async () => {
+    const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+    const root = corpusWorkspace(),
+      file = resolve(root, CORPUS),
+      other = resolve(root, 'other.ia');
+    put(root, 'other.ia', '#! ia 1.0\n# other\n');
+    vi.mocked(openSync).mockImplementation((...args: Parameters<typeof openSync>) => {
+      const fd = actual.openSync(...args);
+      if (String(args[0]) === file && actual.existsSync(other)) actual.renameSync(other, file);
+      return fd;
+    });
+    // A Linux without /proc answers as a platform that cannot say which file a descriptor holds.
+    vi.mocked(readlinkSync).mockImplementation((...args: Parameters<typeof readlinkSync>) => {
+      if (String(args[0]).startsWith('/proc/self/fd/')) throw new Error('ENOENT: no /proc');
+      return actual.readlinkSync(...args);
+    });
+    expect(corpus(root)).toMatchObject({
+      code: 'IA-DB-SOURCE-CHANGED',
+      message: `IA-DB-SOURCE-CHANGED: Source replaced during read: ${CORPUS}`,
+    });
+  },
+);
+it.runIf(Boolean(constants.O_NOFOLLOW) && process.platform !== 'linux')(
+  'refuses as changed a corpus source whose name passes to another file once it is opened, where the platform cannot say which file a descriptor holds',
+  async () => {
+    const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+    const root = corpusWorkspace(),
+      file = resolve(root, CORPUS),
+      other = resolve(root, 'other.ia');
+    put(root, 'other.ia', '#! ia 1.0\n# other\n');
+    // Without a descriptor's path the walk cannot tell this from a folder swapped away and back, so it refuses, as Windows does.
+    vi.mocked(openSync).mockImplementation((...args: Parameters<typeof openSync>) => {
+      const fd = actual.openSync(...args);
+      if (String(args[0]) === file && actual.existsSync(other)) actual.renameSync(other, file);
+      return fd;
+    });
+    expect(corpus(root)).toMatchObject({
+      code: 'IA-DB-SOURCE-CHANGED',
+      message: `IA-DB-SOURCE-CHANGED: Source replaced during read: ${CORPUS}`,
     });
     expect(actual.readFileSync(file, 'utf8')).toBe('#! ia 1.0\n# other\n');
   },

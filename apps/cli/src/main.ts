@@ -185,8 +185,9 @@ export function installSignals(
 export { EXTENSIONS };
 
 /**
- * Consumer CLI contract §1.2: bare `ia` opens the console only when stdin and stdout are both terminals and `CI` is unset
- * or empty. Everywhere else it is today's help at exit 0, and `ia --help` always is.
+ * Consumer CLI contract §1.2: bare `ia` opens the console only when stdin and stdout are both terminals, `CI` is unset
+ * or empty, `TERM` is not exactly `dumb` and `IA_NO_CONSOLE` is unset or empty. An unset `TERM` does not opt out, since
+ * Windows terminals often leave it unset. Everywhere else it is today's help at exit 0, and `ia --help` always is.
  */
 export function opensConsole(
   argv: readonly string[],
@@ -194,7 +195,14 @@ export function opensConsole(
   stdoutTTY: boolean,
   env: Readonly<Record<string, string | undefined>>,
 ): boolean {
-  return argv.length === 0 && stdinTTY && stdoutTTY && (env['CI'] ?? '') === '';
+  return (
+    argv.length === 0 &&
+    stdinTTY &&
+    stdoutTTY &&
+    (env['CI'] ?? '') === '' &&
+    env['TERM'] !== 'dumb' &&
+    (env['IA_NO_CONSOLE'] ?? '') === ''
+  );
 }
 export interface EntryDeps {
   readonly isatty: (fd: number) => boolean;

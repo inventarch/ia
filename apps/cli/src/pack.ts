@@ -12,6 +12,10 @@
  * A release descriptor may name no `@distribution`: a default `ia init` authors none, because an application
  * repository releases nothing. Such a descriptor has nothing to pack, so it is refused before the packer reads anything
  * else, naming the word's schema.
+ *
+ * The minimum `inventarch/language` base the records need is checked before packing too (floor.ts `requireFloor`):
+ * records no base reads, or a declared range admitting a base below the minimum, refuse with `IA-CLI-CONFLICT`; a range
+ * higher than needed packs and reports the minimum (`floor` in the JSON, a warning in the report).
  */
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { isAbsolute, resolve } from 'node:path';
@@ -21,6 +25,7 @@ import { packToDirectory, readWorkspaceFile, readWorkspaceJson, replace } from '
 import type { PackedArchive } from '@inventarch/distribution/services';
 import type { Context, Result } from './consumer.js';
 import { Refusal, requireRoot, respell } from './consumer.js';
+import { requireFloor } from './floor.js';
 import { codeOf } from './session.js';
 import type { Capabilities } from './render.js';
 import { atom, document, entry, fieldRows, headerLine, quote, sectionLabel, truncateDigest, words } from './render.js';
@@ -33,13 +38,18 @@ export interface PackView {
   readonly root: string;
   readonly out: string;
   readonly packed: PackedArchive;
+  /**
+   * The minimum `inventarch/language` base the packed records need, present only when the declared range is higher
+   * than that (floor.ts `requireFloor`); a range below it refuses before packing.
+   */
+  readonly floor?: { readonly minimum: string; readonly declared: string };
 }
 
 export const expandedBytes = (packed: PackedArchive): number =>
   packed.manifest.files.reduce((total, file) => total + file.bytes, 0);
 
 export function packEnvelope(view: PackView): unknown {
-  return { version: 1, ...view.packed };
+  return { version: 1, ...view.packed, ...(view.floor === undefined ? {} : { floor: view.floor.minimum }) };
 }
 
 export function renderPack(view: PackView, caps: Capabilities): string {
@@ -90,6 +100,17 @@ export function renderPack(view: PackView, caps: Capabilities): string {
             )
           : []),
       ],
+      view.floor === undefined
+        ? []
+        : entry(
+            [
+              words(
+                `The declared range ${view.floor.declared} is higher than these records need: ^${view.floor.minimum} is enough.`,
+              ),
+            ],
+            { depth: 0, symbol: 'warning' },
+            caps,
+          ),
       entry(
         [
           words(
@@ -153,16 +174,17 @@ export function collectPack(
 /**
  * A release descriptor, as db decodes it, that names no `distribution` has nothing to release. A file that cannot be
  * read or is no release descriptor is left to the packer, whose own refusal names it, so only this one case is the
- * CLI's to classify. Decoding is pure, so the refusal still comes before the packer reads anything else.
+ * CLI's to classify. Decoding is pure, so the refusal still comes before the packer reads anything else. The decoded
+ * descriptor is returned for the minimum-base check; undefined when it is the packer's to refuse.
  */
-function requireDistribution(root: string, descriptor: string): void {
+function requireDistribution(root: string, descriptor: string): ReleaseDescriptor | undefined {
   let decoded: ReleaseDescriptor;
   try {
     decoded = decodeReleaseDescriptor(readWorkspaceJson({ root, path: descriptor }));
   } catch {
-    return;
+    return undefined;
   }
-  if (decoded.distribution !== undefined) return;
+  if (decoded.distribution !== undefined) return decoded;
   throw new Refusal(
     'IA-CLI-CONFLICT',
     `The release descriptor ${descriptor} names no distribution, so this workspace has nothing to pack`,
@@ -203,7 +225,9 @@ export function runPack(context: Context): Result {
   const { args, caps, json } = context;
   const root = requireRoot(context),
     descriptor = args.value('descriptor')!;
-  requireDistribution(root, descriptor);
+  const decoded = requireDistribution(root, descriptor);
+  // The minimum language base the records need, checked against the declared range before anything is packed.
+  const floor = decoded === undefined ? undefined : requireFloor(context, root, descriptor, decoded);
   let view: PackView;
   try {
     view = collectPack(
@@ -227,6 +251,7 @@ export function runPack(context: Context): Result {
       `Run "${respell(context, { options: { descriptor: ['<file>'] } })}" naming an existing descriptor.`,
     );
   }
+  if (floor !== undefined) view = { ...view, floor };
   // Packing has no "ran correctly, bad result" state, so this verb never returns 1.
   return json
     ? { exitCode: 0, stdout: JSON.stringify(packEnvelope(view)) + '\n', stderr: '' }

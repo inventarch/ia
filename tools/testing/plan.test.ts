@@ -587,7 +587,7 @@ it('plans every platform for main pull requests and all other CI events', () => 
   );
   expect(source).toMatch(/^permissions:\n  contents: read$/m);
   // The one secret is the remote cache token. Each job that reads it selects nx-cache-main, which only main may use,
-  // for a push to main and nx-cache-pr otherwise, so a pull request never receives main's token.
+  // for a push or dispatch on main and nx-cache-pr otherwise, so a pull request never receives main's token.
   const cacheToken = 'secrets.NX_SELF_HOSTED_REMOTE_CACHE_ACCESS_TOKEN';
   expect(source.replaceAll(cacheToken, '')).not.toMatch(
     /pull_request_target:|secrets\.|permissions:\s*write-all|^\s+[\w-]+: write$/m,
@@ -596,7 +596,7 @@ it('plans every platform for main pull requests and all other CI events', () => 
   expect(readers.map(([name]) => name)).toEqual(['build', 'static', 'tests', 'emitted']);
   for (const [, body] of readers)
     expect(body).toContain(
-      "environment:\nname: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'nx-cache-main' || 'nx-cache-pr' }}\ndeployment: false",
+      "environment:\nname: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && 'nx-cache-main' || 'nx-cache-pr' }}\ndeployment: false",
     );
   expect(PULL_REQUEST_PLATFORMS).toEqual(PLATFORMS);
   for (const event of ['pull_request', 'push', 'schedule', 'workflow_dispatch', 'merge_group', undefined]) {

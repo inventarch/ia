@@ -65,7 +65,7 @@ export function fixture(root: string, config: Configuration, pause?: (boundary: 
           limits: {},
           delegation: [],
           checks: [],
-          completionEvaluator: 'ia.completion.v1',
+          completionEvaluator: 'completion',
           repairAttempts: 1,
           maxAttempts: 2,
         },

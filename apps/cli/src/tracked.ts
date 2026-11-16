@@ -14,7 +14,7 @@
  */
 import { lstatSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { basename, isAbsolute, join, resolve } from 'node:path';
-import { pathKey, unidentified, within } from '@inventarch/db/internal/paths';
+import { pathKey, sameIdentity, within } from '@inventarch/db/internal/paths';
 import { readHomeFile, writeHomeFile } from '@inventarch/distribution/ia-home';
 import { inertCommandRoot } from '@inventarch/runtime';
 import { UsageError } from './args.js';
@@ -109,12 +109,7 @@ export function sameRoot(
   const left = stat(a),
     right = stat(b);
   if (left === 'unreadable' || right === 'unreadable') return realOrResolved(a, real) === realOrResolved(b, real);
-  if (left !== undefined && right !== undefined) {
-    // An identity the volume did not supply (`unidentified`: an inode of 0, which covers a device and inode both 0, or
-    // all ones) never means "the same file".
-    if (unidentified(left.ino) || unidentified(right.ino)) return realOrResolved(a, real) === realOrResolved(b, real);
-    return left.dev === right.dev && left.ino === right.ino;
-  }
+  if (left !== undefined && right !== undefined) return sameIdentity(a, b, left, right, real);
   return pathKey(resolve(a)) === pathKey(resolve(b));
 }
 

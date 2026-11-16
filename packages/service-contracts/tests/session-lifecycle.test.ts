@@ -42,6 +42,10 @@ it('requires an explicit new session identity without caller-supplied source or 
     entry: 'author',
   };
   expect(sessionContinueRequest.parse(request)).toEqual(request);
+  // A continuation keeps a host-admitted agent the same way it keeps a built-in entry.
+  const { entry: _entry, ...withoutEntry } = request;
+  const agent = { ...withoutEntry, agent: 'reviewer-entry' };
+  expect(sessionContinueRequest.parse(agent)).toEqual(agent);
   for (const input of [
     { ...request, id: 'old' },
     { ...request, actor: 'alice' },

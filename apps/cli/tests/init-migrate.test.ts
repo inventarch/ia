@@ -1029,6 +1029,59 @@ it('refuses a 1.1.0 workspace that does not admit before anything is written, na
   expect(tree(root)).toEqual(before);
 });
 
+it('migrates a 1.1.0 workspace whose only errors are canon findings, which validate still reports', async () => {
+  // Task 13e: a canon finding fails only validate and preview, never the migration's admission steps.
+  const { root } = await legacyWorkspace();
+  const mandate = (name: string, moves: string, cites?: string) => `@mandate ${name}
+  meaning
+    says "Mandate ${name}."
+    answers "What may ${name} do?"
+  governance
+    requires "Stay in bounds."
+  authority
+    moves [${moves}]
+    covers [".ia/src/"]
+${
+  cites === undefined
+    ? ''
+    : `  relationships
+    cites @mandate ${cites}
+`
+}`;
+  put(
+    root,
+    '.ia/src/canon.ia',
+    `#! ia 1.0
+
+@law narrow-law
+  meaning
+    says "Test law narrow-law."
+    answers "What does test law narrow-law require?"
+  governance
+    severity blocking
+  relationships
+    enforced-by @check narrow-check
+
+@check narrow-check
+  meaning
+    says "Test check narrow-check."
+    answers "What does test check narrow-check evaluate?"
+  check
+    runs CANON-MANDATE-NARROW
+    scope "*"
+
+${mandate('parent-mandate', 'Observation')}
+${mandate('child-mandate', 'Observation, Execution', 'parent-mandate')}`,
+  );
+  const migrated = await apply(root);
+  expect(migrated.exitCode, migrated.stdout).toBe(0);
+  const validated = await run(['validate', '--root', root, '--json']);
+  expect(validated.exitCode).toBe(1);
+  expect(JSON.parse(validated.stdout).findings).toContainEqual(
+    expect.objectContaining({ code: 'IA-COMP-CANON-MANDATE-WIDEN', severity: 'error', path: '.ia/src/canon.ia' }),
+  );
+});
+
 it('asks once on a terminal, and a declined question writes nothing', async () => {
   const { root } = await legacyWorkspace(),
     before = tree(root),

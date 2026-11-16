@@ -12,6 +12,7 @@ import {
   variants,
 } from '@inventarch/graph';
 import type { Graph, Node, RevisionSource } from '@inventarch/graph';
+import { canonAssessment, canonAssessments } from '../canon/rules.js';
 import { validateAdoption } from '../adoption.js';
 import type { AdoptionEvaluators } from '../adoption.js';
 import { runLanguageFixture } from '../fixtures.js';
@@ -43,6 +44,63 @@ export function runRefusalFixtures(
     contract = records.find((r) => r.name === 'foundation-authoring-contract')!,
     check = records.find((r) => r.discriminator === 'check')!,
     mandate = records.find((r) => r.discriminator === 'mandate' && r.name === 'sample-mandate')!;
+  /** A blocking `@law` enforced by a `@check` that runs `checkId`, so the canon rule is active; returns its findings over `offenders`. */
+  const canonFixture = (checkId: string, offenders: readonly Node[], find?: () => readonly Finding[]) => {
+    const canonCheck: Node = {
+      ...check,
+      identity: `fixture/check/${checkId.toLowerCase()}`,
+      name: checkId.toLowerCase(),
+      sections: check.sections.map((s) =>
+        s.name !== 'check'
+          ? s
+          : {
+              ...s,
+              fields: s.fields.map((f) =>
+                'key' in f && f.key === 'runs' ? { ...f, value: { kind: 'scalar' as const, text: checkId } } : f,
+              ),
+            },
+      ),
+    };
+    const canonLaw: Node = {
+      ...law,
+      identity: `fixture/law/${checkId.toLowerCase()}`,
+      name: checkId.toLowerCase(),
+      edges: law.edges.map((e) =>
+        e.predicate === 'enforce' ? { ...e, direction: 'in' as const, target: canonCheck.identity } : e,
+      ),
+    };
+    const nodes = [canonLaw, canonCheck, ...offenders];
+    // A file-based rule reads the checkout, which these record fixtures do not have: its db test reads real files, and
+    // this fixture observes only that the enforcing law activates it and sets the severity of what it finds.
+    return find === undefined
+      ? canonAssessments(nodes, undefined).flatMap((a) => a.findings)
+      : (canonAssessment(nodes, checkId, find)?.findings ?? []);
+  };
+  const kitRecords: readonly Node[] = [
+    {
+      ...method,
+      discriminator: 'distribution',
+      identity: 'fixture/distribution/kit-a-distribution',
+      name: 'kit-a-distribution',
+      source: { ...method.source, path: '.ia/src/systems/kit-a/records/distribution.ia' },
+      sections: [
+        {
+          name: 'distribution',
+          span: { line: 1, endLine: 1 },
+          fields: [
+            {
+              key: 'records',
+              value: {
+                kind: 'list' as const,
+                items: [{ kind: 'ref' as const, discriminator: 'system', name: 'kit-a' }],
+              },
+              span: { line: 1, endLine: 1 },
+            },
+          ],
+        },
+      ],
+    },
+  ];
   const ambiguous: Node = {
     ...law,
     variants: [
@@ -418,6 +476,209 @@ export function runRefusalFixtures(
       },
     ],
     ['IA-COMP-NOT-EVALUATED', () => validateParse(undefined).findings],
+    [
+      'IA-COMP-CANON-WORK-PLACEMENT',
+      () =>
+        canonFixture('CANON-WORK-PLACEMENT', [
+          // A14 applies in a vocabulary system's folder: its @system declares discriminators.
+          {
+            ...method,
+            discriminator: 'system',
+            identity: 'fixture/system/work-system',
+            name: 'work-system',
+            source: { ...method.source, path: '.ia/src/systems/work-system/system.ia' },
+            sections: [
+              {
+                name: 'discriminators',
+                span: { line: 1, endLine: 1 },
+                fields: [
+                  {
+                    key: 'spec',
+                    value: { kind: 'scalar' as const, text: 'lowers to definition' },
+                    span: { line: 1, endLine: 1 },
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            ...method,
+            discriminator: 'spec',
+            identity: 'fixture/spec/offending-spec',
+            name: 'offending-spec',
+            source: { ...method.source, path: '.ia/src/systems/work-system/records/offending-spec.ia' },
+          },
+        ]),
+    ],
+    [
+      'IA-COMP-CANON-KIT-WORDS',
+      () =>
+        canonFixture('CANON-KIT-WORDS', [
+          ...kitRecords,
+          {
+            ...law,
+            identity: 'fixture/law/kit-method',
+            name: 'kit-method',
+            source: { ...law.source, path: '.ia/src/systems/kit-a/records/method.ia' },
+          },
+          {
+            ...method,
+            discriminator: 'system',
+            identity: 'fixture/system/kit-a',
+            name: 'kit-a',
+            source: { ...method.source, path: '.ia/src/systems/kit-a/system.ia' },
+            sections: [
+              {
+                name: 'discriminators',
+                span: { line: 1, endLine: 1 },
+                fields: [
+                  {
+                    key: 'widget',
+                    value: { kind: 'scalar' as const, text: 'lowers to definition' },
+                    span: { line: 1, endLine: 1 },
+                  },
+                ],
+              },
+            ],
+          },
+        ]),
+    ],
+    [
+      'IA-COMP-CANON-KIT-WORKSPACE',
+      () =>
+        canonFixture('CANON-KIT-WORKSPACE', [
+          ...kitRecords,
+          {
+            ...method,
+            discriminator: 'workspace',
+            identity: 'fixture/workspace/kit-workspace',
+            name: 'kit-workspace',
+            // The shipped workspace, in the kit system's folder; the seat `.ia/src/workspace.ia` is never checked.
+            source: { ...method.source, path: '.ia/src/systems/kit-a/records/workspace.ia' },
+            sections: [
+              {
+                name: 'composition',
+                span: { line: 1, endLine: 1 },
+                fields: [
+                  {
+                    key: 'sources',
+                    value: { kind: 'string' as const, text: '.ia/src @authored' },
+                    span: { line: 1, endLine: 1 },
+                  },
+                ],
+              },
+            ],
+          },
+        ]),
+    ],
+    [
+      'IA-COMP-CANON-TEACHING-LINKS',
+      () =>
+        canonFixture('CANON-TEACHING-LINKS', [], () => [
+          {
+            code: 'IA-COMP-CANON-TEACHING-LINKS',
+            path: '.ia/src/doc.md',
+            line: 1,
+            severity: 'warning',
+            message: '.ia/src/doc.md: target outside installed teaching closure: ../../README.md',
+          },
+        ]),
+    ],
+    [
+      'IA-COMP-CANON-SOURCE-ROOTS',
+      () =>
+        canonFixture('CANON-SOURCE-ROOTS', [], () => [
+          {
+            code: 'IA-COMP-CANON-SOURCE-ROOTS',
+            path: 'nested/.ia/src',
+            line: 1,
+            severity: 'warning',
+            message: 'nested/.ia/src: A kit authors one .ia/src; this nested root is neither released nor adopted.',
+          },
+        ]),
+    ],
+    [
+      'IA-COMP-CANON-KIT-SCRIPTS',
+      () =>
+        canonFixture('CANON-KIT-SCRIPTS', [], () => [
+          {
+            code: 'IA-COMP-CANON-KIT-SCRIPTS',
+            path: 'tools/run.mjs',
+            line: 1,
+            severity: 'warning',
+            message: 'tools/run.mjs: A kit holds no scripts; move this file into an executing system or remove it.',
+          },
+        ]),
+    ],
+    [
+      'IA-COMP-CANON-MANDATE-WIDEN',
+      () => {
+        const authority = (moves: string, covers: string) => ({
+          name: 'authority',
+          span: { line: 1, endLine: 1 },
+          fields: [
+            ['moves', moves],
+            ['covers', covers],
+          ].map(([key, text]) => ({
+            key: key!,
+            value: { kind: 'list' as const, items: [{ kind: 'scalar' as const, text: text! }] },
+            span: { line: 1, endLine: 1 },
+          })),
+        });
+        const parent: Node = {
+          ...mandate,
+          identity: 'fixture/mandate/parent-mandate',
+          name: 'parent-mandate',
+          edges: [],
+          sections: [authority('Observation', '.ia/src/')],
+        };
+        return canonFixture('CANON-MANDATE-NARROW', [
+          parent,
+          {
+            ...mandate,
+            identity: 'fixture/mandate/child-mandate',
+            name: 'child-mandate',
+            edges: [
+              { ...law.edges[0]!, predicate: 'cite', direction: 'out' as const, target: parent.identity },
+            ] as Node['edges'],
+            sections: [authority('Execution', 'docs/')],
+          },
+        ]);
+      },
+    ],
+    [
+      'IA-COMP-CANON-LOCAL-TIGHTEN',
+      () => {
+        const subject = (word: string) => ({
+          name: 'subject',
+          span: { line: 1, endLine: 1 },
+          fields: [
+            { key: 'subject-word', value: { kind: 'scalar' as const, text: word }, span: { line: 1, endLine: 1 } },
+          ],
+        });
+        // The local law cites the canon law but governs another word: E4 judges only a rule that cites canon.
+        return canonFixture('CANON-LOCAL-TIGHTEN', [
+          {
+            ...law,
+            identity: 'fixture/law/widget-canon',
+            name: 'widget-canon',
+            edges: [],
+            source: { ...law.source, path: '.ia/src/systems/governance-system/records/canon/widget.ia' },
+            sections: [subject('widget')],
+          },
+          {
+            ...law,
+            identity: 'fixture/law/gadget-local',
+            name: 'gadget-local',
+            edges: [
+              { ...law.edges[0]!, predicate: 'cite', direction: 'out' as const, target: 'fixture/law/widget-canon' },
+            ] as Node['edges'],
+            source: { ...law.source, path: '.ia/src/records/gadget-local.ia' },
+            sections: [subject('gadget')],
+          },
+        ]);
+      },
+    ],
     [
       'IA-COMP-FIXTURE-MISMATCH',
       () =>

@@ -11,7 +11,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { open, readInputs } from '@inventarch/db';
+import { open, readInputs, refusesInstallation } from '@inventarch/db';
 import {
   canonicalDistributionJson as json,
   decodeActivationPointer,
@@ -371,7 +371,7 @@ export function applyInstallation(
     }
     const reader = open(root, { cache: false, candidateInstallation: plan.pointer });
     try {
-      if (reader.report.findings.some((f) => f.severity === 'error'))
+      if (reader.report.findings.some(refusesInstallation))
         fail('ADMISSION-FAILED', 'Staged installation failed native admission');
     } finally {
       reader.close();

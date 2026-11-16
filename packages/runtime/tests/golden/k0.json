@@ -25,6 +25,7 @@
     }
   ],
   "rules": [],
+  "omittedRules": [],
   "pointers": [
     {
       "identity": "floor/definition/system/agent-system",

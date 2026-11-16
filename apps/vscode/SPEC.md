@@ -1,3 +1,3 @@
 # inventarch-ia
 
-Public language mechanism. The [language reference](LANGUAGE.md) defines vocabulary and evaluation limits. Package exports describe the installed API. Curated agent methods and hosted services are supplied independently.
+Public language mechanism. The [language reference](LANGUAGE.md) defines vocabulary and evaluation limits. Package exports describe the installed API. Curated agent methods and hosted services are [supplied independently](../../docs/reference/hosted-service/README.md).

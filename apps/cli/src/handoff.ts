@@ -215,8 +215,9 @@ export function runnableCopy(
 
 /**
  * The workspace's installed copy when it is not this one, or `null`. Bare `ia`, `--user`, an extension's commands and
- * `doctor --host` always answer here, as does a malformed IA home (`iaHome` undefined), which this copy refuses. As in
- * dispatch (consumer.ts), an extension never takes a core token: such a token is the core command's, and hands off.
+ * `doctor --host` and `workspaces` (user state: it opens no workspace) always answer here, as does a malformed IA
+ * home (`iaHome` undefined), which this copy refuses. As in dispatch (consumer.ts), an extension never takes a core
+ * token: such a token is the core command's, and hands off.
  */
 export function handoffTarget(input: {
   readonly argv: readonly string[];
@@ -235,6 +236,7 @@ export function handoffTarget(input: {
   if ((env[HANDOFF_FROM] ?? '') !== '' || input.iaHome === undefined) return null;
   const tokens = options(argv);
   if (tokens.includes('--user')) return null;
+  if (command === 'workspaces') return null;
   if (command === 'doctor' && tokens.some((token) => token === '--host' || token.startsWith('--host='))) return null;
   const root = rootFromArgv(argv, input.cwd, input.iaHome);
   const local =

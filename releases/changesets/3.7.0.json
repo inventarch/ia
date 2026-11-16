@@ -1,0 +1,1165 @@
+{
+  "format": "ia.npm-changeset.v1",
+  "version": "3.7.0",
+  "state": "consumed",
+  "baseline": {
+    "commit": "ec5dec6d8b37ff15e0e5d2fa625d8de4b2838cc2",
+    "version": "3.6.0"
+  },
+  "bump": "minor",
+  "summary": "Coordinated 3.7.0 release of the 24 public npm packages: Honor exact shared authored-root ownership in CLI edits; IA canon (warning); Runner byte budget test measures its journal.",
+  "packages": {
+    "@inventarch/agent-composition-system": {
+      "previous": "3.6.0",
+      "kind": "changed",
+      "summary": "IA canon (warning)."
+    },
+    "@inventarch/agent-system": {
+      "previous": "3.6.0",
+      "kind": "changed",
+      "summary": "IA canon (warning)."
+    },
+    "@inventarch/authoring-system": {
+      "previous": "3.6.0",
+      "kind": "changed",
+      "summary": "IA canon (warning)."
+    },
+    "@inventarch/cli": {
+      "previous": "3.6.0",
+      "kind": "changed",
+      "summary": "Honor exact shared authored-root ownership in CLI edits. IA canon (warning)."
+    },
+    "@inventarch/compliance": {
+      "previous": "3.6.0",
+      "kind": "changed",
+      "summary": "IA canon (warning)."
+    },
+    "@inventarch/compliance-system": {
+      "previous": "3.6.0",
+      "kind": "changed",
+      "summary": "IA canon (warning)."
+    },
+    "@inventarch/db": {
+      "previous": "3.6.0",
+      "kind": "changed",
+      "summary": "IA canon (warning)."
+    },
+    "@inventarch/distribution": {
+      "previous": "3.6.0",
+      "kind": "changed",
+      "summary": "IA canon (warning)."
+    },
+    "@inventarch/governance-system": {
+      "previous": "3.6.0",
+      "kind": "changed",
+      "summary": "IA canon (warning)."
+    },
+    "@inventarch/graph": {
+      "previous": "3.6.0",
+      "kind": "changed",
+      "summary": "IA canon (warning)."
+    },
+    "@inventarch/hook-authoring-system": {
+      "previous": "3.6.0",
+      "kind": "changed",
+      "summary": "IA canon (warning)."
+    },
+    "@inventarch/kb": {
+      "previous": "3.6.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/language": {
+      "previous": "3.6.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/learning-system": {
+      "previous": "3.6.0",
+      "kind": "changed",
+      "summary": "IA canon (warning)."
+    },
+    "@inventarch/mcp-door": {
+      "previous": "3.6.0",
+      "kind": "changed",
+      "summary": "IA canon (warning)."
+    },
+    "@inventarch/runner": {
+      "previous": "3.6.0",
+      "kind": "changed",
+      "summary": "Runner byte budget test measures its journal."
+    },
+    "@inventarch/runtime": {
+      "previous": "3.6.0",
+      "kind": "changed",
+      "summary": "IA canon (warning)."
+    },
+    "@inventarch/service-contracts": {
+      "previous": "3.6.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/session-system": {
+      "previous": "3.6.0",
+      "kind": "changed",
+      "summary": "IA canon (warning)."
+    },
+    "@inventarch/steward-hook": {
+      "previous": "3.6.0",
+      "kind": "changed",
+      "summary": "IA canon (warning)."
+    },
+    "@inventarch/template-system": {
+      "previous": "3.6.0",
+      "kind": "changed",
+      "summary": "IA canon (warning)."
+    },
+    "@inventarch/work-system": {
+      "previous": "3.6.0",
+      "kind": "changed",
+      "summary": "IA canon (warning)."
+    },
+    "@inventarch/workspace-runtime": {
+      "previous": "3.6.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/workspace-system": {
+      "previous": "3.6.0",
+      "kind": "changed",
+      "summary": "IA canon (warning)."
+    }
+  },
+  "changes": [
+    {
+      "id": "honor-shared-authored-root-ownership-in-cli-edit",
+      "title": "Honor exact shared authored-root ownership in CLI edits",
+      "summary": "Preview and author match root containment and shared ownership using exact native declaration spelling on every platform. Differently cased foreign roots cannot borrow the repository workspace authored placement; foreign child roots, adopted placement and mandate checks remain protected.",
+      "packages": [
+        "@inventarch/cli"
+      ],
+      "paths": [
+        ".ia/src/records/shared-root-authoring.ia",
+        "apps/cli/"
+      ]
+    },
+    {
+      "id": "ia-canon-warning",
+      "title": "IA canon (warning)",
+      "summary": "The canon laws A6, C4, C5a, C12, E4, E5 and A14 now report their findings as warnings in `ia validate` and `ia preview`; nothing blocks yet. The language base moves to 3.2.1, so a door or runtime from this release refuses a kit locked on 3.2.0 until the kit is re-recorded on 3.2.1.",
+      "packages": [
+        "@inventarch/agent-composition-system",
+        "@inventarch/agent-system",
+        "@inventarch/authoring-system",
+        "@inventarch/cli",
+        "@inventarch/compliance",
+        "@inventarch/compliance-system",
+        "@inventarch/db",
+        "@inventarch/distribution",
+        "@inventarch/governance-system",
+        "@inventarch/graph",
+        "@inventarch/hook-authoring-system",
+        "@inventarch/learning-system",
+        "@inventarch/mcp-door",
+        "@inventarch/runtime",
+        "@inventarch/session-system",
+        "@inventarch/steward-hook",
+        "@inventarch/template-system",
+        "@inventarch/work-system",
+        "@inventarch/workspace-system"
+      ],
+      "paths": [
+        ".ia/authoring.resources.json",
+        ".ia/src/records/canon-interim.ia",
+        ".ia/src/records/stewardship.ia",
+        ".ia/src/systems/agent-composition-system/",
+        ".ia/src/systems/agent-system/",
+        ".ia/src/systems/authoring-system/",
+        ".ia/src/systems/compliance-system/",
+        ".ia/src/systems/governance-system/",
+        ".ia/src/systems/hook-authoring-system/",
+        ".ia/src/systems/learning-system/",
+        ".ia/src/systems/session-system/",
+        ".ia/src/systems/template-system/",
+        ".ia/src/systems/work-system/",
+        ".ia/src/systems/workspace-system/",
+        ".ia/src/workspace.ia",
+        "CLAUDE.md",
+        "apps/cli/",
+        "apps/distribution/",
+        "apps/mcp-door/",
+        "apps/steward-hook/",
+        "apps/vscode/SPEC.md",
+        "docs/",
+        "examples/",
+        "packages/compliance/",
+        "packages/db/",
+        "packages/graph/",
+        "packages/runtime/",
+        "tools/"
+      ]
+    },
+    {
+      "id": "runner-byte-budget-test",
+      "title": "Runner byte budget test measures its journal",
+      "summary": "The path byte budget test measures the journal a run retains before its first read instead of assuming it fits in 64 KiB; no consumer-facing change.",
+      "packages": [
+        "@inventarch/runner"
+      ],
+      "paths": [
+        ".ia/authoring.resources.json",
+        ".ia/src/records/canon-interim.ia",
+        ".ia/src/records/stewardship.ia",
+        ".ia/src/workspace.ia",
+        "CLAUDE.md",
+        "apps/runner/",
+        "apps/vscode/SPEC.md",
+        "docs/",
+        "examples/",
+        "tools/"
+      ]
+    },
+    {
+      "id": "cohort-alignment",
+      "title": "Coordinated version alignment",
+      "summary": "Package version metadata follows the coordinated 3.7.0 release; each native artifact version follows its own archive content.",
+      "packages": [
+        "@inventarch/kb",
+        "@inventarch/language",
+        "@inventarch/service-contracts",
+        "@inventarch/workspace-runtime"
+      ],
+      "paths": [
+        "packages/kb/package.json",
+        "packages/language/package.json",
+        "packages/service-contracts/package.json",
+        "packages/workspace-runtime/package.json"
+      ]
+    },
+    {
+      "id": "repository-maintenance",
+      "title": "Repository maintenance",
+      "summary": "Tooling, workflow, documentation and release bookkeeping outside the published package contents.",
+      "packages": [],
+      "internal": true,
+      "paths": [
+        ".github/",
+        "apps/vscode/THIRD_PARTY_NOTICES.txt",
+        "apps/vscode/package.json",
+        "releases/"
+      ]
+    }
+  ],
+  "coverage": [
+    {
+      "path": ".github/CODEOWNERS",
+      "sha256": "3633421d9e4f353cbe2c12d7c02a6750c6af26e58e7759092309fe837ee0d23c",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": ".github/workflows/platform-quality.yml",
+      "sha256": "efb2fbc77f7c62ec89ba9eab8bae6c239f0d3b32be9da7fe151679a4ace8f225",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": ".ia/authoring.resources.json",
+      "sha256": "0a9e4167191ee0b750dcf1fa1135bbccc2d0db21ae7fc97418d5bb27b182c955",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/records/canon-interim.ia",
+      "sha256": "647c1784a0bf7f0372a9e8402ffd859241e6c3071eac6ba6c33ba0cc55a53bcb",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/records/shared-root-authoring.ia",
+      "sha256": "5043784548c4a35e194c8b60b9324f9bc0edc83ca8818e773476d85bc149670a",
+      "change": "honor-shared-authored-root-ownership-in-cli-edit"
+    },
+    {
+      "path": ".ia/src/records/stewardship.ia",
+      "sha256": "649e4daf6fa0e94b99d46d985e9732faf2bb2b24ae2bd2d2e55c4d69f4604135",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/SPEC.md",
+      "sha256": "7444e91c671c031f7c3c9c38f00f30bd7b77c732e4c3c90d34c4e76930b0ff5c",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/package.json",
+      "sha256": "6cb74b3915c22c3e21e41eabd296d258fb1735efcebc993f8b3b08c8000d35dc",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/system.ia",
+      "sha256": "c1a9105d3e468fa9464574b1ec39899fc0950e4daf9bdebb8dac37a661cbe784",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/SPEC.md",
+      "sha256": "f3824a7ecf945a9cd355eae50d024e21b2f186e85f341a91de9e94cb28c36ab2",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/package.json",
+      "sha256": "dd9ef44f421fb134401661455be8d39444f18117732b705880d1dfc0a4163fd5",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/system.ia",
+      "sha256": "66f234c43ffe665dbeedfcbb4ac219078d0ec46e3c2c241abddb68075d2e8ab0",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/SPEC.md",
+      "sha256": "77fd8600990ce719385b774750dcb9124833249274bea790c044f80f22c89603",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/package.json",
+      "sha256": "86265228da514b8d557d45e363936f85c0f10211154ed52ddfe04ec8aed7ee8f",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/system.ia",
+      "sha256": "ce7138ca21d624bb583a79960c30a1f78763766f1ceaabac127006337a68c3c5",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/compliance-system/SPEC.md",
+      "sha256": "8580cd43a1dff856e1e156f74963bedb2c68f7613ae6d7c97fdb20fae495f8c0",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/compliance-system/package.json",
+      "sha256": "55aca3da0d52360de504bd73f721332e78fe454f932095f31aaa8b8e13abc303",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/compliance-system/system.ia",
+      "sha256": "3290155340736cb5bd58b37e1248dd4dae5893138a73d0a9c6619cbbdbe79be2",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/SPEC.md",
+      "sha256": "7965eb89c90362667eca45ef3dce63fd530a30a6a8eb2396cfecba917adda354",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/package.json",
+      "sha256": "de799e95b377f0bb80dfb285d108806a2ba72ef92dec5367912053c9bce8ab96",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/records/canon/asking.ia",
+      "sha256": "19694a744bcaecd9633599ac1b55c67bd1af45c769c80f2d2e39da846d4297ed",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/records/canon/boundary.ia",
+      "sha256": "f25034fc25d266d85605db08353484be24f2bc00f2a644accc001228fb287c23",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/records/canon/compliance.ia",
+      "sha256": "331a2efe1c07b137ed468ed4db7445d465e1693f6575960d1d997cfa9b810347",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/records/canon/laws.ia",
+      "sha256": "fdfa7d6a60d8ed0e366d66ac4a0da0607743ff533b519664ab48259cb24de21a",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/records/canon/principles.ia",
+      "sha256": "db0584c590661767fc38a0cd55b6359e146f50c7b1d8c9cbf482b9fe48ee8dfd",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/records/canon/sources.ia",
+      "sha256": "f57f94b6ae5a9fd1859204b5df50b159b09e7143bb8991da4e104b5ffe214cbd",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/records/canon/stewardship.ia",
+      "sha256": "4cf25316bc6a01e673bae1b05c9a90dfd52028a3afe11450d84c3614948dc2fb",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/records/canon/storage.ia",
+      "sha256": "07f29258184ec3bf0b363d6189575b124872a09d206f31c7436c0ec99499a1a7",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/records/canon/systems.ia",
+      "sha256": "11c5642ac7e9a6fa196b47f3ec64e068e8313454999da96411d8a58dc404a500",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/system.ia",
+      "sha256": "53c04221dc9fbd2c383ea966d149c04ec9a497af6712e9519fffc3bd0c36d1de",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/hook-authoring-system/SPEC.md",
+      "sha256": "597640038646032f948ae6ea3d2f5863b81b53c4d48b3866e99ccf8b9a33a805",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/hook-authoring-system/package.json",
+      "sha256": "c8e27c287a705ca389569231133462a44f15f33b9aede4f7e1a78ca636e3649a",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/hook-authoring-system/system.ia",
+      "sha256": "096ad09b3e5d9c4a3aca806caae2ae622fe576386542c96cf6e21e817c6e908e",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/learning-system/SPEC.md",
+      "sha256": "bd41344ed57407ea2ef0862090b0d3721d900d115c03e0d99460f21ea67ee09f",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/learning-system/package.json",
+      "sha256": "27b84f8e11109a33a73fbdad4d05de0a48aea3a9efdc66f1518e30655da39afd",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/learning-system/system.ia",
+      "sha256": "4314b4a899246d03fa132d488e6101fb778d3593c6f026cb3c60dd1b835efd48",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/session-system/SPEC.md",
+      "sha256": "e3460acf9934a9097522f5074a422956365f3959794ae0b553ba2818c7978181",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/session-system/package.json",
+      "sha256": "eb4726060a51529758e70d2db2b2097f6c46e3240455c46ab9e10c68d64d5784",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/session-system/system.ia",
+      "sha256": "c39fb3d9d57e1e60f48eb483f5b0f28c4c3a7af55d4ed5072cab3ab0eef3907a",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/template-system/SPEC.md",
+      "sha256": "1da8c02c7e5e166417ab87633de57a29553455997c400f35293348258b3950b5",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/template-system/package.json",
+      "sha256": "d030fa371c2da465f4e30812cf9baa59313495933aafe090f2036a8d1ee10f52",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/template-system/system.ia",
+      "sha256": "5792cbd0ec3011716e7d426b8921a45b2a41370285c2397208b553f002a50583",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/work-system/SPEC.md",
+      "sha256": "cd75b2e1279d98979b4c432142cd9b10f47e00ec41c436e541811a1a2aa01498",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/work-system/package.json",
+      "sha256": "a25f7a938f866fe1a88f139516e114d87368ce57a51d8d3cc389c503aa77eee9",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/work-system/records/canon/compliance.ia",
+      "sha256": "f56c9e9b4b95eaac02be05a1d771080673adbe288b3ffa61c1ff35082ad839db",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/work-system/records/canon/laws.ia",
+      "sha256": "fd7afb467058d0c5287afee4741b8167e6ef326d7d79a119df189d3cd6b046e8",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/work-system/system.ia",
+      "sha256": "5ca9ed40ae0e500603db725fef1835873485827d8c142741ff4e48c67ddcc4d8",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/workspace-system/SPEC.md",
+      "sha256": "3d72d36705d5eaf5ac1b17c8ba3e79fdcac0c0503df14628fa59ddee5cf37b09",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/workspace-system/package.json",
+      "sha256": "cdece4853e5970d9071b51f5e4e7afa303eb926d9e5d598063b1361ff6a4a317",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/systems/workspace-system/system.ia",
+      "sha256": "44e593916afb9a80e567be953cf18e9df3432e90326cde26bded0fbd73bcd2ca",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": ".ia/src/workspace.ia",
+      "sha256": "8df1b1d61f58cb3ad72989c4743b32a1694f73f90275f4544138eb66f3697010",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "CLAUDE.md",
+      "sha256": "7384bc4fcfcddb229c1a2d472db481c66e32471cf4d497323050ff8992d6929c",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "apps/cli/SHARED-ROOT-REVIEW.md",
+      "sha256": "69c7fb8154a60f36e5c249bd609d5b824c81ee31417c08567876fe4f37f069fd",
+      "change": "honor-shared-authored-root-ownership-in-cli-edit"
+    },
+    {
+      "path": "apps/cli/SPEC.md",
+      "sha256": "e4ab0f69e07cc9557f6fc6ac18dc6c374c0c1bef05231223c37b14f0a1fd2f43",
+      "change": "honor-shared-authored-root-ownership-in-cli-edit"
+    },
+    {
+      "path": "apps/cli/assets/vocabulary.json",
+      "sha256": "d2bd3a8dd8358ae026b49d81c483bb3b0f3dd49a85518c84d9ceaaa43e16ef92",
+      "change": "honor-shared-authored-root-ownership-in-cli-edit"
+    },
+    {
+      "path": "apps/cli/package.json",
+      "sha256": "07ba17b512aee7f28a59a1eb39d7b76bac9afe1462849ef280460f37067f812d",
+      "cohortOnly": true,
+      "change": "honor-shared-authored-root-ownership-in-cli-edit"
+    },
+    {
+      "path": "apps/cli/src/init.ts",
+      "sha256": "8b0db2f268c08957740e443913dd3793f3f935b06d2d3ae1eeae54a755864f1e",
+      "change": "honor-shared-authored-root-ownership-in-cli-edit"
+    },
+    {
+      "path": "apps/cli/src/preview.ts",
+      "sha256": "c24417c08e32b9af55dde51f50e242d1819c5bfeaa86fa273e2b099ef947a884",
+      "change": "honor-shared-authored-root-ownership-in-cli-edit"
+    },
+    {
+      "path": "apps/cli/src/validate.ts",
+      "sha256": "29a8c3ee0c554ca9b9c5f7d3d486772c215c0c9ba75e25b92664bbc8dbe401d6",
+      "change": "honor-shared-authored-root-ownership-in-cli-edit"
+    },
+    {
+      "path": "apps/cli/src/workspace-state.ts",
+      "sha256": "855ddfe0e6cbcfb3bd2fdab5ddc0ad02260a3fb2b17cdc7dfa49f28cec1264dc",
+      "change": "honor-shared-authored-root-ownership-in-cli-edit"
+    },
+    {
+      "path": "apps/cli/tests/adopt.test.ts",
+      "sha256": "a0c86b5e2254156d728eb9817587c5f60fc5361dcc0802c539a5d94420514d79",
+      "change": "honor-shared-authored-root-ownership-in-cli-edit"
+    },
+    {
+      "path": "apps/cli/tests/consumer.test.ts",
+      "sha256": "5692092cba8af447f528465beee22f72d540d06ed5a2e9709808dffabf2c8248",
+      "change": "honor-shared-authored-root-ownership-in-cli-edit"
+    },
+    {
+      "path": "apps/cli/tests/equivalence.test.ts",
+      "sha256": "ab62d406733bf894b18c2c6b5d9c37e8ed128aa0ec088fef99e80a0470397c9f",
+      "change": "honor-shared-authored-root-ownership-in-cli-edit"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/composition-workspace/.ia/release.json",
+      "sha256": "97ee1726f34992d2dd6e757df93fd85deb34b80759cde423bfc61a0b5ee44c6f",
+      "cohortOnly": true,
+      "change": "honor-shared-authored-root-ownership-in-cli-edit"
+    },
+    {
+      "path": "apps/cli/tests/init-migrate.test.ts",
+      "sha256": "f040d33afd439e50dbc4f5b8428f0e647505c961c88d2f66aef44c6fa4d3779e",
+      "change": "honor-shared-authored-root-ownership-in-cli-edit"
+    },
+    {
+      "path": "apps/cli/tests/next.test.ts",
+      "sha256": "73ce83caee4c2bfdbaba06884081d9b789ccb5ab8d85d94f0443839520fd9bb4",
+      "change": "honor-shared-authored-root-ownership-in-cli-edit"
+    },
+    {
+      "path": "apps/cli/tests/preview.test.ts",
+      "sha256": "915d54af87c75a25703a094f308411dfc74a792125717b8d0f3429298593c555",
+      "change": "honor-shared-authored-root-ownership-in-cli-edit"
+    },
+    {
+      "path": "apps/cli/tests/validate-checks.test.ts",
+      "sha256": "ce41b8a617188543682a3f49e2be7e29bb572353f84714b03232e9537abb7a73",
+      "change": "honor-shared-authored-root-ownership-in-cli-edit"
+    },
+    {
+      "path": "apps/cli/tests/validate-laws.test.ts",
+      "sha256": "9619c304626f0d8a804482d1c1435fdec587a2eefb175d36e2d903c2831ee212",
+      "change": "honor-shared-authored-root-ownership-in-cli-edit"
+    },
+    {
+      "path": "apps/distribution/SPEC.md",
+      "sha256": "34ef43e259622955628247738b71c29a1f70c509903083f256b2f7d457a05f28",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "apps/distribution/package.json",
+      "sha256": "6d373e1ab84570146569a87d5bef55039897bfa892e8a1755fc12f14b87a04dd",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "apps/distribution/src/adoption.ts",
+      "sha256": "584b3af0be373d7912f5bcab324dd16f48d8194275a1d1ea9e215ecf9d63b0d7",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "apps/distribution/src/authoring-assets.ts",
+      "sha256": "0773cd8c8f349d5164403817dd18d0c2fd0acb9bfc1d4e53fea3150dcc041b09",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "apps/distribution/src/command.ts",
+      "sha256": "11cf826b5e55aa9b0381f67cc4b8a5426bf59b55b98cefa661e4253385d501d7",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "apps/distribution/src/install.ts",
+      "sha256": "78f233c7f869336da383ad857ae867708679c93bbb058a78e30e1ae30e9264de",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "apps/distribution/src/installation-core.ts",
+      "sha256": "ae7efebdad9dce6bbab8c3dda16b846435d7ab9548f27d09f4460fdcf2ae80b8",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "apps/distribution/src/services.ts",
+      "sha256": "d1f0b0f35527d1a843feb9bc98e611c47b580f2a3eda161e7dd8fb9748c75222",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "apps/distribution/tests/authoring-assets.test.ts",
+      "sha256": "fdfeb7ee6c118c837066a1423850b3f9433e6e6c9a7e0ae4bacaf5edeabd924b",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "apps/distribution/tests/installation-core.test.ts",
+      "sha256": "b76cfeed7ce9d66e555f094e717fe97974d83fc4acfb2e4eda9159eb65459c17",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "apps/mcp-door/SPEC.md",
+      "sha256": "650f4b7f31f990762b94bfb36156e2d01ea9095726294575c6364e6c498c22a8",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "apps/mcp-door/assets/vocabulary.json",
+      "sha256": "d2bd3a8dd8358ae026b49d81c483bb3b0f3dd49a85518c84d9ceaaa43e16ef92",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "apps/mcp-door/package.json",
+      "sha256": "c1b13bddebc16137ef159302abac894933e6c9851c6f61766310801edfc5de3c",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "apps/mcp-door/tests/fixtures/method/PROVENANCE.json",
+      "sha256": "d6e6bab404f566eb676887adc8de0e0dd1e77eefef65a22837bd66898f3f9c33",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "apps/mcp-door/tests/fixtures/method/generate.mjs",
+      "sha256": "e5f4962f1dd26254b44a359cd91f264c4fd7a974092365487928546f14e74e93",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "apps/mcp-door/tests/fixtures/method/golden-check.json",
+      "sha256": "f0e3bc5e7e0d08a316ced296b3124318d7edb65522b88893cb896d854f871ead",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "apps/mcp-door/tests/fixtures/method/golden-find.json",
+      "sha256": "a0bac1c061e2fa86b40b72e22260e185bd942b2915739fa0830af58f2b6ab901",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "apps/mcp-door/tests/fixtures/method/golden-pin.json",
+      "sha256": "2bc9999dabc84e1ecea008e41ca3ed79f3cd246ba372ec0f2f556214702e104d",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "apps/mcp-door/tests/kit-base.ts",
+      "sha256": "8d055e59e24ad0b2d7bf8409bbb11e32a7c14f481f346f9a3ecb4f7e96b66314",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "apps/mcp-door/tests/kits-package.test.ts",
+      "sha256": "fbbfb4f72d2a2b7bb6cfe5f26d5a90c6a0d7c5ee29c8d4a2ec20b66b2bfcd817",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "apps/mcp-door/tests/method.test.ts",
+      "sha256": "24096f38f53de411793e4e1d57bbd432b138409459aa9908cdc08a86279d3c51",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "apps/runner/package.json",
+      "sha256": "b79bacb797461e54be015e613d0d3a95f44eeb613eaf3ab59a1066474f83b594",
+      "cohortOnly": true,
+      "change": "runner-byte-budget-test"
+    },
+    {
+      "path": "apps/runner/tests/runner.test.ts",
+      "sha256": "2511cfc07fbf431eed2afcc08f249a92b94cd585400699b4ab5f6cf2e3df2c25",
+      "change": "runner-byte-budget-test"
+    },
+    {
+      "path": "apps/steward-hook/SPEC.md",
+      "sha256": "bda6ad52de73772d4c829ac2463dba456a781da04070fad635cc577dbaabe74c",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "apps/steward-hook/package.json",
+      "sha256": "50c9cd8b15038c00c26b17086aebfab74c76900365f80013206259b82ed97882",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "apps/vscode/SPEC.md",
+      "sha256": "9229160c475494da50a63ea301ade92ef8b04c8ef88a32fbe37d36d5322922e0",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "apps/vscode/THIRD_PARTY_NOTICES.txt",
+      "sha256": "66dc737d2d345437a39b9dd66f4c5eacc62be4671cd69cdac1b06a2d043f5029",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "apps/vscode/package.json",
+      "sha256": "81cdef566f830c6b57bfa5ebadb70faa0d05708653b0c06dba7e613a4e18a4ea",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "docs/catalog.json",
+      "sha256": "969d80d9a43e7034242475e1f03734f74440d57ef84eb3b4904ff04d78e595a3",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "docs/documentation.json",
+      "sha256": "54cd145ce37402f9d61dbc4dcea44916126411ce8e64d6d6d23a79d78ff91166",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "docs/reference/architecture/README.md",
+      "sha256": "1677484f16a08ee9371132479589185fe19fe40e6c65d46eb32d4d9eeae7f555",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "docs/reference/hosted-service/README.md",
+      "sha256": "370467af51bb9e924b3cb8fb5acbc4db689ecd87ff38ca7d2fbbcf3d0efd797d",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "docs/reference/language/README.md",
+      "sha256": "454cea98b4802b2c4d04b9b420a7b500d794d12f2104031f41f49c049737b444",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "docs/reference/language/vocabulary.json",
+      "sha256": "d2bd3a8dd8358ae026b49d81c483bb3b0f3dd49a85518c84d9ceaaa43e16ef92",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "docs/reference/language/vocabulary.md",
+      "sha256": "cd8bd05462f65aff5bacbc15b50962f97d23875a0057d19198b29d03a0f07b04",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "docs/specs/README.md",
+      "sha256": "c9d0147e78dfb71a43e7c28f1406212b2893e525e4f882c2cb3cffeb393d8fd9",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "docs/specs/host-registration/README.md",
+      "sha256": "54a362aac4986f3563e1f25f7dc593ff1d734fb41a4bec8befc0c968a97fe300",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "docs/specs/kit-runtime/README.md",
+      "sha256": "717c0c6864b4427e0d260130b75ddb6c1563d49fcb1ee0e53be5bd463683c091",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "examples/public-language/contracts/agent-composition-system.ia",
+      "sha256": "c1a9105d3e468fa9464574b1ec39899fc0950e4daf9bdebb8dac37a661cbe784",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "examples/public-language/contracts/agent-system.ia",
+      "sha256": "66f234c43ffe665dbeedfcbb4ac219078d0ec46e3c2c241abddb68075d2e8ab0",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "examples/public-language/contracts/authoring-system.ia",
+      "sha256": "ce7138ca21d624bb583a79960c30a1f78763766f1ceaabac127006337a68c3c5",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "examples/public-language/contracts/compliance-system.ia",
+      "sha256": "3290155340736cb5bd58b37e1248dd4dae5893138a73d0a9c6619cbbdbe79be2",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "examples/public-language/contracts/governance-system.ia",
+      "sha256": "53c04221dc9fbd2c383ea966d149c04ec9a497af6712e9519fffc3bd0c36d1de",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "examples/public-language/contracts/hook-authoring-system.ia",
+      "sha256": "096ad09b3e5d9c4a3aca806caae2ae622fe576386542c96cf6e21e817c6e908e",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "examples/public-language/contracts/learning-system.ia",
+      "sha256": "4314b4a899246d03fa132d488e6101fb778d3593c6f026cb3c60dd1b835efd48",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "examples/public-language/contracts/session-system.ia",
+      "sha256": "c39fb3d9d57e1e60f48eb483f5b0f28c4c3a7af55d4ed5072cab3ab0eef3907a",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "examples/public-language/contracts/template-system.ia",
+      "sha256": "5792cbd0ec3011716e7d426b8921a45b2a41370285c2397208b553f002a50583",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "examples/public-language/contracts/work-system.ia",
+      "sha256": "5ca9ed40ae0e500603db725fef1835873485827d8c142741ff4e48c67ddcc4d8",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "examples/public-language/contracts/workspace-system.ia",
+      "sha256": "44e593916afb9a80e567be953cf18e9df3432e90326cde26bded0fbd73bcd2ca",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "examples/public-language/versions.json",
+      "sha256": "5f9a0ff4769615270b60beb56174172cdb9480a87a03fedb06a028171f8cd156",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "packages/compliance/SPEC.md",
+      "sha256": "aa56b3a28ebed1d9fb4c5e070c9c5d2479756bc7e30d46ecee26fce9b669acd9",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "packages/compliance/package.json",
+      "sha256": "8699a6a7ee00808794f921ccdad32da2b099ed24245b1a8c1ced3eeaacb0faed",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "packages/compliance/src/canon/laws.ts",
+      "sha256": "fc9f9f914a6309fb541ba17cccda8eab747ed9dc0c6858e300da2b4813f8e010",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "packages/compliance/src/canon/rules.ts",
+      "sha256": "3e7b2a2f6c211bab366e679b3085d52b5e12bd6209968fa757483be218104cb8",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "packages/compliance/src/check-ids.ts",
+      "sha256": "f4eca344e2156bf57759745ec46ce25e0e0c2ba6eb75da373b751494003ec316",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "packages/compliance/src/conformance/inventory.generated.ts",
+      "sha256": "c9a7ec14bf5bf731dc5d71a3ebe044ae243ae3538216c09a8c2c79c303ac6fa5",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "packages/compliance/src/conformance/refusals.ts",
+      "sha256": "4fd83ba5091f62406dd707bcace3be29e2e7f593978244e5390ec327a544a34a",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "packages/compliance/src/index.ts",
+      "sha256": "5c0039d7c86548beba24c2122f8da4f9dcc6ab5a908af912b82cdd848cfeee8c",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "packages/compliance/src/report.ts",
+      "sha256": "7f9dce9d357bd6216faccccc9475db1e72c2db06c30522f2975bc81cfeb211fe",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "packages/compliance/src/types.ts",
+      "sha256": "8c25ce3ba16c28f1faaa2c32df12c7461aa1de36fe09aed06436a8f3254bdd7a",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "packages/compliance/tests/canon-corpus.test.ts",
+      "sha256": "21854be11d58119cfbc1cf2edf2a3d1b7dbe3097b683afd17132ab384bc1b073",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "packages/compliance/tests/canon-laws.test.ts",
+      "sha256": "1fc8e70300233e0838abe6e3deab3a4793ac9954a7a39f37be23ae3d0bedc27f",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "packages/compliance/tests/canon-rules.test.ts",
+      "sha256": "f7cf568678b160d1c17bacec742c758780afa46a9aec693565edbf1b24e2187a",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "packages/db/package.json",
+      "sha256": "2bdfbefb67cf747b13d7e9b3b84f0e1ebd030d6c045ef2dfcdd296494a554710",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "packages/db/src/canon/files.ts",
+      "sha256": "fce1f14c379814a3ad52b30ce3b9246e9ec4d1486ecc39c6871e435aaacaf368",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "packages/db/src/canon/links.ts",
+      "sha256": "764b7ddcd23a4db33fbd3c49970a71af53bceb5b48d4926a163e765653512382",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "packages/db/src/handle.ts",
+      "sha256": "d9be699f18e0cd307f64eb2d7d7044d5c82a1d91bb22e8acd6f41d760261a025",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "packages/db/src/index.ts",
+      "sha256": "0ba92036822adeb950f82d001df225c5229a888f7c5ea341451bea0045f691f0",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "packages/db/src/view.ts",
+      "sha256": "e34007561800ca80ca17bd55ef6080a53ba757292ae409e9e325de3ec9fefb36",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "packages/db/tests/canon-files.test.ts",
+      "sha256": "05e125e1eb6dfa4908f64b9780fb5f847c66814658262440018a3f8799e49a7c",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "packages/db/tests/canon-linear.test.ts",
+      "sha256": "ef18ca72595fffb52c4f3df1c77953001a352d0fd18cece56db9ff4f3851ea88",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "packages/graph/README.md",
+      "sha256": "8c03e7e6d7dd77ef538af930f3e07f408305d6154fa98035efe491e71131ee33",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "packages/graph/SPEC.md",
+      "sha256": "b434ce4cf836e301a8b1a506396b3d22bdd4caf22ffb189d7551422c43ccd91d",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "packages/graph/package.json",
+      "sha256": "7e8aae6ce5de451c9a7b69a1fce12a9b58d841bde259fca01e7492451069eb89",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "packages/graph/src/claims.ts",
+      "sha256": "f80916583c5a35383e10c45072acd383846c1dcaa6a7cc8b97e39604e8024060",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "packages/graph/src/index.ts",
+      "sha256": "4089e525cea570d937705479dc4f6f888b0f2d6e19623c34c806bbaca12cbc51",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "packages/graph/tests/claims.test.ts",
+      "sha256": "361338058c11d6265cdd4ba74b95b8f1c5688a182e29b35d93c8c388a7df50d7",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "packages/kb/package.json",
+      "sha256": "b02c5fdda3f74356fcbc524befb22631f02111235ba4670a3ac47e9165f6e7c1",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/language/package.json",
+      "sha256": "20b4dbea7a289c4015e30d2fa21a4b64e63c2b9fa8c4955ee1be13f22dab993c",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/runtime/SPEC.md",
+      "sha256": "4e5b39d4a5b28d8cc1d33a1141d01bf7df474194cfdf1e95fc9e2133a88613d3",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "packages/runtime/package.json",
+      "sha256": "4a00bb4a0d2269a605a8f8154b036f2c8771aba7a5b5e44b0e8a75f105d38b44",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "packages/runtime/tests/canon-delivery.test.ts",
+      "sha256": "55b98ea1d7df2fcf96e66913aa6643bca9b038c37607a4dc7dfac8c6e6e11bbb",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "packages/runtime/tests/mandate-resolution.test.ts",
+      "sha256": "c525e95a84af157aec6b50f441dc46d13ac8fca3096e8c68b3068deb3b1d5b6b",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "packages/runtime/tests/packet-host.test.ts",
+      "sha256": "8c8c258367c9d19f0d85939388b919e4a5975f4ecec51123f94ab09e46720b0a",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "packages/runtime/tests/packet.test.ts",
+      "sha256": "8af6d8864fa13fc6de9eeaf54e6980abef2489db838cb980b55a5b6e53026288",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "packages/service-contracts/package.json",
+      "sha256": "db4b680865c9495745d84d727eaef2b874b2117750ffcd4b5c0f160a6edebb01",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/workspace-runtime/package.json",
+      "sha256": "c77b08f7bbeb9b6c1a4d2fc6eca2373ab91bdcd17a7cd5b81932885fb3533c6f",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "releases/current.json",
+      "sha256": "e09982025bf80bd6fc90ae62835da879aae9aebe8840af5f63fac3dd2a6c7bdf",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "releases/native/current.json",
+      "sha256": "a76ee210247d4328f6d7723a99c6e3fa5284edbb84b7e268f3d5dfa93a106f6c",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "releases/native/notes.json",
+      "sha256": "3df4477370d16475cca4522c55e51604089669db892e7207499fddb6104e783c",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "tools/compliance/check.test.ts",
+      "sha256": "cb6567d9e59b761785a06a8b395ad06870b8a82bb88085f65729966e68e3cb5e",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "tools/distribution/system-package-policy.json",
+      "sha256": "886ab6a8bc6dfb0331e07ef8cc829718347b35299e5eccec46a049970d97eb8a",
+      "cohortOnly": true,
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "tools/docs/SPEC.md",
+      "sha256": "1d5e963d6645e434690eb72da0059bb13ae3bd04a4442ab7c64ed992b718c359",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "tools/docs/teaching-links.mjs",
+      "sha256": "00447b484d781e104f3157c4909f466a7711f5f4329c8ca2c0cb148bb6b1443b",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "tools/docs/teaching-scanner-parity.test.ts",
+      "sha256": "3dce0098e58f177530de74b218c6e1ea817f9bf5a93df3aa14fdadb982e741ee",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "tools/native/SPEC.md",
+      "sha256": "ff54d41c7ac0d2dc2926a5663132d245cdcf385e03b2c387509dabab11de7378",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "tools/native/canon-cases.test.ts",
+      "sha256": "85a6c0ab2cb2e90ccdf93d6c251c205b2125cc01fe34858bdf5605670c8bc51b",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "tools/native/check.test.ts",
+      "sha256": "379226c7f689ab7bd67ff0a2e8e460b7412544f601b58694e168bd606b1fac8f",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "tools/native/stewardship.test.ts",
+      "sha256": "9862b9798077f43c46e7ce148e3f21b7c72ca10ea4141840b3015b87cc98b404",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "tools/projections/generate.test.ts",
+      "sha256": "de4cffcd991b372ae4e0a05bed38ef7df20ac26a42039e567f7be79e28f41b1e",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "tools/testing/SPEC.md",
+      "sha256": "6ffaac22d16d95c2c493f7f9a3968cbfcdde3a6b0c36eab15ae4f46a8207f3a1",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "tools/testing/plan.test.ts",
+      "sha256": "5c4237d67a1fe53dbc283a1e49718b9c899641b86a7a6df0a9af6d673c7b0c9d",
+      "change": "ia-canon-warning"
+    },
+    {
+      "path": "tools/testing/tasks.json",
+      "sha256": "18bb136263e0ef23dd588b0273e75054e8e8c63f34a51911492b18736ccdf490",
+      "change": "ia-canon-warning"
+    }
+  ]
+}

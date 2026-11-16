@@ -192,3 +192,92 @@ it.each(['capture', 'projection'] as const)(
     expect(adoptedBindings(root)).toEqual(pin);
   },
 );
+
+const CANON_LAW = `#! ia 1.0
+
+@law placement-law
+  meaning
+    says "Test law placement-law."
+    answers "What does test law placement-law require?"
+  governance
+    severity blocking
+  relationships
+    enforced-by @check placement-check
+
+@check placement-check
+  meaning
+    says "Test check placement-check."
+    answers "What does test check placement-check evaluate?"
+  check
+    runs CANON-WORK-PLACEMENT
+    scope "*"
+`;
+const OFFENDING_SPEC = `#! ia 1.0
+
+@spec offending-spec
+  meaning
+    says "A specification inside a system folder."
+    answers "Which specification sits in a system folder?"
+  work
+    title "Offending"
+    status draft
+`;
+
+it('update, adopt and project re-render a registered host over a blocking canon finding, never over another error', async () => {
+  // Task 13e: a canon finding fails only validate and preview; it never blocks installing or rendering.
+  const fixture = registry('canon-host-registry'),
+    root = join(scratch('canon-host'), 'demo');
+  const init = await run(['init', root, '--host', 'claude', '--apply', '--yes', '--json']);
+  expect(init.exitCode, init.stdout).toBe(0);
+  writeFileSync(join(root, '.ia/src/laws.ia'), CANON_LAW);
+  mkdirSync(join(root, '.ia/src/systems/work-system/records'), { recursive: true });
+  writeFileSync(join(root, '.ia/src/systems/work-system/records/offending-spec.ia'), OFFENDING_SPEC);
+  const before = readFileSync(join(root, '.claude/rules/ia-workspace.md'), 'utf8');
+
+  const update = await run([
+    'update',
+    'inventarch/language',
+    '--to',
+    '^3.2.1',
+    '--root',
+    root,
+    '--offline',
+    '--apply',
+    '--yes',
+    '--json',
+  ]);
+  expect(update.exitCode, update.stdout).toBe(0);
+  // The packet counts the records the canon law and its check added, so a re-render changes it.
+  const updated = readFileSync(join(root, '.claude/rules/ia-workspace.md'), 'utf8');
+  expect(updated).not.toBe(before);
+  expect(updated).toMatch(/^- law 1$/m);
+
+  const adopt = await run([
+    'adopt',
+    'example/reference',
+    '--root',
+    root,
+    '--registry',
+    fixture.root,
+    '--apply',
+    '--yes',
+    '--json',
+  ]);
+  expect(adopt.exitCode, adopt.stdout).toBe(0);
+  expect(JSON.parse(adopt.stdout).projections).toHaveLength(1);
+  expect(readFileSync(join(root, '.claude/rules/ia-workspace.md'), 'utf8')).not.toBe(updated);
+
+  const validate = await run(['validate', '--root', root, '--json']);
+  expect(validate.exitCode).toBe(1);
+  expect(JSON.parse(validate.stdout).findings).toContainEqual(
+    expect.objectContaining({ code: 'IA-COMP-CANON-WORK-PLACEMENT', severity: 'error' }),
+  );
+
+  writeFileSync(
+    join(root, '.ia/src/bad.ia'),
+    '#! ia 1.0\n\n@law bad-law\n  meaning\n    says "A law whose severity is not one."\n    answers "Which law has a bad severity?"\n  governance\n    severity sideways\n',
+  );
+  const refused = await run(['project', 'claude', '--root', root, '--apply', '--yes', '--json']);
+  expect(refused.exitCode).toBe(3);
+  expect(JSON.parse(refused.stdout || refused.stderr)).toMatchObject({ code: 'IA-CLI-CONFLICT' });
+});

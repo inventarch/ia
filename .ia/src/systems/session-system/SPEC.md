@@ -1,6 +1,6 @@
 # @inventarch/session-system
 
-Public language mechanism. The [language reference](LANGUAGE.md) defines vocabulary and evaluation limits. Package exports describe the installed API. Curated agent methods and hosted services are supplied independently.
+Public language mechanism. The [language reference](LANGUAGE.md) defines vocabulary and evaluation limits. Package exports describe the installed API. Curated agent methods and hosted services are [supplied independently](https://github.com/inventarch/ia/blob/main/docs/reference/hosted-service/README.md).
 
 `@run` records declared execution metadata. `execution.phase` is an optional id: omit it when the phase is unknown. Historical values, including `recorded`, remain admitted; declaring a phase does not prove the engine's current state. `execution.status` remains a required id without a closed vocabulary, and `execution.owner` remains a required reference.
 
