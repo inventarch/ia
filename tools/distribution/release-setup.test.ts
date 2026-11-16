@@ -599,6 +599,7 @@ it('narrows the default token only for workflows that each declare top-level per
   );
   const workflows = [
     'codeql.yml',
+    'dependabot-release-note.yml',
     'inventarch-review.yml',
     'npm-publish.yml',
     'platform-quality.yml',
