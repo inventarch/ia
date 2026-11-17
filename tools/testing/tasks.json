@@ -3097,6 +3097,30 @@
           ]
         },
         {
+          "case": "tests/publication.test.ts > qualified local NTFS publication refuses spawn-error volume qualification without creating output or caching failure",
+          "reason": "Exercises the Windows PowerShell volume probe after Windows root qualification; Linux and macOS refuse the unsupported platform before reaching the probe.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > qualified local NTFS publication refuses timeout-then-invalid-json volume qualification without creating output or caching failure",
+          "reason": "Exercises the Windows PowerShell volume probe after Windows root qualification; Linux and macOS refuse the unsupported platform before reaching the probe.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > qualified local NTFS publication qualifies on a third probe after two timed out, and caches the success",
+          "reason": "Exercises the Windows PowerShell volume probe after Windows root qualification; Linux and macOS refuse the unsupported platform before reaching the probe.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
           "case": "tests/scope-key.test.ts > reads a Windows absolute path as the file system compares it",
           "reason": "Drive letters, their case and backslash separators are Windows path semantics; Linux and macOS cover absolute seat paths inside and outside the root, the root itself included, through the case that reads an absolute path inside the root.",
           "platforms": [
@@ -4701,6 +4725,7 @@
       "kind": "vitest",
       "project": ".",
       "files": [
+        "tools/distribution/dependency-note.test.ts",
         "tools/distribution/github-release.test.ts",
         "tools/distribution/npm-release.test.ts",
         "tools/distribution/release-branch.test.ts",
@@ -5195,6 +5220,50 @@
       "resourceClass": "io",
       "covers": [
         "vitest run --config vitest.tools.config.mts --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "tools:test-scale-probe",
+      "kind": "vitest",
+      "project": ".",
+      "files": [
+        "tools/scale-probe/scale-probe.test.ts"
+      ],
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "repository-inventory",
+      "dependsOn": [],
+      "outputs": [
+        "artifacts/tests/tools-test-scale-probe"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "subprocess",
+      "covers": [
+        "vitest run --config vitest.tools.config.mts --maxWorkers=1"
+      ],
+      "skips": [
+        {
+          "case": "tools/scale-probe/scale-probe.test.ts > the capture digests a link by its target text without following it, a dangling one included",
+          "reason": "The case skips only when Windows denies file-symlink creation with EPERM; it runs wherever creation is permitted, Windows included.",
+          "platforms": [
+            "windows"
+          ],
+          "when": "file-symlink-unavailable"
+        },
+        {
+          "case": "tools/scale-probe/scale-probe.test.ts > the capture copies a relative link as a link, so a write through it changes the copy, not the tree",
+          "reason": "The case skips only when Windows denies file-symlink creation with EPERM; it runs wherever creation is permitted, Windows included.",
+          "platforms": [
+            "windows"
+          ],
+          "when": "file-symlink-unavailable"
+        }
       ]
     },
     {

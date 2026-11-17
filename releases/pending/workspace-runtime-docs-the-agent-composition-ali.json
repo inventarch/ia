@@ -1,0 +1,13 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "none",
+  "title": "Workspace runtime docs: the agent-composition aliases are gone",
+  "summary": "Docs only: the provenance note now says IA 3.8.0 removed the agent-composition-system aliases of this package's modules; no package behaviour changes.",
+  "packages": [
+    "@inventarch/workspace-runtime"
+  ],
+  "paths": [
+    "docs/",
+    "packages/workspace-runtime/"
+  ]
+}

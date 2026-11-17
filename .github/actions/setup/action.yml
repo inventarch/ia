@@ -42,7 +42,7 @@ runs:
         Write-Output "Windows I/O arm: runner-temp ($env:RUNNER_TEMP)"
         "TEMP=$env:RUNNER_TEMP", "TMP=$env:RUNNER_TEMP" | Add-Content -Path $env:GITHUB_ENV -Encoding utf8
     # A third-party action runs pinned to a commit: v6.0.10, the commit its moving v6 tag named on 2026-09-25.
-    - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86
+    - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115
     - uses: actions/setup-node@v7
       with:
         node-version: '22.22.0'

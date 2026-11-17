@@ -184,6 +184,24 @@ class Compiler {
     if (alias !== undefined) this.aliases.set(`${group}:${id}`, { group, from: id, to: alias });
     return alias ?? id;
   }
+  /**
+   * Whether a name a host or contract lists is `target` under the alias table. The alias that matched is recorded, as a
+   * record's alias is, so the harness rebuilds from the table `compiledAliases` gives.
+   */
+  listedAs(group: CatalogGroup, id: string, target: string): boolean {
+    const table = this.options.aliases?.[group];
+    if (!table || !Object.hasOwn(table, id) || table[id] !== target) return false;
+    this.aliases.set(`${group}:${id}`, { group, from: id, to: target });
+    return true;
+  }
+  /**
+   * Whether a record's name and the name an installed contract lists are one installed entry: a direct match first,
+   * then the listed name's own alias, which `listedAs` records.
+   */
+  sameEntry(group: CatalogGroup, written: string, listed: string, node: CompiledRecord, path: string): boolean {
+    const name = this.named(group, written, node, path);
+    return name === listed || this.listedAs(group, listed, name);
+  }
   use<G extends CatalogGroup>(group: G, id: string, node: CompiledRecord, path: string): CatalogValue<G> {
     const target = this.named(group, id, node, path);
     const entries = this.options.catalog[group];
@@ -310,7 +328,9 @@ class Compiler {
       descriptor.identity !== node.identity ||
       descriptor.owner !== physicalOwner ||
       node.system !== 'authoring-system' ||
-      field(node, 'execution', 'handler') !== implementation
+      // By installed name: an operation record and its binding may name two generations of one handler.
+      this.named('operations', field(node, 'execution', 'handler'), node, 'execution.handler') !==
+        this.named('operations', implementation, node, 'execution.handler')
     )
       fail(
         'IA-COMPOSITION-CONFLICT',
@@ -334,8 +354,9 @@ class Compiler {
       fail('IA-COMPOSITION-CONFLICT', 'Candidate validation must use a read-only installed contract', node);
     if (
       canonical(nativeEffects) !== canonical(contractEffects) ||
-      this.named('validators', field(node, 'execution', 'input'), node, 'execution.input') !== descriptor.input ||
-      this.named('validators', field(node, 'execution', 'output'), node, 'execution.output') !== descriptor.output ||
+      // By installed name: a descriptor may still list a validator the alias table renames.
+      !this.sameEntry('validators', field(node, 'execution', 'input'), descriptor.input, node, 'execution.input') ||
+      !this.sameEntry('validators', field(node, 'execution', 'output'), descriptor.output, node, 'execution.output') ||
       field(node, 'execution', 'recovery') !== descriptor.recovery
     )
       fail('IA-COMPOSITION-CONFLICT', 'Native operation contract differs from its installed descriptor', node);
@@ -458,7 +479,8 @@ class Compiler {
       const key = value(check, 'check', 'implementation') === undefined ? 'runs' : 'implementation';
       const id = field(check, 'check', key);
       this.use('evaluators', id, check, `check.${key}`);
-      return id;
+      // The installed evaluator the compilation pins, which execution then runs.
+      return this.named('evaluators', id, check, `check.${key}`);
     });
     const result: CompiledCapability = {
       identity: node.identity,
@@ -558,20 +580,30 @@ class Compiler {
         'composition.capabilities',
       );
     const modelId = field(node, 'execution', 'model-profile', this.host.defaults.model),
-      model = this.use('models', modelId, node, 'execution.model-profile');
-    if (
-      !model.model ||
-      !this.host.models.includes(modelId) ||
-      contracts.some((c) => c.models && !c.models.includes(modelId))
-    )
+      model = this.use('models', modelId, node, 'execution.model-profile'),
+      // Installed names on both sides: a record may name an old model, and a host or contract may list one.
+      modelName = this.named('models', modelId, node, 'execution.model-profile'),
+      allows = (models: readonly string[]) =>
+        models.includes(modelName) || models.some((m) => this.listedAs('models', m, modelName));
+    if (!model.model || !allows(this.host.models) || contracts.some((c) => c.models && !allows(c.models)))
       fail(
         'IA-COMPOSITION-CONFLICT',
         'Model profile exceeds the host or mandate restriction',
         node,
         'execution.model-profile',
       );
-    const contexts = unique([...contracts.map((c) => c.context), ...capabilities.map((c) => c.context)]);
-    const checks = unique([...contracts.flatMap((c) => c.checks), ...capabilities.flatMap((c) => c.checks)]);
+    // Stored under the installed name each resolves to, as checks are, so execution reads the context it pins.
+    const contexts = unique(
+      [...contracts.map((c) => c.context), ...capabilities.map((c) => c.context)].map((id) =>
+        this.named('contexts', id, node, 'execution.context-profile'),
+      ),
+    );
+    // Stored under the installed name each resolves to, so execution runs the evaluator the compilation pins.
+    const checks = unique(
+      [...contracts.flatMap((c) => c.checks), ...capabilities.flatMap((c) => c.checks)].map((id) =>
+        this.named('evaluators', id, node, 'execution.checks'),
+      ),
+    );
     for (const id of checks) this.use('evaluators', id, node, 'execution.checks');
     const instructions: string[] = [this.recordText(agent)];
     if (mandate) instructions.push(this.recordText(mandate));
@@ -723,7 +755,7 @@ class Compiler {
         ...contractIds.map((id) => `mandates:${id}`),
         `hosts:${field(this.harness, 'execution', 'host-profile')}`,
       ],
-      model: [`models:${modelId}`],
+      model: [`models:${modelName}`],
       checks: checks.map((id) => `evaluators:${id}`),
       inputContracts: inputContracts.map((c) => `validators:${c.id}`),
       outcomes: outcomeIds.map((id) => `outcomes:${id}`),
@@ -821,7 +853,8 @@ class Compiler {
       fail('IA-COMPOSITION-UNAVAILABLE', 'Entry target contract is unsupported', entry);
     const mapping = field(entry, 'binding', 'mapping', entryContract.mapping);
     this.mapping(mapping, entry);
-    if (this.named('mappings', mapping, entry, 'binding.mapping') !== entryContract.mapping)
+    // By installed name: an entry contract may still list a mapping the alias table renames.
+    if (!this.sameEntry('mappings', mapping, entryContract.mapping, entry, 'binding.mapping'))
       fail('IA-COMPOSITION-CONFLICT', 'Entry mapping differs from the installed transport', entry);
     const target = this.reference(value(entry, 'binding', 'target', true), entry, 'binding.target', 'agent-profile');
     if (!this.profileNodes.has(target.identity))

@@ -1,0 +1,114 @@
+{
+  "format": "ia.scale-probe.capture.v1",
+  "label": "3.7.0",
+  "platform": "win32",
+  "node": "v22.23.4",
+  "tree": {
+    "name": "knowledge-example",
+    "recipe": {
+      "kind": "git",
+      "commit": "f766ff05b93e30ff6a2d6256dca93a68c77c39f8",
+      "path": "examples/knowledge"
+    },
+    "commit": null
+  },
+  "outputs": {
+    "validate": {
+      "exit": 1,
+      "digest": "66fb60f780a5454bca199c4e666a68b6cbbb052d6572be7f3d38ed4514455511",
+      "bytes": 1055,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summary": {
+        "status": "refused",
+        "reportOutcome": "fail",
+        "revision": "72f7575024ea31995277603e4640395662128602a9c80cfe94afc6424224cd23",
+        "authoredRevision": "72f7575024ea31995277603e4640395662128602a9c80cfe94afc6424224cd23",
+        "counts": {
+          "errors": 1,
+          "warnings": 2,
+          "notEvaluated": 2,
+          "lawsPending": 0,
+          "lawsSuspended": 0
+        }
+      },
+      "files": {},
+      "stable": true
+    },
+    "capture-preview": {
+      "exit": 3,
+      "digest": "72627c59cdeaa441ddac8896009d348ae9803b54a1f0d7b17431466b9f213b0b",
+      "bytes": 346,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summary": {
+        "ok": false,
+        "code": "IA-DB-ROOT-INVALID",
+        "exit": 3
+      },
+      "files": {},
+      "stable": true
+    },
+    "capture": {
+      "exit": 3,
+      "digest": "72627c59cdeaa441ddac8896009d348ae9803b54a1f0d7b17431466b9f213b0b",
+      "bytes": 346,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summary": {
+        "ok": false,
+        "code": "IA-DB-ROOT-INVALID",
+        "exit": 3
+      },
+      "files": {},
+      "stable": true
+    },
+    "inspect": {
+      "exit": 0,
+      "digest": "c53638f9d7b0b95eec073adc79351ac9adb78affa4892a85606d7028ac265e2d",
+      "bytes": 321,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summary": {
+        "revision": "72f7575024ea31995277603e4640395662128602a9c80cfe94afc6424224cd23",
+        "records": 0
+      },
+      "files": {},
+      "stable": true
+    },
+    "records": {
+      "exit": 0,
+      "digest": "9a4e89d2cdb4ab07f4c2bf359385f7b218edef341dd2899cfffe5079aa0ab4d1",
+      "bytes": 159745,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summary": {
+        "ok": true
+      },
+      "files": {},
+      "stable": true
+    },
+    "format-check": {
+      "exit": 3,
+      "digest": "0a2790248f9f231dfa176d5d9ff340138dca5d11fa31f280aa65bd167e586fa5",
+      "bytes": 258,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summary": {
+        "ok": false,
+        "code": "IA-DIST-CLOSURE-INCOMPLETE",
+        "exit": 3
+      },
+      "files": {},
+      "stable": true
+    },
+    "kb-check": {
+      "exit": 0,
+      "digest": "e4a50a773dc01ba37b428557b36621ccfaee2163555826af1a566bd27e4c7476",
+      "bytes": 347,
+      "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summary": {
+        "ok": true
+      },
+      "files": {},
+      "stable": true
+    }
+  },
+  "skipped": [
+    "kb-pack"
+  ]
+}

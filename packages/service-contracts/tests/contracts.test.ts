@@ -78,6 +78,11 @@ it('bounds explicit capture/start envelopes and published text views', () => {
     { ...start, root: '/private' },
   ])
     expect(() => decode(nativeStartRequest, input)).toThrow(ServiceError);
+  // A host-admitted agent is named by `agent`, an identifier; `entry` keeps its fixed built-in values.
+  for (const agent of ['reviewer-entry', 'org.example_agent-2'])
+    expect(decode(nativeStartRequest, { ...start, agent })).toEqual({ ...start, agent });
+  for (const agent of ['', 'has space', 'a/b', 'x'.repeat(129), 7])
+    expect(() => decode(nativeStartRequest, { ...start, agent })).toThrow(ServiceError);
   const question = {
     id: 'question',
     revision: 1,

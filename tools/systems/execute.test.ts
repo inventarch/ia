@@ -30,6 +30,7 @@ const repository = resolve(import.meta.dirname, '../..'),
   root = fixture.root,
   temporary: string[] = [];
 afterAll(() => fixture.close());
+const SUBPROCESS = Number(process.env['IA_TEST_SUBPROCESS_TIMEOUT_MS']) || 120_000;
 const agent = {
   path: '.ia/src/systems/agent-system/records/generated-expert.ia',
   text: '#! ia 1.0\n@agent generated-expert\n  meaning\n    says "An inert format fixture."\n    answers "Which draft is checked?"\n  governance\n    applies [agent]\n',
@@ -174,6 +175,8 @@ it.each(['parameters', 'lines'])(
 it('observes every platform-reachable executable refusal code through real handlers and isolated publication', () => {
   const result = runExecutionFixtures(repository);
   expect(result).toHaveLength(8);
+  // Names the cause, such as a publication probe refusal, when an assessment fails.
+  expect(result.flatMap((r) => r.assessment.findings)).toEqual([]);
   expect(result.every((r) => r.assessment.outcome === 'pass')).toBe(true);
   expect([...new Set(result.flatMap((r) => r.observedCodes))].sort()).toEqual([...executionFixtureCodes()].sort());
 });
@@ -423,11 +426,11 @@ it('runs the actual command with stdin, fixed host code and bounded optional pub
   const base = temp();
   put(base, '.ia/src/systems/authoring-system/execute.ts', 'throw new Error("Never load code from --root")');
   const before = readInputs(base).fingerprint;
-  const call = (args: string[], input?: string) =>
+  const call = (args: string[], input?: string, timeout = 15000) =>
     spawnSync(
       process.execPath,
       ['--conditions=development', '--import', 'tsx', resolve(repository, 'tools/systems/run.ts'), ...args],
-      { cwd: repository, ...(input === undefined ? {} : { input }), encoding: 'utf8', timeout: 15000 },
+      { cwd: repository, ...(input === undefined ? {} : { input }), encoding: 'utf8', timeout },
     );
   const stderr = (text: string) =>
     text.replace(
@@ -446,7 +449,9 @@ it('runs the actual command with stdin, fixed host code and bounded optional pub
   expect(draft).not.toHaveProperty('published');
   expect(existsSync(resolve(base, '.ia/work'))).toBe(false);
   expect(stderr(result.stderr)).toBe('');
-  const publication = call([...args, '--out', 'command-review'], JSON.stringify(agent)),
+  // This call publishes, so its child probes the drive itself, which can take longer than 15 s on a slow runner: give
+  // it the repository's subprocess bound.
+  const publication = call([...args, '--out', 'command-review'], JSON.stringify(agent), SUBPROCESS),
     output = JSON.parse(publication.stdout);
   expect(stderr(publication.stderr)).toBe('');
   if (process.platform === 'win32') {

@@ -2,6 +2,202 @@
 
 Generated from reviewed release changesets. Entries describe intended releases; publication is a separate action.
 
+## 3.8.0
+
+Coordinated 3.8.0 release of the 24 public npm packages: Aliased model, evaluator, context and operation names compile and run as their installed entries; Batch pnpm installs ignore the repository pnpmfile; Canon link scan runs at its earlier speed; Console batch: a Ctrl-C before a repository's commit runs leaves Commit to choose again; Contract versions and catalog aliases; Cover every tracked-workspaces loader refusal; db docs and tests use the plain rule and profile names; db reads both evaluator catalog shapes; Document the home-lock, kit-collections and kit-inventory exports; Guard a folder-named kit binding as the kit served and keep its pin; ia format checks staleness once per run; IA home folders resolve through one authoritative location; ia position honours rule activation; Import the workspace runtime from its own package; Index postings build in linear time; kb pack reads a commit in batches; kb pack's batched read takes a Git path that is not UTF-8 as path by path does; Language base compatibility floor; Compatibility checks see text forms, edge targets and cardinality; Name a host-admitted agent on session start; Path identity: sameFile and tracked roots handle volumes with no inode; Pin the console's batch wiring; Plain catalog names for the shipped contracts; Plain names for review rules, evaluators and profiles; Plain profile names in test fixtures; Publication qualification retries a timed-out filesystem probe up to twice; Regenerated vocabulary assets; TERM=dumb and IA_NO_CONSOLE keep bare ia out of the console; The kit-not-installed remedy names the package route; The source walk vets each folder once and checks each source's final path; Versioned codecs for evaluator catalogs.
+
+### Aliased model, evaluator, context and operation names compile and run as their installed entries
+
+compileHarness compares a profile's model with the host's and its contracts' model lists by installed name. A record may name a model by a name the alias table renames, and a host or contract may list such a name; an alias a list relies on is recorded as a record's is, so compiledAliases still rebuilds the harness. An operation record and its binding may name two generations of one handler, such as a workspace's own binding that still names captured-source-read-v1. A compiled profile stores each check and context under the installed name the compilation pins, so executionManifest and the runner use the pinned evaluator and context, and a host's evaluate receives the installed evaluator name. executionManifest also resolves a check stored under a renamed name through the harness's own alias table, and refuses an evaluator the harness does not pin.
+
+Packages: `@inventarch/agent-composition-system`.
+
+### Batch pnpm installs ignore the repository pnpmfile
+
+The console batch install for pnpm now passes --ignore-pnpmfile as well as --ignore-scripts, so a repository's .pnpmfile.cjs hook no longer runs in the batch worktree. Yarn 2 and later yarnPath and plugins, and settings configured in .npmrc, still apply; the contract and preview now say so.
+
+Packages: `@inventarch/cli`.
+
+### Canon link scan runs at its earlier speed
+
+The canon scanner's linear-time link and code-span scan, which replaced regular expressions that could take quadratic time, now runs as fast as the old regular expressions on ordinary documents; its results are unchanged.
+
+Packages: `@inventarch/db`.
+
+### Console batch: a Ctrl-C before a repository's commit runs leaves Commit to choose again
+
+In the console's batch screen, a Ctrl-C during the Commit, or Commit, push and open PRs, choice leaves each repository whose `git commit` had not started, including one whose `git add` was running, reading `not committed: stopped`; while any does, the same choice is offered again instead of leaving the next list, so those commits can still be made. If the Ctrl-C interrupts a repository's `git commit` and it doesn't finish successfully, that repository still reads failed.
+
+Packages: `@inventarch/cli`.
+
+### Contract versions and catalog aliases
+
+An installed catalog entry's version is now the contract's version, a positive integer: installed(value, version) defaults to 1 and the compiler accepts any positive integer, pinned through the entry digest. Hosts may pass aliases with the catalog so a record naming an old contract compiles to its plain replacement; provenance.aliases lists each alias used and is absent when none is, so such compilations are unchanged.
+
+Packages: `@inventarch/agent-composition-system`.
+
+### Cover every tracked-workspaces loader refusal
+
+Tests now cover every tracked-workspaces loader refusal; no package behavior changes.
+
+Packages: `@inventarch/cli`.
+
+### db docs and tests use the plain rule and profile names
+
+The db SPEC and tests use the plain rule and profile names (completion, independent-exact-candidate, package); db reads stored values written under the old literals unchanged.
+
+Packages: `@inventarch/db`.
+
+### db reads both evaluator catalog shapes
+
+The installed-implementation catalog admits evaluator sections in the current shape (format evaluator-catalog with an integer formatVersion and codec references by id and version) as well as the legacy ia-evaluator-catalog/1.x shape, and collects codec references from both.
+
+Packages: `@inventarch/db`.
+
+### Document the home-lock, kit-collections and kit-inventory exports
+
+The distribution specification now documents the home-lock, kit-collections and kit-inventory exports; no package behavior changes.
+
+Packages: `@inventarch/distribution`.
+
+### Guard a folder-named kit binding as the kit served and keep its pin
+
+A method binding written with a kit's folder is now guarded as the kit the resolver serves when kits share that folder: an exact id first, then a bundled kit, the lock's package entries and the IA home, so a bundled kit with no lock row of its own refuses with IA-CORE-KIT-NOT-INSTALLED instead of passing on another kit's row. A task's retained pin is found for such a binding.
+
+Packages: `@inventarch/mcp-door`, `@inventarch/runtime`.
+
+### ia format checks staleness once per run
+
+ia format now drafts every file against one session and makes its staleness check (a full refresh of the workspace) once, after the last file and before any write, instead of after every file. A run that drafts nothing still makes no check. On a 4,700-record tree, format --check took 1,463 s and now takes 822 s, with an identical envelope. formatSource takes an opt-in defer, and the new recheckFormat makes the deferred check; single-file callers keep the per-call check. The once-per-run check also re-reads every drafted file, so it refuses a file changed after its draft, which the per-file check could miss.
+
+Packages: `@inventarch/cli`, `@inventarch/distribution`.
+
+### IA home folders resolve through one authoritative location
+
+The runtime reads and writes each IA home folder (work, sessions, kit-roots, installed-kits, method-closures) at one authoritative place: the plain folder when it holds an authoritative marker file, otherwise the existing *-v1 folder. No folder moves, the plain folder and marker are never created, and paths on a machine without a marker are unchanged; a later release performs the cutover.
+
+Packages: `@inventarch/mcp-door`, `@inventarch/runtime`.
+
+### ia position honours rule activation
+
+`ia position` now reserves a blocking rule in `rules` only where its activation admits the key's coordinate, as `ia context` delivers it. A rule whose activation the coordinate contradicts moves to a new `omittedRules` section of `ia.position-body.v1` with the contradictory terms, as `ia context` reports them, and is never loaded, pointed to or listed as applying by word. A rule left undecided because its activation names an axis the key does not bind, such as move, stays in `rules` with an `activation` field naming the groups it waits on. The text view prints both. The runtime exports the `RuleRecord` and `OmittedRule` types.
+
+Packages: `@inventarch/cli`, `@inventarch/runtime`.
+
+### Import the workspace runtime from its own package
+
+@inventarch/agent-composition-system no longer re-exports the generic workspace runtime. The root exports captureWorkspace, adoptWorkspace, verifyCapture, Corpus, candidateValidation, managedPublication and the Capture type are removed, as are the ./resources, ./projections, ./templates, ./sources, ./authoring, ./authoring-manifest, ./lifecycle, ./lifecycle-profile, ./adapters and ./local-store subpaths and the ./internal/* subpaths of the 18 modules that moved in 1.2.0. Each was a plain alias of the same module in @inventarch/workspace-runtime, so behaviour is unchanged: import those symbols and subpaths from @inventarch/workspace-runtime instead. The package keeps its root (compileHarness, executionManifest, installed, the installed captured read, task capture and installedImplementationDigest), ./tools and the ./internal/* subpaths of the modules it owns.
+
+Packages: `@inventarch/agent-composition-system`.
+
+### Index postings build in linear time
+
+Graph index postings (byName, byDiscriminator, byKind, bySystem, byCategory, byLane, byArtifactSet, selectors and conditions) now check membership with a set beside each list instead of scanning the list on every insert. Building a bucket of n identities was quadratic: loading 20,000 records of one word took 9 s and now takes about 1.2 s. The lists, their order and the serialized graph are unchanged.
+
+Packages: `@inventarch/graph`.
+
+### kb pack reads a commit in batches
+
+kb pack now reads a commit with a fixed number of git processes, whatever its file count: one listing for .ia/src, one for the selection's other paths, and one cat-file --batch read for each, instead of two processes per file. On a 124-file tree a pack starts 7 git processes instead of 254 and takes about 3 to 5 s instead of 22 to 24 s, with a byte-identical package. Every path is still checked in order with the same refusals; a repository missing an object it would not have read (a partial clone) falls back to reading path by path. The legacy committed writer is unchanged.
+
+Packages: `@inventarch/kb`.
+
+### kb pack's batched read takes a Git path that is not UTF-8 as path by path does
+
+When `kb pack` reads a commit in batches, a native file whose Git path is not UTF-8 is no longer read under the path's lossy decoding: reading that name gives what reading it path by path gives, normally `Selected committed regular non-executable blob unavailable`. The listing's name-byte limit counts each path's bytes as Git wrote them.
+
+Packages: `@inventarch/kb`.
+
+### Language base compatibility floor
+
+Kits and workspaces locked on any published 3.x language base restore exactly; a kit locked on a base the carrier doesn't ship uses a newer compatible base instead of being refused; `ia floor` reports and verifies the minimum base; `ia update inventarch/language` works on a fresh clone; no install or update moves the language base below the lock, whichever source lists the lower base.
+
+Packages: `@inventarch/cli`, `@inventarch/db`, `@inventarch/distribution`, `@inventarch/mcp-door`, `@inventarch/runtime`.
+
+### Compatibility checks see text forms, edge targets and cardinality
+
+The language compatibility index now records each text field's form and each edge rule's target and cardinality, so the release gate classes a base that adds or changes a form, narrows a cardinality or retargets an edge rule as breaking, and three edge rules that share a predicate are compared separately instead of as one. `ia floor` reports a value outside a base's text form as a `form` gap. When a base changes, the gate also proves the three published public kits (ia-authoring, ia-kb, ia-method) with `ia floor --verify`, beside the method fixture kit.
+
+Packages: `@inventarch/cli`, `@inventarch/db`.
+
+### Name a host-admitted agent on session start
+
+nativeStartRequest and sessionContinueRequest gain an optional agent, an id naming a host-admitted agent by its admitted entry binding. entry keeps its fixed values and refusals; the two are exclusive, and the host refuses a request naming both or an agent it has not admitted for the workspace.
+
+Packages: `@inventarch/service-contracts`.
+
+### Path identity: sameFile and tracked roots handle volumes with no inode
+
+sameFile now compares exact real paths when a volume reports an inode of 0 or all ones, as within already did, so two different directories are no longer judged one file on such network or ReFS volumes. The CLI's tracked-root comparison and the console batch worktree check share the same rule.
+
+Packages: `@inventarch/cli`, `@inventarch/db`.
+
+### Pin the console's batch wiring
+
+Tests now pin the console's batch wiring and its quit and refresh aborts; no package behavior changes.
+
+Packages: `@inventarch/cli`.
+
+### Plain catalog names for the shipped contracts
+
+The installed read, draft tools and runner contracts are installed under plain names (captured-source-read, draft-validate, draft-format, captured-template-render, draft-text, captured-template-input, draft-result, runner-task, runner-local, runner-read and the rest), each operation with one name for key and handler. The original -v1 entries stay installed byte for byte so existing pins verify and old handlers still dispatch; installedReadAliases(), draftToolAliases() and runnerAliases() send records that still name an old contract to its plain entry, and compiledAliases() rebuilds a harness's alias table.
+
+Packages: `@inventarch/agent-composition-system`, `@inventarch/cli`, `@inventarch/mcp-door`, `@inventarch/runner`, `@inventarch/workspace-runtime`.
+
+### Plain names for review rules, evaluators and profiles
+
+No identifier carries its version in its name. The review rules (independent-exact-candidate, operator-exact-candidate), the completion evaluator (completion), the governed and structured profiles, the strict-typing evaluation profile, the package conformance profile and the primary-guide and minting-readiness proof criteria are renamed. New writes use the plain names; stored manifests, sessions, reviews, templates and inventories carrying the original literals (each with its -v1 suffix, and ia.completion.v1) are still read and verified from an explicit allow-list kept for at least one major release; unknown values are still refused.
+
+Packages: `@inventarch/agent-composition-system`, `@inventarch/agent-system`, `@inventarch/authoring-system`, `@inventarch/compliance`, `@inventarch/template-system`, `@inventarch/workspace-runtime`.
+
+### Plain profile names in test fixtures
+
+Test fixtures name the structured template profile without its version suffix; no consumer-facing change.
+
+Packages: `@inventarch/distribution`, `@inventarch/runtime`.
+
+### Publication qualification retries a timed-out filesystem probe up to twice
+
+On Windows, qualifying a managed publication root now gives a filesystem probe that timed out, such as a cold PowerShell start past its 30-second bound, up to two more bounded tries before refusing with `IA-PUBLICATION-UNAVAILABLE`. Any other probe failure still refuses at once, and only a success is cached.
+
+Packages: `@inventarch/runtime`.
+
+### Regenerated vocabulary assets
+
+The bundled vocabulary assets carry the new native system versions; no consumer-facing change.
+
+Packages: `@inventarch/cli`, `@inventarch/mcp-door`.
+
+### TERM=dumb and IA_NO_CONSOLE keep bare ia out of the console
+
+Bare ia now also prints the same help as ia --help, instead of opening the console, when TERM is exactly dumb or IA_NO_CONSOLE is set to any non-empty value; an unset TERM does not opt out. Scripts that run under a pseudo-terminal can set IA_NO_CONSOLE=1 or call ia --help.
+
+Packages: `@inventarch/cli`.
+
+### The kit-not-installed remedy names the package route
+
+`IA-CORE-KIT-NOT-INSTALLED` now leads its remedy with `ia install --package <name> --apply --yes` and names `@inventarch/public-kits`, where the public kits ship, because `ia install <id>` reaches only a registry release and refuses the public kits. `ia install <id> --apply --yes` is kept for kits a registry serves, and the plugin route reads `kit.mjs add <id> --apply`. The code, the `kit` field and when the refusal fires are unchanged; only the message text differs.
+
+Packages: `@inventarch/mcp-door`, `@inventarch/runtime`.
+
+### The source walk vets each folder once and checks each source's final path
+
+The corpus source walk now lstats each folder once per walk instead of once per read: 60% fewer lstat calls on a 19,700-record tree (21,609 to 8,587), with byte-identical output. After reading a source it also checks the source's final path, so a parent folder replaced by a link or junction between two reads is refused with IA-DB-PATH-UNSAFE at that folder rather than read through. On macOS, and on a Linux without /proc, a source that another file is renamed over, or that is removed, while the walk reads it is now refused with IA-DB-SOURCE-CHANGED `Source replaced during read`, as on Windows, because the platform cannot say which file an open descriptor holds; on Linux the walk keeps the bytes it read, as before.
+
+Packages: `@inventarch/db`.
+
+### Versioned codecs for evaluator catalogs
+
+Evaluator codecs register as an id and a version, and an evaluator entry references its input and output codec as `inputCodec` and `outputCodec`, each an id and a version, in place of the `inputSchemaId` and `outputSchemaId` strings that carried the version; lookup is by the pair, so two versions of one codec id coexist. A catalog declares format `evaluator-catalog` with an integer `formatVersion` of 2. The legacy `ia-evaluator-catalog/1.x` shape with `name@N` codec ids is still read through an explicit legacy reader and keeps its digest, and the installed-implementation catalog in db admits both shapes. `EvaluatorCodec` gains a `version` field, so a host registering codecs adds it and drops the `@N` from the id.
+
+Packages: `@inventarch/compliance`.
+
+### Coordinated version alignment
+
+Package version metadata follows the coordinated 3.8.0 release; each native artifact version follows its own archive content.
+
+Packages: `@inventarch/compliance-system`, `@inventarch/governance-system`, `@inventarch/hook-authoring-system`, `@inventarch/language`, `@inventarch/learning-system`, `@inventarch/session-system`, `@inventarch/steward-hook`, `@inventarch/work-system`, `@inventarch/workspace-system`.
+
 ## 3.7.0
 
 Coordinated 3.7.0 release of the 24 public npm packages: Honor exact shared authored-root ownership in CLI edits; IA canon (warning); Runner byte budget test measures its journal.

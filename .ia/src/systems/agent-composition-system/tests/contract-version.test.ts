@@ -2,7 +2,7 @@ import { expect, it } from 'vitest';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { digest } from '@inventarch/session-system';
-import { compileHarness, executionManifest, installed } from '../src/index.js';
+import { compileHarness, compiledAliases, executionManifest, installed } from '../src/index.js';
 import type { CatalogAliases, CompiledHarness, CompositionCatalog } from '../src/index.js';
 import { compilerCapture, compilerCatalog } from './compiler-fixture.js';
 
@@ -113,4 +113,275 @@ it('leaves a compilation that uses no alias exactly as before', () => {
   const withUnusedTable = compiled(catalog(), { mandates: { 'unused-old': 'sample-task-v1' } });
   expect(Object.hasOwn(plainly.provenance, 'aliases')).toBe(false);
   expect(withUnusedTable.digest).toBe(plainly.digest);
+});
+
+/** The fixture with its model installed as `plain-model`, the host's default, and the host listing `listed`. */
+function plainModel(listed: string[] = ['plain-model']): CompositionCatalog {
+  const base = catalog();
+  const host = base.hosts['captured-sample-v1'];
+  const { 'host-model': original, ...models } = base.models;
+  if (!host || !original) throw new Error('fixture host or model missing');
+  const value = { ...host.value, models: listed, defaults: { ...host.value.defaults, model: 'plain-model' } };
+  return {
+    ...base,
+    models: { ...models, 'plain-model': original },
+    hosts: { 'captured-sample-v1': installed(value, host.version) },
+  };
+}
+const modelAlias: CatalogAliases = { models: { 'host-model': 'plain-model' } };
+
+it('compiles a profile that names an old model where the host lists its plain name', () => {
+  const { revision: _revision, ...body } = captured;
+  const sources = body.sources.map((source) =>
+    source.path.endsWith('/sample-author-profile.ia')
+      ? { ...source, text: source.text.replace('mandate-contract sample-task-v1', '$&\n    model-profile host-model') }
+      : source,
+  );
+  expect(sources.find((s) => s.path.endsWith('/sample-author-profile.ia'))?.text).toContain('model-profile host-model');
+  const explicit = { ...body, sources, revision: digest({ ...body, sources }) };
+  const result = compileHarness(explicit, {
+    harness: 'native-sample',
+    entry: 'sample-entry',
+    catalog: plainModel(),
+    aliases: modelAlias,
+  });
+  if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+  expect(result.manifest.provenance.aliases).toContainEqual({ group: 'models', from: 'host-model', to: 'plain-model' });
+});
+
+it('allows a plain model that the host and a mandate still list under its old name', () => {
+  const chosen = plainModel(['host-model']);
+  const mandate = chosen.mandates['sample-task-v1'];
+  if (!mandate) throw new Error('fixture mandate missing');
+  chosen.mandates['sample-task-v1'] = installed({ ...mandate.value, models: ['host-model'] }, mandate.version);
+  const harness = compiled(chosen, modelAlias);
+  // The alias the lists relied on is recorded, so the harness rebuilds from its own table.
+  expect(harness.provenance.aliases).toEqual([{ group: 'models', from: 'host-model', to: 'plain-model' }]);
+  expect(compiled(chosen, compiledAliases(harness)).digest).toBe(harness.digest);
+});
+
+/** The fixture whose mandate requires evaluator `review-v1`, installed as `review`; `retained` keeps an old entry. */
+function reviewed(retained?: ('before-effect' | 'completion')[]): CompositionCatalog {
+  const base = catalog();
+  const mandate = base.mandates['sample-task-v1'];
+  if (!mandate) throw new Error('fixture mandate missing');
+  return {
+    ...base,
+    mandates: {
+      ...base.mandates,
+      'sample-task-v1': installed({ ...mandate.value, checks: ['review-v1'] }, mandate.version),
+    },
+    evaluators: {
+      review: installed({ phases: ['completion' as const] }),
+      ...(retained ? { 'review-v1': installed({ phases: retained }) } : {}),
+    },
+  };
+}
+const reviewAlias: CatalogAliases = { evaluators: { 'review-v1': 'review' } };
+/** Each profile's executed checks. */
+const executedChecks = (harness: CompiledHarness, chosen: CompositionCatalog) =>
+  Object.values(executionManifest(harness, chosen).profiles).map((profile) => profile.contract?.checks);
+
+it('stores and executes the evaluator an aliased check resolves to, with no entry under the old name', () => {
+  const chosen = reviewed();
+  const harness = compiled(chosen, reviewAlias);
+  expect(Object.values(harness.profiles).map((profile) => profile.checks)).toEqual([['review'], ['review']]);
+  expect(executedChecks(harness, chosen)).toEqual([
+    [{ id: 'review', phases: ['completion'] }],
+    [{ id: 'review', phases: ['completion'] }],
+  ]);
+});
+
+it('executes the pinned entry, not a retained old evaluator entry with other phases', () => {
+  const chosen = reviewed(['before-effect']);
+  const harness = compiled(chosen, reviewAlias);
+  expect(executedChecks(harness, chosen)).toEqual([
+    [{ id: 'review', phases: ['completion'] }],
+    [{ id: 'review', phases: ['completion'] }],
+  ]);
+});
+
+it('executes the pinned entry for a harness that stored the old check name', () => {
+  const chosen = reviewed(['before-effect']);
+  const { digest: _digest, ...body } = compiled(chosen, reviewAlias);
+  // As a harness compiled before checks were stored under their installed name holds them.
+  const profiles = Object.fromEntries(
+    Object.entries(body.profiles).map(([id, profile]) => [
+      id,
+      { ...profile, checks: profile.checks.map((check) => (check === 'review' ? 'review-v1' : check)) },
+    ]),
+  );
+  const stored = { ...body, profiles };
+  const older = { ...stored, digest: digest(stored) } as CompiledHarness;
+  expect(Object.values(older.profiles).map((profile) => profile.checks)).toEqual([['review-v1'], ['review-v1']]);
+  expect(executedChecks(older, chosen)).toEqual([
+    [{ id: 'review', phases: ['completion'] }],
+    [{ id: 'review', phases: ['completion'] }],
+  ]);
+});
+
+/** The fixture with its context installed as `plain-context`, while the host and the mandate still name the original. */
+function plainContext(): CompositionCatalog {
+  const base = catalog();
+  const { 'captured-context-v1': original, ...contexts } = base.contexts;
+  if (!original) throw new Error('fixture context missing');
+  return { ...base, contexts: { ...contexts, 'plain-context': original } };
+}
+
+it('stores the context an old listed name resolves to, and rebuilds from the recorded aliases', () => {
+  const chosen = plainContext();
+  const harness = compiled(chosen, { contexts: { 'captured-context-v1': 'plain-context' } });
+  expect(Object.values(harness.profiles).map((profile) => profile.contexts)).toEqual([
+    ['plain-context'],
+    ['plain-context'],
+  ]);
+  expect(harness.provenance.installed.filter((pin) => pin.group === 'contexts').map((pin) => pin.id)).toEqual([
+    'plain-context',
+  ]);
+  expect(compiled(chosen, compiledAliases(harness)).digest).toBe(harness.digest);
+});
+
+it('refuses to execute an evaluator the harness does not pin', () => {
+  const chosen = reviewed();
+  chosen.evaluators['other'] = installed({ phases: ['before-effect' as const] });
+  const { digest: _digest, ...body } = compiled(chosen, reviewAlias);
+  const profiles = Object.fromEntries(
+    Object.entries(body.profiles).map(([id, profile]) => [id, { ...profile, checks: ['other'] }]),
+  );
+  const stored = { ...body, profiles };
+  const forged = { ...stored, digest: digest(stored) } as CompiledHarness;
+  expect(() => executionManifest(forged, chosen)).toThrow(/not pinned: other/);
+});
+
+it('reads a recorded alias table without touching object prototypes', () => {
+  const { digest: _digest, ...body } = compiled(catalog());
+  const forged = {
+    ...body,
+    provenance: { ...body.provenance, aliases: [{ group: '__proto__', from: 'polluted', to: 'yes' }] },
+  } as unknown as CompiledHarness;
+  try {
+    compiledAliases(forged);
+    expect(({} as Record<string, unknown>)['polluted']).toBeUndefined();
+  } finally {
+    delete (Object.prototype as Record<string, unknown>)['polluted'];
+  }
+});
+
+/** Each refusal's code and message. */
+const refusals = (result: ReturnType<typeof compile>) =>
+  result.ok ? [] : result.diagnostics.map(({ code, message }) => ({ code, message }));
+
+/**
+ * The fixture with the read operation's `side` validator also installed under a plain name, aliased from the
+ * original. The operation keeps its name, so its installed descriptor still lists the original validator.
+ */
+function plainValidator(side: 'input' | 'output') {
+  const base = catalog(),
+    original = `corpus-${side}-v1`,
+    plain = `corpus-${side}`,
+    entry = base.validators[original];
+  if (!entry) throw new Error('fixture validator missing');
+  const chosen = { ...base, validators: { ...base.validators, [plain]: installed(entry.value, 2) } };
+  return { chosen, original, plain, aliases: { validators: { [original]: plain } } as CatalogAliases };
+}
+
+it.each(['input', 'output'] as const)(
+  'compiles an operation whose descriptor lists its original %s validator when only the validator is renamed',
+  (side) => {
+    const { chosen, original, plain, aliases } = plainValidator(side);
+    expect(chosen.operations['fixture-read-v1']?.value[side]).toBe(original);
+    const harness = compiled(chosen, aliases);
+    expect(harness.provenance.aliases).toEqual([{ group: 'validators', from: original, to: plain }]);
+    const pins = harness.provenance.installed.filter((pin) => pin.group === 'validators');
+    expect(pins.find((pin) => pin.id === plain)?.digest).toBe(chosen.validators[plain]?.digest);
+    expect(pins.some((pin) => pin.id === original)).toBe(false);
+    expect(compiled(chosen, compiledAliases(harness)).digest).toBe(harness.digest);
+  },
+);
+
+it.each(['input', 'output'] as const)(
+  'refuses an operation whose descriptor lists an %s validator the aliases send to another entry',
+  (side) => {
+    const base = catalog(),
+      operation = base.operations['fixture-read-v1'];
+    if (!operation) throw new Error('fixture operation missing');
+    // The descriptor lists a retired name that the table sends to the task validator, not to the one the record names.
+    const listed =
+      side === 'input' ? { ...operation.value, input: 'retired-v1' } : { ...operation.value, output: 'retired-v1' };
+    const chosen = {
+      ...base,
+      operations: { ...base.operations, 'fixture-read-v1': installed(listed, operation.version) },
+    };
+    expect(refusals(compile(chosen, { validators: { 'retired-v1': 'task-text-v1' } }))).toEqual([
+      { code: 'IA-COMPOSITION-CONFLICT', message: 'Native operation contract differs from its installed descriptor' },
+    ]);
+  },
+);
+
+/**
+ * The fixture with its mapping also installed under a plain name. The entry keeps its name, so its installed contract
+ * still lists the original mapping.
+ */
+function plainMapping(): CompositionCatalog {
+  const base = catalog(),
+    original = base.mappings['identity-v1'];
+  if (!original) throw new Error('fixture mapping missing');
+  return { ...base, mappings: { ...base.mappings, identity: installed(original.value, 2) } };
+}
+const mappingAlias: CatalogAliases = { mappings: { 'identity-v1': 'identity' } };
+
+it('compiles an entry whose contract lists its original mapping when only the mapping is renamed', () => {
+  const chosen = plainMapping();
+  expect(chosen.entries['harness-entry-v1']?.value.mapping).toBe('identity-v1');
+  const harness = compiled(chosen, mappingAlias);
+  expect(harness.provenance.aliases).toEqual([{ group: 'mappings', from: 'identity-v1', to: 'identity' }]);
+  expect(harness.provenance.installed.filter((pin) => pin.group === 'mappings').map((pin) => pin.id)).toEqual([
+    'identity',
+  ]);
+  expect(compiled(chosen, compiledAliases(harness)).digest).toBe(harness.digest);
+});
+
+it('records the alias an entry contract relies on when the compiled records name only the plain mapping', () => {
+  const { revision: _revision, ...body } = captured;
+  const sources = body.sources.map((source) =>
+    /\/records\/(sample-entry|fixture-readion|secondary-read)\.ia$/.test(source.path)
+      ? { ...source, text: source.text.replace(/ identity-v1$/m, ' identity') }
+      : source,
+  );
+  const written = { ...body, sources, revision: digest({ ...body, sources }) };
+  const from = (chosen: CompositionCatalog, aliases?: CatalogAliases): CompiledHarness => {
+    const result = compileHarness(written, {
+      harness: 'native-sample',
+      entry: 'sample-entry',
+      catalog: chosen,
+      ...(aliases ? { aliases } : {}),
+    });
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    return result.manifest;
+  };
+  // No compiled record names the original: they compile against a catalog that does not install it.
+  const { 'identity-v1': _original, ...onlyPlain } = plainMapping().mappings;
+  const plainEntry = installed({ target: 'agent-profile' as const, mapping: 'identity' });
+  expect(
+    from({ ...plainMapping(), mappings: onlyPlain, entries: { 'harness-entry-v1': plainEntry } }).provenance.aliases,
+  ).toBeUndefined();
+  // Only the entry's contract lists the original, so the alias it relies on is recorded, and the harness rebuilds.
+  const chosen = plainMapping();
+  const harness = from(chosen, mappingAlias);
+  expect(harness.provenance.aliases).toEqual([{ group: 'mappings', from: 'identity-v1', to: 'identity' }]);
+  expect(from(chosen, compiledAliases(harness)).digest).toBe(harness.digest);
+});
+
+it('refuses an entry whose contract lists a mapping the aliases send to another entry', () => {
+  const base = plainMapping(),
+    entry = base.entries['harness-entry-v1'];
+  if (!entry) throw new Error('fixture entry missing');
+  // The contract lists a retired name that the table sends to the plain mapping; the binding names the original.
+  const chosen = {
+    ...base,
+    entries: { 'harness-entry-v1': installed({ ...entry.value, mapping: 'retired-v1' }, entry.version) },
+  };
+  expect(refusals(compile(chosen, { mappings: { 'retired-v1': 'identity' } }))).toEqual([
+    { code: 'IA-COMPOSITION-CONFLICT', message: 'Entry mapping differs from the installed transport' },
+  ]);
 });

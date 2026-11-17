@@ -116,4 +116,4 @@
 - when a word's owner is not this workspace, delegate by re-seating at the owning system; a steward pointer is readable, not an invocation
 - start each session with the IA door's ia_session; for a task, use the lane ia:work, ia:knowledge or ia:delivery: ia_catalogue names its keys and ia_method returns the method for one key
 
-ia-generated 207c74fdbb964e091b8efa7d78a7a08a86007c06d2c4e2cf0d8d8f004c24ece7 ead37f9a13225472ef5a63d2877ec6324e597b8fd5c9df5191635013218a7002 ia-claude
+ia-generated 7ac0849ba3c4698ff0b0887cb7354c8d4323d08d3b8f204cc8f2a5c5ba502f61 1346bb5accc94d3767bd3920f9c924b8707bad7d40d7a1711fc5ac7910f9cbf1 ia-claude

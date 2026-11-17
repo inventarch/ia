@@ -126,6 +126,11 @@ describe('handoffTarget', () => {
     expect(target(['doctor', '--json', '--host', 'claude'], w)).toBeNull();
     expect(target(['doctor', '--host=claude'], w)).toBeNull();
   });
+  it('workspaces never hands off', () => {
+    const w = workspace('handoff-workspaces');
+    expect(target(['workspaces', 'list'], w)).toBeNull();
+    expect(target(['workspaces'], w)).toBeNull();
+  });
   it('does not hand off to itself through a junction', () => {
     const w = workspace('handoff-junction', { installed: false });
     const self = cliPackage(scratch('handoff-junction-self'));

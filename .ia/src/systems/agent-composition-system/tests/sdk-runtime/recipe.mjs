@@ -5,12 +5,12 @@ import { readFileSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  captureWorkspace,
   compileHarness,
   executionManifest,
   installed,
   installedImplementationDigest,
 } from '@inventarch/agent-composition-system';
+import { captureWorkspace } from '@inventarch/workspace-runtime';
 import { Engine, manifestDigest } from '@inventarch/agent-system';
 import { canonical, copy, digest, memoryStore } from '@inventarch/session-system';
 import { sqliteStore } from '@inventarch/session-system/sqlite';

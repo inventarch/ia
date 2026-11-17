@@ -15,7 +15,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { afterAll, expect, it } from 'vitest';
+import { afterEach, expect, it } from 'vitest';
 import { unpackTree, HOST_TREE_LIMITS } from '../../apps/distribution/src/ustar.js';
 import { verifyHostCache } from '../../apps/distribution/src/host.js';
 import { readInstalledImplementations } from '../../apps/distribution/src/implementations.js';
@@ -41,8 +41,10 @@ function present(root: string, release: string): InstalledImplementations {
   if (catalog.status !== 'present') throw Error(`Expected a catalog: ${catalog.reason}`);
   return catalog;
 }
-afterAll(() => {
-  for (const path of made) rmSync(path, { recursive: true, force: true });
+// Each test removes the trees it made when it ends. One hook at the end of the file removed all of them at once, about
+// 24,000 files, which outlasted the hook limit on a Windows runner.
+afterEach(() => {
+  for (const path of made.splice(0)) rmSync(path, { recursive: true, force: true });
 });
 function extract(archive: Buffer): string {
   const tree = unpackTree(archive, HOST_TREE_LIMITS),

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import * as installedSDK from '@inventarch/agent-composition-system';
+import { captureWorkspace } from '@inventarch/workspace-runtime';
 import { Engine } from '@inventarch/agent-system';
 import { copy, digest, memoryStore } from '@inventarch/session-system';
 import { sqliteStore } from '@inventarch/session-system/sqlite';
@@ -20,7 +21,7 @@ const canonicalReadPaths = [
  * through `installedReadAliases()` to the plain entries).
  */
 export function readFixture(SDK, root, mode = 'plain') {
-  const baseline = SDK.captureWorkspace(root),
+  const baseline = captureWorkspace(root),
     { revision: _revision, ...captured } = baseline;
   const oldNames = (text) =>
     text.replace(/^(\s+(?:handler|input|output|implementation) captured-source-read(?:-input|-output)?)$/gm, '$1-v1');
