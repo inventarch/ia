@@ -981,5 +981,22 @@ describe('Track 2B: standalone plugin CLI projection for seated and multi-capabi
         expect(existsSync(join(out, 'scripts/guard.mjs'))).toBe(true);
       }
     }
+
+    // Workspace projection (`ia project <gemini|antigravity>`) reports authored @hook records as unregistered rather than silently dropping them.
+    for (const host of ['gemini', 'antigravity'] as const) {
+      const projected = await run(['project', host, '--root', root, '--apply', '--yes', '--json']);
+      expect(projected.exitCode, `${host} workspace project: ${projected.stdout}`).toBe(0);
+      const envelope = json(projected.stdout) as {
+        plan: { unsupported: { identity: string; word: string; reason: string }[] };
+        applied: { unsupported: { identity: string; word: string; reason: string }[] };
+      };
+      const expectedRow = {
+        identity: 'hook-authoring-system/binding/hook/cli-guard',
+        word: 'hook',
+        reason: `Not registered: workspace hook groups run only under "ia host claude --apply"; run "ia project ${host} --product plugin" for a standalone plugin guard`,
+      };
+      expect(envelope.plan.unsupported).toContainEqual(expectedRow);
+      expect(envelope.applied.unsupported).toContainEqual(expectedRow);
+    }
   });
 });

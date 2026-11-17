@@ -4,6 +4,7 @@ import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
 import { openDatabase } from '@inventarch/runtime';
 import { runBounded } from '@tools/testing/subprocess.js';
+import { evaluateHook } from '../src/main.js';
 
 // A case may launch several built hooks and admit a disk-backed native fixture.
 vi.setConfig({ testTimeout: 30_000 });
@@ -377,51 +378,113 @@ it('normalizes Gemini BeforeTool and Antigravity PreToolUse payloads, returns { 
     return JSON.parse(result.stdout) as Record<string, unknown>;
   };
 
-  // Gemini CLI BeforeTool: write_file and replace
-  for (const tool_name of ['write_file', 'replace'] as const) {
-    const denied = await runRaw({
+  // End-to-end launcher subprocess checks for Gemini BeforeTool and Antigravity PreToolUse
+  for (const payload of [
+    {
       hook_event_name: 'BeforeTool',
-      tool_name,
+      tool_name: 'write_file',
       tool_input: { file_path: protectedRecord },
       cwd: fixture,
-    });
+    },
+    {
+      cwd: fixture,
+      hookEventName: 'PreToolUse',
+      toolCall: { name: 'write_to_file', args: { TargetFile: protectedRecord } },
+    },
+  ]) {
+    const denied = await runRaw(payload);
     expect(denied).toEqual({
       decision: 'deny',
       reason: expect.stringMatching(/^IA-HOOK-IDENTITY-UNAVAILABLE:/),
     });
     expect(denied).not.toHaveProperty('hookSpecificOutput');
-
-    const allowed = await runRaw({
-      hook_event_name: 'BeforeTool',
-      tool_name,
-      tool_input: { file_path: ordinaryDoc },
+  }
+  expect(
+    await runRaw({
       cwd: fixture,
+      hookEventName: 'PreToolUse',
+      toolCall: { name: 'replace_file_content', args: { TargetFile: ordinaryDoc } },
+    }),
+  ).toEqual({});
+
+  // Full matrix in-process across Gemini BeforeTool and Antigravity IDE + 2.0/CLI tool names
+  for (const tool_name of ['write_file', 'replace'] as const) {
+    expect(
+      evaluateHook(fixture, {
+        hook_event_name: 'BeforeTool',
+        tool_name,
+        tool_input: { file_path: protectedRecord },
+        cwd: fixture,
+      }),
+    ).toEqual({
+      decision: 'deny',
+      reason: expect.stringMatching(/^IA-HOOK-IDENTITY-UNAVAILABLE:/),
     });
-    expect(allowed).toEqual({});
+    expect(
+      evaluateHook(fixture, {
+        hook_event_name: 'BeforeTool',
+        tool_name,
+        tool_input: { file_path: ordinaryDoc },
+        cwd: fixture,
+      }),
+    ).toEqual({});
   }
 
-  // Antigravity PreToolUse: toolCall.name in ['write_file', 'edit_file'] and Path / AbsolutePath / TargetFile
-  for (const [name, argKey] of [
-    ['write_file', 'Path'],
-    ['edit_file', 'AbsolutePath'],
-    ['edit_file', 'TargetFile'],
+  for (const [name, args] of [
+    ['write_to_file', { TargetFile: protectedRecord, CodeContent: 'x' }],
+    ['replace_file_content', { TargetFile: protectedRecord, TargetContent: 'a', ReplacementContent: 'b' }],
+    ['multi_replace_file_content', { TargetFile: protectedRecord, ReplacementChunks: [] }],
+    ['write_file', { Path: protectedRecord }],
+    ['edit_file', { AbsolutePath: protectedRecord }],
+    ['edit_file', { TargetFile: protectedRecord }],
   ] as const) {
-    const denied = await runRaw({
+    const denied = evaluateHook(fixture, {
+      hookEventName: 'PreToolUse',
       cwd: fixture,
-      toolCall: { name, args: { [argKey]: protectedRecord } },
+      toolCall: { name, args },
     });
-    expect(denied).toEqual({
+    expect(denied, name).toEqual({
       decision: 'deny',
       reason: expect.stringMatching(/^IA-HOOK-IDENTITY-UNAVAILABLE:/),
     });
     expect(denied).not.toHaveProperty('hookSpecificOutput');
 
-    const allowed = await runRaw({
-      cwd: fixture,
-      toolCall: { name, args: { [argKey]: ordinaryDoc } },
-    });
-    expect(allowed).toEqual({});
+    const allowedArgs =
+      'TargetFile' in args
+        ? { ...args, TargetFile: ordinaryDoc }
+        : 'Path' in args
+          ? { ...args, Path: ordinaryDoc }
+          : { ...args, AbsolutePath: ordinaryDoc };
+    expect(
+      evaluateHook(fixture, {
+        hookEventName: 'PreToolUse',
+        cwd: fixture,
+        toolCall: { name, args: allowedArgs },
+      }),
+      name,
+    ).toEqual({});
   }
+
+  // Malformed Antigravity payloads fail closed with IA-HOOK-INPUT-INVALID
+  expect(
+    evaluateHook(fixture, {
+      hookEventName: 'PostToolUse',
+      cwd: fixture,
+      toolCall: { name: 'write_to_file', args: { TargetFile: ordinaryDoc } },
+    }),
+  ).toEqual({
+    decision: 'deny',
+    reason: expect.stringMatching(/^IA-HOOK-INPUT-INVALID:/),
+  });
+  expect(
+    evaluateHook(fixture, {
+      cwd: fixture,
+      toolCall: { name: 'multi_replace_file_content', args: { TargetFile: ordinaryDoc } },
+    }),
+  ).toEqual({
+    decision: 'deny',
+    reason: expect.stringMatching(/^IA-HOOK-INPUT-INVALID:/),
+  });
 
   // Protected surfaces for gemini and antigravity (including gemini-projection.json and antigravity-projection.json)
   for (const relPath of [
@@ -434,24 +497,40 @@ it('normalizes Gemini BeforeTool and Antigravity PreToolUse payloads, returns { 
     '.ia/distributions/hosts/gemini-projection.json',
     '.ia/distributions/hosts/antigravity-projection.json',
   ]) {
-    const geminiDenied = await runRaw({
-      hook_event_name: 'BeforeTool',
-      tool_name: 'write_file',
-      tool_input: { file_path: resolve(fixture, relPath) },
-      cwd: fixture,
-    });
-    expect(geminiDenied, `gemini ${relPath}`).toEqual({
+    expect(
+      evaluateHook(fixture, {
+        hook_event_name: 'BeforeTool',
+        tool_name: 'write_file',
+        tool_input: { file_path: resolve(fixture, relPath) },
+        cwd: fixture,
+      }),
+      `gemini ${relPath}`,
+    ).toEqual({
       decision: 'deny',
       reason: expect.stringMatching(/^IA-HOOK-PROJECTION-MANAGED:/),
     });
 
-    const agyDenied = await runRaw({
-      cwd: fixture,
-      toolCall: { name: 'write_file', args: { Path: resolve(fixture, relPath) } },
-    });
-    expect(agyDenied, `antigravity ${relPath}`).toEqual({
+    expect(
+      evaluateHook(fixture, {
+        cwd: fixture,
+        toolCall: { name: 'write_to_file', args: { TargetFile: resolve(fixture, relPath) } },
+      }),
+      `antigravity ${relPath}`,
+    ).toEqual({
       decision: 'deny',
       reason: expect.stringMatching(/^IA-HOOK-PROJECTION-MANAGED:/),
     });
+  }
+
+  // With only a Codex/Gemini/Antigravity workspace MCP marker (no <host>-projection.json), packet files stay protected in legacy mode.
+  const codexOnly = temp();
+  cpSync(fixture, codexOnly, { recursive: true });
+  mkdirSync(resolve(codexOnly, '.ia/distributions/hosts'), { recursive: true });
+  writeFileSync(resolve(codexOnly, '.ia/distributions/hosts/codex-workspace.json'), '{"format":"ia.host-state.v1"}\n');
+  for (const packetFile of ['AGENTS.md', 'CLAUDE.md', 'GEMINI.md', '.agents/skills/ia-authoring/SKILL.md']) {
+    expect(
+      evaluateHook(codexOnly, event(resolve(codexOnly, packetFile))).hookSpecificOutput?.permissionDecisionReason,
+      packetFile,
+    ).toMatch(/^IA-HOOK-PROJECTION-MANAGED:/);
   }
 });

@@ -184,3 +184,44 @@ it('reports unsupported external body locators unavailable without fetching them
     view.close();
   }
 });
+it('keeps an open knowledge view able to read record fragments after a changed workspace snapshot is captured', () => {
+  const root = local(),
+    pbPath = join(root, '.ia/src/playbook.ia'),
+    pbId = 'governance-system/definition/procedure/demo-pb';
+  writeFileSync(
+    pbPath,
+    [
+      '#! ia 1.0',
+      '@playbook demo-pb',
+      '  meaning',
+      '    says "Demo playbook v1."',
+      '    answers "How does demo run?"',
+      '  cognition',
+      '    orient',
+      '      primary Memory',
+      '      Memory means "First orient cell v1."',
+      '    plan',
+      '      primary Inference',
+      '      Inference means "First plan cell v1."',
+      '',
+    ].join('\n'),
+  );
+  const first = openKnowledgeView(captureKnowledge(root, { input }));
+  writeFileSync(
+    pbPath,
+    readFileSync(pbPath, 'utf8')
+      .replace('First orient cell v1.', 'Updated orient cell v2.')
+      .replace('First plan cell v1.', 'Updated plan cell v2.'),
+  );
+  let second: ReturnType<typeof openKnowledgeView> | undefined;
+  try {
+    expect(first.read(`${pbId}#orient/Memory`).body).toContain('First orient cell v1.');
+    second = openKnowledgeView(captureKnowledge(root, { input }));
+    expect(second.read(`${pbId}#orient/Memory`).body).toContain('Updated orient cell v2.');
+    // Subsequent fragment read on the earlier view still succeeds on its pinned snapshot without IA-DB-SCOPE-UNAVAILABLE.
+    expect(first.read(`${pbId}#plan/Inference`).body).toContain('First plan cell v1.');
+  } finally {
+    first.close();
+    second?.close();
+  }
+});

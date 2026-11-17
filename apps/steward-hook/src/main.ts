@@ -368,6 +368,7 @@ function projectionOwnership(root: string): Ownership | undefined {
     }
     found = true;
   }
+  if (!found) return undefined;
   const hasWorkspace = (host: 'codex' | 'gemini' | 'antigravity'): boolean => {
     try {
       lstatSync(resolve(directory, `${host}-workspace.json`));
@@ -377,11 +378,12 @@ function projectionOwnership(root: string): Ownership | undefined {
       return false;
     }
   };
-  const codex = hasWorkspace('codex'),
-    gemini = hasWorkspace('gemini'),
-    antigravity = hasWorkspace('antigravity');
-  if (!found && !codex && !gemini && !antigravity) return undefined;
-  return { files, codex, gemini, antigravity };
+  return {
+    files,
+    codex: hasWorkspace('codex'),
+    gemini: hasWorkspace('gemini'),
+    antigravity: hasWorkspace('antigravity'),
+  };
 }
 /**
  * The selection a hook ownership state (`claude-hooks-<id>.json`) recorded for `hook` when its group was registered, or
@@ -753,20 +755,34 @@ function normalizeEditEvent(event: unknown): EditEvent | null {
     };
   }
   if (object(event['toolCall'])) {
-    if (event['hook_event_name'] !== undefined && event['hook_event_name'] !== 'PreToolUse') return null;
+    const eventName = event['hookEventName'] ?? event['hook_event_name'];
+    if (eventName !== undefined && eventName !== 'PreToolUse') return null;
     const call = event['toolCall'],
-      tool = call['name'] === 'write_file' ? 'Write' : call['name'] === 'edit_file' ? 'Edit' : null,
+      name = call['name'],
+      tool =
+        name === 'write_to_file' || name === 'write_file'
+          ? 'Write'
+          : name === 'replace_file_content' || name === 'edit_file'
+            ? 'Edit'
+            : name === 'multi_replace_file_content'
+              ? 'MultiEdit'
+              : null,
       args = call['args'];
     if (tool === null || !object(args)) return null;
-    const rawPath = args['Path'] ?? args['AbsolutePath'] ?? args['TargetFile'];
+    if (name === 'multi_replace_file_content' && !Array.isArray(args['ReplacementChunks'])) return null;
+    const rawPath = args['TargetFile'] ?? args['Path'] ?? args['AbsolutePath'];
     if (!validFilePath(rawPath)) return null;
+    const workspaceFirst =
+      Array.isArray(event['workspacePaths']) && typeof event['workspacePaths'][0] === 'string'
+        ? event['workspacePaths'][0]
+        : undefined;
     return {
       caller: 'antigravity',
       tool_name: tool,
       tool_input: { ...args, file_path: rawPath },
-      cwd: event['cwd'],
-      agent_id: event['agent_id'],
-      agent_type: event['agent_type'],
+      cwd: event['cwd'] ?? workspaceFirst,
+      agent_id: event['agent_id'] ?? event['agentId'],
+      agent_type: event['agent_type'] ?? event['agentType'],
     };
   }
   if (

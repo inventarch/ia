@@ -1,4 +1,4 @@
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -114,11 +114,11 @@ describe('gemini and antigravity prose catalogs & generated host files', () => {
     const agy = antigravityProseCatalog('b'.repeat(64));
     expect(agy.profile.id).toBe(ANTIGRAVITY_PROSE_PROFILE);
     expect(agy.tools).toEqual([
-      { id: 'read', name: 'read_file' },
-      { id: 'glob', name: 'read_file' },
-      { id: 'grep', name: 'read_file' },
-      { id: 'write', name: 'write_file' },
-      { id: 'edit', name: 'edit_file' },
+      { id: 'read', name: 'view_file' },
+      { id: 'glob', name: 'find_by_name' },
+      { id: 'grep', name: 'grep_search' },
+      { id: 'write', name: 'write_to_file' },
+      { id: 'edit', name: 'replace_file_content' },
       { id: 'bash', name: 'run_command' },
     ]);
   });
@@ -166,7 +166,7 @@ describe('gemini and antigravity prose catalogs & generated host files', () => {
       'description: "Reviews the demo workspace\'s notes and reports what it finds."',
       'subagent: true',
       'mainAgent: false',
-      'tools: [read_file, write_file, edit_file, run_command]',
+      'tools: [view_file, grep_search, find_by_name, write_to_file, replace_file_content, run_command]',
       '---',
     ]);
     expect(agyAgent).not.toContain('\nmodel:');
@@ -264,7 +264,9 @@ describe('gemini and antigravity prose catalogs & generated host files', () => {
       expect(res.files.map((f) => f.path)).toContain(expectedManifest);
       const agentContent = res.files.find((f) => f.path === 'agents/fictional-reviewer.md')!.content;
       if (host === 'antigravity') {
-        expect(agentContent).toContain('subagent: true\nmainAgent: false\ntools: [read_file]\n');
+        expect(agentContent).toContain(
+          'subagent: true\nmainAgent: false\ntools: [view_file, grep_search, find_by_name]\n',
+        );
         expect(agentContent).not.toContain('model:');
       } else {
         expect(agentContent).toContain('tools: [read_file, grep_search, glob]\n');
@@ -367,9 +369,19 @@ describe('Track 2B: standalone plugin manifests & zero-IA-dependency compiler', 
       '    answers "Which paths are blocked?"',
       '  hook',
       '    event PreToolUse',
-      '    tools [Write, Edit]',
-      '    paths ["frozen/**"]',
+      '    tools [Write, Edit, MultiEdit]',
+      '    paths ["frozen/**/", "**/**/**/**/**/slow*slow*slow*slow*end"]',
       '    message "Frozen docs are read-only; propose a migration instead."',
+      '',
+      '@mandate frozen-docs-mandate',
+      '  meaning',
+      '    says "Frozen docs permit observation only."',
+      '    answers "What moves are allowed under frozen/?"',
+      '  governance',
+      '    requires "Claim no host permission or execution from this mandate."',
+      '  authority',
+      '    moves [Observation]',
+      '    covers ["frozen/"]',
       '',
       capRecords,
     ].join('\n');
@@ -388,7 +400,7 @@ describe('Track 2B: standalone plugin manifests & zero-IA-dependency compiler', 
     ] as const satisfies readonly StandalonePluginHost[]) {
       const files = compileStandalonePlugin(kitFixture.db, kitFixture.within, {
         host,
-        fallbackName: 'mega-kit',
+        fallbackName: 'mega-kit---',
         fallbackVersion: '0.5.0',
       });
       const paths = files.map((f) => f.path);
@@ -399,7 +411,9 @@ describe('Track 2B: standalone plugin manifests & zero-IA-dependency compiler', 
       expect(skillFiles[0]!.path).toBe('skills/mega/SKILL.md');
 
       const routerText = skillFiles[0]!.bytes.toString('utf8');
-      expect(routerText).toContain(host === 'gemini' || host === 'antigravity' ? '`read_file`' : '`Read`');
+      expect(routerText).toContain(
+        host === 'gemini' ? '`read_file`' : host === 'antigravity' ? '`view_file`' : '`Read`',
+      );
       expect(routerText).not.toMatch(/\bia_method\b|\bia_session\b|\bia_catalogue\b|\bia position\b/);
 
       const refFiles = files.filter((f) => f.path.startsWith('skills/mega/references/'));
@@ -428,13 +442,18 @@ describe('Track 2B: standalone plugin manifests & zero-IA-dependency compiler', 
         expect(paths).toContain('hooks.json');
         expect(paths).toContain('scripts/guard.mjs');
         const hooksJson = JSON.parse(files.find((f) => f.path === 'hooks.json')!.bytes.toString('utf8'));
+        expect(hooksJson['ia-guard'].PreToolUse[0].matcher).toBe(
+          'write_to_file|replace_file_content|multi_replace_file_content|write_file|edit_file',
+        );
         expect(hooksJson['ia-guard'].PreToolUse[0].hooks[0]).toMatchObject({
           type: 'command',
           command: 'node ./scripts/guard.mjs',
           timeout: 10,
         });
         const agentText = files.find((f) => f.path === 'agents/reviewer.md')!.bytes.toString('utf8');
-        expect(agentText).toContain('subagent: true\nmainAgent: false\ntools: [read_file]\n');
+        expect(agentText).toContain(
+          'subagent: true\nmainAgent: false\ntools: [view_file, grep_search, find_by_name]\n',
+        );
       } else if (host === 'claude') {
         expect(paths).toContain('hooks/hooks.json');
         expect(paths).toContain('scripts/guard.mjs');
@@ -452,34 +471,85 @@ describe('Track 2B: standalone plugin manifests & zero-IA-dependency compiler', 
     writeFileSync(guardPath, agyFiles.find((f) => f.path === 'scripts/guard.mjs')!.bytes);
 
     const fakeWorkspace = join(temporary, 'guard-ws');
-    mkdirSync(fakeWorkspace, { recursive: true });
+    mkdirSync(join(fakeWorkspace, 'frozen'), { recursive: true });
+    mkdirSync(join(fakeWorkspace, 'src'), { recursive: true });
 
-    const runGuard = async (payload: unknown) => {
+    const runGuardRaw = async (rawInput: string) => {
       const res = await runBounded(process.execPath, [guardPath], {
         cwd: fakeWorkspace,
-        input: JSON.stringify(payload),
+        input: rawInput,
         timeoutMs: 10_000,
       });
       expect(res.status, res.stderr).toBe(0);
       return res.stdout.trim() ? JSON.parse(res.stdout) : {};
     };
+    const runGuard = (payload: unknown) => runGuardRaw(JSON.stringify(payload));
 
-    // Antigravity PreToolUse deny & allow
+    // Antigravity PreToolUse deny & allow across documented IDE tools (write_to_file, replace_file_content, multi_replace_file_content) and 2.0/CLI tools
+    for (const [name, args] of [
+      ['write_to_file', { TargetFile: join(fakeWorkspace, 'frozen/spec.md'), CodeContent: 'x' }],
+      ['replace_file_content', { TargetFile: join(fakeWorkspace, 'frozen/nested/spec.md') }],
+      ['multi_replace_file_content', { TargetFile: join(fakeWorkspace, 'frozen/spec.md'), ReplacementChunks: [] }],
+      ['write_file', { Path: join(fakeWorkspace, 'frozen/spec.md') }],
+      ['edit_file', { TargetFile: join(fakeWorkspace, 'frozen/spec.md') }],
+    ] as const) {
+      expect(await runGuard({ cwd: fakeWorkspace, toolCall: { name, args } }), name).toEqual({
+        decision: 'deny',
+        reason: expect.stringMatching(/^IA-HOOK-NOT-MANDATED: .*Frozen docs are read-only/),
+      });
+    }
     expect(
       await runGuard({
         cwd: fakeWorkspace,
-        toolCall: { name: 'write_file', args: { Path: join(fakeWorkspace, 'frozen/spec.md') } },
+        toolCall: {
+          name: 'replace_file_content',
+          args: { TargetFile: join(fakeWorkspace, 'src/open.md') },
+        },
+      }),
+    ).toEqual({ decision: 'allow' });
+
+    // Pathological repeated * / ** selection runs in linear time (well under 1s, never hitting the 10s timeout)
+    const slowCandidate = `${Array.from({ length: 18 }, (_, i) => `seg${i}`).join('/')}/${'slow_'.repeat(30)}nope.md`;
+    const started = Date.now();
+    expect(
+      await runGuard({
+        cwd: fakeWorkspace,
+        toolCall: { name: 'write_to_file', args: { TargetFile: join(fakeWorkspace, slowCandidate) } },
+      }),
+    ).toEqual({ decision: 'allow' });
+    expect(Date.now() - started).toBeLessThan(2_000);
+
+    // Symlink into protected frozen/ folder is refused with IA-HOOK-PATH-UNSAFE
+    const symLinkDir = join(fakeWorkspace, 'src/escape-link');
+    symlinkSync(join(fakeWorkspace, 'frozen'), symLinkDir, 'junction');
+    expect(
+      await runGuard({
+        cwd: fakeWorkspace,
+        toolCall: { name: 'write_to_file', args: { TargetFile: join(symLinkDir, 'bypass.md') } },
       }),
     ).toEqual({
       decision: 'deny',
-      reason: expect.stringContaining('Frozen docs are read-only'),
+      reason: expect.stringMatching(/^IA-HOOK-PATH-UNSAFE:/),
     });
-    expect(
-      await runGuard({
+
+    // Malformed, empty, incomplete, or oversized stdin fails closed with IA-HOOK-INPUT-INVALID
+    for (const bad of [
+      '',
+      '{',
+      '{}',
+      '[]',
+      JSON.stringify({ cwd: fakeWorkspace, toolCall: { name: 'write_to_file', args: {} } }),
+      JSON.stringify({
         cwd: fakeWorkspace,
-        toolCall: { name: 'edit_file', args: { TargetFile: join(fakeWorkspace, 'src/open.md') } },
+        toolCall: { name: 'multi_replace_file_content', args: { TargetFile: join(fakeWorkspace, 'src/open.md') } },
       }),
-    ).toEqual({ decision: 'allow' });
+      'x'.repeat(1024 * 1024 + 64),
+    ]) {
+      expect(await runGuardRaw(bad)).toEqual({
+        decision: 'deny',
+        reason: expect.stringMatching(/^IA-HOOK-INPUT-INVALID:/),
+      });
+    }
 
     // Gemini BeforeTool deny & allow
     expect(
@@ -491,7 +561,7 @@ describe('Track 2B: standalone plugin manifests & zero-IA-dependency compiler', 
       }),
     ).toEqual({
       decision: 'deny',
-      reason: expect.stringContaining('Frozen docs are read-only'),
+      reason: expect.stringMatching(/^IA-HOOK-NOT-MANDATED: .*Frozen docs are read-only/),
     });
     expect(
       await runGuard({
@@ -514,7 +584,7 @@ describe('Track 2B: standalone plugin manifests & zero-IA-dependency compiler', 
       hookSpecificOutput: {
         hookEventName: 'PreToolUse',
         permissionDecision: 'deny',
-        permissionDecisionReason: expect.stringContaining('Frozen docs are read-only'),
+        permissionDecisionReason: expect.stringMatching(/^IA-HOOK-NOT-MANDATED: .*Frozen docs are read-only/),
       },
     });
     expect(
@@ -526,15 +596,73 @@ describe('Track 2B: standalone plugin manifests & zero-IA-dependency compiler', 
       }),
     ).toEqual({});
 
-    // Seated workspace with lane bindings: emits <= 4 router skills (work, knowledge, delivery + workspace-capabilities).
-    const seatedFixture = openFixture({ '.ia/src/kit-standalone.ia': governanceAndHooks });
-    const seatedFiles = compileStandalonePlugin(seatedFixture.db, seatedFixture.within, {
+    // Seated workspace with @mandate governance: main session (@agent demo) allowed under docs/** (docs-mandate grants Synthesis),
+    // denied under restricted/** when demo-mandate only grants Observation, and reviewer subagent denied under both.
+    const observingWorkspace = readFileSync(resolve(FIXTURE, 'workspace.ia'), 'utf8').replace(
+      'moves [Observation, Verification, Synthesis, Delegation, Execution]',
+      'moves [Observation]',
+    );
+    const seatedMandateFixture = openFixture({
+      '.ia/src/workspace.ia': observingWorkspace,
+      '.ia/src/kit-standalone.ia': governanceAndHooks,
+    });
+    const seatedFiles = compileStandalonePlugin(seatedMandateFixture.db, seatedMandateFixture.within, {
       host: 'antigravity',
       bindings: {
         'work.alpha': { kit: 'mega', capability: 'cap-alpha' },
         'knowledge.beta': { kit: 'mega', capability: 'cap-beta' },
         'delivery.gamma': { kit: 'mega', capability: 'cap-gamma' },
       },
+    });
+    const seatedGuardPath = join(temporary, 'seated-guard.mjs');
+    writeFileSync(seatedGuardPath, seatedFiles.find((f) => f.path === 'scripts/guard.mjs')!.bytes);
+    const runSeatedGuard = async (payload: unknown) => {
+      const res = await runBounded(process.execPath, [seatedGuardPath], {
+        cwd: fakeWorkspace,
+        input: JSON.stringify(payload),
+        timeoutMs: 10_000,
+      });
+      expect(res.status, res.stderr).toBe(0);
+      return JSON.parse(res.stdout);
+    };
+    // Main session acts as @agent demo: allowed in docs/ (docs-mandate Synthesis), denied in restricted/ (Observation only)
+    expect(
+      await runSeatedGuard({
+        cwd: fakeWorkspace,
+        toolCall: { name: 'write_to_file', args: { TargetFile: join(fakeWorkspace, 'docs/guide.md') } },
+      }),
+    ).toEqual({ decision: 'allow' });
+    expect(
+      await runSeatedGuard({
+        cwd: fakeWorkspace,
+        toolCall: { name: 'write_to_file', args: { TargetFile: join(fakeWorkspace, 'restricted/plan.md') } },
+      }),
+    ).toEqual({
+      decision: 'deny',
+      reason: expect.stringMatching(/^IA-HOOK-NOT-MANDATED:/),
+    });
+    // Subagent reviewer denied in docs/ (IA-HOOK-NOT-MANDATED), unknown subagent stranger denied (IA-HOOK-IDENTITY-UNAVAILABLE)
+    expect(
+      await runSeatedGuard({
+        cwd: fakeWorkspace,
+        agentId: 'sub-1',
+        agentType: 'reviewer',
+        toolCall: { name: 'write_to_file', args: { TargetFile: join(fakeWorkspace, 'docs/guide.md') } },
+      }),
+    ).toEqual({
+      decision: 'deny',
+      reason: expect.stringMatching(/^IA-HOOK-NOT-MANDATED:/),
+    });
+    expect(
+      await runSeatedGuard({
+        cwd: fakeWorkspace,
+        agentId: 'sub-2',
+        agentType: 'stranger',
+        toolCall: { name: 'write_to_file', args: { TargetFile: join(fakeWorkspace, 'docs/guide.md') } },
+      }),
+    ).toEqual({
+      decision: 'deny',
+      reason: expect.stringMatching(/^IA-HOOK-IDENTITY-UNAVAILABLE:/),
     });
     const seatedSkills = seatedFiles.filter((f) => f.path.endsWith('/SKILL.md')).map((f) => f.path);
     expect(seatedSkills.length).toBeLessThanOrEqual(4);

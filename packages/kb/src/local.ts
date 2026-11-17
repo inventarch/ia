@@ -38,11 +38,17 @@ export interface KnowledgeOptions {
   readonly selection?: KnowledgeSelection | null;
 }
 const snapshots = new WeakSet<KnowledgeSnapshot>();
+const nativeReaders = new WeakMap<Capture, EditorSnapshot>();
 let lastNativeReader: { readonly revision: string; readonly reader: EditorSnapshot } | undefined;
 export function sharedNativeReader(c: Capture): EditorSnapshot {
-  if (lastNativeReader?.revision === c.revision) return lastNativeReader.reader;
-  lastNativeReader?.reader.close();
+  const existing = nativeReaders.get(c);
+  if (existing !== undefined) return existing;
+  if (lastNativeReader?.revision === c.revision) {
+    nativeReaders.set(c, lastNativeReader.reader);
+    return lastNativeReader.reader;
+  }
   const reader = new EditorSnapshot(nativeInput(c));
+  nativeReaders.set(c, reader);
   lastNativeReader = { revision: c.revision, reader };
   return reader;
 }

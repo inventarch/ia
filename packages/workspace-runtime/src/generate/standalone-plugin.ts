@@ -1,6 +1,13 @@
 import type { ReadHandle } from '@inventarch/db';
 import { isSelection, type Node } from '@inventarch/graph';
-import { PHASES, type Cell, type CompiledValue } from '@inventarch/language';
+import { PHASES, type Cell, type CompiledField, type CompiledValue } from '@inventarch/language';
+import {
+  defaultActor,
+  mandateAuthorityOf,
+  requireMandatesAdmitted,
+  rootWorkspace,
+  RuntimeError,
+} from '@inventarch/runtime';
 import { emitFrontmatter, type FrontField } from '../host-plugin/frontmatter.js';
 import { HostPluginError } from '../host-plugin/errors.js';
 import { MANIFESTS, NAME } from '../host-plugin/inventory.js';
@@ -110,9 +117,9 @@ function toPortableSlug(raw: string | undefined, fallback = 'ia-plugin'): string
     .replace(/[^a-z0-9-]+/g, '-')
     .replace(/-+/g, '-')
     .replace(/^[^a-z]+/, '')
-    .replace(/-+$/, '')
+    .replace(/-$/, '')
     .slice(0, 63)
-    .replace(/-+$/, '');
+    .replace(/-$/, '');
   return cleaned.length > 0 && NAME.test(cleaned) ? cleaned : fallback;
 }
 
@@ -384,7 +391,7 @@ function renderRouterSkill(
   host: StandalonePluginHost,
   entries: readonly RouterEntry[],
 ): Buffer {
-  const readTool = host === 'gemini' || host === 'antigravity' ? 'read_file' : 'Read';
+  const readTool = host === 'gemini' ? 'read_file' : host === 'antigravity' ? 'view_file' : 'Read';
   const fields: FrontField[] = [
     { key: 'name', value: plainField(routerName) },
     { key: 'description', value: plainField(shortSummary(description, 240)) },
@@ -461,92 +468,756 @@ function standaloneHookOf(node: Node): StandaloneHookRule | null {
   };
 }
 
-function renderStandaloneGuardScript(rules: readonly StandaloneHookRule[]): Buffer {
-  const source = `#!/usr/bin/env node
-// Standalone zero-dependency @hook path guard compiled by ia project --product plugin.
-import { isAbsolute, relative, resolve, sep } from 'node:path';
-
-const RULES = ${JSON.stringify(rules, null, 2)};
-const FOLD_CASE = process.platform === 'win32' || process.platform === 'darwin';
-const fold = (value) => (FOLD_CASE ? value.toLowerCase() : value);
-
-function globToRegExp(pattern) {
-  const normalized = fold(pattern.replace(/\\\\/g, '/'));
-  if (normalized.endsWith('/')) {
-    const prefix = normalized.slice(0, -1).replace(/[.+^$()|[\\]{}]/g, '\\\\$&');
-    return new RegExp('^' + prefix + '(?:/.*)?$');
-  }
-  let expr = '^';
-  for (let i = 0; i < normalized.length; i += 1) {
-    const ch = normalized[i];
-    if (ch === '*' && normalized[i + 1] === '*') {
-      if (normalized[i + 2] === '/') {
-        expr += '(?:.*/)?';
-        i += 2;
-      } else {
-        expr += '.*';
-        i += 1;
-      }
-    } else if (ch === '*') {
-      expr += '[^/]*';
-    } else if (ch === '?') {
-      expr += '[^/]';
-    } else if ('+^$.()|[]{}'.includes(ch)) {
-      expr += '\\\\' + ch;
-    } else {
-      expr += ch;
-    }
-  }
-  expr += '$';
-  return new RegExp(expr);
+interface CompiledWorkspaceGuardRow {
+  readonly ownRoots: readonly string[];
+  readonly actor: string | null;
+  readonly reason: string | null;
+  readonly refusal: { readonly message: string; readonly next: string } | null;
 }
 
-const COMPILED = RULES.map((rule) => ({
-  ...rule,
-  matchers: rule.paths.map(globToRegExp),
-}));
+interface CompiledMandateGuardRow {
+  readonly identity: string;
+  readonly root: string;
+  readonly invalid: string | null;
+  readonly participant: string | null;
+  readonly participantAgent: string | null;
+  readonly hasParticipant: boolean;
+  readonly hasScopeOrCovers: boolean;
+  readonly scopedWorkspaces: readonly string[];
+  readonly covers: readonly string[];
+  readonly moves: readonly string[] | null;
+}
+
+interface CompiledMandateGuardModel {
+  readonly admissionRefusal: string | null;
+  readonly repositoryWorkspace: string | null;
+  readonly rootWorkspace: string | null;
+  readonly floorSystem: string | null;
+  readonly declaredRoots: readonly { readonly root: string; readonly workspace: string }[];
+  readonly declaredRootList: readonly string[];
+  readonly systemsByFolder: Readonly<Record<string, string>>;
+  readonly systemRoots: Readonly<Record<string, string>>;
+  readonly workspaces: Readonly<Record<string, CompiledWorkspaceGuardRow>>;
+  readonly subagents: Readonly<Record<string, { readonly profile: string; readonly agent: string | null }>>;
+  readonly mandates: readonly CompiledMandateGuardRow[];
+}
+
+function compileMandateGuardModel(reader: ReadHandle, within: string): CompiledMandateGuardModel {
+  try {
+    requireMandatesAdmitted(reader, within);
+  } catch (error) {
+    return {
+      admissionRefusal: error instanceof Error ? error.message : String(error),
+      repositoryWorkspace: null,
+      rootWorkspace: null,
+      floorSystem: null,
+      declaredRoots: [],
+      declaredRootList: [],
+      systemsByFolder: {},
+      systemRoots: {},
+      workspaces: {},
+      subagents: {},
+      mandates: [],
+    };
+  }
+  const read = { within };
+  const snapshot = reader.snapshot(read);
+  const nodes = new Map(
+    snapshot.records.filter((node) => node.placement.kind !== 'runtime').map((node) => [node.identity, node]),
+  );
+  const rootOf = new Map(snapshot.membership.map((row) => [row.identity, row.root]));
+  const declaredRoots = reader.roots(read).map((row) => ({ root: row.root, workspace: row.workspace }));
+  const declaredRootList = [...new Set(declaredRoots.map((row) => row.root))];
+  const repoCandidate = reader.repositoryWorkspace(read);
+  const repositoryWorkspace =
+    repoCandidate !== undefined && nodes.get(repoCandidate)?.discriminator === 'workspace' ? repoCandidate : null;
+  const rootWsCandidate = rootWorkspace(reader, read);
+  const resolvedRootWorkspace =
+    rootWsCandidate !== undefined && nodes.get(rootWsCandidate)?.discriminator === 'workspace' ? rootWsCandidate : null;
+  const floorSystem =
+    snapshot.records.find(
+      (node) =>
+        node.discriminator === 'system' &&
+        node.source.path.slice(0, node.source.path.lastIndexOf('/')) === '.ia/src/floor',
+    )?.identity ?? null;
+
+  const systemsByFolder: Record<string, string> = {};
+  const systemRoots: Record<string, string> = {};
+  for (const node of nodes.values()) {
+    if (node.discriminator !== 'system') continue;
+    if (systemsByFolder[node.name] === undefined) systemsByFolder[node.name] = node.identity;
+    systemRoots[node.identity] = rootOf.get(node.identity) ?? '';
+  }
+
+  const workspaces: Record<string, CompiledWorkspaceGuardRow> = {};
+  for (const node of nodes.values()) {
+    if (node.discriminator !== 'workspace') continue;
+    const da = defaultActor(reader, within, node.identity);
+    workspaces[node.identity] = {
+      ownRoots: [...new Set(declaredRoots.filter((r) => r.workspace === node.identity).map((r) => r.root))],
+      actor: da.actor ?? null,
+      reason: da.reason ?? null,
+      refusal: da.refusal !== undefined ? { message: da.refusal.message, next: da.refusal.next } : null,
+    };
+  }
+
+  const targets = (identity: string, field: string, word: string): readonly string[] =>
+    reader
+      .directedView(identity, read)
+      .filter(
+        (row) =>
+          row.kind === 'field-ref' &&
+          row.direction === 'out' &&
+          row.field === field &&
+          nodes.get(row.counterpart)?.discriminator === word,
+      )
+      .map((row) => row.counterpart);
+
+  const profilesByName = new Map<string, Node[]>();
+  for (const node of nodes.values()) {
+    if (node.discriminator !== 'agent-profile' || node.band !== 100) continue;
+    const list = profilesByName.get(node.name) ?? [];
+    list.push(node);
+    profilesByName.set(node.name, list);
+  }
+  const subagents: Record<string, { readonly profile: string; readonly agent: string | null }> = {};
+  for (const [name, list] of profilesByName.entries()) {
+    if (list.length !== 1) continue;
+    const profile = list[0]!;
+    const agents = targets(profile.identity, 'composition.agent', 'agent');
+    subagents[name] = { profile: profile.identity, agent: agents.length === 1 ? agents[0]! : null };
+  }
+
+  const statesKey = (node: Node, sectionName: string, key: string): boolean =>
+    node.sections
+      .filter((s) => s.name === sectionName)
+      .flatMap((s) => s.fields)
+      .some((c) => 'key' in c && c.key === key);
+  const statesValue = (node: Node, sectionName: string, key: string): boolean =>
+    node.sections
+      .filter((s) => s.name === sectionName)
+      .flatMap((s) => s.fields)
+      .some(
+        (c) => 'key' in c && c.key === key && !('value' in c && c.value.kind === 'list' && c.value.items.length === 0),
+      );
+  const coversOf = (node: Node): readonly string[] =>
+    node.sections
+      .filter((s) => s.name === 'authority')
+      .flatMap((s) => s.fields)
+      .filter((c): c is CompiledField => 'key' in c && c.key === 'covers')
+      .flatMap((c) => (c.value.kind === 'list' ? c.value.items : [c.value]))
+      .flatMap((v) => ('text' in v ? [v.text] : []));
+
+  const mandates: CompiledMandateGuardRow[] = [...nodes.values()]
+    .filter((node) => node.discriminator === 'mandate' && node.band === 100)
+    .sort((a, b) => (a.identity < b.identity ? -1 : a.identity > b.identity ? 1 : 0))
+    .map((node): CompiledMandateGuardRow => {
+      const root = rootOf.get(node.identity) ?? '';
+      const hasParticipant = statesKey(node, 'authority', 'participant');
+      const hasScopeOrCovers = statesValue(node, 'authority', 'scope') || statesValue(node, 'authority', 'covers');
+      const scopedWorkspaces = targets(node.identity, 'authority.scope', 'workspace');
+      const participantAgent = targets(node.identity, 'authority.participant', 'agent')[0] ?? null;
+      const rawCovers = coversOf(node);
+      try {
+        const authority = mandateAuthorityOf(node);
+        return {
+          identity: node.identity,
+          root,
+          invalid: null,
+          participant:
+            authority.participant === undefined ? null : (participantAgent ?? `@agent ${authority.participant}`),
+          participantAgent,
+          hasParticipant,
+          hasScopeOrCovers,
+          scopedWorkspaces,
+          covers: authority.covers ? [...authority.covers] : [...rawCovers],
+          moves: authority.moves ? [...authority.moves] : null,
+        };
+      } catch (error) {
+        if (!(error instanceof RuntimeError)) throw error;
+        return {
+          identity: node.identity,
+          root,
+          invalid: error.message,
+          participant: participantAgent,
+          participantAgent,
+          hasParticipant,
+          hasScopeOrCovers,
+          scopedWorkspaces,
+          covers: [...rawCovers],
+          moves: null,
+        };
+      }
+    });
+
+  return {
+    admissionRefusal: null,
+    repositoryWorkspace,
+    rootWorkspace: resolvedRootWorkspace,
+    floorSystem,
+    declaredRoots,
+    declaredRootList,
+    systemsByFolder,
+    systemRoots,
+    workspaces,
+    subagents,
+    mandates,
+  };
+}
+
+const JS_UNSAFE_ESCAPES: Readonly<Record<string, string>> = {
+  '<': '\\u003c',
+  '>': '\\u003e',
+  '\u2028': '\\u2028',
+  '\u2029': '\\u2029',
+};
+
+function jsLiteral(value: unknown, indent?: number): string {
+  return JSON.stringify(value, null, indent).replace(/[<>\u2028\u2029]/g, (ch) => JS_UNSAFE_ESCAPES[ch] ?? ch);
+}
+
+function renderStandaloneGuardScript(
+  host: StandalonePluginHost,
+  rules: readonly StandaloneHookRule[],
+  model: CompiledMandateGuardModel,
+): Buffer {
+  const source = `#!/usr/bin/env node
+// Standalone zero-dependency @hook and @mandate path guard compiled by ia project --product plugin.
+import { lstatSync, realpathSync, statSync } from 'node:fs';
+import { dirname, isAbsolute, join, parse, relative, resolve, sep } from 'node:path';
+
+const HOST = ${jsLiteral(host)};
+const RULES = ${jsLiteral(rules, 2)};
+const MODEL = ${jsLiteral(model, 2)};
+const DECLARED_ROOT_SET = new Set(MODEL.declaredRootList);
+const AGENT_LIMIT = 512;
+const ESCAPES = new RegExp('\\\\u001b(?:\\\\[[0-?]*[ -/]*[@-~]|\\\\][^\\\\u0007\\\\u001b]*(?:\\\\u0007|\\\\u001b\\\\\\\\)?|[@-_])', 'g');
+const CONTROLS = new RegExp('[\\\\u0000-\\\\u001f\\\\u007f-\\\\u009f\\\\u061c\\\\u200e\\\\u200f\\\\u2028\\\\u2029\\\\u202a-\\\\u202e\\\\u2066-\\\\u2069]', 'g');
+const ALL_ONES = 2n ** 64n - 1n;
+
+function printable(text) {
+  return String(text).replace(ESCAPES, '').replace(CONTROLS, ' ').slice(0, 4096);
+}
+
+function caseFold(name) {
+  return name
+    .normalize('NFC')
+    .split('\\u0131')
+    .map((part) => part.toLowerCase().toUpperCase().toLowerCase().normalize('NFC'))
+    .join('\\u0131');
+}
+
+function fold(value) {
+  if (process.platform === 'win32') return value.toLowerCase();
+  return process.platform === 'darwin' ? caseFold(value) : value;
+}
+
+function isPlainObject(value) {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function validFilePath(value) {
+  return typeof value === 'string' && value.trim().length > 0 && !value.includes('\\0');
+}
+
+function streamed(filePath) {
+  const rest = filePath.replace(/^[\\\\/]{2}[?.][\\\\/]/, '').replace(/^[A-Za-z]:/, '');
+  return rest.includes(':');
+}
+
+function selectionSegments(selection) {
+  const text = String(selection).replaceAll('\\\\', '/');
+  if (text === '' || text.startsWith('/') || /^[A-Za-z]:/.test(text)) return undefined;
+  const segments = (text.endsWith('/') ? text + '**' : text).split('/');
+  return segments.some((s) => s === '' || s === '.' || s === '..') ? undefined : segments;
+}
+
+function pathSegments(relPath) {
+  const text = String(relPath).replaceAll('\\\\', '/');
+  if (text.startsWith('/') || /^[A-Za-z]:/.test(text)) return undefined;
+  if (text === '') return [];
+  const segments = text.split('/');
+  return segments.some((s) => s === '' || s === '.' || s === '..') ? undefined : segments;
+}
+
+function wildcard(pattern, text, star, accepts) {
+  let p = 0;
+  let t = 0;
+  let starAt = -1;
+  let resume = 0;
+  while (t < text.length) {
+    if (p < pattern.length && !star(pattern[p]) && accepts(pattern[p], text[t])) {
+      p += 1;
+      t += 1;
+    } else if (p < pattern.length && star(pattern[p])) {
+      starAt = p;
+      p += 1;
+      resume = t;
+    } else if (starAt >= 0) {
+      p = starAt + 1;
+      resume += 1;
+      t = resume;
+    } else {
+      return false;
+    }
+  }
+  while (p < pattern.length && star(pattern[p])) p += 1;
+  return p === pattern.length;
+}
+
+function segmentAccepts(pattern, segment) {
+  return wildcard([...pattern], [...segment], (c) => c === '*', (c, d) => c === '?' || c === d);
+}
+
+function selects(selection, relPath) {
+  const pattern = selectionSegments(fold(selection));
+  const target = pathSegments(fold(relPath));
+  return pattern !== undefined && target !== undefined && wildcard(pattern, target, (s) => s === '**', segmentAccepts);
+}
+
+function linked(absPath) {
+  const absolute = resolve(absPath);
+  const volume = parse(absolute).root;
+  let current = volume;
+  for (const part of absolute.slice(volume.length).split(/[\\\\/]/).filter(Boolean)) {
+    current = join(current, part);
+    let isLink = false;
+    try {
+      isLink = lstatSync(current).isSymbolicLink();
+    } catch (error) {
+      if (['ENOENT', 'ENOTDIR'].includes(error?.code ?? '')) return false;
+      throw error;
+    }
+    if (isLink) return true;
+  }
+  return false;
+}
+
+function unaliased(targetPath, realPath) {
+  if (targetPath === realPath) return true;
+  if (process.platform === 'win32') return resolve(targetPath).toLowerCase() === realPath.toLowerCase() && !linked(resolve(targetPath));
+  return targetPath === resolve(targetPath) && !linked(targetPath);
+}
+
+function physical(targetPath) {
+  try {
+    lstatSync(targetPath);
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error;
+    const parent = dirname(targetPath);
+    if (parent === targetPath) throw error;
+    return resolve(physical(parent), relative(parent, targetPath));
+  }
+  return realpathSync.native(targetPath);
+}
+
+function sameFile(a, b) {
+  try {
+    const left = statSync(a, { bigint: true, throwIfNoEntry: false });
+    const right = statSync(b, { bigint: true, throwIfNoEntry: false });
+    if (!left || !right) return false;
+    if (left.ino !== 0n && left.ino !== ALL_ONES && right.ino !== 0n && right.ino !== ALL_ONES) {
+      return left.dev === right.dev && left.ino === right.ino;
+    }
+    return realpathSync.native(a) === realpathSync.native(b);
+  } catch {
+    return fold(resolve(a)) === fold(resolve(b));
+  }
+}
+
+function local(rootPath, targetPath) {
+  const rel = relative(fold(rootPath), fold(targetPath));
+  return isAbsolute(rel) || rel === '..' || rel.startsWith('..' + sep) ? undefined : rel.replaceAll('\\\\', '/');
+}
+
+function anchored(rootPath, targetPath) {
+  for (let current = targetPath; ; ) {
+    if (sameFile(current, rootPath)) return local(current, targetPath);
+    const parent = dirname(current);
+    if (parent === current) return undefined;
+    current = parent;
+  }
+}
+
+function installation(relPath) {
+  return relPath === '.ia/distributions.lock.json' || relPath === '.ia/distributions' || relPath.startsWith('.ia/distributions/');
+}
+
+function callerOf(event) {
+  if (!isPlainObject(event)) return HOST;
+  if (event.hook_event_name === 'BeforeTool') return 'gemini';
+  if (isPlainObject(event.toolCall)) return 'antigravity';
+  if (event.hook_event_name === 'PreToolUse') return 'claude';
+  return HOST;
+}
 
 function normalizeEvent(event) {
-  if (!event || typeof event !== 'object' || Array.isArray(event)) return null;
-  if (event.toolCall && typeof event.toolCall === 'object' && !Array.isArray(event.toolCall)) {
-    const name = event.toolCall.name;
-    const tool = name === 'write_file' ? 'Write' : name === 'edit_file' ? 'Edit' : null;
-    const args = event.toolCall.args && typeof event.toolCall.args === 'object' ? event.toolCall.args : {};
-    const filePath = args.Path ?? args.AbsolutePath ?? args.TargetFile;
-    const cwd =
-      typeof event.cwd === 'string' && event.cwd
-        ? event.cwd
-        : Array.isArray(event.workspacePaths) && typeof event.workspacePaths[0] === 'string'
-          ? event.workspacePaths[0]
-          : process.cwd();
-    if (!tool || typeof filePath !== 'string' || !filePath) return null;
-    return { caller: 'antigravity', tool, filePath, cwd };
+  if (!isPlainObject(event)) return null;
+  if (isPlainObject(event.toolCall)) {
+    const ev = event.hookEventName ?? event.hook_event_name;
+    if (ev !== undefined && ev !== 'PreToolUse') return null;
+    const call = event.toolCall;
+    const name = call.name;
+    const tool =
+      name === 'write_to_file' || name === 'write_file'
+        ? 'Write'
+        : name === 'replace_file_content' || name === 'edit_file'
+          ? 'Edit'
+          : name === 'multi_replace_file_content'
+            ? 'MultiEdit'
+            : null;
+    const args = call.args;
+    if (!tool || !isPlainObject(args)) return null;
+    if (name === 'multi_replace_file_content' && !Array.isArray(args.ReplacementChunks)) return null;
+    const filePath = args.TargetFile ?? args.Path ?? args.AbsolutePath;
+    if (!validFilePath(filePath)) return null;
+    const workspacePaths = Array.isArray(event.workspacePaths)
+      ? event.workspacePaths.filter((p) => typeof p === 'string' && p.trim().length > 0)
+      : [];
+    return {
+      caller: 'antigravity',
+      tool,
+      filePath,
+      cwd: typeof event.cwd === 'string' && event.cwd.trim() ? event.cwd : workspacePaths[0],
+      workspacePaths,
+      agentId: event.agent_id ?? event.agentId,
+      agentType: event.agent_type ?? event.agentType,
+    };
   }
   if (event.hook_event_name === 'BeforeTool') {
     const tool = event.tool_name === 'write_file' ? 'Write' : event.tool_name === 'replace' ? 'Edit' : null;
-    const filePath = event.tool_input && typeof event.tool_input === 'object' ? event.tool_input.file_path : undefined;
-    const cwd = typeof event.cwd === 'string' && event.cwd ? event.cwd : process.cwd();
-    if (!tool || typeof filePath !== 'string' || !filePath) return { caller: 'gemini', allowOnly: true };
-    return { caller: 'gemini', tool, filePath, cwd };
+    if (!tool || !isPlainObject(event.tool_input) || !validFilePath(event.tool_input.file_path)) return null;
+    return {
+      caller: 'gemini',
+      tool,
+      filePath: event.tool_input.file_path,
+      cwd: event.cwd,
+      workspacePaths: [],
+      agentId: event.agent_id,
+      agentType: event.agent_type,
+    };
   }
-  if (event.hook_event_name === 'PreToolUse') {
-    const tool = ['Write', 'Edit', 'MultiEdit'].includes(event.tool_name) ? event.tool_name : null;
-    const filePath = event.tool_input && typeof event.tool_input === 'object' ? event.tool_input.file_path : undefined;
-    const cwd = typeof event.cwd === 'string' && event.cwd ? event.cwd : process.cwd();
-    if (!tool || typeof filePath !== 'string' || !filePath) return null;
-    return { caller: 'claude', tool, filePath, cwd };
+  if (
+    event.hook_event_name === 'PreToolUse' &&
+    ['Write', 'Edit', 'MultiEdit'].includes(String(event.tool_name)) &&
+    isPlainObject(event.tool_input) &&
+    validFilePath(event.tool_input.file_path) &&
+    !(event.tool_name === 'MultiEdit' && !Array.isArray(event.tool_input.edits))
+  ) {
+    return {
+      caller: 'claude',
+      tool: event.tool_name,
+      filePath: event.tool_input.file_path,
+      cwd: event.cwd,
+      workspacePaths: [],
+      agentId: event.agent_id,
+      agentType: event.agent_type,
+    };
   }
   return null;
 }
 
-function relativeWorkspacePath(cwd, filePath) {
-  const abs = isAbsolute(filePath) ? resolve(filePath) : resolve(cwd, filePath);
-  const rel = relative(fold(resolve(cwd)), fold(abs));
-  if (!rel || isAbsolute(rel) || rel === '..' || rel.startsWith('..' + sep)) return null;
-  return rel.replace(/\\\\/g, '/');
+function findIaAncestor(startDir) {
+  for (let current = resolve(startDir); ; ) {
+    try {
+      const st = lstatSync(join(current, '.ia', 'src'), { throwIfNoEntry: false });
+      if (st && st.isDirectory() && !st.isSymbolicLink()) return current;
+    } catch {
+      // keep walking
+    }
+    const parent = dirname(current);
+    if (parent === current) return undefined;
+    current = parent;
+  }
 }
 
-function respondDeny(caller, reason) {
+function resolveRootPath(normalized) {
+  const rootArgIdx = process.argv.indexOf('--root');
+  if (rootArgIdx >= 0 && typeof process.argv[rootArgIdx + 1] === 'string' && process.argv[rootArgIdx + 1]) {
+    const explicit = process.argv[rootArgIdx + 1];
+    if (!isAbsolute(explicit)) throw new Error('Binding requires an absolute fixed project root');
+    const base = resolve(explicit);
+    const real = realpathSync.native(base);
+    if (!unaliased(base, real)) throw new Error('Project root is aliased');
+    return { rawRoot: base, base: real };
+  }
+  if (normalized.caller === 'claude' && typeof process.env.CLAUDE_PROJECT_DIR === 'string' && process.env.CLAUDE_PROJECT_DIR.trim()) {
+    const envRoot = resolve(process.env.CLAUDE_PROJECT_DIR);
+    return { rawRoot: envRoot, base: realpathSync.native(envRoot) };
+  }
+  if (normalized.workspacePaths.length > 0) {
+    const chosen = normalized.workspacePaths.find((ws) => isAbsolute(ws) && isAbsolute(normalized.filePath) && local(resolve(ws), resolve(normalized.filePath)) !== undefined) ?? normalized.workspacePaths[0];
+    if (typeof chosen === 'string' && isAbsolute(chosen)) {
+      const wsRoot = resolve(chosen);
+      return { rawRoot: wsRoot, base: realpathSync.native(wsRoot) };
+    }
+  }
+  if (typeof normalized.cwd === 'string' && isAbsolute(normalized.cwd)) {
+    const cwdResolved = resolve(normalized.cwd);
+    const iaRoot = findIaAncestor(cwdResolved) ?? cwdResolved;
+    return { rawRoot: iaRoot, base: realpathSync.native(iaRoot) };
+  }
+  throw new Error('Binding requires an absolute workspace root or cwd');
+}
+
+function resolveEditTarget(normalized) {
+  if (process.platform === 'win32' && streamed(normalized.filePath)) {
+    throw new Error('A path naming an alternate data stream or a drive-relative path is refused');
+  }
+  const { rawRoot, base } = resolveRootPath(normalized);
+  const rawPath = normalized.filePath;
+  if (!isAbsolute(rawPath)) {
+    if (typeof normalized.cwd !== 'string' || !isAbsolute(normalized.cwd) || local(base, physical(resolve(normalized.cwd))) === undefined) {
+      throw new Error('Relative input requires cwd inside the fixed root');
+    }
+  }
+  let target;
+  if (isAbsolute(rawPath)) {
+    const resolvedFile = resolve(rawPath);
+    const relFromRawRoot = rawRoot !== base ? local(rawRoot, resolvedFile) : undefined;
+    target = relFromRawRoot !== undefined && !linked(rawRoot) ? resolve(base, relFromRawRoot) : resolvedFile;
+  } else {
+    const effectiveCwd = process.platform === 'win32' ? resolve(normalized.cwd) : physical(resolve(normalized.cwd));
+    const relCwd = rawRoot !== base ? local(rawRoot, effectiveCwd) : undefined;
+    const baseCwd = relCwd !== undefined ? resolve(base, relCwd) : effectiveCwd;
+    target = resolve(baseCwd, rawPath);
+  }
+  const actual = physical(target);
+  const lexical = local(base, target);
+  const physicalPath = local(base, actual);
+  const spellings = [lexical, physicalPath];
+  if (lexical === undefined && physicalPath === undefined) {
+    spellings.push(anchored(base, target), anchored(base, actual));
+  }
+  return { base, target, actual, spellings };
+}
+
+function reaches(from, to) {
+  return from === '' || from === to || to.startsWith(from + '/');
+}
+
+function systemFolderOf(withTrailingSlash) {
+  const m = /^\\.ia\\/src\\/systems\\/([a-z][a-z0-9-]*)\\//.exec(withTrailingSlash);
+  return m ? m[1] : undefined;
+}
+
+function resolveSeat(relPath) {
+  const segs = pathSegments(relPath);
+  if (segs === undefined) return { path: relPath, unknown: 'outside' };
+  const canonical = segs.join('/');
+  const folder = systemFolderOf(canonical + '/');
+  const system =
+    folder !== undefined
+      ? MODEL.systemsByFolder[folder]
+      : reaches('.ia/src/floor', canonical)
+        ? (MODEL.floorSystem ?? undefined)
+        : undefined;
+  const longest = MODEL.declaredRoots.find((d) => reaches(d.root, canonical))?.root;
+  const declarers =
+    longest === undefined
+      ? []
+      : [...new Set(MODEL.declaredRoots.filter((d) => d.root === longest).map((d) => d.workspace))];
+  const repoWs = canonical.split('/').includes('.ia') ? undefined : (MODEL.repositoryWorkspace ?? undefined);
+  if (system !== undefined) return { path: canonical, seat: system, by: 'system' };
+  if (declarers.length > 1) return { path: canonical, by: 'shared', declarers };
+  if (declarers.length === 1) return { path: canonical, seat: declarers[0], by: 'root' };
+  if (repoWs !== undefined) return { path: canonical, seat: repoWs, by: 'repository' };
+  return { path: canonical, unknown: 'undeclared' };
+}
+
+function holds(ownRoots, recordRoot) {
+  return ownRoots.length > 0 ? ownRoots.includes(recordRoot) : !DECLARED_ROOT_SET.has(recordRoot);
+}
+
+function workspaceOf(seatIdentity) {
+  if (!seatIdentity) return MODEL.rootWorkspace ?? undefined;
+  if (MODEL.workspaces[seatIdentity]) return seatIdentity;
+  const recRoot = MODEL.systemRoots[seatIdentity];
+  if (recRoot === undefined) return MODEL.rootWorkspace ?? undefined;
+  const holder = MODEL.declaredRoots.find((d) => reaches(d.root, recRoot))?.workspace;
+  return [MODEL.rootWorkspace ?? undefined, holder].find(
+    (at) => at !== undefined && MODEL.workspaces[at] && holds(MODEL.workspaces[at].ownRoots, recRoot),
+  );
+}
+
+function seatedWorkspace(relPath) {
+  const res = resolveSeat(relPath);
+  if (res.by !== 'shared') return workspaceOf(res.seat);
+  const own = MODEL.repositoryWorkspace;
+  return own !== null && res.declarers.includes(own) ? own : undefined;
+}
+
+function governingWorkspace(relPath) {
+  return seatedWorkspace(relPath) ?? resolveSeat(relPath).declarers?.[0];
+}
+
+function governingMandatesFor(relPath, ws, actor) {
+  const seat = resolveSeat(relPath);
+  const shared = seat.by === 'shared' ? seat.declarers : undefined;
+  const inside = (m) =>
+    shared !== undefined
+      ? shared.some((d) => MODEL.workspaces[d] && holds(MODEL.workspaces[d].ownRoots, m.root))
+      : holds(ws !== undefined && MODEL.workspaces[ws] ? MODEL.workspaces[ws].ownRoots : [], m.root);
+  const governs = (m) => {
+    const scoped =
+      shared !== undefined
+        ? ws !== undefined && shared.every((d) => m.scopedWorkspaces.includes(d))
+        : ws !== undefined && m.scopedWorkspaces.includes(ws);
+    const claims = m.covers.some((sel) => selects(sel, seat.path ?? relPath));
+    if (shared !== undefined) return m.hasScopeOrCovers && (scoped || claims);
+    if (m.hasScopeOrCovers) return scoped || claims;
+    return actor === undefined ? m.hasParticipant : m.participantAgent === actor;
+  };
+  const matched = MODEL.mandates.filter((m) => inside(m) && governs(m));
+  for (const m of matched) {
+    if (m.invalid !== null) {
+      const err = new Error(m.invalid);
+      err.mandateIdentity = m.identity;
+      throw err;
+    }
+  }
+  return matched.map((m) => ({
+    ...m,
+    ...(actor === undefined ? {} : { binds: m.participant === null || m.participantAgent === actor }),
+  }));
+}
+
+function resolveActing(normalized, ws) {
+  const { agentId, agentType } = normalized;
+  if (agentId !== undefined) {
+    if (typeof agentId !== 'string' || agentId === '' || agentId.length > AGENT_LIMIT) {
+      return { refusal: 'the subagent event carries a malformed agent_id', subagent: true };
+    }
+    if (typeof agentType !== 'string' || agentType === '' || agentType.length > AGENT_LIMIT) {
+      return { refusal: 'the subagent event names no agent_type', subagent: true };
+    }
+    const entry = Object.hasOwn(MODEL.subagents, agentType) ? MODEL.subagents[agentType] : undefined;
+    if (!entry) {
+      return { refusal: \`subagent \${agentType} matches no single authored @agent-profile of that name\`, subagent: true };
+    }
+    if (!entry.agent) {
+      return { refusal: \`\${entry.profile} names no admitted composition.agent\`, subagent: true };
+    }
+    return { agent: entry.agent, as: \`subagent \${agentType} acts as \${entry.agent} (\${entry.profile})\` };
+  }
+  if (ws === undefined || !MODEL.workspaces[ws]) {
+    return { as: 'the main session has no default actor: no @workspace holds this path' };
+  }
+  const wsInfo = MODEL.workspaces[ws];
+  if (wsInfo.refusal) {
+    return { refusal: wsInfo.refusal.message, next: wsInfo.refusal.next, subagent: false };
+  }
+  return wsInfo.actor === null
+    ? { as: \`the main session has no default actor: \${wsInfo.reason}\` }
+    : { agent: wsInfo.actor, as: \`the main session acts as \${wsInfo.actor}\` };
+}
+
+function governanceCmd(seat) {
+  return \`ia position --seat \${seat} --shape governance\`;
+}
+
+function evaluateProfileAuthor(mandates) {
+  if (mandates.length === 0) return {};
+  const whom = (m) => (m.participant === null ? m.identity : \`\${m.identity} binds \${m.participant}\`);
+  const judged = mandates.map((m) => ({
+    authority: m,
+    refusal: m.moves !== null && !m.moves.includes('Synthesis')
+      ? { message: \`\${m.identity} allows \${m.moves.join(', ')}; author needs Synthesis\`, next: governanceCmd(m.identity) }
+      : undefined,
+  }));
+  const binding = judged.filter(({ authority }) => authority.binds !== false);
+  if (binding.length === 0) {
+    return {
+      refusal: {
+        message: \`no mandate that governs here binds the acting @agent: \${mandates.map(whom).join('; ')}\`,
+        next: governanceCmd(mandates[0].identity),
+      },
+    };
+  }
+  const named = binding.filter(({ authority }) => authority.participant !== null).map(({ authority }) => authority);
+  const participants = new Set(named.map((a) => a.participant));
+  if (participants.size > 1) {
+    return {
+      refusal: {
+        message: \`the mandates that govern here bind \${participants.size} participants and name no acting @agent: \${named.map(whom).join('; ')}\`,
+        next: governanceCmd(named[0].identity),
+      },
+    };
+  }
+  const unbound = named.filter((a) => a.binds === undefined);
+  if (unbound.length > 0) {
+    return {
+      refusal: {
+        message: \`a governing mandate names a participant but no acting @agent was established: \${unbound.map(whom).join('; ')}\`,
+        next: governanceCmd(unbound[0].identity),
+      },
+    };
+  }
+  if (binding.every(({ refusal }) => refusal !== undefined)) {
+    return {
+      refusal: {
+        message: \`\${binding.map(({ authority }) => \`\${authority.identity} allows \${authority.moves.join(', ')}\`).join('; ')}; author needs Synthesis\`,
+        next: governanceCmd(binding[0].authority.identity),
+      },
+    };
+  }
+  return {};
+}
+
+function evaluateRule(rule, paths, normalized) {
+  const formatDeny = (code, why, next) => ({
+    allowed: false,
+    code,
+    message: \`\${rule.message} (\${rule.identity}: \${why}) Next: \${next}\`,
+  });
+  if (MODEL.admissionRefusal !== null) {
+    return formatDeny('IA-HOOK-MANDATE-UNAVAILABLE', \`the mandates that govern this edit cannot be read: \${MODEL.admissionRefusal}\`, 'ia report');
+  }
+  try {
+    const ws = seatedWorkspace(paths[0]);
+    const locate = (actor) => {
+      const found = new Map();
+      for (const p of paths) {
+        const gws = ws ?? governingWorkspace(p);
+        for (const m of governingMandatesFor(p, gws, actor)) {
+          if (!found.has(m.identity)) found.set(m.identity, m);
+        }
+      }
+      return [...found.values()].sort((a, b) => (a.identity < b.identity ? -1 : a.identity > b.identity ? 1 : 0));
+    };
+    const actor = resolveActing(normalized, ws);
+    const governing = locate(undefined);
+    const seat = governing[0]?.identity ?? ws;
+    const first = seat === undefined ? 'ia position --shape governance' : governanceCmd(seat);
+    if (actor.refusal !== undefined && actor.subagent) {
+      return formatDeny('IA-HOOK-IDENTITY-UNAVAILABLE', actor.refusal, first);
+    }
+    if (governing.length === 0) return { allowed: true };
+    if (actor.refusal !== undefined) {
+      return formatDeny('IA-HOOK-IDENTITY-UNAVAILABLE', actor.refusal, actor.next ?? first);
+    }
+    let verdict;
+    if (actor.agent === undefined) {
+      const named = governing.find((m) => m.participant !== null);
+      if (named !== undefined) {
+        return formatDeny('IA-HOOK-IDENTITY-UNAVAILABLE', \`\${actor.as}; \${named.identity} binds \${named.participant}\`, governanceCmd(named.identity));
+      }
+      verdict = evaluateProfileAuthor(governing);
+    } else {
+      verdict = evaluateProfileAuthor(locate(actor.agent));
+    }
+    if (verdict.refusal !== undefined) {
+      return formatDeny('IA-HOOK-NOT-MANDATED', \`\${actor.as}; \${verdict.refusal.message}\`, verdict.refusal.next);
+    }
+    return { allowed: true };
+  } catch (error) {
+    const next = error?.mandateIdentity ? governanceCmd(error.mandateIdentity) : 'ia report';
+    return formatDeny('IA-HOOK-MANDATE-UNAVAILABLE', \`the mandates that govern this edit cannot be read: \${error?.message ?? String(error)}\`, next);
+  }
+}
+
+function respondDeny(caller, code, message) {
+  const reason = printable(\`\${code}: \${message}\`);
   if (caller === 'gemini' || caller === 'antigravity') {
     process.stdout.write(JSON.stringify({ decision: 'deny', reason }) + '\\n');
     return;
@@ -568,33 +1239,87 @@ function respondAllow(caller) {
   }
 }
 
-let raw = '';
+const chunks = [];
+let totalBytes = 0;
 for await (const chunk of process.stdin) {
-  raw += Buffer.isBuffer(chunk) ? chunk.toString('utf8') : String(chunk);
-  if (raw.length > 1024 * 1024) break;
+  const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk), 'utf8');
+  totalBytes += buf.byteLength;
+  if (totalBytes > 1024 * 1024) {
+    respondDeny(HOST, 'IA-HOOK-INPUT-INVALID', 'Input exceeds 1 MiB');
+    process.exit(0);
+  }
+  chunks.push(buf);
+}
+
+let parsed;
+try {
+  const raw = Buffer.concat(chunks).toString('utf8');
+  if (!raw.trim()) {
+    respondDeny(HOST, 'IA-HOOK-INPUT-INVALID', 'Expected a PreToolUse file edit event');
+    process.exit(0);
+  }
+  parsed = JSON.parse(raw);
+} catch {
+  respondDeny(HOST, 'IA-HOOK-INPUT-INVALID', 'Invalid JSON input');
+  process.exit(0);
+}
+
+const caller = callerOf(parsed);
+const normalized = normalizeEvent(parsed);
+if (!normalized) {
+  respondDeny(caller, 'IA-HOOK-INPUT-INVALID', 'Expected a PreToolUse file edit event');
+  process.exit(0);
+}
+
+let edit;
+try {
+  edit = resolveEditTarget(normalized);
+} catch (error) {
+  respondDeny(caller, 'IA-HOOK-PATH-UNSAFE', error?.message ?? String(error));
+  process.exit(0);
+}
+
+if (edit.spellings.some((s) => s !== undefined && installation(s))) {
+  respondDeny(caller, 'IA-HOOK-PROJECTION-MANAGED', 'Use the owning command for generated installation state');
+  process.exit(0);
+}
+
+const paths = [...new Set([edit.spellings[1], edit.spellings[0], ...edit.spellings.slice(2)])].filter(
+  (s) => s !== undefined,
+);
+if (paths.length === 0) {
+  respondAllow(caller);
+  process.exit(0);
 }
 
 try {
-  const parsed = raw.trim() ? JSON.parse(raw) : {};
-  const normalized = normalizeEvent(parsed);
-  if (!normalized) {
-    if (parsed && parsed.toolCall) respondAllow('antigravity');
-  } else if (normalized.allowOnly) {
-    respondAllow(normalized.caller);
-  } else {
-    const rel = relativeWorkspacePath(normalized.cwd, normalized.filePath);
-    const hit =
-      rel === null
-        ? undefined
-        : COMPILED.find(
-            (rule) => rule.tools.includes(normalized.tool) && rule.matchers.some((re) => re.test(rel)),
-          );
-    if (hit) respondDeny(normalized.caller, \`\${hit.identity}: \${hit.message}\`);
-    else respondAllow(normalized.caller);
+  const linkedStat = lstatSync(edit.actual, { throwIfNoEntry: false });
+  if (linkedStat !== undefined && linkedStat.isFile() && linkedStat.nlink > 1) {
+    respondDeny(caller, 'IA-HOOK-PATH-UNSAFE', 'A file with more than one link is refused: another of its names may be guarded');
+    process.exit(0);
   }
-} catch {
-  // Invalid hook payload: fail open only on malformed non-matching JSON unless caller is known.
+} catch (error) {
+  respondDeny(caller, 'IA-HOOK-PATH-UNSAFE', error?.message ?? String(error));
+  process.exit(0);
 }
+
+for (const rule of RULES) {
+  const selected =
+    rule.tools.includes(normalized.tool) &&
+    paths.some((p) => rule.paths.some((sel) => selects(sel, p)));
+  if (!selected) continue;
+  if (!unaliased(edit.target, edit.actual)) {
+    respondDeny(caller, 'IA-HOOK-PATH-UNSAFE', 'Selected path has an aliased ancestor or target');
+    process.exit(0);
+  }
+  const decision = evaluateRule(rule, paths, normalized);
+  if (!decision.allowed) {
+    respondDeny(caller, decision.code, decision.message);
+    process.exit(0);
+  }
+}
+
+respondAllow(caller);
 `;
   return utf8Bytes(source);
 }
@@ -650,7 +1375,7 @@ function renderHookManifest(host: StandalonePluginHost): { readonly path: string
         'ia-guard': {
           PreToolUse: [
             {
-              matcher: 'write_file|edit_file',
+              matcher: 'write_to_file|replace_file_content|multi_replace_file_content|write_file|edit_file',
               hooks: [
                 {
                   type: 'command',
@@ -1087,7 +1812,8 @@ export function compileStandalonePlugin(
   if (hookRules.length > 0) {
     const hookManifest = renderHookManifest(host);
     if (hookManifest !== null) {
-      add('scripts/guard.mjs', renderStandaloneGuardScript(hookRules));
+      const guardModel = compileMandateGuardModel(reader, within);
+      add('scripts/guard.mjs', renderStandaloneGuardScript(host, hookRules, guardModel));
       add(hookManifest.path, hookManifest.bytes);
     }
   }

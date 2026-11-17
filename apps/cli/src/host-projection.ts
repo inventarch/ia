@@ -325,8 +325,12 @@ export function notTaken(
 /** Why a declared hook is not registered when no host payload is known: `ia host` materializes one. */
 export const HOOKS_NEED_HOST =
   'Not registered: a hook group runs the guard in the host payload "ia host claude --apply" materializes; run it to register this hook';
+/** Why a declared hook is not registered on a host whose workspace settings `ia host` does not manage hook groups in. */
+export const hookUnregisteredForHost = (host: Exclude<HostName, 'claude'>): string =>
+  `Not registered: workspace hook groups run only under "ia host claude --apply"; run "ia project ${host} --product plugin" for a standalone plugin guard`;
 /**
- * The hook groups `rendered` declares, planned for `host` (claude only; Codex hooks are unsupported): with no
+ * The hook groups `rendered` declares, planned for `host` (claude only; Codex hooks are unsupported in generation, and
+ * Gemini/Antigravity hooks come back unregistered here): with no
  * declared hook, the removal of every owned group; else their registration against `cache`, or against the payload the
  * owned registration recorded; with neither, none, and each declared hook comes back unregistered. A removal
  * (`rendered` null) removes every owned group. Reads only.
@@ -338,7 +342,15 @@ export function planHooks(
   cache: HookCache,
   shared?: HostVerifier,
 ): HookStep {
-  if (host !== 'claude') return { plan: null, unregistered: [] };
+  if (host !== 'claude')
+    return {
+      plan: null,
+      unregistered: (rendered?.hooks ?? []).map((row) => ({
+        identity: row.identity,
+        word: 'hook' as const,
+        reason: hookUnregisteredForHost(host),
+      })),
+    };
   // One verdict per payload for this plan, or the command's shared one: no write to a payload happens while it plans.
   const verify = verifierOf(shared);
   if (rendered === null) assertRemovableHooks(root);

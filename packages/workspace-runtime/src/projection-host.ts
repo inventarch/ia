@@ -154,11 +154,11 @@ export function antigravityProseCatalog(
   selections: Pick<ProjectionCatalog, 'models' | 'tools' | 'inputFields'> = {
     models: [{ id: 'inherit', name: 'inherit' }],
     tools: [
-      { id: 'read', name: 'read_file' },
-      { id: 'glob', name: 'read_file' },
-      { id: 'grep', name: 'read_file' },
-      { id: 'write', name: 'write_file' },
-      { id: 'edit', name: 'edit_file' },
+      { id: 'read', name: 'view_file' },
+      { id: 'glob', name: 'find_by_name' },
+      { id: 'grep', name: 'grep_search' },
+      { id: 'write', name: 'write_to_file' },
+      { id: 'edit', name: 'replace_file_content' },
       { id: 'bash', name: 'run_command' },
     ],
     inputFields: [],
