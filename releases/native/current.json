@@ -4,7 +4,7 @@
     "tag": "v3.8.0",
     "commit": "52db8d463f2ad452b0d19632e1b4a965957d7b45"
   },
-  "notesSha256": "b2be4d830cf297677e58bc121a49a4a4aabea064f3f09a58e6f326f79e533a28",
+  "notesSha256": "8fdcea57add7c80fd8980b43679e206bd75b96979e0adebf2921f652933f4ba3",
   "archives": [
     {
       "id": "inventarch/agent-composition-system",

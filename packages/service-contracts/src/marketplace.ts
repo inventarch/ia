@@ -129,6 +129,7 @@ export type ArtifactChunk = z.infer<typeof artifactChunk>;
 
 /** Public static registry collections. Native/source admission remains the distribution and db owners' job. */
 export const registryKind = z.enum(['release', 'kit', 'workspace']);
+/** Refined strict object: `.shape` and `.extend()` add fields; use `.safeExtend()` when replacing fields. */
 export const registryKitIndex = z
   .strictObject({
     format: z.enum(['registry-kit', 'ia.registry-kit.v1']),
@@ -142,6 +143,7 @@ export const registryKitIndex = z
     (value) => (value.format === 'ia.registry-kit.v1' ? value.formatVersion === undefined : value.formatVersion === 1),
     'The plain format declares formatVersion 1; the legacy literal declares none',
   );
+/** Refined strict object: `.shape` and `.extend()` add fields; use `.safeExtend()` when replacing fields. */
 export const registryWorkspaceIndex = z
   .strictObject({
     format: z.enum(['registry-workspace', 'ia.registry-workspace.v1']),
