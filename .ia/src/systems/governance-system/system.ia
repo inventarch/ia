@@ -2,7 +2,7 @@
 
 @system governance-system
   provider "inventarch.foundation"
-  version "3.2.0"
+  version "3.2.1"
   describes "Public governance-system vocabulary contracts"
   steward @agent public-governance-system-steward
   requires
