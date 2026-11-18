@@ -122,7 +122,8 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/npm-cli" --no-save --package-lock=false --ignore-scripts npm@12.2.0
           echo "$RUNNER_TEMP/npm-cli/node_modules/.bin" >> "$GITHUB_PATH"
           pnpm install --frozen-lockfile
-          pnpm audit --audit-level=moderate
+          # Public quality on this exact commit already ran the full workspace audit; here refuse any runtime dependency advisory in published packages.
+          pnpm audit --prod --audit-level=moderate
       - name: Validate the coordinated version, sealed inputs and exact changeset coverage
         run: pnpm release:check --strict
       - name: Build, qualify and retain the exact npm tarballs
