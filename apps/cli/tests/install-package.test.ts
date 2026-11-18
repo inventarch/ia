@@ -197,6 +197,22 @@ it('records hosted kit pins via install --hosted, restores and validates 100% of
     { kind: 'hosted', id: 'inventarch/ia-studio-kit', version: '0.6.0', hosted: true },
   ]);
 
+  const dup = await run(
+    [
+      'install',
+      '--hosted',
+      'inventarch/ia-studio-kit@0.5.0',
+      '--hosted',
+      'inventarch/ia-studio-kit@0.6.0',
+      '--root',
+      root,
+      '--json',
+    ],
+    { env },
+  );
+  expect(dup.exitCode).toBe(2);
+  expect(JSON.parse(dup.stdout).code).toBe('IA-CLI-USAGE');
+
   const removed = await run(['remove', 'inventarch/ia-studio-kit', '--apply', '--yes', '--root', root, '--json'], {
     env,
   });

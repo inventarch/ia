@@ -1019,6 +1019,18 @@ function planPackage(request: PlanRequest, previous: DistributionLock | undefine
  */
 function planHosted(request: PlanRequest, previous: DistributionLock | undefined, again: string): InstallationPlan {
   const specs = (request.hosted ?? []).map((item) => hostedSpec(item, again));
+  const seen = new Set<string>();
+  for (const row of specs) {
+    if (seen.has(row.id))
+      throw new Refusal(
+        'IA-CLI-USAGE',
+        `Duplicate --hosted kit id: ${row.id}`,
+        2,
+        null,
+        `Run "ia install --hosted ${row.id}@${row.version}${request.rooted === true ? ` --root ${quote(request.root)}` : ''}" specifying each hosted kit id at most once.`,
+      );
+    seen.add(row.id);
+  }
   let lock: DistributionLock;
   try {
     lock = lockWithHosted(previous, specs);

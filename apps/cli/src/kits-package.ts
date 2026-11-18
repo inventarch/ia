@@ -355,14 +355,7 @@ export function lockWithHosted(lock: DistributionLock | undefined, hosted: reado
   const base = lock ?? { formatVersion: 1 as const, engine: DISTRIBUTION_ENGINE_VERSION, requests: [], packages: [] };
   const seen = new Set<string>();
   for (const row of hosted) {
-    if (seen.has(row.id))
-      throw new Refusal(
-        'IA-CLI-USAGE',
-        `Duplicate --hosted kit id: ${row.id}`,
-        2,
-        null,
-        'Specify each hosted kit id at most once.',
-      );
+    if (seen.has(row.id)) throw new Error(`Duplicate --hosted kit id: ${row.id}`);
     seen.add(row.id);
   }
   const entries: LockEntry[] = [
