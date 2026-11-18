@@ -3,6 +3,7 @@ export type Bump = 'patch' | 'minor' | 'major';
 export type NoteBump = 'none' | Bump;
 export interface ReleaseNote {
   format: string;
+  formatVersion?: number;
   bump: NoteBump;
   title: string;
   summary: string;
@@ -11,6 +12,7 @@ export interface ReleaseNote {
 }
 export declare const PENDING: string;
 export declare const NOTE_FORMAT: string;
+export declare const NOTE_FORMAT_VERSION: number;
 export declare const BUMPS: readonly Bump[];
 export declare const NOTE_BUMPS: readonly NoteBump[];
 export declare const GENERATED_CHANGES: readonly string[];
