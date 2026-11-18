@@ -12,13 +12,13 @@
     },
     {
       "id": "inventarch/agent-system",
-      "bump": "patch",
-      "summary": "Rebuilt on workspace-system's optional workspace composition fields; no change of its own."
+      "bump": "minor",
+      "summary": "@schema mandate adds optional authority.words allow-list alongside authority.excluded-words; also rebuilt on workspace-system's optional workspace composition fields."
     },
     {
       "id": "inventarch/authoring-system",
       "bump": "patch",
-      "summary": "The @workspace authoring reference documents composition.public-agent, composition.private-agent and composition.decides, and is rebuilt on workspace-system and agent-composition-system."
+      "summary": "The @workspace and @mandate authoring references document composition.public-agent, composition.private-agent, composition.decides and authority.words, and are rebuilt on agent-system, workspace-system and agent-composition-system."
     },
     {
       "id": "inventarch/compliance-system",
@@ -38,7 +38,7 @@
     {
       "id": "inventarch/language",
       "bump": "minor",
-      "summary": "IA syntax remains 1.0. @schema workspace adds optional composition.public-agent, composition.private-agent and composition.decides fields; also rebuilt on agent-composition-system's alias fix."
+      "summary": "IA syntax remains 1.0. @schema workspace adds optional composition.public-agent, composition.private-agent and composition.decides fields, and @schema mandate adds optional authority.words; also rebuilt on agent-composition-system's alias fix."
     },
     {
       "id": "inventarch/learning-system",

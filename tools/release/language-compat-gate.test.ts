@@ -167,6 +167,7 @@ describe('classifyBaseChange', () => {
     ).toEqual({
       kind: 'additive',
       changes: [
+        { kind: 'field-added', key: 'mandate.authority.words' },
         { kind: 'field-added', key: 'workspace.composition.public-agent' },
         { kind: 'field-added', key: 'workspace.composition.private-agent' },
         { kind: 'field-added', key: 'workspace.composition.decides' },

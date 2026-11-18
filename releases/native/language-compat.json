@@ -20925,7 +20925,7 @@
     },
     {
       "version": "3.4.0",
-      "archive": "5961cd48434b75b220589bd4e58f3d35dfab35da8197aea0a2d568891cfca914",
+      "archive": "8f854b0e03285963a3120611d64c17a73098db49077e97e4df0dff7fb8a0eef0",
       "engine": "^0.1.1",
       "language": [
         "1.0"
@@ -22663,6 +22663,11 @@
               "type": "list of ref",
               "required": false,
               "target": "workspace"
+            },
+            {
+              "path": "authority.words",
+              "type": "list of id",
+              "required": false
             },
             {
               "path": "authority.excluded-words",

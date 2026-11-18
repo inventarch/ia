@@ -258,6 +258,7 @@ function mandateLines(mandate: Node, named: (value: CompiledValue) => string): r
   if (participant.length > 0) fields.push(`participant ${list(participant.map(named))}`);
   if (stated(mandate, 'authority.moves')) fields.push(`moves ${list(textsAt(mandate, 'authority.moves').map(inline))}`);
   if (stated(mandate, 'authority.scope')) fields.push(`scope ${list(valuesAt(mandate, 'authority.scope').map(named))}`);
+  if (stated(mandate, 'authority.words')) fields.push(`words ${list(textsAt(mandate, 'authority.words').map(inline))}`);
   if (stated(mandate, 'authority.excluded-words'))
     fields.push(`excluded words ${list(textsAt(mandate, 'authority.excluded-words').map(inline))}`);
   if (stated(mandate, 'authority.covers'))

@@ -24,6 +24,7 @@ import {
   validateParse,
   validateSelectors,
 } from '../graph-checks.js';
+import { validateMandateWords } from '../mandate-words.js';
 import { validateSchema } from '../schema.js';
 import { validateSystems } from '../systems.js';
 import type { SystemFolder } from '../systems.js';
@@ -677,6 +678,101 @@ export function runRefusalFixtures(
             sections: [subject('gadget')],
           },
         ]);
+      },
+    ],
+    [
+      'IA-COMP-MANDATE-WORD',
+      () => {
+        const wsPath = '.ia/src/workspace.ia';
+        const recPath = '.ia/src/forbidden.ia';
+        const authoredLoc = {
+          placement: { kind: 'authored' as const, band: 100 as const, reach: '' },
+          provenance: 'workspace' as const,
+        };
+        const wsRecord: CompiledRecord = {
+          ...agent,
+          identity: 'workspace-system/definition/workspace/fixture-ws',
+          system: 'workspace-system',
+          kind: 'definition',
+          facet: 'workspace',
+          name: 'fixture-ws',
+          displayName: 'fixture-ws',
+          discriminator: 'workspace',
+          source: { path: wsPath, line: 2, endLine: 6 },
+          placement: authoredLoc.placement,
+          provenance: authoredLoc.provenance,
+          edges: [],
+          sections: [
+            {
+              name: 'composition',
+              span: { line: 4, endLine: 6 },
+              fields: [
+                {
+                  key: 'sources',
+                  value: { kind: 'list', items: [{ kind: 'string', text: '.ia/src @authored' }] },
+                  span: { line: 5, endLine: 5 },
+                },
+              ],
+            },
+          ],
+        };
+        const strictMandate: CompiledRecord = {
+          ...mandate,
+          identity: 'agent-system/policy/mandate/fixture-strict',
+          name: 'fixture-strict',
+          displayName: 'fixture-strict',
+          source: { path: wsPath, line: 8, endLine: 15 },
+          placement: authoredLoc.placement,
+          provenance: authoredLoc.provenance,
+          edges: [],
+          sections: [
+            {
+              name: 'authority',
+              span: { line: 10, endLine: 15 },
+              fields: [
+                {
+                  key: 'moves',
+                  value: { kind: 'list', items: [{ kind: 'scalar', text: 'Synthesis' }] },
+                  span: { line: 11, endLine: 11 },
+                },
+                {
+                  key: 'scope',
+                  value: {
+                    kind: 'list',
+                    items: [{ kind: 'ref', discriminator: 'workspace', name: 'fixture-ws' }],
+                  },
+                  span: { line: 12, endLine: 12 },
+                },
+                {
+                  key: 'words',
+                  value: { kind: 'list', items: [{ kind: 'scalar', text: 'playbook' }] },
+                  span: { line: 13, endLine: 13 },
+                },
+              ],
+            },
+          ],
+        };
+        const forbiddenLaw: CompiledRecord = {
+          ...law,
+          identity: 'governance-system/governance/law/forbidden-law',
+          name: 'forbidden-law',
+          displayName: 'forbidden-law',
+          source: { path: recPath, line: 2, endLine: 6 },
+          placement: authoredLoc.placement,
+          provenance: authoredLoc.provenance,
+          edges: [],
+        };
+        const candidateGraph = load([...records, wsRecord, strictMandate, forbiddenLaw], registry, {
+          sources: [
+            ...inputs,
+            { path: wsPath, text: '#! ia 1.0\n', location: authoredLoc },
+            { path: recPath, text: '#! ia 1.0\n', location: authoredLoc },
+          ],
+          languageVersion: LANGUAGE_VERSION,
+          kernelDigest: KERNEL_DIGEST,
+          location: '',
+        });
+        return validateMandateWords(candidateGraph).findings;
       },
     ],
     [

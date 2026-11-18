@@ -2,7 +2,7 @@
   "version": 1,
   "language": "ia 1.0",
   "status": "public IA 1.0 language contract",
-  "sourceDigest": "aae3eea00149f2cb763c2e5da6c4851c76a9fd4f39e78f0971e5a6a1f1f4c613",
+  "sourceDigest": "e90da7a18c8aaec88f958f21ddd8194200d88662252fd5355b44309d4463c73a",
   "words": [
     {
       "word": "agent",
@@ -2245,6 +2245,12 @@
             "required": false,
             "description": "The workspaces the mandate applies in.",
             "target": "workspace"
+          },
+          {
+            "path": "authority.words",
+            "type": "list of id",
+            "required": false,
+            "description": "Words the participant may author under this mandate."
           },
           {
             "path": "authority.excluded-words",

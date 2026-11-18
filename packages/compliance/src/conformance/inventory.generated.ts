@@ -1992,6 +1992,7 @@ export const INVENTORY: ConformanceInventory = {
     "boundary/IA-COMP-FIELD-VALUE/mandate-moves-empty",
     "boundary/IA-COMP-FIXTURE-MISMATCH",
     "boundary/IA-COMP-FRAGMENT-MISSING",
+    "boundary/IA-COMP-MANDATE-WORD",
     "boundary/IA-COMP-NOT-EVALUATED",
     "boundary/IA-COMP-SCHEMA-KIND-MISMATCH",
     "boundary/IA-COMP-SCHEMA-MISSING",
@@ -2082,6 +2083,7 @@ export const INVENTORY: ConformanceInventory = {
     "IA-COMP-FIELD-VALUE",
     "IA-COMP-FIXTURE-MISMATCH",
     "IA-COMP-FRAGMENT-MISSING",
+    "IA-COMP-MANDATE-WORD",
     "IA-COMP-NOT-EVALUATED",
     "IA-COMP-OBLIGATION-BLOCKED",
     "IA-COMP-OBLIGATION-CONFLICT",
@@ -2246,4 +2248,4 @@ export const INVENTORY: ConformanceInventory = {
   ]
 };
 
-export const INVENTORY_DIGEST = "fc61fb5d35abe5bbecf5b428089834919c29ab57a51867af1cab86d8b93f526d";
+export const INVENTORY_DIGEST = "d4c74897921d8d34a6af2526dedd3b028184acebd137544db7b9e5bd2dc78ac5";

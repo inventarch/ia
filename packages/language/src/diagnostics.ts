@@ -95,3 +95,60 @@ export function diag(
 export function isError(d: Diagnostic): boolean {
   return d.severity === 'error';
 }
+
+/** Append items without spreading into Array.prototype.push, which overflows the call stack on large inputs. */
+export function pushAll<T>(target: T[], items: readonly T[]): void {
+  for (let i = 0; i < items.length; i++) target.push(items[i]!);
+}
+
+const MAX_DIAGNOSTIC_LIST_ITEMS = 32;
+const MAX_DIAGNOSTIC_LIST_CHARS = 512;
+const MAX_DIAGNOSTIC_ITEM_CHARS = 128;
+
+function truncateDiagnosticItem(raw: string): string {
+  return raw.length > MAX_DIAGNOSTIC_ITEM_CHARS ? `${raw.slice(0, MAX_DIAGNOSTIC_ITEM_CHARS)}...` : raw;
+}
+
+/**
+ * Render a diagnostic list (`visible`, `visible systems`, collision peers) identically for ordinary corpora while
+ * bounding pathological item counts and multi-kilobyte names so repeated diagnostics never explode heap memory.
+ */
+export function summarizeList(items: readonly string[], separator = ', '): string {
+  if (items.length <= MAX_DIAGNOSTIC_LIST_ITEMS) {
+    const full = items.join(separator);
+    if (full.length <= MAX_DIAGNOSTIC_LIST_CHARS) return full;
+  }
+  const shown: string[] = [];
+  let chars = 0;
+  for (let i = 0; i < items.length && shown.length < MAX_DIAGNOSTIC_LIST_ITEMS; i++) {
+    const item = truncateDiagnosticItem(items[i]!);
+    const added = (shown.length > 0 ? separator.length : 0) + item.length;
+    if (shown.length > 0 && chars + added > MAX_DIAGNOSTIC_LIST_CHARS) break;
+    shown.push(item);
+    chars += added;
+  }
+  const rest = items.length - shown.length;
+  return rest > 0 ? `${shown.join(separator)}${separator}... (${rest} more)` : shown.join(separator);
+}
+
+/** Render `labels` excluding `excludeIndex` in O(1) work per caller even when `labels` holds thousands of peers. */
+export function summarizeOthers(labels: readonly string[], excludeIndex: number): string {
+  const peerCount = labels.length - (excludeIndex >= 0 && excludeIndex < labels.length ? 1 : 0);
+  if (peerCount <= MAX_DIAGNOSTIC_LIST_ITEMS) {
+    const peers: string[] = [];
+    for (let i = 0; i < labels.length; i++) if (i !== excludeIndex) peers.push(labels[i]!);
+    return summarizeList(peers);
+  }
+  const shown: string[] = [];
+  let chars = 0;
+  for (let i = 0; i < labels.length && shown.length < MAX_DIAGNOSTIC_LIST_ITEMS; i++) {
+    if (i === excludeIndex) continue;
+    const item = truncateDiagnosticItem(labels[i]!);
+    const added = (shown.length > 0 ? 2 : 0) + item.length;
+    if (shown.length > 0 && chars + added > MAX_DIAGNOSTIC_LIST_CHARS) break;
+    shown.push(item);
+    chars += added;
+  }
+  const rest = peerCount - shown.length;
+  return rest > 0 ? `${shown.join(', ')}, ... (${rest} more)` : shown.join(', ');
+}

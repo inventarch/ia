@@ -139,6 +139,7 @@ export function logicalLines(source: string, path: string): LinesResult {
 
     if (span !== null && span.kind === 'prose') {
       span.parts.push(rawLine);
+      if (!rawLine.includes('"""')) continue;
       const joined = span.parts.join('\n');
       const w = walk(joined);
       if (!w.endsInProse) {

@@ -84,6 +84,8 @@ export interface PacketMandate {
   readonly moves?: readonly Move[];
   /** `authority.scope`: each @workspace the reference resolves to, or the reference as authored. */
   readonly scope: readonly string[];
+  /** `authority.words`. */
+  readonly words?: readonly string[];
   /** `authority.excluded-words`. */
   readonly excludedWords?: readonly string[];
   /** `authority.covers`, the path selections it claims. */
@@ -296,6 +298,7 @@ export function renderPacket(handle: ReadHandle, within: string, catalog: readon
       participant: agent.identity,
       ...(stated(node, 'authority.moves') ? { moves: textsAt(node, 'authority.moves').filter(isMove) } : {}),
       scope: refsAt(node, 'authority.scope'),
+      ...(stated(node, 'authority.words') ? { words: textsAt(node, 'authority.words') } : {}),
       ...(stated(node, 'authority.excluded-words') ? { excludedWords: textsAt(node, 'authority.excluded-words') } : {}),
       ...(stated(node, 'authority.covers') ? { covers: textsAt(node, 'authority.covers') } : {}),
     });

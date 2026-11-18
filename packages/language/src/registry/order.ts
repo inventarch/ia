@@ -1,4 +1,4 @@
-import { diag } from '../diagnostics.js';
+import { diag, summarizeList } from '../diagnostics.js';
 import type { Diagnostic } from '../diagnostics.js';
 import { BUILTIN_SYSTEMS } from './floor.js';
 import type { SystemDeclaration } from './types.js';
@@ -96,7 +96,7 @@ export function orderSystems(winners: ReadonlyMap<string, SystemDeclaration>): O
     return walk(start)!; // Every member of a cyclic component lies on a cycle.
   };
 
-  const visible = [...new Set([...BUILTIN_SYSTEMS, ...names.filter((name) => !dropped.has(name))])].join(', ');
+  const visible = summarizeList([...new Set([...BUILTIN_SYSTEMS, ...names.filter((name) => !dropped.has(name))])]);
   for (const name of names) {
     const system = winners.get(name)!;
     const cycle = cycleOf.get(name);
@@ -106,7 +106,7 @@ export function orderSystems(winners: ReadonlyMap<string, SystemDeclaration>): O
           'IA-LANG-SYSTEM-CYCLE',
           system.path,
           system.span.line,
-          `${system.path}:${system.span.line}: requires cycle ${cycleThrough(name, cycle).join(' -> ')}`,
+          `${system.path}:${system.span.line}: requires cycle ${summarizeList(cycleThrough(name, cycle), ' -> ')}`,
         ),
       );
     }
