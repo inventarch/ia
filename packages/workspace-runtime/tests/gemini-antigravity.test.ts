@@ -1,9 +1,20 @@
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  cpSync,
+  linkSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
-import { open, type Handle } from '@inventarch/db';
+import { open, pathKey, type Handle } from '@inventarch/db';
+import { evaluateMandateGuard } from '@inventarch/runtime';
 import { runBounded } from '@tools/testing/subprocess.js';
 import { adoptWorkspace, captureWorkspace } from '../src/index.js';
 import {
@@ -16,6 +27,7 @@ import {
 import { compileProjection, type ProjectionDescriptor, type ProjectionExport } from '../src/projections.js';
 import { captureResources, resourceOccurrences, type ResourceFilePin, type ResourceUse } from '../src/resources.js';
 import { metadataDigest, ordered, sha256 } from '../src/resource-format.js';
+import { hookDeclaration } from '../src/generate/hook.js';
 import { compileStandalonePlugin, generateHostSet, type StandalonePluginHost } from '../src/generate/index.js';
 import { MANIFESTS, readPlugin } from '../src/host-plugin/inventory.js';
 import { lowerPlugin, toolsOf } from '../src/host-plugin/lower.js';
@@ -432,6 +444,13 @@ describe('Track 2B: standalone plugin manifests & zero-IA-dependency compiler', 
         expect(paths).toContain('hooks/hooks.json');
         expect(paths).toContain('scripts/guard.mjs');
         const hooksJson = JSON.parse(files.find((f) => f.path === 'hooks/hooks.json')!.bytes.toString('utf8'));
+        expect(hooksJson.hooks.BeforeTool[0].matcher).toBe('^(write_file|replace)$');
+        const geminiMatcher = new RegExp(hooksJson.hooks.BeforeTool[0].matcher);
+        expect(geminiMatcher.test('write_file')).toBe(true);
+        expect(geminiMatcher.test('replace')).toBe(true);
+        expect(geminiMatcher.test('mcp__server__write_file')).toBe(false);
+        expect(geminiMatcher.test('search_and_replace')).toBe(false);
+        expect(geminiMatcher.test('replace_all')).toBe(false);
         expect(hooksJson.hooks.BeforeTool[0].hooks[0]).toMatchObject({
           type: 'command',
           command: 'node "${extensionPath}/scripts/guard.mjs"',
@@ -532,7 +551,59 @@ describe('Track 2B: standalone plugin manifests & zero-IA-dependency compiler', 
       reason: expect.stringMatching(/^IA-HOOK-PATH-UNSAFE:/),
     });
 
-    // Malformed, empty, incomplete, or oversized stdin fails closed with IA-HOOK-INPUT-INVALID
+    // Hard link from unguarded src/ into guarded frozen/ is refused with IA-HOOK-PATH-UNSAFE (nlink > 1)
+    const guardedSecret = join(fakeWorkspace, 'frozen/secret.md');
+    writeFileSync(guardedSecret, 'locked\n');
+    const hardlinkBypass = join(fakeWorkspace, 'src/hardlink-bypass.md');
+    linkSync(guardedSecret, hardlinkBypass);
+    expect(lstatSync(hardlinkBypass).nlink).toBeGreaterThan(1);
+    expect(
+      await runGuard({
+        cwd: fakeWorkspace,
+        toolCall: { name: 'write_to_file', args: { TargetFile: hardlinkBypass } },
+      }),
+    ).toEqual({
+      decision: 'deny',
+      reason: 'IA-HOOK-PATH-UNSAFE: A file with more than one link is refused: another of its names may be guarded',
+    });
+
+    // Installation-state paths (.ia/distributions.lock.json, .ia/distributions, .ia/distributions/**) are refused
+    // with IA-HOOK-PROJECTION-MANAGED even when no authored @hook selects them
+    for (const installRel of [
+      '.ia/distributions.lock.json',
+      '.ia/distributions',
+      '.ia/distributions/hosts/gemini-projection.json',
+    ] as const) {
+      expect(
+        await runGuard({
+          cwd: fakeWorkspace,
+          toolCall: { name: 'write_to_file', args: { TargetFile: join(fakeWorkspace, installRel) } },
+        }),
+        installRel,
+      ).toEqual({
+        decision: 'deny',
+        reason: 'IA-HOOK-PROJECTION-MANAGED: Use the owning command for generated installation state',
+      });
+    }
+
+    // Valid edit JSON over 1 MiB targeting an otherwise-allowed path fails closed at the 1 MiB cap
+    const oversizedValidJson = JSON.stringify({
+      cwd: fakeWorkspace,
+      toolCall: {
+        name: 'write_to_file',
+        args: {
+          TargetFile: join(fakeWorkspace, 'src/open.md'),
+          CodeContent: 'a'.repeat(1024 * 1024 + 64),
+        },
+      },
+    });
+    expect(JSON.parse(oversizedValidJson)).toBeTruthy();
+    expect(await runGuardRaw(oversizedValidJson)).toEqual({
+      decision: 'deny',
+      reason: 'IA-HOOK-INPUT-INVALID: Input exceeds 1 MiB',
+    });
+
+    // Malformed, empty, or incomplete stdin fails closed with IA-HOOK-INPUT-INVALID
     for (const bad of [
       '',
       '{',
@@ -543,7 +614,6 @@ describe('Track 2B: standalone plugin manifests & zero-IA-dependency compiler', 
         cwd: fakeWorkspace,
         toolCall: { name: 'multi_replace_file_content', args: { TargetFile: join(fakeWorkspace, 'src/open.md') } },
       }),
-      'x'.repeat(1024 * 1024 + 64),
     ]) {
       expect(await runGuardRaw(bad)).toEqual({
         decision: 'deny',
@@ -672,5 +742,118 @@ describe('Track 2B: standalone plugin manifests & zero-IA-dependency compiler', 
       'skills/knowledge/SKILL.md',
       'skills/work/SKILL.md',
     ]);
+  });
+
+  it('keeps the compiled standalone guard in step with evaluateMandateGuard across .ia/src, band-90 system folders, and band-10 floor', async () => {
+    const baseWorkspaceIa = readFileSync(resolve(FIXTURE, 'workspace.ia'), 'utf8');
+    const baseHooksIa = readFileSync(resolve(FIXTURE, 'hooks.ia'), 'utf8');
+    const iaSrcHook = [
+      '',
+      '@hook protect-ia-src',
+      '  meaning',
+      '    says "Guard .ia/src records with the governing workspace mandate."',
+      '    answers "Which native source paths are guarded?"',
+      '  hook',
+      '    event PreToolUse',
+      '    tools [Write, Edit, MultiEdit]',
+      '    paths [".ia/src/**"]',
+      '    message "Authoring under .ia/src requires a Synthesis mandate."',
+      '',
+    ].join('\n');
+
+    const candidatePaths = [
+      '.ia/src/workspace.ia',
+      '.ia/src/systems/agent-system/new.ia',
+      '.ia/src/systems/work-system/new.ia',
+      '.ia/src/floor/new.ia',
+      'docs/guide.md',
+      'restricted/plan.md',
+      'src/unselected.md',
+    ] as const;
+
+    const actors = [
+      { label: 'main', agentId: undefined, agentType: undefined },
+      { label: 'reviewer', agentId: 'sub-rev', agentType: 'reviewer' },
+      { label: 'stranger', agentId: 'sub-unk', agentType: 'stranger' },
+    ] as const;
+
+    const wsDir = join(temporary, 'parity-ws');
+    mkdirSync(join(wsDir, '.ia/src'), { recursive: true });
+
+    for (const [modeLabel, movesLine] of [
+      ['narrowed-observation', 'moves [Observation]'],
+      ['full-synthesis', 'moves [Observation, Verification, Synthesis, Delegation, Execution]'],
+    ] as const) {
+      const { db, within } = openFixture({
+        '.ia/src/workspace.ia': baseWorkspaceIa.replace(
+          'moves [Observation, Verification, Synthesis, Delegation, Execution]',
+          movesLine,
+        ),
+        '.ia/src/hooks.ia': baseHooksIa + iaSrcHook,
+      });
+
+      const geminiFiles = compileStandalonePlugin(db, within, { host: 'gemini' });
+      const guardPath = join(temporary, `parity-guard-${modeLabel}.mjs`);
+      writeFileSync(guardPath, geminiFiles.find((f) => f.path === 'scripts/guard.mjs')!.bytes);
+
+      const declaredHooks = db
+        .records({ within })
+        .filter((n) => n.discriminator === 'hook' && n.band === 100)
+        .sort((a, b) => (a.identity < b.identity ? -1 : a.identity > b.identity ? 1 : 0))
+        .map((n) => hookDeclaration(n));
+
+      for (const actor of actors) {
+        const results = await Promise.all(
+          candidatePaths.map(async (relPath) => {
+            let expected: { decision: 'allow' } | { decision: 'deny'; reason: string } = { decision: 'allow' };
+            for (const hook of declaredHooks) {
+              const verdict = evaluateMandateGuard(db, within, {
+                hook,
+                tool: 'Write',
+                paths: [relPath],
+                ...(actor.agentId !== undefined ? { agentId: actor.agentId, agentType: actor.agentType } : {}),
+                fold: pathKey,
+              });
+              if (!verdict.allowed) {
+                expected = { decision: 'deny', reason: `${verdict.code}: ${verdict.message}` };
+                break;
+              }
+            }
+            const res = await runBounded(process.execPath, [guardPath], {
+              cwd: wsDir,
+              input: JSON.stringify({
+                hook_event_name: 'BeforeTool',
+                cwd: wsDir,
+                tool_name: 'write_file',
+                tool_input: { file_path: join(wsDir, relPath) },
+                ...(actor.agentId !== undefined ? { agent_id: actor.agentId, agent_type: actor.agentType } : {}),
+              }),
+              timeoutMs: 10_000,
+            });
+            expect(res.status, `${modeLabel}/${actor.label}/${relPath}: ${res.stderr}`).toBe(0);
+            const actual = JSON.parse(res.stdout) as { decision: string; reason?: string };
+            return { relPath, actual, expected };
+          }),
+        );
+
+        for (const { relPath, actual, expected } of results) {
+          expect(actual, `${modeLabel}/${actor.label}/${relPath}`).toEqual(expected);
+        }
+
+        if (modeLabel === 'narrowed-observation' && actor.label === 'main') {
+          for (const iaPath of [
+            '.ia/src/workspace.ia',
+            '.ia/src/systems/agent-system/new.ia',
+            '.ia/src/floor/new.ia',
+          ] as const) {
+            const row = results.find((r) => r.relPath === iaPath)!;
+            expect(row.actual).toEqual({
+              decision: 'deny',
+              reason: expect.stringMatching(/^IA-HOOK-NOT-MANDATED:/),
+            });
+          }
+        }
+      }
+    }
   });
 });

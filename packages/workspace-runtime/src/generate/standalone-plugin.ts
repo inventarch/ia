@@ -478,6 +478,7 @@ interface CompiledWorkspaceGuardRow {
 interface CompiledMandateGuardRow {
   readonly identity: string;
   readonly root: string;
+  readonly band: number;
   readonly invalid: string | null;
   readonly participant: string | null;
   readonly participantAgent: string | null;
@@ -488,6 +489,11 @@ interface CompiledMandateGuardRow {
   readonly moves: readonly string[] | null;
 }
 
+interface CompiledSystemGuardRow {
+  readonly root: string;
+  readonly band: number;
+}
+
 interface CompiledMandateGuardModel {
   readonly admissionRefusal: string | null;
   readonly repositoryWorkspace: string | null;
@@ -496,7 +502,7 @@ interface CompiledMandateGuardModel {
   readonly declaredRoots: readonly { readonly root: string; readonly workspace: string }[];
   readonly declaredRootList: readonly string[];
   readonly systemsByFolder: Readonly<Record<string, string>>;
-  readonly systemRoots: Readonly<Record<string, string>>;
+  readonly systems: Readonly<Record<string, CompiledSystemGuardRow>>;
   readonly workspaces: Readonly<Record<string, CompiledWorkspaceGuardRow>>;
   readonly subagents: Readonly<Record<string, { readonly profile: string; readonly agent: string | null }>>;
   readonly mandates: readonly CompiledMandateGuardRow[];
@@ -514,7 +520,7 @@ function compileMandateGuardModel(reader: ReadHandle, within: string): CompiledM
       declaredRoots: [],
       declaredRootList: [],
       systemsByFolder: {},
-      systemRoots: {},
+      systems: {},
       workspaces: {},
       subagents: {},
       mandates: [],
@@ -534,19 +540,24 @@ function compileMandateGuardModel(reader: ReadHandle, within: string): CompiledM
   const rootWsCandidate = rootWorkspace(reader, read);
   const resolvedRootWorkspace =
     rootWsCandidate !== undefined && nodes.get(rootWsCandidate)?.discriminator === 'workspace' ? rootWsCandidate : null;
-  const floorSystem =
-    snapshot.records.find(
-      (node) =>
-        node.discriminator === 'system' &&
-        node.source.path.slice(0, node.source.path.lastIndexOf('/')) === '.ia/src/floor',
-    )?.identity ?? null;
+  const floorSeat = reader.resolveSeat('.ia/src/floor', read);
+  const floorSystem = floorSeat.by === 'system' ? (floorSeat.seat ?? null) : null;
 
   const systemsByFolder: Record<string, string> = {};
-  const systemRoots: Record<string, string> = {};
+  for (const node of snapshot.records) {
+    if (node.discriminator !== 'system' || Object.hasOwn(systemsByFolder, node.name)) continue;
+    const sysSeat = reader.resolveSeat(`.ia/src/systems/${node.name}`, read);
+    if (sysSeat.by === 'system' && sysSeat.seat !== undefined) {
+      systemsByFolder[node.name] = sysSeat.seat;
+    }
+  }
+  const systems: Record<string, CompiledSystemGuardRow> = {};
   for (const node of nodes.values()) {
     if (node.discriminator !== 'system') continue;
-    if (systemsByFolder[node.name] === undefined) systemsByFolder[node.name] = node.identity;
-    systemRoots[node.identity] = rootOf.get(node.identity) ?? '';
+    systems[node.identity] = {
+      root: rootOf.get(node.identity) ?? '',
+      band: node.band,
+    };
   }
 
   const workspaces: Record<string, CompiledWorkspaceGuardRow> = {};
@@ -623,6 +634,7 @@ function compileMandateGuardModel(reader: ReadHandle, within: string): CompiledM
         return {
           identity: node.identity,
           root,
+          band: node.band,
           invalid: null,
           participant:
             authority.participant === undefined ? null : (participantAgent ?? `@agent ${authority.participant}`),
@@ -638,6 +650,7 @@ function compileMandateGuardModel(reader: ReadHandle, within: string): CompiledM
         return {
           identity: node.identity,
           root,
+          band: node.band,
           invalid: error.message,
           participant: participantAgent,
           participantAgent,
@@ -658,7 +671,7 @@ function compileMandateGuardModel(reader: ReadHandle, within: string): CompiledM
     declaredRoots,
     declaredRootList,
     systemsByFolder,
-    systemRoots,
+    systems,
     workspaces,
     subagents,
     mandates,
@@ -997,8 +1010,11 @@ function reaches(from, to) {
 }
 
 function systemFolderOf(withTrailingSlash) {
-  const m = /^\\.ia\\/src\\/systems\\/([a-z][a-z0-9-]*)\\//.exec(withTrailingSlash);
-  return m ? m[1] : undefined;
+  const m =
+    /^(\\.ia\\/(?:(?:(?:adopted|open)\\/[a-z][a-z0-9-]*|distributions\\/store)\\/[a-f0-9]{64}\\/\\.ia\\/)?src\\/systems\\/([^/]+))\\//.exec(
+      withTrailingSlash,
+    ) ?? /^((?!\\.ia\\/)(?:[^/]+\\/)+\\.ia\\/src\\/systems\\/([^/]+))\\//.exec(withTrailingSlash);
+  return m ? m[2] : undefined;
 }
 
 function resolveSeat(relPath) {
@@ -1008,7 +1024,7 @@ function resolveSeat(relPath) {
   const folder = systemFolderOf(canonical + '/');
   const system =
     folder !== undefined
-      ? MODEL.systemsByFolder[folder]
+      ? (Object.hasOwn(MODEL.systemsByFolder, folder) ? MODEL.systemsByFolder[folder] : undefined)
       : reaches('.ia/src/floor', canonical)
         ? (MODEL.floorSystem ?? undefined)
         : undefined;
@@ -1025,18 +1041,25 @@ function resolveSeat(relPath) {
   return { path: canonical, unknown: 'undeclared' };
 }
 
-function holds(ownRoots, recordRoot) {
-  return ownRoots.length > 0 ? ownRoots.includes(recordRoot) : !DECLARED_ROOT_SET.has(recordRoot);
+function holds(ownRoots, recordRoot, recordBand) {
+  return (
+    recordBand === 10 ||
+    recordBand === 90 ||
+    (ownRoots.length > 0 ? ownRoots.includes(recordRoot) : !DECLARED_ROOT_SET.has(recordRoot))
+  );
 }
 
 function workspaceOf(seatIdentity) {
   if (!seatIdentity) return MODEL.rootWorkspace ?? undefined;
-  if (MODEL.workspaces[seatIdentity]) return seatIdentity;
-  const recRoot = MODEL.systemRoots[seatIdentity];
-  if (recRoot === undefined) return MODEL.rootWorkspace ?? undefined;
-  const holder = MODEL.declaredRoots.find((d) => reaches(d.root, recRoot))?.workspace;
+  if (Object.hasOwn(MODEL.workspaces, seatIdentity)) return seatIdentity;
+  const sys = Object.hasOwn(MODEL.systems, seatIdentity) ? MODEL.systems[seatIdentity] : undefined;
+  if (sys === undefined) return MODEL.rootWorkspace ?? undefined;
+  const holder = MODEL.declaredRoots.find((d) => reaches(d.root, sys.root))?.workspace;
   return [MODEL.rootWorkspace ?? undefined, holder].find(
-    (at) => at !== undefined && MODEL.workspaces[at] && holds(MODEL.workspaces[at].ownRoots, recRoot),
+    (at) =>
+      at !== undefined &&
+      Object.hasOwn(MODEL.workspaces, at) &&
+      holds(MODEL.workspaces[at].ownRoots, sys.root, sys.band),
   );
 }
 
@@ -1044,20 +1067,28 @@ function seatedWorkspace(relPath) {
   const res = resolveSeat(relPath);
   if (res.by !== 'shared') return workspaceOf(res.seat);
   const own = MODEL.repositoryWorkspace;
-  return own !== null && res.declarers.includes(own) ? own : undefined;
+  return own !== null && Object.hasOwn(MODEL.workspaces, own) && res.declarers.includes(own) ? own : undefined;
 }
 
 function governingWorkspace(relPath) {
-  return seatedWorkspace(relPath) ?? resolveSeat(relPath).declarers?.[0];
+  return (
+    seatedWorkspace(relPath) ?? resolveSeat(relPath).declarers?.find((d) => Object.hasOwn(MODEL.workspaces, d))
+  );
 }
 
 function governingMandatesFor(relPath, ws, actor) {
   const seat = resolveSeat(relPath);
-  const shared = seat.by === 'shared' ? seat.declarers : undefined;
+  const declarers = seat.by === 'shared' ? seat.declarers.filter((d) => Object.hasOwn(MODEL.workspaces, d)) : [];
+  const shared = declarers.length > 0 ? declarers : undefined;
+  const effWs = ws ?? workspaceOf(seat.seat);
   const inside = (m) =>
     shared !== undefined
-      ? shared.some((d) => MODEL.workspaces[d] && holds(MODEL.workspaces[d].ownRoots, m.root))
-      : holds(ws !== undefined && MODEL.workspaces[ws] ? MODEL.workspaces[ws].ownRoots : [], m.root);
+      ? shared.some((d) => holds(MODEL.workspaces[d].ownRoots, m.root, m.band))
+      : holds(
+          effWs !== undefined && Object.hasOwn(MODEL.workspaces, effWs) ? MODEL.workspaces[effWs].ownRoots : [],
+          m.root,
+          m.band,
+        );
   const governs = (m) => {
     const scoped =
       shared !== undefined
@@ -1353,7 +1384,7 @@ function renderHookManifest(host: StandalonePluginHost): { readonly path: string
         hooks: {
           BeforeTool: [
             {
-              matcher: 'write_file|replace',
+              matcher: '^(write_file|replace)$',
               hooks: [
                 {
                   name: 'ia-guard',

@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Foundation } from '../src/foundation.js';
 import { digest } from '../src/format.js';
-import { captureKnowledge } from '../src/local.js';
+import { captureKnowledge, sharedNativeReader } from '../src/local.js';
 import { openKnowledgeView } from '../src/view.js';
 vi.mock('@inventarch/db', { spy: true });
 const base = JSON.parse(
@@ -223,5 +223,45 @@ it('keeps an open knowledge view able to read record fragments after a changed w
   } finally {
     first.close();
     second?.close();
+  }
+});
+
+it('retries a fragment read with a fresh scope when the shared native reader evicts the cached scope token (IA-DB-STALE)', () => {
+  const root = local(),
+    pbPath = join(root, '.ia/src/playbook.ia'),
+    pbId = 'governance-system/definition/procedure/demo-pb';
+  writeFileSync(
+    pbPath,
+    [
+      '#! ia 1.0',
+      '@playbook demo-pb',
+      '  meaning',
+      '    says "Demo playbook."',
+      '    answers "How does demo run?"',
+      '  cognition',
+      '    orient',
+      '      primary Memory',
+      '      Memory means "Orient cell content."',
+      '    plan',
+      '      primary Inference',
+      '      Inference means "Plan cell content."',
+      '    act',
+      '      primary Decision',
+      '      Decision means "Act cell content."',
+      '',
+    ].join('\n'),
+  );
+  const snapshot = captureKnowledge(root, { input }),
+    view = openKnowledgeView(snapshot);
+  try {
+    expect(view.read(`${pbId}#orient/Memory`).body).toContain('Orient cell content.');
+    const shared = sharedNativeReader(snapshot.capture),
+      newerThanHeld = shared.resolveScope().token;
+    for (let i = 0; i < 4096; i++) shared.resolveScope();
+    expect(() => shared.get(pbId, { within: newerThanHeld })).toThrow(expect.objectContaining({ code: 'IA-DB-STALE' }));
+    expect(view.read(`${pbId}#plan/Inference`).body).toContain('Plan cell content.');
+    expect(view.read(`${pbId}#act/Decision`).body).toContain('Act cell content.');
+  } finally {
+    view.close();
   }
 });
