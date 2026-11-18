@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import { dependencyChanges, describeDependencyChanges } from './dependency-note.mjs';
-import { NOTE_FORMAT, validateNote } from './release-notes.mjs';
+import { NOTE_FORMAT, NOTE_FORMAT_VERSION, validateNote } from './release-notes.mjs';
 
 const db = {
   before: { dependencies: { semver: '7.8.5' }, devDependencies: { '@types/semver': '7.7.1', vitest: 'catalog:' } },
@@ -41,7 +41,13 @@ it('makes a runtime move a patch and names every move, with packages in code spa
   expect(() =>
     validateNote(
       'dependabot-x',
-      { format: NOTE_FORMAT, ...described, packages: names, paths: ['packages/db/'] },
+      {
+        format: NOTE_FORMAT,
+        formatVersion: NOTE_FORMAT_VERSION,
+        ...described,
+        packages: names,
+        paths: ['packages/db/'],
+      },
       names,
     ),
   ).not.toThrow();
