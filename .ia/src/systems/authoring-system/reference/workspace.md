@@ -23,6 +23,9 @@ Section relationships: optional.
 - composition.systems: list of ref to system; required.
 - composition.sources: list of text; optional. — A root and the placement it is captured at, spelled \<root> @\<placement> with the placement one of authored, adopted, open, floor or runtime; for example .ia/src @authored. Admission does not check this form; an entry spelled any other way declares no root.
 - composition.steward: ref to agent; optional.
+- composition.public-agent: ref to agent; optional. — The intake participant that receives cross-workspace requests for this workspace.
+- composition.private-agent: ref to agent; optional. — The internal participant that carries out work inside this workspace.
+- composition.decides: list of text; optional. — What this workspace decides, each entry spelled \<id>: \<one plain sentence>; structural admission does not check this form.
 
 
 A valid declaration establishes structural conformance. Execution, host authority and evidence verification require their respective explicit consumers.

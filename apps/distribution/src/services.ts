@@ -14,7 +14,9 @@ import type { CheckBinding, CheckCatalog, EvidenceWrite, Handle, LawStatus } fro
 import {
   decodeDistributionJson,
   decodeDistributionLock,
+  lockEngineMarker,
   lockedReleases,
+  DISTRIBUTION_ENGINE_VERSION,
   DISTRIBUTION_LIMITS,
   INSTALL_PATHS,
   readInstalledGeneration,
@@ -349,8 +351,19 @@ export async function planRestore(request: RestoreRequest): Promise<RestorePlan>
 }
 export function pruneLockRequest(options: { readonly lock: DistributionLock; readonly id: string }): DistributionLock {
   const { lock, id } = options;
-  if (!lock.requests.some((r) => r.id === id))
-    fail('INPUT-INVALID', 'Removal must name a directly requested distribution');
+  const hasRequest = lock.requests.some((r) => r.id === id);
+  const hasHosted = (lock.entries ?? []).some((entry) => entry.kind === 'hosted' && entry.id === id);
+  if (!hasRequest && !hasHosted)
+    fail('INPUT-INVALID', 'Removal must name a directly requested distribution or hosted kit');
+  if (hasHosted) {
+    const entries = (lock.entries ?? []).filter((entry) => !(entry.kind === 'hosted' && entry.id === id));
+    const { entries: _prior, ...rest } = lock;
+    return decodeDistributionLock(
+      entries.length === 0
+        ? { ...rest, engine: lockEngineMarker(DISTRIBUTION_ENGINE_VERSION, false) }
+        : { ...rest, engine: lockEngineMarker(DISTRIBUTION_ENGINE_VERSION, entries), entries },
+    );
+  }
   const requests = lock.requests.filter((r) => r.id !== id),
     keep = new Set<string>(),
     byId = new Map(lock.packages.map((p) => [p.id, p]));
@@ -360,6 +373,9 @@ export function pruneLockRequest(options: { readonly lock: DistributionLock; rea
     byId.get(key)!.dependencies.forEach(visit);
   };
   requests.forEach((r) => visit(r.id));
+  for (const entry of lock.entries ?? [])
+    if (entry.kind === 'package')
+      for (const kit of entry.kits) kit.dependencies.forEach((dep) => byId.has(dep) && visit(dep));
   if (keep.has(id)) fail('CONFLICT', 'Distribution is still required by another direct request');
   return decodeDistributionLock({ ...lock, requests, packages: lock.packages.filter((p) => keep.has(p.id)) });
 }

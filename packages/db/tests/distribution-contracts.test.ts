@@ -12,7 +12,10 @@ import {
   decodeReleaseDescriptor,
   deriveGenerationInputs,
   generationDigest,
+  HOSTED_ENTRY_ENGINE_VERSION,
+  installationWorkspace,
   lockEngineMarker,
+  lockedHostedKits,
   lockedReleases,
   PACKAGE_ENTRY_ENGINE_VERSION,
   RELEASE_ENGINE_VERSION,
@@ -351,15 +354,18 @@ it('binds generation identity to every byte and keeps activation counters separa
   ).toThrow();
 });
 it('retains only the released exact lock markers as legacy 0.1 compatibility lines', () => {
-  expect(DISTRIBUTION_ENGINE_VERSION).toBe('0.1.2');
+  expect(DISTRIBUTION_ENGINE_VERSION).toBe('0.1.3');
   for (const marker of ['0.1.0', '0.1.1'])
     expect(supportsDistributionLockEngine(DISTRIBUTION_ENGINE_VERSION, marker)).toBe(true);
   expect(supportsDistributionLockEngine('0.1.1', '0.1.0')).toBe(true);
   expect(supportsDistributionLockEngine('0.2.0', '0.1.0')).toBe(false);
   expect(supportsDistributionLockEngine('0.1.0', '0.1.1')).toBe(false);
-  for (const declared of ['0.1.3', '0.2.0', '=0.1.0'])
+  for (const declared of ['0.1.4', '0.2.0', '=0.1.0'])
     expect(supportsDistributionLockEngine(DISTRIBUTION_ENGINE_VERSION, declared)).toBe(false);
   expect(supportsDistributionLockEngine(DISTRIBUTION_ENGINE_VERSION, '^0.1.0')).toBe(true);
+  expect(supportsDistributionLockEngine(DISTRIBUTION_ENGINE_VERSION, `^${PACKAGE_ENTRY_ENGINE_VERSION}`)).toBe(true);
+  expect(supportsDistributionLockEngine(DISTRIBUTION_ENGINE_VERSION, `^${HOSTED_ENTRY_ENGINE_VERSION}`)).toBe(true);
+  expect(supportsDistributionLockEngine(PACKAGE_ENTRY_ENGINE_VERSION, `^${HOSTED_ENTRY_ENGINE_VERSION}`)).toBe(false);
   expect(supportsDistributionLockEngine(RELEASE_ENGINE_VERSION, `^${PACKAGE_ENTRY_ENGINE_VERSION}`)).toBe(false);
 });
 
@@ -440,7 +446,7 @@ it('refuses a lock an older reader cannot read by naming the ia that reads it, b
     'Distribution engine-incompatible: Lock requires distribution engine ^0.1.2; this reader is 0.1.1. It needs ia >= 3.5.0.',
   );
   expect(() => decodeDistributionLock({ ...packaged, engine: '^0.2.0' })).toThrow(
-    /engine-incompatible: Lock requires distribution engine \^0\.2\.0; this reader is 0\.1\.2\. It needs a newer IA/,
+    /engine-incompatible: Lock requires distribution engine \^0\.2\.0; this reader is 0\.1\.3\. It needs a newer IA/,
   );
   const future = { ...packaged, engine: '^0.2.0', registry: {} };
   expect(() => decodeDistributionLock(future)).toThrow(
@@ -448,12 +454,84 @@ it('refuses a lock an older reader cannot read by naming the ia that reads it, b
   );
   // An entry kind this engine does not know is refused as an engine it is not, never ignored.
   expect(() => decodeDistributionLock({ ...packaged, entries: [{ ...kitsPackage, kind: 'container' }] })).toThrow(
-    'Distribution engine-incompatible: Lock entry kind container is unknown to distribution engine 0.1.2',
+    'Distribution engine-incompatible: Lock entry kind container is unknown to distribution engine 0.1.3',
   );
   // A field no engine of the line knows, under an engine this reader admits, is malformed as before.
   expect(() => decodeDistributionLock({ ...lock, registry: {} })).toThrow(/Unknown, missing or accessor field/);
   // A lock of the four 0.1.1 fields whose engine this reader does not support still decodes; its reader refuses it.
   expect(decodeDistributionLock({ ...lock, engine: '^0.2.0' }).engine).toBe('^0.2.0');
+});
+
+const hostedStudio = {
+  kind: 'hosted' as const,
+  id: 'inventarch/ia-studio-kit',
+  version: '0.5.1',
+  hosted: true as const,
+};
+it('decodes hosted kit entries under engine ^0.1.3 without adding release archive requirements, and refuses invalid or older-engine forms', () => {
+  const withHosted = {
+    ...lock,
+    engine: `^${HOSTED_ENTRY_ENGINE_VERSION}`,
+    entries: [hostedStudio, kitsPackage],
+  };
+  const decoded = decodeDistributionLock(withHosted);
+  expect(decoded).toEqual(withHosted);
+  expect(canonicalDistributionJson(decodeDistributionLock(canonicalDistributionJson(withHosted)))).toBe(
+    canonicalDistributionJson(withHosted),
+  );
+  expect(lockedHostedKits(decoded)).toEqual([hostedStudio]);
+  // Hosted pins require zero archive bytes: lockedReleases includes only release rows and packaged kits.
+  expect(lockedReleases(decoded)).toEqual(lockedReleases(decodeDistributionLock(packaged)));
+  expect(lockEngineMarker(DISTRIBUTION_ENGINE_VERSION, [])).toBe('0.1.1');
+  expect(lockEngineMarker(DISTRIBUTION_ENGINE_VERSION, [kitsPackage])).toBe('^0.1.2');
+  expect(lockEngineMarker(DISTRIBUTION_ENGINE_VERSION, [hostedStudio])).toBe('^0.1.3');
+  expect(lockEngineMarker(DISTRIBUTION_ENGINE_VERSION, [hostedStudio, kitsPackage])).toBe('^0.1.3');
+  expect(requiredRelease('^0.1.3')).toBe('ia >= 3.9.0');
+  // Generation membership and installationWorkspace succeed with only the non-hosted release bundle supplied.
+  const onlyHosted = decodeDistributionLock({
+    ...lock,
+    engine: `^${HOSTED_ENTRY_ENGINE_VERSION}`,
+    entries: [hostedStudio],
+  });
+  const releases = new Map([
+    [
+      common.id,
+      {
+        manifest: decodeBundleManifest({
+          ...common,
+          distribution: 'workspace-system/definition/distribution/foundation',
+          roots: ['floor/definition/system/foundation'],
+          systems: [{ name: 'foundation', provider: 'test', version: '0.1.0', path: '.ia/src/systems/foundation' }],
+          dependencies: [],
+          files: [{ path: '.ia/src/systems/foundation/system.ia', bytes: 12, sha256: hash, role: 'source' }],
+        }),
+        archiveDigest: hash,
+        manifestDigest: selected.manifest,
+      },
+    ],
+  ]);
+  const derived = deriveGenerationInputs(onlyHosted, releases);
+  expect(derived.bundles).toEqual([{ id: common.id, archive: hash }]);
+  expect(installationWorkspace(onlyHosted, derived, releases)).toContain('uses @distribution foundation');
+  // Older 0.1.2 readers receive a clear engine-incompatible refusal naming ia >= 3.9.0.
+  expect(() => decodeDistributionLock(withHosted, PACKAGE_ENTRY_ENGINE_VERSION)).toThrow(
+    'Distribution engine-incompatible: Lock requires distribution engine ^0.1.3; this reader is 0.1.2. It needs ia >= 3.9.0.',
+  );
+  expect(() =>
+    decodeDistributionLock({ ...lock, engine: '^0.1.2', entries: [hostedStudio] }, PACKAGE_ENTRY_ENGINE_VERSION),
+  ).toThrow('Lock entry kind hosted is unknown to distribution engine 0.1.2; it needs ia >= 3.9.0.');
+  expect(() => decodeDistributionLock({ ...lock, engine: '^0.1.2', entries: [hostedStudio] })).toThrow(
+    /declares distribution engine >=0\.1\.3/,
+  );
+  expect(() => decodeDistributionLock({ ...onlyHosted, entries: [{ ...hostedStudio, hosted: false }] })).toThrow(
+    /sets hosted to true/,
+  );
+  expect(() => decodeDistributionLock({ ...onlyHosted, entries: [{ ...hostedStudio, id: common.id }] })).toThrow(
+    /named twice/,
+  );
+  expect(() =>
+    decodeDistributionLock({ ...withHosted, entries: [{ ...hostedStudio, id: kitsPackage.kits[0]!.id }, kitsPackage] }),
+  ).toThrow(/named twice/);
 });
 
 /** `parseStrictJson` with each refusal thrown as `<fault>: <message>`. */

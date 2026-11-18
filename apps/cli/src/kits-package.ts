@@ -28,8 +28,9 @@ import {
   DISTRIBUTION_ENGINE_VERSION,
   DISTRIBUTION_LIMITS,
   lockEngineMarker,
+  lockEntryKey,
 } from '@inventarch/db/distribution';
-import type { DistributionLock, PackageEntry, PackageKit } from '@inventarch/db/distribution';
+import type { DistributionLock, HostedEntry, LockEntry, PackageEntry, PackageKit } from '@inventarch/db/distribution';
 import { inspectArchiveMetadata } from '@inventarch/distribution/archive';
 import { cacheArchive, cachePath } from '@inventarch/distribution/install';
 import { Refusal } from './consumer.js';
@@ -42,6 +43,7 @@ const NPM_TIMEOUT = 120_000;
 const FAKE_VARIABLE = /^(IA_NPM_|FAKE_NPM_)/;
 const EXACT = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/;
 const SPEC = /^((?:@[a-z0-9][a-z0-9._~-]*\/)?[a-z0-9][a-z0-9._~-]*)(?:@([0-9A-Za-z.+-]+))?$/;
+const HOSTED_SPEC = /^([a-z][a-z0-9.-]*\/[a-z][a-z0-9-]*)@(.+)$/;
 const INTEGRITY = /^sha512-([A-Za-z0-9+/]{86}==)$/;
 
 /** One npm command: its exit, stdout, and both streams for a refusal. */
@@ -323,13 +325,51 @@ export function packageEntry(
   };
 }
 
+/** `<provider/name>@<exact-version>` for a hosted kit pin. */
+export function hostedSpec(input: string, again: string): HostedEntry {
+  const match = HOSTED_SPEC.exec(input);
+  if (match === null || Buffer.byteLength(match[1]!) > 128 || match[1]!.includes('..') || !EXACT.test(match[2]!))
+    throw new Refusal(
+      'IA-CLI-USAGE',
+      `--hosted takes <provider/name>@<exact-version>: ${input}`,
+      2,
+      null,
+      `Run "${again.replace(input, '<provider/name>@<version>')}".`,
+    );
+  return { kind: 'hosted', id: match[1]!, version: match[2]!, hosted: true };
+}
+
 /** `lock` with `entry` in place of any entry of its name: the engine an entry needs, every other byte kept. */
 export function lockWithPackage(lock: DistributionLock | undefined, entry: PackageEntry): DistributionLock {
   const base = lock ?? { formatVersion: 1 as const, engine: DISTRIBUTION_ENGINE_VERSION, requests: [], packages: [] };
-  const entries = [...(base.entries ?? []).filter((row) => row.name !== entry.name), entry].sort((a, b) =>
-    a.name < b.name ? -1 : 1,
-  );
-  const engine = base.entries === undefined ? lockEngineMarker(DISTRIBUTION_ENGINE_VERSION, true) : base.engine;
+  const entries: LockEntry[] = [
+    ...(base.entries ?? []).filter((row) => !(row.kind === 'package' && row.name === entry.name)),
+    entry,
+  ].sort((a, b) => (lockEntryKey(a) < lockEntryKey(b) ? -1 : lockEntryKey(a) > lockEntryKey(b) ? 1 : 0));
+  const engine = lockEngineMarker(DISTRIBUTION_ENGINE_VERSION, entries);
+  return decodeDistributionLock({ ...base, engine, entries });
+}
+
+/** `lock` with `hosted` entries replacing any existing `hosted` entries of the same ids. */
+export function lockWithHosted(lock: DistributionLock | undefined, hosted: readonly HostedEntry[]): DistributionLock {
+  const base = lock ?? { formatVersion: 1 as const, engine: DISTRIBUTION_ENGINE_VERSION, requests: [], packages: [] };
+  const seen = new Set<string>();
+  for (const row of hosted) {
+    if (seen.has(row.id))
+      throw new Refusal(
+        'IA-CLI-USAGE',
+        `Duplicate --hosted kit id: ${row.id}`,
+        2,
+        null,
+        'Specify each hosted kit id at most once.',
+      );
+    seen.add(row.id);
+  }
+  const entries: LockEntry[] = [
+    ...(base.entries ?? []).filter((row) => !(row.kind === 'hosted' && seen.has(row.id))),
+    ...hosted,
+  ].sort((a, b) => (lockEntryKey(a) < lockEntryKey(b) ? -1 : lockEntryKey(a) > lockEntryKey(b) ? 1 : 0));
+  const engine = lockEngineMarker(DISTRIBUTION_ENGINE_VERSION, entries);
   return decodeDistributionLock({ ...base, engine, entries });
 }
 export const sameLock = (a: DistributionLock | undefined, b: DistributionLock): boolean =>
@@ -345,6 +385,7 @@ export function acquirePackageArchives(
   options: { readonly npm: Npm; readonly env: Env; readonly offline: boolean; readonly again: string },
 ): void {
   for (const entry of lock.entries ?? []) {
+    if (entry.kind !== 'package') continue;
     const missing = entry.kits.filter((kit) => !existsSync(join(root, cachePath(kit.archive))));
     if (missing.length === 0) continue;
     const files = tarballFiles(packageTarball(options.npm, options.env, entry, options));

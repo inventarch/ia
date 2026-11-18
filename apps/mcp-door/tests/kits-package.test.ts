@@ -182,3 +182,64 @@ it('tells a fresh clone to run ia restore, and never answers the kit from anothe
     renameSync(moved, installed);
   }
 });
+
+it('surfaces hosted kit pins in ia_session as hosted without restore warnings, and refuses ia_method with IA-CORE-KIT-HOSTED', () => {
+  const hostedRoot = join(root, 'hosted-consumer');
+  mkdirSync(join(hostedRoot, '.ia', 'src'), { recursive: true });
+  writeFileSync(
+    join(hostedRoot, '.ia', 'bindings.json'),
+    JSON.stringify({
+      format: 1,
+      bindings: { 'delivery.studio': { kit: 'inventarch/ia-studio-kit', capability: 'studio-design' } },
+    }) + '\n',
+  );
+  cacheArchive(
+    hostedRoot,
+    readFileSync(new URL(`../assets/base/${BASE.archive}.ia.tgz`, import.meta.url)),
+    BASE.archive,
+  );
+  applyInstallation(
+    planInstallation(
+      hostedRoot,
+      {
+        formatVersion: 1,
+        engine: '^0.1.3',
+        requests: [{ id: BASE.id, range: `^${BASE.version}` }],
+        packages: [
+          {
+            id: BASE.id,
+            version: BASE.version,
+            archive: BASE.archive,
+            manifest: BASE.manifest,
+            location: `sha256:${BASE.archive}`,
+            dependencies: [],
+          },
+        ],
+        entries: [{ kind: 'hosted', id: 'inventarch/ia-studio-kit', version: '0.5.1', hosted: true }],
+      },
+      'install',
+    ),
+  );
+  const door = new MethodTools({
+    root: hostedRoot,
+    kits: join(plugin, 'config', 'kits'),
+    env,
+    cache: join(root, 'cache'),
+  });
+  const session = door.call('method:session', {}).value as Record<string, unknown>;
+  expect(session).not.toHaveProperty('restore');
+  expect(session['kits'] as unknown[]).toContainEqual({
+    kit: 'inventarch/ia-studio-kit',
+    version: '0.5.1',
+    source: 'hosted',
+  });
+  const method = door.call('method:method', { key: 'delivery.studio' });
+  expect(method.ok).toBe(false);
+  expect(method.value).toEqual({
+    error: {
+      code: 'IA-CORE-KIT-HOSTED',
+      kit: 'inventarch/ia-studio-kit',
+      message: expect.stringContaining('api.inventarch.dev'),
+    },
+  });
+});

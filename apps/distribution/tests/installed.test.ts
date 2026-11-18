@@ -186,6 +186,13 @@ it('installs the kits of a package entry as ordinary releases, restores them by 
     entries: [other],
   }).lock;
   expect(carried).toMatchObject({ engine: '^0.1.2', entries: [other] });
+  const hosted = { kind: 'hosted' as const, id: 'inventarch/studio-kit', version: '1.2.0', hosted: true as const };
+  const carriedHosted = resolveReleases(requests, candidates, DISTRIBUTION_ENGINE_VERSION, {
+    ...lock,
+    engine: '^0.1.3',
+    entries: [hosted, other],
+  }).lock;
+  expect(carriedHosted).toMatchObject({ engine: '^0.1.3', entries: [hosted, other] });
   const plain = resolveReleases(requests, candidates, DISTRIBUTION_ENGINE_VERSION, selected.lock).lock;
   expect(plain.engine).toBe('0.1.1');
   expect('entries' in plain).toBe(false);
@@ -206,8 +213,8 @@ it('opens and restores an exact legacy 0.1.0 lock without rewriting pins, while 
   } finally {
     reader.close();
   }
-  // An exact marker no released solver wrote is an exact range: 0.1.3 and 0.2.0 admit no other engine.
-  for (const engine of ['0.1.3', '0.2.0'])
+  // An exact marker no released solver wrote is an exact range: 0.1.4 and 0.2.0 admit no other engine.
+  for (const engine of ['0.1.4', '0.2.0'])
     expect(() => planInstallation(root, { ...selected.lock, engine }, 'restore')).toThrow(
       /Lock engine compatibility differs/,
     );

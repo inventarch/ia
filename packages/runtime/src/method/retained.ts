@@ -152,6 +152,10 @@ export function retainedKit(digest: string, store: string = closureStore()): Kit
 
 /** Retains a kit's exact bytes and its carrier's, and reads it back from the copy. */
 export function retainKit(kit: Kit, store: string = closureStore()): Kit {
+  if (kit.origin === 'hosted' || !kit.dir)
+    throw new MethodError(`kit ${kit.id} is hosted and carries no local bytes to retain`, 'IA-CORE-KIT-HOSTED', {
+      kit: kit.id,
+    });
   if (kit.retained) return retainedKit(kit.retained, store);
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(kit.folder)) fail('unsafe kit folder');
   const carrier = kit.carrier;

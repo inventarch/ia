@@ -23,3 +23,7 @@ overrides:
   "nx>smol-toml": "1.9.0"
   "@azure/identity>@azure/msal-node": "7.1.0"
   "typed-rest-client>qs": "6.16.1"
+# vitest -> tinyglobby -> picomatch <=4.0.7 is dev-only (pnpm audit --prod finds nothing) and has no upstream patch yet; replace with an override once patched.
+auditConfig:
+  ignoreGhsas:
+    - GHSA-fc5q-39xc-vjpf

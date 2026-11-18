@@ -186,7 +186,8 @@ export const COMMANDS: readonly CommandSpec[] = [
         option({
           name: 'system',
           kind: 'boolean',
-          summary: 'Also author a local @system, its steward and a @distribution, so ia pack can release it',
+          summary:
+            'Also author a local @system, its steward and stewardship mandate, and a @distribution, so ia pack can release it',
         }),
         option({
           name: 'from',
@@ -668,6 +669,7 @@ export const COMMANDS: readonly CommandSpec[] = [
       '           [--catalog <file>] [--offline] [--plan-out <file>]',
       '           [--apply] [--yes] [--json]',
       'ia install --package <name>[@<version>] [--offline] [--plan-out <file>] [--apply] [--yes] [--json]',
+      'ia install --hosted <id>@<version>... [--offline] [--plan-out <file>] [--apply] [--yes] [--json]',
     ],
     grammar: grammar(
       [
@@ -676,9 +678,18 @@ export const COMMANDS: readonly CommandSpec[] = [
           name: 'package',
           kind: 'value',
           excludesPositionals: true,
-          conflicts: ['requests', 'registry', 'catalog'],
+          conflicts: ['requests', 'registry', 'catalog', 'hosted'],
           placeholder: '<name>[@<version>]',
           summary: 'An npm package of IA kit archives, such as @inventarch/public-kits, installed as one lock entry',
+        }),
+        option({
+          name: 'hosted',
+          kind: 'value',
+          repeatable: true,
+          excludesPositionals: true,
+          conflicts: ['package', 'requests', 'registry', 'catalog'],
+          placeholder: '<id>@<version>',
+          summary: 'A hosted kit pin recorded in the lock without local archive bytes; repeatable',
         }),
         option({
           name: 'requests',

@@ -39,6 +39,11 @@ export interface LockedKit {
   /** `<name>@<version>` of the package entry that names it. */
   readonly package: string;
 }
+export interface HostedKit {
+  readonly id: string;
+  readonly version: string;
+  readonly hosted: true;
+}
 const HEX = /^[a-f0-9]{64}$/;
 const malformed = (message: string): never => {
   throw new MethodError(`.ia/distributions.lock.json: ${message}`, 'IA-CORE-LOCK-MALFORMED');
@@ -82,6 +87,25 @@ export function lockedPackageKits(root: string): LockedKit[] {
 /** Whether the lock's package entries name kit `id`. */
 export const packagedKit = (root: string, id: string): LockedKit | undefined =>
   lockedPackageKits(root).find((kit) => kit.id === id);
+
+/** The hosted kit pins the lock's entries name, in lock order; none without hosted entries or a lock. */
+export function lockedHostedKits(root: string): HostedKit[] {
+  const lock = readLock(root);
+  if (lock?.entries === undefined) return [];
+  if (!Array.isArray(lock.entries)) return malformed('entries must be a list');
+  return lock.entries.flatMap((value): HostedKit[] => {
+    const entry = objectAt(value) ?? malformed('an entry must be an object');
+    if (entry['kind'] !== 'hosted') return [];
+    const { id, version, hosted } = entry;
+    if (typeof id !== 'string' || id === '' || typeof version !== 'string' || version === '' || hosted !== true)
+      return malformed('a hosted entry needs its id, version and hosted: true');
+    return [{ id, version, hosted: true }];
+  });
+}
+
+/** Whether the lock's hosted entries name kit `id`. */
+export const hostedKit = (root: string, id: string): HostedKit | undefined =>
+  lockedHostedKits(root).find((kit) => kit.id === id);
 
 const sha256 = (bytes: Buffer | string): string => createHash('sha256').update(bytes).digest('hex');
 interface Pin {
@@ -221,10 +245,19 @@ export const restoreRefusal = (kit: LockedKit): MethodError =>
     'IA-CORE-KIT-RESTORE-REQUIRED',
   );
 
+/** The refusal a local method resolve meets when the workspace lock pins the kit as hosted. */
+export const hostedRefusal = (kit: HostedKit): MethodError =>
+  new MethodError(
+    `kit ${kit.id} ${kit.version} is pinned as hosted in .ia/distributions.lock.json and executes through the hosted InventArch service (api.inventarch.dev / the inventarch MCP connector), never from local kit bytes`,
+    'IA-CORE-KIT-HOSTED',
+    { kit: kit.id },
+  );
+
 /**
- * The kits a resolve at a workspace reads: the bundled folder's, then each kit the lock's package entries install, then
- * the IA home's. A kit a package entry names comes only from the store, so one the store lacks is never answered by
- * another copy. Outside a workspace, or with no package entry, it is `listKits` unchanged.
+ * The kits a resolve at a workspace reads: the bundled folder's, each kit the lock's package entries install, each
+ * hosted kit pin the lock records (`origin: 'hosted'`), then the IA home's. A kit a lock entry names comes only from
+ * that entry, so an unrestored package kit or a hosted kit is never answered by another local copy. Outside a workspace,
+ * or with no lock entry, it is `listKits` unchanged.
  */
 export function workspaceKits(
   sources: KitSources,
@@ -234,13 +267,28 @@ export function workspaceKits(
   const all = listKits(sources);
   if (root === null) return { kits: all, missing: [] };
   const installed = installedPackageKits(root, env);
-  const named = new Set([...installed.kits.map((kit) => kit.id), ...installed.missing.map((kit) => kit.id)]);
+  const hosted = lockedHostedKits(root);
+  const named = new Set([
+    ...installed.kits.map((kit) => kit.id),
+    ...installed.missing.map((kit) => kit.id),
+    ...hosted.map((kit) => kit.id),
+  ]);
   if (named.size === 0) return { kits: all, missing: [] };
   const kept = all.filter((kit) => !named.has(kit.id));
+  const hostedRows: Kit[] = hosted.map((row) => ({
+    folder: row.id.slice(row.id.indexOf('/') + 1),
+    dir: '',
+    id: row.id,
+    version: row.version,
+    latest: null,
+    releases: [],
+    origin: 'hosted',
+  }));
   return {
     kits: [
       ...kept.filter((kit) => kit.origin === 'bundled'),
       ...installed.kits,
+      ...hostedRows,
       ...kept.filter((kit) => kit.origin !== 'bundled'),
     ],
     missing: installed.missing,

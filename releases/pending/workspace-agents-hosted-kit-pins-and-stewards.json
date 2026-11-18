@@ -1,0 +1,40 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "Add optional `@workspace` agent and decision fields, hosted kit lock pins, and uniform `ia init --system` stewardship mandates",
+  "summary": "Extend `@schema workspace` with optional `composition.public-agent`, `composition.private-agent` and `composition.decides` fields; advance distribution lock engine to `0.1.3` for offline-safe `hosted` kit pins (`ia install --hosted`, `source: hosted` in `ia_session` and `IA-CORE-KIT-HOSTED` in `ia_method`); and pair `@agent <id>-steward` uniformly with `@mandate <id>-stewardship` in `ia init --system`.",
+  "packages": [
+    "@inventarch/agent-system",
+    "@inventarch/authoring-system",
+    "@inventarch/cli",
+    "@inventarch/compliance-system",
+    "@inventarch/db",
+    "@inventarch/distribution",
+    "@inventarch/governance-system",
+    "@inventarch/mcp-door",
+    "@inventarch/runtime",
+    "@inventarch/session-system",
+    "@inventarch/work-system",
+    "@inventarch/workspace-system"
+  ],
+  "paths": [
+    ".ia/authoring.resources.json",
+    ".ia/src/systems/agent-system/",
+    ".ia/src/systems/authoring-system/",
+    ".ia/src/systems/compliance-system/",
+    ".ia/src/systems/governance-system/",
+    ".ia/src/systems/session-system/",
+    ".ia/src/systems/work-system/",
+    ".ia/src/systems/workspace-system/",
+    "CLAUDE.md",
+    "apps/cli/",
+    "apps/distribution/",
+    "apps/mcp-door/",
+    "docs/",
+    "examples/",
+    "packages/db/",
+    "packages/runtime/",
+    "pnpm-workspace.yaml",
+    "tools/"
+  ]
+}

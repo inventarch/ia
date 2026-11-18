@@ -154,3 +154,53 @@ it('refuses a package npm cannot describe, and one whose tarball lacks an archiv
     2,
   );
 }, 300_000);
+
+it('records hosted kit pins via install --hosted, restores and validates 100% offline with zero store tarballs, and removes them cleanly', async () => {
+  const { root, env, calls } = await workspace();
+  const before = lockOf(root);
+  const planned = await run(['install', '--hosted', 'inventarch/ia-studio-kit@0.5.1', '--root', root, '--json'], {
+    env,
+  });
+  expect(planned.exitCode, planned.stdout).toBe(0);
+  expect(JSON.parse(planned.stdout).plan.changes.added).toEqual(['inventarch/ia-studio-kit']);
+  expect(lockOf(root)).toEqual(before);
+  // Recording a hosted pin makes zero npm or registry calls.
+  expect(calls()).toEqual([]);
+
+  const applied = await run(
+    ['install', '--hosted', 'inventarch/ia-studio-kit@0.5.1', '--apply', '--yes', '--root', root, '--json'],
+    { env },
+  );
+  expect(applied.exitCode, applied.stdout).toBe(0);
+  expect(lockOf(root)).toEqual({
+    ...before,
+    engine: '^0.1.3',
+    entries: [{ kind: 'hosted', id: 'inventarch/ia-studio-kit', version: '0.5.1', hosted: true }],
+  });
+
+  // Fresh clone offline restore & validate succeed with zero npm cache and zero store archive for the hosted kit.
+  rmSync(resolve(root, '.ia/distributions'), { recursive: true, force: true });
+  const restored = await run(['restore', '--offline', '--apply', '--yes', '--root', root, '--json'], { env });
+  expect(restored.exitCode, restored.stdout).toBe(0);
+  const validated = await run(['validate', '--root', root, '--json'], { env });
+  expect(validated.exitCode, validated.stdout).toBe(0);
+  expect(JSON.parse(validated.stdout).status).toBe('admitted');
+
+  // Updating the hosted pin version reports it under changes.updated, and removing it restores engine 0.1.1.
+  const updated = await run(
+    ['install', '--hosted', 'inventarch/ia-studio-kit@0.6.0', '--apply', '--yes', '--root', root, '--json'],
+    { env },
+  );
+  expect(updated.exitCode, updated.stdout).toBe(0);
+  expect(JSON.parse(updated.stdout).plan.changes.updated).toEqual(['inventarch/ia-studio-kit']);
+  expect(lockOf(root).entries).toEqual([
+    { kind: 'hosted', id: 'inventarch/ia-studio-kit', version: '0.6.0', hosted: true },
+  ]);
+
+  const removed = await run(['remove', 'inventarch/ia-studio-kit', '--apply', '--yes', '--root', root, '--json'], {
+    env,
+  });
+  expect(removed.exitCode, removed.stdout).toBe(0);
+  expect(JSON.parse(removed.stdout).plan.changes.removed).toEqual(['inventarch/ia-studio-kit']);
+  expect(lockOf(root)).toEqual(before);
+}, 300_000);
