@@ -162,8 +162,7 @@ it('keeps the issuer alive for reusable tokens and returns only protocol output'
           ok: true,
           result: {
             body: {
-              format: 'position-body',
-              formatVersion: 1,
+              format: 'ia.position-body.v1',
               key: { seat: 'governance-system/definition/procedure/sample-procedure', shape: 'governance' },
               loaded: [{ identity: 'governance-system/definition/procedure/sample-procedure' }],
             },
