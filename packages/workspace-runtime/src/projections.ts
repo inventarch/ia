@@ -75,10 +75,17 @@ export type {
   ProjectionResult,
 } from './projection-format.js';
 export {
+  antigravityProseCatalog,
   claudeProseCatalog,
   codexProseCatalog,
+  geminiProseCatalog,
+  ANTIGRAVITY_PROSE_FEATURES,
+  ANTIGRAVITY_PROSE_PROFILE,
   CLAUDE_PROSE_FEATURES,
   CODEX_PROSE_FEATURES,
+  GEMINI_PROSE_FEATURES,
+  GEMINI_PROSE_PROFILE,
+  PROSE_EFFECT_TOOLS,
 } from './projection-host.js';
 export type { ProjectionCatalog } from './projection-host.js';
 export interface ProjectionOptions {

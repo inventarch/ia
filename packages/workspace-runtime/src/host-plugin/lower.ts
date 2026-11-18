@@ -57,10 +57,14 @@ export function toolsOf(effects: readonly string[]): string[] {
     ),
   ];
 }
-/** The one effect set whose tools are exactly `tools` (as a set), or null. This version knows `read` only. */
+const EFFECT_ORDER: readonly string[] = [...PROSE_EFFECT_TOOLS.keys()];
+/** The effect subset whose tools are `tools` (as a set without duplicates), in table order, or null. */
 function effectsFor(tools: readonly string[]): string[] | null {
   const want = [...tools].sort().join(',');
-  for (const effect of PROSE_EFFECT_TOOLS.keys()) if ([...toolsOf([effect])].sort().join(',') === want) return [effect];
+  for (let mask = 1; mask < 1 << EFFECT_ORDER.length; mask++) {
+    const subset = EFFECT_ORDER.filter((_, index) => (mask & (1 << index)) !== 0);
+    if ([...toolsOf(subset)].sort().join(',') === want) return subset;
+  }
   return null;
 }
 const control = (text: string): boolean => [...text].some((c) => c.charCodeAt(0) < 0x20 || c.charCodeAt(0) === 0x7f);

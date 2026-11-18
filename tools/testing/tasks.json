@@ -3205,6 +3205,7 @@
         "tests/authoring.test.ts",
         "tests/bind.test.ts",
         "tests/boundary.test.ts",
+        "tests/gemini-antigravity.test.ts",
         "tests/generate-agent-profile.test.ts",
         "tests/generate-playbook.test.ts",
         "tests/generate-plugin.test.ts",

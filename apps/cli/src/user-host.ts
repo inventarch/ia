@@ -123,6 +123,14 @@ export function collectUserHost(
       null,
       'Run "ia host claude --user".',
     );
+  if (row.id !== 'claude')
+    throw new Refusal(
+      'IA-DIST-HOST-UNSUPPORTED',
+      `${row.label} plugins are rendered per workspace or kit with "ia project ${row.id} --product plugin --out <directory>"; nothing was written`,
+      3,
+      null,
+      'Run "ia host claude --user".',
+    );
   // An IA home remedy ends by planning this invocation again; the plan writes nothing.
   const again = `ia host claude --user${args.flag('remove') ? ' --remove' : ''}`;
   const home = hostHome(host.env, again);

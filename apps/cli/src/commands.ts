@@ -156,11 +156,11 @@ export const COMMANDS: readonly CommandSpec[] = [
       next: 'ia position --root <directory>',
     },
     syntax: [
-      'ia init [<directory>] [--id <provider/name>] [--system] [--host claude|codex|none]',
+      'ia init [<directory>] [--id <provider/name>] [--system] [--host claude|codex|gemini|antigravity|none]',
       '        [--apply] [--json] [--yes]',
       'ia init [<directory>] --from <plugin-directory> [--id <provider/name>] [--apply] [--json] [--yes]',
       'ia init [<directory>] --migrate [--system] [--apply] [--json] [--yes]',
-      'ia init [<directory>] --decline today|forever [--host claude|codex|none] [--json]',
+      'ia init [<directory>] --decline today|forever [--host claude|codex|gemini|antigravity|none] [--json]',
       'ia init [<directory>] --forget-decline [--json]',
     ],
     grammar: {
@@ -209,7 +209,7 @@ export const COMMANDS: readonly CommandSpec[] = [
         option({
           name: 'host',
           kind: 'value',
-          values: ['claude', 'codex', 'none'],
+          values: ['claude', 'codex', 'gemini', 'antigravity', 'none'],
           summary: 'Host to register after initialization',
         }),
         option({ name: 'apply', kind: 'boolean', summary: 'Apply the plan instead of previewing it' }),
@@ -528,8 +528,8 @@ export const COMMANDS: readonly CommandSpec[] = [
       next: 'ia project <host>',
     },
     syntax: [
-      'ia project <claude|codex> [--apply] [--actor <agent>] [--json] [--yes]',
-      'ia project <claude|codex> --product plugin --out <directory> [--apply] [--json] [--yes]',
+      'ia project <claude|codex|gemini|antigravity> [--apply] [--actor <agent>] [--json] [--yes]',
+      'ia project <claude|codex|gemini|antigravity> --product plugin --out <directory> [--apply] [--json] [--yes]',
       'ia project <claude|codex> --product plugin --check [--compare <plugin-directory>] [--json]',
     ],
     grammar: grammar(
@@ -542,7 +542,7 @@ export const COMMANDS: readonly CommandSpec[] = [
           values: ['plugin'],
           placeholder: 'plugin',
           summary:
-            'Render the host plugin a lowered workspace describes instead of the workspace projection; one plugin carries every host listed in product.hosts, and the host named must be claude or codex',
+            'Render the host plugin a workspace or kit describes instead of the workspace projection; supports claude, codex, gemini and antigravity',
         }),
         option({
           name: 'out',
@@ -865,12 +865,12 @@ export const COMMANDS: readonly CommandSpec[] = [
     group: 'distribution',
     summary: 'Report runtime, workspace and installation state',
     // Host plugin distribution spec §7.3: --host adds the §8.2 session briefing and next actions for that host.
-    syntax: ['ia doctor [--host claude|codex|cursor] [--json]'],
+    syntax: ['ia doctor [--host claude|codex|gemini|antigravity|cursor] [--json]'],
     grammar: grammar([
       option({
         name: 'host',
         kind: 'value',
-        values: ['claude', 'codex', 'cursor'],
+        values: ['claude', 'codex', 'gemini', 'antigravity', 'cursor'],
         summary: 'Add the session briefing and next actions for this host',
       }),
     ]),
@@ -883,9 +883,9 @@ export const COMMANDS: readonly CommandSpec[] = [
     group: 'distribution',
     summary: "Plan or apply this workspace's host registration",
     syntax: [
-      'ia host <claude|codex|cursor> [--remove] [--context <identity>] [--apply] [--actor <agent>] [--json] [--yes]',
+      'ia host <claude|codex|gemini|antigravity|cursor> [--remove] [--context <identity>] [--apply] [--actor <agent>] [--json] [--yes]',
       'ia host claude --user [--local] [--remove] [--apply] [--json] [--yes]',
-      'ia host <claude|codex|copilot> --commit [--remove] [--apply] [--actor <agent>] [--json] [--yes]',
+      'ia host <claude|codex|gemini|antigravity|copilot> --commit [--remove] [--apply] [--actor <agent>] [--json] [--yes]',
     ],
     grammar: grammar(
       [

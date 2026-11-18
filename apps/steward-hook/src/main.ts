@@ -28,19 +28,24 @@ import { pathKey, sameFile, unaliased } from '@inventarch/db';
 import { decodeDistributionJson } from '@inventarch/db/distribution';
 import { hookDeclaration, registrableHook } from '@inventarch/workspace-runtime/internal/generate';
 
+export type HookCaller = 'claude' | 'gemini' | 'antigravity';
 export interface HookOutput {
   readonly hookSpecificOutput?: {
     readonly hookEventName: 'PreToolUse';
     readonly permissionDecision: 'deny';
     readonly permissionDecisionReason: string;
   };
+  readonly decision?: 'deny';
+  readonly reason?: string;
 }
-export function deny(code: HookCode, message: string): HookOutput {
+export function deny(code: HookCode, message: string, caller: HookCaller = 'claude'): HookOutput {
+  const reason = printable(`${code}: ${message}`);
+  if (caller === 'gemini' || caller === 'antigravity') return { decision: 'deny', reason };
   return {
     hookSpecificOutput: {
       hookEventName: 'PreToolUse',
       permissionDecision: 'deny',
-      permissionDecisionReason: printable(`${code}: ${message}`),
+      permissionDecisionReason: reason,
     },
   };
 }
@@ -88,6 +93,8 @@ type Rule = { projection?: true; system?: string; invalid?: true };
 interface Ownership {
   readonly files: ReadonlySet<string>;
   readonly codex: boolean;
+  readonly gemini: boolean;
+  readonly antigravity: boolean;
 }
 /** Paths every workspace protects: the native installation state. */
 function installation(path: string): boolean {
@@ -98,18 +105,28 @@ function installation(path: string): boolean {
 /**
  * The projection list written for this repository; in a consumer workspace only its owned subset stays protected. The
  * position packet's files: `CLAUDE.md` and both `ia-authoring` skills here, and a consumer's
- * `.claude/rules/ia-workspace.md`, `AGENTS.md` and skills; its receipt sits under `.ia/distributions/`.
+ * `.claude/rules/ia-workspace.md`, `AGENTS.md`, `GEMINI.md` and skills/agents; its receipt sits under `.ia/distributions/`.
  */
 function projectionCandidate(path: string): boolean {
   return (
     path === '.codex/config.toml' ||
+    path === '.gemini/settings.json' ||
+    path === '.agents/mcp_config.json' ||
     /^\.codex\/agents\//.test(path) ||
-    /^\.(?:agents|claude)\/skills\//.test(path) ||
+    /^\.(?:agents|gemini)\/agents\//.test(path) ||
+    /^\.(?:agents|claude|gemini)\/skills\//.test(path) ||
     path === 'claude.md' ||
     path === 'CLAUDE.md' ||
-    ['.agents/skills/ia-authoring/SKILL.md', '.claude/skills/ia-authoring/SKILL.md'].some((p) => fold(p) === path) ||
+    path === 'gemini.md' ||
+    path === 'GEMINI.md' ||
+    [
+      '.agents/skills/ia-authoring/SKILL.md',
+      '.claude/skills/ia-authoring/SKILL.md',
+      '.gemini/skills/ia-authoring/SKILL.md',
+    ].some((p) => fold(p) === path) ||
     fold('.claude/rules/ia-workspace.md') === path ||
-    fold('AGENTS.md') === path
+    fold('AGENTS.md') === path ||
+    fold('GEMINI.md') === path
   );
 }
 /**
@@ -257,7 +274,13 @@ function protection(
   if (installation(path)) return { projection: true };
   if (projectionCandidate(path)) {
     const owned = ownership();
-    if (owned === undefined || owned.files.has(path) || (path === '.codex/config.toml' && owned.codex))
+    if (
+      owned === undefined ||
+      owned.files.has(path) ||
+      (path === '.codex/config.toml' && owned.codex) ||
+      (path === '.gemini/settings.json' && owned.gemini) ||
+      (path === '.agents/mcp_config.json' && owned.antigravity)
+    )
       return { projection: true };
   }
   if (LEGACY_STEWARD.test(path)) {
@@ -288,7 +311,7 @@ function hostsArea(root: string): string | undefined {
  * and skills, codex skills), and for claude a 1.x steward file a state still lists until the next apply removes it. The
  * state format name is unchanged.
  */
-const PROJECTION_OWNED: Readonly<Record<'claude' | 'codex', (path: string) => boolean>> = {
+const PROJECTION_OWNED: Readonly<Record<'claude' | 'codex' | 'gemini' | 'antigravity', (path: string) => boolean>> = {
   claude: (path) =>
     path === '.claude/rules/ia-workspace.md' ||
     path === '.claude/skills/ia-authoring/SKILL.md' ||
@@ -299,9 +322,19 @@ const PROJECTION_OWNED: Readonly<Record<'claude' | 'codex', (path: string) => bo
     path === 'AGENTS.md' ||
     path === '.agents/skills/ia-authoring/SKILL.md' ||
     /^\.agents\/skills\/[a-z][a-z0-9-]*\/SKILL\.md$/.test(path),
+  gemini: (path) =>
+    path === 'GEMINI.md' ||
+    path === '.gemini/skills/ia-authoring/SKILL.md' ||
+    /^\.gemini\/agents\/[a-z][a-z0-9-]*\.md$/.test(path) ||
+    /^\.gemini\/skills\/[a-z][a-z0-9-]*\/SKILL\.md$/.test(path),
+  antigravity: (path) =>
+    path === 'AGENTS.md' ||
+    path === '.agents/skills/ia-authoring/SKILL.md' ||
+    /^\.agents\/agents\/[a-z][a-z0-9-]*\.md$/.test(path) ||
+    /^\.agents\/skills\/[a-z][a-z0-9-]*\/SKILL\.md$/.test(path),
 };
 /**
- * A bounded read of the projection ownership states, not a validation of the projected bytes. Undefined when neither
+ * A bounded read of the projection ownership states, not a validation of the projected bytes. Undefined when no
  * state exists (legacy mode); a state that is not a plain, unaliased, well-formed file throws, so the caller fails closed.
  */
 function projectionOwnership(root: string): Ownership | undefined {
@@ -309,7 +342,7 @@ function projectionOwnership(root: string): Ownership | undefined {
   if (directory === undefined) return undefined;
   const files = new Set<string>();
   let found = false;
-  for (const host of ['claude', 'codex'] as const) {
+  for (const host of ['claude', 'codex', 'gemini', 'antigravity'] as const) {
     const content = readState(resolve(directory, `${host}-projection.json`), 'Unsafe projection ownership state');
     if (content === undefined) continue;
     const row: unknown = decodeDistributionJson(new TextDecoder('utf-8', { fatal: true }).decode(content));
@@ -336,14 +369,21 @@ function projectionOwnership(root: string): Ownership | undefined {
     found = true;
   }
   if (!found) return undefined;
-  let codex = true;
-  try {
-    lstatSync(resolve(directory, 'codex-workspace.json'));
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-    codex = false;
-  }
-  return { files, codex };
+  const hasWorkspace = (host: 'codex' | 'gemini' | 'antigravity'): boolean => {
+    try {
+      lstatSync(resolve(directory, `${host}-workspace.json`));
+      return true;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      return false;
+    }
+  };
+  return {
+    files,
+    codex: hasWorkspace('codex'),
+    gemini: hasWorkspace('gemini'),
+    antigravity: hasWorkspace('antigravity'),
+  };
 }
 /**
  * The selection a hook ownership state (`claude-hooks-<id>.json`) recorded for `hook` when its group was registered, or
@@ -682,22 +722,86 @@ export function streamed(path: string): boolean {
   const rest = path.replace(/^[\\/]{2}[?.][\\/]/, '').replace(/^[A-Za-z]:/, '');
   return rest.includes(':');
 }
-/** A PreToolUse event for one file edit, as both modes accept it. */
-interface EditEvent extends Record<string, unknown> {
+/** A normalized file-edit hook event across Claude PreToolUse, Gemini BeforeTool, and Antigravity PreToolUse. */
+interface EditEvent {
+  readonly caller: HookCaller;
   readonly tool_name: 'Write' | 'Edit' | 'MultiEdit';
   readonly tool_input: Record<string, unknown> & { readonly file_path: string };
+  readonly cwd?: unknown;
+  readonly agent_id?: unknown;
+  readonly agent_type?: unknown;
 }
-function editEvent(event: unknown): event is EditEvent {
-  return (
-    object(event) &&
+function callerOf(event: unknown): HookCaller {
+  if (!object(event)) return 'claude';
+  if (event['hook_event_name'] === 'BeforeTool') return 'gemini';
+  if (object(event['toolCall'])) return 'antigravity';
+  return 'claude';
+}
+function validFilePath(value: unknown): value is string {
+  return typeof value === 'string' && !!value.trim() && !value.includes('\0');
+}
+function normalizeEditEvent(event: unknown): EditEvent | null {
+  if (!object(event)) return null;
+  if (event['hook_event_name'] === 'BeforeTool') {
+    const tool = event['tool_name'] === 'write_file' ? 'Write' : event['tool_name'] === 'replace' ? 'Edit' : null;
+    if (tool === null || !object(event['tool_input']) || !validFilePath(event['tool_input']['file_path'])) return null;
+    return {
+      caller: 'gemini',
+      tool_name: tool,
+      tool_input: { ...event['tool_input'], file_path: event['tool_input']['file_path'] },
+      cwd: event['cwd'],
+      agent_id: event['agent_id'],
+      agent_type: event['agent_type'],
+    };
+  }
+  if (object(event['toolCall'])) {
+    const eventName = event['hookEventName'] ?? event['hook_event_name'];
+    if (eventName !== undefined && eventName !== 'PreToolUse') return null;
+    const call = event['toolCall'],
+      name = call['name'],
+      tool =
+        name === 'write_to_file' || name === 'write_file'
+          ? 'Write'
+          : name === 'replace_file_content' || name === 'edit_file'
+            ? 'Edit'
+            : name === 'multi_replace_file_content'
+              ? 'MultiEdit'
+              : null,
+      args = call['args'];
+    if (tool === null || !object(args)) return null;
+    if (name === 'multi_replace_file_content' && !Array.isArray(args['ReplacementChunks'])) return null;
+    const rawPath = args['TargetFile'] ?? args['Path'] ?? args['AbsolutePath'];
+    if (!validFilePath(rawPath)) return null;
+    const workspaceFirst =
+      Array.isArray(event['workspacePaths']) && typeof event['workspacePaths'][0] === 'string'
+        ? event['workspacePaths'][0]
+        : undefined;
+    return {
+      caller: 'antigravity',
+      tool_name: tool,
+      tool_input: { ...args, file_path: rawPath },
+      cwd: event['cwd'] ?? workspaceFirst,
+      agent_id: event['agent_id'] ?? event['agentId'],
+      agent_type: event['agent_type'] ?? event['agentType'],
+    };
+  }
+  if (
     event['hook_event_name'] === 'PreToolUse' &&
     ['Write', 'Edit', 'MultiEdit'].includes(String(event['tool_name'])) &&
     object(event['tool_input']) &&
-    typeof event['tool_input']['file_path'] === 'string' &&
-    !!event['tool_input']['file_path'].trim() &&
-    !event['tool_input']['file_path'].includes('\0') &&
+    validFilePath(event['tool_input']['file_path']) &&
     !(event['tool_name'] === 'MultiEdit' && !Array.isArray(event['tool_input']['edits']))
-  );
+  ) {
+    return {
+      caller: 'claude',
+      tool_name: event['tool_name'] as 'Write' | 'Edit' | 'MultiEdit',
+      tool_input: event['tool_input'] as Record<string, unknown> & { readonly file_path: string },
+      cwd: event['cwd'],
+      agent_id: event['agent_id'],
+      agent_type: event['agent_type'],
+    };
+  }
+  return null;
 }
 /** Where an edit lands: the fixed root, the target as spelled and as the volume resolves it, and its root-relative spellings. */
 interface EditTarget {
@@ -731,16 +835,16 @@ function editTarget(root: string, event: EditEvent, systems: boolean): EditTarge
       throw new Error('A path naming an alternate data stream or a drive-relative path is refused');
     if (
       !isAbsolute(path) &&
-      (typeof event['cwd'] !== 'string' ||
-        !isAbsolute(event['cwd']) ||
-        local(base, physical(resolve(event['cwd']))) === undefined)
+      (typeof event.cwd !== 'string' ||
+        !isAbsolute(event.cwd) ||
+        local(base, physical(resolve(event.cwd))) === undefined)
     )
       throw new Error('Relative input requires cwd inside the fixed root');
     // A relative path lands where the kernel puts it: POSIX follows the cwd's links before `..`, Windows removes `..` first.
     const target = isAbsolute(path)
         ? resolve(path)
         : resolve(
-            process.platform === 'win32' ? resolve(event['cwd'] as string) : physical(resolve(event['cwd'] as string)),
+            process.platform === 'win32' ? resolve(event.cwd as string) : physical(resolve(event.cwd as string)),
             path,
           ),
       actual = physical(target);
@@ -796,23 +900,25 @@ function editTarget(root: string, event: EditEvent, systems: boolean): EditTarge
 const MANAGED =
   'Use the owning command for generated state. Guard settings require a trusted operator edit outside intercepted assistant tools, preserving the guard, followed by registration qualification';
 /** The legacy guard: managed-state protection and the retired steward rule for `.ia/src/systems/<name>/`. */
-export function evaluateHook(root: string, event: unknown, actorsPath?: string): HookOutput {
-  if (!editEvent(event)) return deny('IA-HOOK-INPUT-INVALID', 'Expected a PreToolUse file edit event');
+export function evaluateHook(root: string, rawEvent: unknown, actorsPath?: string): HookOutput {
+  const caller = callerOf(rawEvent),
+    event = normalizeEditEvent(rawEvent);
+  if (event === null) return deny('IA-HOOK-INPUT-INVALID', 'Expected a PreToolUse file edit event', caller);
   let edit: EditTarget;
   try {
     edit = editTarget(root, event, true);
   } catch (error) {
-    return deny('IA-HOOK-PATH-UNSAFE', error instanceof Error ? error.message : String(error));
+    return deny('IA-HOOK-PATH-UNSAFE', error instanceof Error ? error.message : String(error), caller);
   }
   const { base, rule } = edit;
-  if (rule?.projection) return deny('IA-HOOK-PROJECTION-MANAGED', MANAGED);
+  if (rule?.projection) return deny('IA-HOOK-PROJECTION-MANAGED', MANAGED, caller);
   if (rule?.system === undefined) return {};
   try {
     const db = openDatabase(base, { cache: false });
     try {
       const records = db.records();
       const mapping = actorsPath === undefined ? undefined : actorMap(actorsPath, db.revision);
-      const host = event['agent_type'],
+      const host = event.agent_type,
         identity = typeof host === 'string' ? mapping?.get(host) : undefined;
       const actors =
         typeof host === 'string'
@@ -827,12 +933,12 @@ export function evaluateHook(root: string, event: unknown, actorsPath?: string):
         rule.system,
         actors.length === 1 ? { kind: 'agent', identity: actors[0]!.identity } : undefined,
       );
-      return decision.allowed ? {} : deny(decision.code!, decision.message);
+      return decision.allowed ? {} : deny(decision.code!, decision.message, caller);
     } finally {
       db.close();
     }
   } catch (error) {
-    return deny('IA-HOOK-STEWARD-UNAVAILABLE', error instanceof Error ? error.message : String(error));
+    return deny('IA-HOOK-STEWARD-UNAVAILABLE', error instanceof Error ? error.message : String(error), caller);
   }
 }
 /**
@@ -882,16 +988,19 @@ const recovery = (root: string, admission: Admission): string => {
  * record, or the workspace's records at all, cannot be read, the registration refuses only the edits under the
  * selection last registered for it, or every edit under the root when none is recorded.
  */
-export function evaluateMandateHook(root: string, hook: string, event: unknown): HookOutput {
-  if (!editEvent(event)) return deny('IA-HOOK-INPUT-INVALID', 'Expected a PreToolUse file edit event');
-  if (!registrableHook(hook)) return deny('IA-HOOK-INPUT-INVALID', 'Expected --hook <canonical @hook identity>');
+export function evaluateMandateHook(root: string, hook: string, rawEvent: unknown): HookOutput {
+  const caller = callerOf(rawEvent),
+    event = normalizeEditEvent(rawEvent);
+  if (event === null) return deny('IA-HOOK-INPUT-INVALID', 'Expected a PreToolUse file edit event', caller);
+  if (!registrableHook(hook))
+    return deny('IA-HOOK-INPUT-INVALID', 'Expected --hook <canonical @hook identity>', caller);
   let edit: EditTarget;
   try {
     edit = editTarget(root, event, false);
   } catch (error) {
-    return deny('IA-HOOK-PATH-UNSAFE', error instanceof Error ? error.message : String(error));
+    return deny('IA-HOOK-PATH-UNSAFE', error instanceof Error ? error.message : String(error), caller);
   }
-  if (edit.rule?.projection) return deny('IA-HOOK-PROJECTION-MANAGED', MANAGED);
+  if (edit.rule?.projection) return deny('IA-HOOK-PROJECTION-MANAGED', MANAGED, caller);
   // Folded root-relative spellings, the physical one first: its existing components are the names on disk (the deepest
   // existing ancestor through realpathSync.native, which also expands a Windows 8.3 short name), its missing tail as
   // typed. Selections and claims fold too (`fold`), so on win32 and darwin, whatever the volume, `DOCS/x.md` is under
@@ -909,9 +1018,10 @@ export function evaluateMandateHook(root: string, hook: string, event: unknown):
       return deny(
         'IA-HOOK-PATH-UNSAFE',
         'A file with more than one link is refused: another of its names may be guarded',
+        caller,
       );
   } catch (error) {
-    return deny('IA-HOOK-PATH-UNSAFE', error instanceof Error ? error.message : String(error));
+    return deny('IA-HOOK-PATH-UNSAFE', error instanceof Error ? error.message : String(error), caller);
   }
   // What cannot be read refuses no more than the selection the hook was registered with, which the hook ownership state
   // recorded: edits elsewhere, the repair among them unless that selection holds it, proceed. With no recorded
@@ -941,10 +1051,12 @@ export function evaluateMandateHook(root: string, hook: string, event: unknown):
       return deny(
         code,
         `${why}; the hook ownership state ${unreadable} cannot be read, so every edit under the root is refused; from a shell, delete ${unreadable} and every IA hook group in .claude/settings.local.json (each runs the guard for one authored @hook) to restore editing, then run ${rootCommand('ia host claude', edit.base, ' --remove --apply --yes')} to remove the rest of the registration`,
+        caller,
       );
     return deny(
       code,
       `${why}; ${selection === undefined ? 'no registered selection is recorded, so every edit under the root is refused' : 'this edit is under its last registered selection'}; ${recovery(edit.base, admission)}`,
+      caller,
     );
   };
   const message = (error: unknown): string => (error instanceof Error ? error.message : String(error));
@@ -1005,23 +1117,23 @@ export function evaluateMandateHook(root: string, hook: string, event: unknown):
       hook: declaration,
       tool: event.tool_name,
       paths,
-      agentId: event['agent_id'],
-      agentType: event['agent_type'],
+      agentId: event.agent_id,
+      agentType: event.agent_type,
       fold,
       root: edit.base,
     };
     if (!mandateGuardSelects(request)) return {};
     if (!unaliased(edit.target, edit.actual))
-      return deny('IA-HOOK-PATH-UNSAFE', 'Selected path has an aliased ancestor or target');
+      return deny('IA-HOOK-PATH-UNSAFE', 'Selected path has an aliased ancestor or target', caller);
     const decision = evaluateMandateGuard(db, within, request);
     if (decision.allowed) return {};
     // A refusal of the main session names the shell command that lifts every hook, which needs neither an admitting
     // workspace nor readable records; a subagent's refusal is the main session's to resolve.
     const lift =
-      event['agent_id'] === undefined
+      event.agent_id === undefined
         ? `; the main session can lift every hook from a shell with ${rootCommand('ia host claude', edit.base, ' --remove --apply --yes')}`
         : '';
-    return deny(decision.code!, decision.message + lift);
+    return deny(decision.code!, decision.message + lift, caller);
   } catch (error) {
     // `ia validate` is mandate-gated and may refuse in the very state that failed here; the admission report, the
     // version 1 machine route, never is. Its root is spelled only when inert unquoted.
@@ -1029,6 +1141,7 @@ export function evaluateMandateHook(root: string, hook: string, event: unknown):
     return deny(
       'IA-HOOK-MANDATE-UNAVAILABLE',
       `The records that decide this edit cannot be read: ${message(error)}. Next: ${report.command}${report.fromRoot ? ', run from the workspace root' : ''}`,
+      caller,
     );
   } finally {
     db.close();

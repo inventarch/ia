@@ -28,7 +28,7 @@ import {
   readFileSync,
   type BigIntStats,
 } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 import { pathKey } from '@inventarch/db';
 import { renderHost, renderPacket, PACKET_MARKER } from '@inventarch/runtime';
 import type {
@@ -42,8 +42,14 @@ import type {
   UnsupportedRow,
 } from '@inventarch/runtime';
 import { ProjectionError } from '@inventarch/workspace-runtime/projections';
-import { generateHostSet, renderPlugin } from '@inventarch/workspace-runtime/internal/generate';
-import type { PluginFile } from '@inventarch/workspace-runtime/internal/generate';
+import {
+  compileStandalonePlugin,
+  generateHostSet,
+  renderPlugin,
+  type PluginFile,
+  type StandaloneBindingRow,
+  type StandalonePluginHost,
+} from '@inventarch/workspace-runtime/internal/generate';
 import { readPluginSources } from './plugin-sources.js';
 import type { GuardPlan, HookPlan } from '@inventarch/distribution/guard-registration';
 import {
@@ -117,6 +123,121 @@ export function renderPluginFor(root: string): readonly PluginFile[] {
     requireAdmitted(session, root);
     const within = session.reader.resolveScope().token;
     return renderPlugin(session.reader, within, sources.resources, sources.assets);
+  } finally {
+    session.close();
+  }
+}
+
+function readOptionalSeatBindings(root: string): {
+  bindings?: Record<string, StandaloneBindingRow | readonly StandaloneBindingRow[]>;
+  precedence?: readonly string[];
+} {
+  const file = resolve(root, '.ia/bindings.json');
+  if (!existsSync(file)) return {};
+  try {
+    const parsed = JSON.parse(readFileSync(file, 'utf8')) as {
+      format?: unknown;
+      bindings?: Record<string, StandaloneBindingRow | readonly StandaloneBindingRow[]>;
+      defaults?: Record<string, StandaloneBindingRow>;
+      precedence?: string[];
+    };
+    if (parsed.format !== 1 || typeof parsed.bindings !== 'object' || parsed.bindings === null) return {};
+    const bindings: Record<string, StandaloneBindingRow | readonly StandaloneBindingRow[]> = { ...parsed.bindings };
+    for (const [lane, row] of Object.entries(parsed.defaults ?? {})) {
+      if (bindings[`${lane}.*`] === undefined && row && typeof row.capability === 'string') {
+        bindings[`${lane}.*`] = row;
+      }
+    }
+    return {
+      bindings,
+      ...(Array.isArray(parsed.precedence) ? { precedence: parsed.precedence } : {}),
+    };
+  } catch {
+    return {};
+  }
+}
+
+function readOptionalKitRecommendations(root: string): Record<string, StandaloneBindingRow> | undefined {
+  const file = resolve(root, 'bindings.json');
+  if (!existsSync(file)) return undefined;
+  try {
+    const parsed = JSON.parse(readFileSync(file, 'utf8')) as {
+      format?: unknown;
+      recommend?: Record<string, { capability?: unknown; kit?: unknown; profile?: unknown }>;
+    };
+    if (parsed.format !== 1 || typeof parsed.recommend !== 'object' || parsed.recommend === null) return undefined;
+    const out: Record<string, StandaloneBindingRow> = {};
+    for (const [key, row] of Object.entries(parsed.recommend)) {
+      if (row && typeof row.capability === 'string') {
+        out[key] = {
+          capability: row.capability,
+          ...(typeof row.kit === 'string' ? { kit: row.kit } : {}),
+          ...(typeof row.profile === 'string' ? { profile: row.profile } : {}),
+        };
+      }
+    }
+    return Object.keys(out).length > 0 ? out : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function readOptionalReleaseMeta(root: string): {
+  fallbackName?: string;
+  fallbackVersion?: string;
+  fallbackDescription?: string;
+} {
+  const file = resolve(root, '.ia/release.json');
+  if (!existsSync(file)) return { fallbackName: basename(resolve(root)) };
+  try {
+    const parsed = JSON.parse(readFileSync(file, 'utf8')) as {
+      id?: unknown;
+      version?: unknown;
+      description?: unknown;
+    };
+    const rawId = typeof parsed.id === 'string' ? parsed.id.split('/').pop() : undefined;
+    return {
+      fallbackName: rawId ?? basename(resolve(root)),
+      ...(typeof parsed.version === 'string' ? { fallbackVersion: parsed.version } : {}),
+      ...(typeof parsed.description === 'string' ? { fallbackDescription: parsed.description } : {}),
+    };
+  } catch {
+    return { fallbackName: basename(resolve(root)) };
+  }
+}
+
+/**
+ * Renders either an exact lowered multi-manifest plugin (`claude` / `codex` on a `@distribution` with `product.name`)
+ * or a host-native zero-IA-dependency standalone plugin (`claude`, `codex`, `gemini`, `antigravity`) for any seated or
+ * kit workspace.
+ */
+export function renderPluginProductFor(root: string, host: StandalonePluginHost): readonly PluginFile[] {
+  const session = openSession(root);
+  try {
+    requireAdmitted(session, root);
+    const within = session.reader.resolveScope().token;
+    const records = session.reader.records({ within });
+    const hasProductDistribution = records.some(
+      (node) =>
+        node.discriminator === 'distribution' &&
+        node.band === 100 &&
+        node.sections.some((sec) => sec.name === 'product' && sec.fields.some((f) => 'key' in f && f.key === 'name')),
+    );
+    if (hasProductDistribution && (host === 'claude' || host === 'codex')) {
+      const sources = readPluginSources(root);
+      return renderPlugin(session.reader, within, sources.resources, sources.assets);
+    }
+    const sources = hasProductDistribution ? readPluginSources(root) : undefined;
+    const seat = readOptionalSeatBindings(root);
+    const recommendedBindings = readOptionalKitRecommendations(root);
+    const meta = readOptionalReleaseMeta(root);
+    return compileStandalonePlugin(session.reader, within, {
+      host,
+      ...seat,
+      ...(recommendedBindings !== undefined ? { recommendedBindings } : {}),
+      ...meta,
+      ...(sources !== undefined ? { resources: sources.resources, assets: sources.assets } : {}),
+    });
   } finally {
     session.close();
   }
@@ -204,8 +325,12 @@ export function notTaken(
 /** Why a declared hook is not registered when no host payload is known: `ia host` materializes one. */
 export const HOOKS_NEED_HOST =
   'Not registered: a hook group runs the guard in the host payload "ia host claude --apply" materializes; run it to register this hook';
+/** Why a declared hook is not registered on a host whose workspace settings `ia host` does not manage hook groups in. */
+export const hookUnregisteredForHost = (host: Exclude<HostName, 'claude'>): string =>
+  `Not registered: workspace hook groups run only under "ia host claude --apply"; run "ia project ${host} --product plugin" for a standalone plugin guard`;
 /**
- * The hook groups `rendered` declares, planned for `host` (claude only; Codex hooks are unsupported): with no
+ * The hook groups `rendered` declares, planned for `host` (claude only; Codex hooks are unsupported in generation, and
+ * Gemini/Antigravity hooks come back unregistered here): with no
  * declared hook, the removal of every owned group; else their registration against `cache`, or against the payload the
  * owned registration recorded; with neither, none, and each declared hook comes back unregistered. A removal
  * (`rendered` null) removes every owned group. Reads only.
@@ -217,7 +342,15 @@ export function planHooks(
   cache: HookCache,
   shared?: HostVerifier,
 ): HookStep {
-  if (host !== 'claude') return { plan: null, unregistered: [] };
+  if (host !== 'claude')
+    return {
+      plan: null,
+      unregistered: (rendered?.hooks ?? []).map((row) => ({
+        identity: row.identity,
+        word: 'hook' as const,
+        reason: hookUnregisteredForHost(host),
+      })),
+    };
   // One verdict per payload for this plan, or the command's shared one: no write to a payload happens while it plans.
   const verify = verifierOf(shared);
   if (rendered === null) assertRemovableHooks(root);

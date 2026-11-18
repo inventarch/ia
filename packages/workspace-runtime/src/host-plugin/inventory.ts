@@ -3,11 +3,13 @@ import { join } from 'node:path';
 import { HostPluginError } from './errors.js';
 import { type Frontmatter, parseFrontmatter } from './frontmatter.js';
 
-export type PluginHost = 'claude' | 'codex' | 'grok';
+export type PluginHost = 'claude' | 'codex' | 'grok' | 'gemini' | 'antigravity';
 export const MANIFESTS: Readonly<Record<PluginHost, string>> = Object.freeze({
   claude: '.claude-plugin/plugin.json',
   codex: '.codex-plugin/plugin.json',
   grok: '.grok-plugin/plugin.json',
+  gemini: 'gemini-extension.json',
+  antigravity: 'plugin.json',
 });
 export interface PluginEntry {
   readonly path: string;
@@ -34,7 +36,7 @@ export interface PluginInventory {
 
 export const NAME = /^[a-z][a-z0-9-]{0,63}$/;
 const LIMIT = { files: 1000, bytes: 16 * 1024 * 1024 } as const;
-const HOSTS = Object.keys(MANIFESTS) as PluginHost[];
+const HOSTS: readonly PluginHost[] = ['claude', 'codex', 'grok'];
 
 /** Every regular file under `root`, by sorted POSIX path; links, `.git` and `node_modules` are refused. */
 export function readEntries(root: string): PluginEntry[] {

@@ -45,7 +45,7 @@ export function knowledgeTool(
       captureKnowledge(root, {
         identities: authored.map((r) => r.identity),
         expectedRevision: snapshot.revision,
-        ...(selection === undefined ? {} : { selection }),
+        selection: selection ?? null,
       }),
     );
     try {
