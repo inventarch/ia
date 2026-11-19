@@ -3,8 +3,8 @@
   "formatVersion": 2,
   "source": {
     "repository": "https://github.com/inventarch/ia",
-    "commit": "d5c1937a1cf37a0297661d8ca257608180247418",
-    "tree": "cfa6d128bef0795bfa4de769bdaf1322bbd6a49b",
+    "commit": "65bfbd41bb43fcc6099da188aec0dc9b21777bd8",
+    "tree": "0eb9eb1165bf5e595e8fcb8c4828e24900410e75",
     "dirty": false
   },
   "membership": {
@@ -1441,7 +1441,7 @@
     },
     {
       "path": "apps/cli/assets/vocabulary.json",
-      "sha256": "5f6d81e626826e3447389a8cc0de3e8123fe0d95e2e3389faf8bc110edc2bedc"
+      "sha256": "2cbbcdc0188c7de64e13b9def94a1c27bbb1cb76b885cc9e6d55e90ba8d9b8cd"
     },
     {
       "path": "apps/cli/package.json",
@@ -2821,7 +2821,7 @@
     },
     {
       "path": "apps/mcp-door/assets/vocabulary.json",
-      "sha256": "5f6d81e626826e3447389a8cc0de3e8123fe0d95e2e3389faf8bc110edc2bedc"
+      "sha256": "2cbbcdc0188c7de64e13b9def94a1c27bbb1cb76b885cc9e6d55e90ba8d9b8cd"
     },
     {
       "path": "apps/mcp-door/package.json",
@@ -3297,11 +3297,11 @@
     },
     {
       "path": "docs/reference/language/vocabulary.json",
-      "sha256": "5f6d81e626826e3447389a8cc0de3e8123fe0d95e2e3389faf8bc110edc2bedc"
+      "sha256": "2cbbcdc0188c7de64e13b9def94a1c27bbb1cb76b885cc9e6d55e90ba8d9b8cd"
     },
     {
       "path": "docs/reference/language/vocabulary.md",
-      "sha256": "aaa0b63247e01b6683b84987e6324752fc3391daa5805b93b5d7d570e021441f"
+      "sha256": "55c5abcf094783e015e9c47189cd4756e40cb8d546536a1f3087408055355be2"
     },
     {
       "path": "docs/reference/packages/README.md",
@@ -9256,5 +9256,5 @@
       "sha256": "b7a2070d0de01d78a2f8dbd4e8c646740a4b9f68810cfda96aafe69ffc7a47f4"
     }
   ],
-  "inputDigest": "81a88a615a32797858daedf824453d97aae9b5e64ea876b045f11970fc9f07bb"
+  "inputDigest": "fdf245259ecd5a467bae3cde61681729f2549cd5cfd0ead0f82c4f937b0d90ca"
 }
