@@ -375,3 +375,37 @@ it('admits an adopting system’s word requiring a core task through any-adopter
     'target system refuses require from probe/definition/note/n to work-system/definition/task/t',
   );
 }, 60_000);
+it('isolates pathological line-count and diagnostic-fanout sources without stack overflow or heap blowup (#198)', () => {
+  const root1 = workspace(false);
+  put(root1, '.ia/src/visible.ia', '#! ia 1.0\n@system clean\n  provider "acme"\n  version "1.0.0"\n');
+  put(root1, '.ia/src/big.ia', '#! ia 1.0\n' + 'x\n'.repeat(110_000));
+  const db1 = open(root1, { cache: false });
+  try {
+    expect(db1.get('floor/definition/system/clean')?.source.path).toBe('.ia/src/visible.ia');
+    expect(
+      db1.report.findings.some((f) => f.path === '.ia/src/big.ia' && f.code === 'IA-LANG-TOPLEVEL-UNEXPECTED'),
+    ).toBe(true);
+  } finally {
+    db1.close();
+  }
+
+  const root2 = workspace(false);
+  let visible = '#! ia 1.0\n';
+  for (let i = 0; i < 32; i++) visible += `@system s${i}${'a'.repeat(2000)}\n  provider "acme"\n  version "1.0.0"\n`;
+  put(root2, '.ia/src/visible.ia', visible);
+  put(
+    root2,
+    '.ia/src/bad.ia',
+    '#! ia 1.0\n@system s0\n  provider "acme"\n  version "1.0.0"\n  requires\n' + '    - x\n'.repeat(17_000),
+  );
+  const db2 = open(root2, { cache: false });
+  try {
+    expect(db2.records().filter((r) => r.source.path === '.ia/src/visible.ia')).toHaveLength(32);
+    const badFindings = db2.report.findings.filter((f) => f.path === '.ia/src/bad.ia');
+    expect(badFindings).toHaveLength(17_000);
+    expect(badFindings[0]?.code).toBe('IA-LANG-SYSTEM-MISSING');
+    expect(badFindings[0]!.message.length).toBeLessThan(1024);
+  } finally {
+    db2.close();
+  }
+}, 30_000);

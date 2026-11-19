@@ -9,7 +9,7 @@ import type {
   TriviaNode,
   Value,
 } from '../ast.js';
-import { diag } from '../diagnostics.js';
+import { diag, pushAll } from '../diagnostics.js';
 import type { Diagnostic, LangCode } from '../diagnostics.js';
 import { scan } from '../scanner/index.js';
 import type { Trivia } from '../scanner/index.js';
@@ -122,22 +122,37 @@ class Parser {
     return { discriminator, name: second.value };
   }
 
-  /** Parse children at `depth` until a shallower line. */
+  /** Parse children at `depth` until a shallower line, iteratively so deep field blocks cannot overflow the call stack. */
   children(depth: number, nested: RecordNode[]): ChildNode[] {
-    const out: ChildNode[] = [];
+    const rootOut: ChildNode[] = [];
+    const frames: {
+      readonly line: Line;
+      readonly split: ReturnType<typeof splitField>;
+      readonly depth: number;
+      readonly children: ChildNode[];
+    }[] = [];
+    let currentDepth = depth;
     for (;;) {
       const line = this.peek();
-      if (line === undefined || line.depth < depth) return out;
-      if (line.depth > depth) {
-        // Deeper than any child here can be: indented under an item, or stepped in more than one level.
-        this.refuse('IA-LANG-INDENT-STEP', line, `depth ${line.depth} here; at most depth ${depth} can follow`);
-        this.index++;
-        this.skipDeeper(depth);
+      if (line === undefined || line.depth < currentDepth) {
+        const frame = frames.pop();
+        if (frame === undefined) return rootOut;
+        const parentOut = frames.length > 0 ? frames[frames.length - 1]!.children : rootOut;
+        parentOut.push(finishField(frame.line, frame.split, frame.children));
+        currentDepth = frame.depth;
         continue;
       }
+      if (line.depth > currentDepth) {
+        // Deeper than any child here can be: indented under an item, or stepped in more than one level.
+        this.refuse('IA-LANG-INDENT-STEP', line, `depth ${line.depth} here; at most depth ${currentDepth} can follow`);
+        this.index++;
+        this.skipDeeper(currentDepth);
+        continue;
+      }
+      const out = frames.length > 0 ? frames[frames.length - 1]!.children : rootOut;
       const first = line.tokens[0];
       if (first?.kind === 'sigil') {
-        const record = this.record(line, depth);
+        const record = this.record(line, currentDepth);
         if (record !== undefined) {
           out.push(record);
           nested.push(record);
@@ -147,13 +162,21 @@ class Parser {
       if (first?.kind === 'word' && first.value === '-') {
         this.index++;
         const read = itemValue(line.tokens.slice(1), this.path, line.line);
-        this.diagnostics.push(...read.diagnostics);
+        pushAll(this.diagnostics, read.diagnostics);
         const item: ItemNode = { kind: 'item', value: read.value, span: { line: line.line, endLine: line.endLine } };
         out.push(item);
         continue;
       }
-      const field = this.field(line, depth, nested);
-      if (field !== undefined) out.push(field);
+      this.index++;
+      const split = splitField(line.tokens, this.path, line.line);
+      pushAll(this.diagnostics, split.diagnostics);
+      // A value with no key is refused with its block, unjudged; nothing beneath it can leak into `nested`.
+      if (split.key === '') {
+        this.skipDeeper(currentDepth);
+        continue;
+      }
+      frames.push({ line, split, depth: currentDepth, children: [] });
+      currentDepth = currentDepth + 1;
     }
   }
 
@@ -161,29 +184,14 @@ class Parser {
   field(line: Line, depth: number, nested: RecordNode[]): FieldNode | undefined {
     this.index++;
     const split = splitField(line.tokens, this.path, line.line);
-    this.diagnostics.push(...split.diagnostics);
+    pushAll(this.diagnostics, split.diagnostics);
     // A value with no key is refused with its block, unjudged; nothing beneath it can leak into `nested`.
     if (split.key === '') {
       this.skipDeeper(depth);
       return undefined;
     }
     const children = this.children(depth + 1, nested);
-    const endLine = children.length > 0 ? children[children.length - 1]!.span.endLine : line.endLine;
-    // A bare key with children is a block; a refused value stays `none` so the refusal is visible.
-    const value: Value =
-      split.value.kind === 'none' && children.length > 0 && split.diagnostics.length === 0
-        ? { kind: 'block' }
-        : split.value;
-    return {
-      kind: 'field',
-      key: split.key,
-      words: split.words,
-      value,
-      ...(split.when === undefined ? {} : { when: split.when }),
-      ...(split.assertive === undefined ? {} : { assertive: split.assertive }),
-      span: { line: line.line, endLine },
-      children,
-    };
+    return finishField(line, split, children);
   }
 
   record(line: Line, depth: number): RecordNode | undefined {
@@ -243,7 +251,7 @@ class Parser {
       if (sawSection) {
         // Refused before its block is read. A key-less line is refused for its missing key, not for its position.
         const split = splitField(next.tokens, this.path, next.line);
-        if (split.key === '') this.diagnostics.push(...split.diagnostics);
+        if (split.key === '') pushAll(this.diagnostics, split.diagnostics);
         else
           this.refuse('IA-LANG-HEAD-FIELD-AFTER-SECTION', next, `head field '${split.key}' must precede every section`);
         this.index++;
@@ -293,17 +301,42 @@ class Parser {
   }
 }
 
+function finishField(line: Line, split: ReturnType<typeof splitField>, children: ChildNode[]): FieldNode {
+  const endLine = children.length > 0 ? children[children.length - 1]!.span.endLine : line.endLine;
+  // A bare key with children is a block; a refused value stays `none` so the refusal is visible.
+  const value: Value =
+    split.value.kind === 'none' && children.length > 0 && split.diagnostics.length === 0
+      ? { kind: 'block' }
+      : split.value;
+  return {
+    kind: 'field',
+    key: split.key,
+    words: split.words,
+    value,
+    ...(split.when === undefined ? {} : { when: split.when }),
+    ...(split.assertive === undefined ? {} : { assertive: split.assertive }),
+    span: { line: line.line, endLine },
+    children,
+  };
+}
+
 function attachTrivia(
   scanTrivia: readonly Trivia[],
   trailing: readonly TrailingComment[],
   records: readonly RecordNode[],
 ): TriviaNode[] {
-  // A record's endLine is never below its first line, so the first record whose end is at or
-  // past the trivia line is the one it precedes or lies within.
+  // A record's endLine is never below its first line, and top-level records are disjoint in source order, so binary
+  // search finds the first record whose end is at or past the trivia line.
   const ends = records.map((r) => r.span.endLine);
   const owner = (line: number): number | 'file' => {
-    for (let i = 0; i < ends.length; i++) if (line <= ends[i]!) return i;
-    return 'file';
+    let low = 0;
+    let high = ends.length;
+    while (low < high) {
+      const mid = (low + high) >>> 1;
+      if (ends[mid]! >= line) high = mid;
+      else low = mid + 1;
+    }
+    return low < ends.length ? low : 'file';
   };
   const out: TriviaNode[] = [];
   for (const t of scanTrivia) {
@@ -340,14 +373,15 @@ export function parse(source: string, path: string): ParseResult {
   }
   const diagnostics: Diagnostic[] = [...scanned.diagnostics];
   const { lines, trailing } = linesOf(scanned.tokens);
-  const fileEnd = Math.max(
-    1,
-    ...lines.map((line) => line.endLine),
-    ...diagnostics.map((diagnostic) => diagnostic.endLine ?? diagnostic.line),
-  );
+  let fileEnd = 1;
+  for (const line of lines) if (line.endLine > fileEnd) fileEnd = line.endLine;
+  for (const diagnostic of diagnostics) {
+    const end = diagnostic.endLine ?? diagnostic.line;
+    if (end > fileEnd) fileEnd = end;
+  }
   const parser = new Parser(lines, path, fileEnd);
   const records = parser.file();
-  diagnostics.push(...parser.diagnostics);
+  pushAll(diagnostics, parser.diagnostics);
   const trivia = attachTrivia(scanned.trivia, trailing, records);
   diagnostics.sort((a, b) => a.line - b.line);
   const ast: FileNode = {

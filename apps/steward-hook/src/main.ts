@@ -1113,6 +1113,11 @@ export function evaluateMandateHook(root: string, hook: string, rawEvent: unknow
       return undecided(message(error));
     }
     // `root` spells the registration's root into a next command that cannot find it (`ia report`).
+    const iaSourceTarget = paths.some((p) => {
+      const normalized = p.replaceAll('\\', '/');
+      return normalized.endsWith('.ia') && normalized.startsWith('.ia/src/');
+    });
+    const editedWords = iaSourceTarget ? extractEditedWords(event) : [];
     const request = {
       hook: declaration,
       tool: event.tool_name,
@@ -1121,6 +1126,7 @@ export function evaluateMandateHook(root: string, hook: string, rawEvent: unknow
       agentType: event.agent_type,
       fold,
       root: edit.base,
+      ...(editedWords.length === 0 ? {} : { words: editedWords }),
     };
     if (!mandateGuardSelects(request)) return {};
     if (!unaliased(edit.target, edit.actual))
@@ -1147,6 +1153,24 @@ export function evaluateMandateHook(root: string, hook: string, rawEvent: unknow
     db.close();
   }
 }
+const HEADER_WORD_RE = /^[ \t]*@([a-z][a-z0-9-]*)\s+[A-Za-z][A-Za-z0-9-]*\s*(?:#.*)?$/gm;
+function extractEditedWords(event: EditEvent): readonly string[] {
+  const input = event['tool_input'];
+  const snippets: string[] = [];
+  if (typeof input['content'] === 'string') snippets.push(input['content']);
+  if (typeof input['new_string'] === 'string') snippets.push(input['new_string']);
+  if (Array.isArray(input['edits']))
+    for (const entry of input['edits'])
+      if (object(entry) && typeof entry['new_string'] === 'string') snippets.push(entry['new_string']);
+  const found = new Set<string>();
+  for (const snippet of snippets) {
+    HEADER_WORD_RE.lastIndex = 0;
+    let match: RegExpExecArray | null;
+    while ((match = HEADER_WORD_RE.exec(snippet)) !== null) found.add(match[1]!);
+  }
+  return [...found];
+}
+
 const USAGE =
   'Usage: steward-hook --root <fixed absolute root> [--actors <trusted absolute mapping> | --hook <@hook identity>] (input limit 1 MiB)';
 export function runHook(args: readonly string[], input: string): HookOutput {

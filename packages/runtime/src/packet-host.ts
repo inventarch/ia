@@ -333,6 +333,7 @@ function sections(packet: PositionPacket): readonly string[] {
           `participant ${code(mandate.participant)}`,
           ...(mandate.moves === undefined ? [] : [`moves ${list(mandate.moves)}`]),
           `scope ${list(mandate.scope, code)}`,
+          ...(mandate.words === undefined ? [] : [`words ${list(mandate.words)}`]),
           ...(mandate.excludedWords === undefined ? [] : [`excluded words ${list(mandate.excludedWords)}`]),
           ...(mandate.covers === undefined ? [] : [`covers ${list(mandate.covers, code)}`]),
         ].join('; ')}`,

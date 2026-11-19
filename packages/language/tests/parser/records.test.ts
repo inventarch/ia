@@ -212,4 +212,17 @@ describe('parse: records', () => {
     expect(refused.diagnostics.map((d) => d.code)).toEqual(['IA-LANG-REF-MALFORMED']);
     expect(refused.ast.records[0]?.sections[0]?.children[0]).toMatchObject({ key: 'uses', value: { kind: 'none' } });
   });
+
+  it('parses oversized line counts and deep field blocks iteratively without overflowing the call stack (#198)', () => {
+    const manyLines = parse('#! ia 1.0\n' + 'x\n'.repeat(110_000), 'big.ia');
+    expect(manyLines.diagnostics).toHaveLength(110_000);
+    expect(manyLines.diagnostics[0]).toMatchObject({ code: 'IA-LANG-TOPLEVEL-UNEXPECTED', path: 'big.ia', line: 2 });
+
+    let deep = '#! ia 1.0\n@law x\n  meaning\n';
+    for (let d = 0; d < 2500; d++) deep += `${'  '.repeat(d + 2)}step${d}\n`;
+    deep += `${'  '.repeat(2502)}leaf "ok"\n`;
+    const nested = parse(deep, 'deep.ia');
+    expect(nested.diagnostics).toEqual([]);
+    expect(nested.ast.records[0]?.span).toEqual({ line: 2, endLine: 2504 });
+  });
 });

@@ -298,6 +298,22 @@ export function canonMandateNarrowing(nodes: readonly Node[], graph?: Graph): re
             'covers',
             `Mandate ${mandate.name} covers ${path}, outside every path ${parent.name}, which it cites, covers.`,
           );
+      if (fields(parent, 'authority', 'words').length > 0) {
+        const parentWords = new Set(listTexts(parent, 'authority', 'words'));
+        if (fields(mandate, 'authority', 'words').length === 0) {
+          report(
+            'words',
+            `Mandate ${mandate.name} omits authority.words, widening ${parent.name}, which it cites and restricts to [${[...parentWords].join(', ')}].`,
+          );
+        } else {
+          for (const word of listTexts(mandate, 'authority', 'words'))
+            if (!parentWords.has(word))
+              report(
+                'words',
+                `Mandate ${mandate.name} allows @${word}, which ${parent.name}, which it cites, does not.`,
+              );
+        }
+      }
     }
   return found;
 }
