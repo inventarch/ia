@@ -70,8 +70,8 @@ describe('kb pack reads a commit with a fixed number of git processes', () => {
       many = repository(20);
     const small = pack(one.root, one.commit()),
       large = pack(many.root, many.commit());
-    expect(small.outcome).toMatchObject({ format: 'ia.kb.package.v1' });
-    expect(large.outcome).toMatchObject({ format: 'ia.kb.package.v1' });
+    expect(small.outcome).toMatchObject({ format: 'kb-package', formatVersion: 1 });
+    expect(large.outcome).toMatchObject({ format: 'kb-package', formatVersion: 1 });
     expect((large.outcome as { files: unknown[] }).files).toEqual((small.outcome as { files: unknown[] }).files);
     expect(large.git).toBe(small.git);
     expect(large.git).toBeLessThanOrEqual(9);

@@ -1,6 +1,7 @@
 import { stableSerialize } from '@inventarch/graph';
 import { decodeJson, frozen, metadataDigest } from './resource-format.js';
 import { claudeCodeRows, profileFromRows } from './lifecycle-rows.js';
+import { currentStamp, peekStamp } from './plain-format.js';
 
 export class LifecycleError extends Error {
   constructor(
@@ -12,7 +13,8 @@ export class LifecycleError extends Error {
   }
 }
 export interface LifecycleProfile {
-  readonly format: 'ia.lifecycle-profile.v1';
+  readonly format: 'lifecycle-profile' | 'ia.lifecycle-profile.v1';
+  readonly formatVersion?: 1;
   readonly host: string;
   readonly version: string;
   readonly available: boolean;
@@ -27,7 +29,8 @@ export interface LifecycleProfile {
   readonly promptFields?: readonly string[];
 }
 export interface LifecycleEvent {
-  readonly format: 'ia.lifecycle-event.v1';
+  readonly format: 'lifecycle-event' | 'ia.lifecycle-event.v1';
+  readonly formatVersion?: 1;
   readonly profile: string;
   readonly host: string;
   readonly kind: 'start' | 'prompt' | 'native';
@@ -86,7 +89,12 @@ export function lifecycleProfile(host: string, version: string): LifecycleProfil
   return profileFromRows(claudeCodeRows, host, version);
 }
 export function verifyLifecycleProfile(input: LifecycleProfile): LifecycleProfile {
-  const expected = lifecycleProfile(input.host, input.version);
+  // A profile written before formats stopped carrying a version is verified as written, under its own literal.
+  const stamp = peekStamp(input, 'lifecycle-profile', ['ia.lifecycle-profile.v1']);
+  if (stamp === undefined) fail('Unsupported lifecycle profile format');
+  string(input.host, 64);
+  string(input.version, 64);
+  const expected = profileFromRows(claudeCodeRows, input.host, input.version, stamp);
   if (stableSerialize(input) !== stableSerialize(expected))
     fail('Lifecycle profile differs from its installed definition');
   if (!expected.available) throw new LifecycleError('IA-LIFECYCLE-UNAVAILABLE', expected.reason!);
@@ -99,10 +107,17 @@ export interface SegmentedLifecycleRow {
 }
 /** Each available segmented Claude Code row, keyed by its profile digest, computed once when the module loads. */
 const segmentedRows: ReadonlyMap<string, SegmentedLifecycleRow> = new Map(
-  [...claudeCodeRows.keys()].map((version) => [
-    lifecycleProfile('claude-code', version).digest,
-    frozen({ host: 'claude-code', version }),
-  ]),
+  [...claudeCodeRows.keys()].flatMap((version) => {
+    const row = frozen({ host: 'claude-code', version });
+    // A row's digest under the literal it shipped with still names it, for bindings written before the plain format.
+    return [
+      [lifecycleProfile('claude-code', version).digest, row] as const,
+      [
+        profileFromRows(claudeCodeRows, 'claude-code', version, { format: 'ia.lifecycle-profile.v1' }).digest,
+        row,
+      ] as const,
+    ];
+  }),
 );
 /** The available segmented row this exact digest names, or null; no version range is inferred. */
 export function segmentedLifecycleRow(digest: unknown): SegmentedLifecycleRow | null {
@@ -204,7 +219,7 @@ export function decodeLifecycleEvent(inputProfile: LifecycleProfile, input: stri
   const key =
     !start && promptId !== null
       ? metadataDigest({
-          format: 'ia.lifecycle-input-key.v1',
+          ...currentStamp('lifecycle-input-key'),
           profile: profile.digest,
           session,
           agent,
@@ -213,7 +228,7 @@ export function decodeLifecycleEvent(inputProfile: LifecycleProfile, input: stri
         })
       : null;
   return frozen({
-    format: 'ia.lifecycle-event.v1',
+    ...currentStamp('lifecycle-event'),
     profile: profile.digest,
     host: profile.host,
     kind: start ? 'start' : 'prompt',
@@ -246,7 +261,7 @@ export function createNativeLifecycleEvent(input: {
     promptId === null
       ? null
       : metadataDigest({
-          format: 'ia.lifecycle-input-key.v1',
+          ...currentStamp('lifecycle-input-key'),
           profile: profile.digest,
           session,
           agent,
@@ -254,7 +269,7 @@ export function createNativeLifecycleEvent(input: {
           event: 'NativeContext',
         });
   return frozen({
-    format: 'ia.lifecycle-event.v1',
+    ...currentStamp('lifecycle-event'),
     profile: profile.digest,
     host: profile.host,
     kind: 'native',

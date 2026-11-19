@@ -19,7 +19,8 @@ interface ResourceFile {
   encoding: string;
 }
 interface ResourceManifest {
-  format: 'ia.authoring-resources.v1';
+  format: 'authoring-resources' | 'ia.authoring-resources.v1';
+  formatVersion?: 1;
   files: ResourceFile[];
   associations: { owner: { source: string; path: string }; resources: { key: { source: string; path: string } }[] }[];
   index: {
@@ -65,8 +66,17 @@ export function systemArchivePartitions(
   )
     throw new Error('System archive owners differ from the exact native inventory');
   if (
-    resources?.format !== 'ia.authoring-resources.v1' ||
-    JSON.stringify(Object.keys(resources).sort()) !== JSON.stringify(['associations', 'files', 'format', 'index'])
+    // The manifest names its format plainly beside formatVersion 1; one written under the original literal has no formatVersion.
+    !(
+      (resources?.format === 'authoring-resources' && resources.formatVersion === 1) ||
+      (resources?.format === 'ia.authoring-resources.v1' && !Object.hasOwn(resources, 'formatVersion'))
+    ) ||
+    JSON.stringify(Object.keys(resources).sort()) !==
+      JSON.stringify(
+        resources.formatVersion === undefined
+          ? ['associations', 'files', 'format', 'index']
+          : ['associations', 'files', 'format', 'formatVersion', 'index'],
+      )
   )
     throw new Error('Unknown public teaching manifest shape');
   if (
@@ -163,6 +173,7 @@ export function systemArchivePartitions(
       const systems = resources.index.systems.filter((row) => rowOwner(row.system) === owner.system);
       const manifest = {
         format: resources.format,
+        ...(resources.formatVersion === undefined ? {} : { formatVersion: resources.formatVersion }),
         files,
         associations,
         index: { systems, artifacts: [], profiles: [], documents: [], lifecycles: [] },

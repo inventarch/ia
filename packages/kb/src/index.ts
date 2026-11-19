@@ -1,4 +1,7 @@
-export const KB_FORMAT = 'ia.kb.package.v1';
+/** The plain name every package written now carries, beside `formatVersion` 1. */
+export const KB_FORMAT = 'kb-package';
+/** The literal packages carried before formats stopped carrying their version; still read, never written. */
+export const LEGACY_KB_FORMAT = 'ia.kb.package.v1';
 export { createFoundation, foundationFromWorkspace } from './foundation.js';
 export type { Foundation, FoundationInput, NativeProfile } from './foundation.js';
 export { KnowledgeError, LIMITS } from './format.js';

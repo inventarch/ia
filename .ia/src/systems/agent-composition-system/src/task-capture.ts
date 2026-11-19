@@ -33,6 +33,7 @@ import { taskContextDeclaration } from './task-context-declaration.js';
 import type { TaskContextDeclaration } from './task-context-declaration.js';
 import { taskTeachingClosure } from './task-teaching-closure.js';
 import { occurrenceOf } from '@inventarch/workspace-runtime/resource-format';
+import { currentStamp } from './plain-format.js';
 export type { TaskContextDeclaration } from './task-context-declaration.js';
 export {
   TASK_CAPTURE_BYTES,
@@ -193,7 +194,9 @@ function rebind(
       ),
     ) as T;
   const resourceBody = {
+    // The selection keeps the stamp of the resources it narrows, so a view written under the original literal stays so.
     format: resources.format,
+    ...(resources.formatVersion === undefined ? {} : { formatVersion: resources.formatVersion }),
     sourceRevisions: resourceOccurrences(selected).sourceRevisions,
     nativeCaptureRevision: selected.revision,
     files: remap(resources.files),
@@ -433,7 +436,7 @@ export function prepareTaskCapture(
         selectedFiles.some((source) => systemMember(source.path)?.name === name),
       ),
       selection: {
-        format: 'ia.task-capture-selection.v1' as const,
+        ...currentStamp('task-capture-selection'),
         request,
         policy: TASK_CAPTURE_POLICY,
         implementation,

@@ -163,6 +163,7 @@ export function taskTeachingClosure(
     finish: () => {
       const body = {
         format: resources.format,
+        ...(resources.formatVersion === undefined ? {} : { formatVersion: resources.formatVersion }),
         sourceRevisions: resources.sourceRevisions,
         nativeCaptureRevision: capture.revision,
         files: resources.files.filter((f) => resourceKeys.has(keyOf(f.key))),

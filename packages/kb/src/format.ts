@@ -165,7 +165,8 @@ export interface Provenance {
   readonly verification: 'unverified';
 }
 export interface LegacyPortable {
-  readonly format: 'iakb.portable.v1';
+  readonly format: 'kb-portable' | 'iakb.portable.v1';
+  readonly formatVersion?: 1;
   readonly provenance: Provenance;
   readonly files: readonly KnowledgeFile[];
   readonly digest: string;

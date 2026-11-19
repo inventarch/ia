@@ -142,3 +142,43 @@ it('keeps the eight-key pins vector and refuses a dropped, renamed or added pin 
   }
   expect(() => fragmentLifecycleContext(signed({ ...pins, session: hash('session') }))).toThrow(refused);
 });
+it('assembles frames emitted under the original literal, as written, and refuses mixed or unknown ones', () => {
+  const payload = packet('small'),
+    frames = (stamp: Parameters<typeof fragmentLifecycleContext>[1]) =>
+      fragmentLifecycleContext(payload, stamp).outputs.map((item) => item.hookSpecificOutput.additionalContext);
+  const original = frames({ format: 'ia.lifecycle-context-segment.v1' }),
+    plain = frames(undefined);
+  expect(JSON.parse(original[0]!)).toMatchObject({ format: 'ia.lifecycle-context-segment.v1' });
+  expect(Object.hasOwn(JSON.parse(original[0]!), 'formatVersion')).toBe(false);
+  expect(JSON.parse(plain[0]!)).toMatchObject({ format: 'lifecycle-context-segment', formatVersion: 1 });
+  expect(assembleLifecycleContextSegments(original)).toEqual({
+    payload,
+    id: JSON.parse(payload).id,
+    delivery: 'unconfirmed',
+  });
+  expect(assembleLifecycleContextSegments(plain)).toEqual({
+    payload,
+    id: JSON.parse(payload).id,
+    delivery: 'unconfirmed',
+  });
+  const unknown = original.map((text) =>
+    JSON.stringify({ ...JSON.parse(text), format: 'ia.lifecycle-context-segment.v2' }),
+  );
+  for (const bad of [[...original.slice(0, 11), plain[11]!], unknown])
+    expect(() => assembleLifecycleContextSegments(bad)).toThrow();
+});
+it('fragments a payload written under the plain context stamp as well as the original one', () => {
+  const pins = JSON.parse(packet()).pins,
+    body = {
+      format: 'lifecycle-context',
+      formatVersion: 1,
+      pins,
+      event: { kind: 'prompt', source: null, key: null, inputDigest: hash('event') },
+      required: { parts: [{ text: 'small' }] },
+      delivery: 'unconfirmed',
+    };
+  const payload = JSON.stringify({ ...body, id: metadataDigest(body) });
+  const frames = fragmentLifecycleContext(payload).outputs.map((item) => item.hookSpecificOutput.additionalContext);
+  expect(assembleLifecycleContextSegments(frames).payload).toBe(payload);
+  expect(() => fragmentLifecycleContext(payload.replace('"formatVersion":1', '"formatVersion":2'))).toThrow();
+});

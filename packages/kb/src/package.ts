@@ -20,15 +20,18 @@ import { nativeInput, requireFoundation } from './foundation.js';
 import type { Foundation, NativeProfile } from './foundation.js';
 import { validateContent } from './validate.js';
 import { committedReader } from './git.js';
+import { currentStamp, peekStamp, stampKeys } from './plain-format.js';
 
 export interface KnowledgeSelection {
-  readonly format: 'ia.kb.selection.v1';
+  readonly format: 'kb-selection' | 'ia.kb.selection.v1';
+  readonly formatVersion?: 1;
   readonly sourceId: string;
   readonly records: readonly string[];
   readonly resources: readonly string[];
 }
 export interface KnowledgePackage {
-  readonly format: 'ia.kb.package.v1';
+  readonly format: 'kb-package' | 'ia.kb.package.v1';
+  readonly formatVersion?: 1;
   readonly provenance: Provenance;
   readonly foundation: NativeProfile & { readonly capture: string; readonly grammar: string; readonly engine: string };
   readonly selection: KnowledgeSelection;
@@ -48,8 +51,9 @@ export function verifySelection(input: unknown, capture = false): KnowledgeSelec
     if (error instanceof SyntaxError) return fail('Knowledge selection is not valid JSON');
     throw error;
   }
-  const s = closed<KnowledgeSelection>(parsed, ['format', 'sourceId', 'records', 'resources']);
-  if (s.format !== 'ia.kb.selection.v1') fail('Invalid knowledge selection format');
+  const stamp = peekStamp(parsed, 'kb-selection', ['ia.kb.selection.v1']);
+  const s = closed<KnowledgeSelection>(parsed, [...stampKeys(stamp), 'sourceId', 'records', 'resources']);
+  if (stamp === undefined) fail('Invalid knowledge selection format');
   slug(s.sourceId);
   if (
     !Array.isArray(s.records) ||
@@ -77,8 +81,10 @@ export function selectsRecord(selection: KnowledgeSelection, identity: string): 
 }
 const profile = (f: Foundation) => ({ ...f.native, capture: f.capture.revision, grammar: f.grammar, engine: f.engine });
 export function verifyPackage(input: unknown): KnowledgePackage {
-  const p = closed<KnowledgePackage>(data(input), [
-    'format',
+  const raw = data(input),
+    stamp = peekStamp(raw, 'kb-package', ['ia.kb.package.v1']);
+  const p = closed<KnowledgePackage>(raw, [
+    ...stampKeys(stamp),
     'provenance',
     'foundation',
     'selection',
@@ -86,7 +92,7 @@ export function verifyPackage(input: unknown): KnowledgePackage {
     'associations',
     'digest',
   ]);
-  if (p.format !== 'ia.kb.package.v1') fail('Invalid knowledge package format');
+  if (stamp === undefined) fail('Invalid knowledge package format');
   closed(p.provenance, ['sourceId', 'commit', 'verification']);
   slug(p.provenance.sourceId);
   commitId(p.provenance.commit);
@@ -138,7 +144,14 @@ export function packageFromCommit(request: PackageRequest): KnowledgePackage {
     ? relative(repository, request.selection).replaceAll('\\', '/')
     : request.selection;
   portablePath(selectionPath);
-  const selection = verifySelection(git.read(selectionPath).text);
+  // A selection file written before formats stopped carrying a version is read, and the package it yields carries the plain one.
+  const requested = verifySelection(git.read(selectionPath).text),
+    selection = verifySelection({
+      ...currentStamp('kb-selection'),
+      sourceId: requested.sourceId,
+      records: requested.records,
+      resources: requested.resources,
+    });
   // Every native file in one batched read; each is still checked in path order, and the running total refuses at
   // the same file as before.
   const nativeLimit = 16 * 1024 * 1024;
@@ -195,7 +208,7 @@ export function packageFromCommit(request: PackageRequest): KnowledgePackage {
   ].sort((a, b) => (a.path < b.path ? -1 : 1));
   verifyFiles(files, false, true);
   const base = {
-    format: 'ia.kb.package.v1' as const,
+    ...currentStamp('kb-package'),
     provenance: { sourceId: selection.sourceId, commit, verification: 'unverified' as const },
     foundation: profile(foundation),
     selection,

@@ -7,14 +7,29 @@ import type { Json } from '@inventarch/session-system';
 import { validateShape } from '@inventarch/agent-system';
 import type { OperationAdapter, OperationContext, OperationDefinition } from '@inventarch/agent-system';
 import { candidateInputSchema } from './candidate.js';
+import { currentStamp } from './plain-format.js';
 
-/** Explicit host installation only. The inspection catalog never gains a write implicitly. */
+/** The handler this publication shipped under before handler ids stopped carrying their version; still dispatched. */
+export const LEGACY_DRAFT_PUBLISH_HANDLER = 'ia.draft.publish.v1';
+export const DRAFT_PUBLISH_HANDLER = 'draft-publish';
+/**
+ * Explicit host installation only. The inspection catalog never gains a write implicitly. A binding compiled under the
+ * original handler keeps it, with the manifest shape that handler wrote, so an interrupted publication reconciles
+ * against the bytes it began with.
+ */
 export function managedPublication(
   root: string,
   destination: string,
   implementationDigest: string,
   binding?: OperationDefinition,
-): { definition: OperationDefinition; adapter: OperationAdapter } {
+): {
+  definition: OperationDefinition;
+  adapter: OperationAdapter;
+  /** The same adapter under the plain handler and the original one, for manifests pinned before the rename. */
+  adapters: Readonly<Record<string, OperationAdapter>>;
+} {
+  const legacy = binding?.handler === LEGACY_DRAFT_PUBLISH_HANDLER,
+    handler = legacy ? LEGACY_DRAFT_PUBLISH_HANDLER : DRAFT_PUBLISH_HANDLER;
   if (!/^[a-f0-9]{64}$/.test(implementationDigest))
     throw new SessionError('IA-CORPUS-DENIED', 'Installed publication implementation is unavailable');
   const base = resolve(root),
@@ -27,8 +42,8 @@ export function managedPublication(
     });
   const definition: OperationDefinition = {
     id: 'draft.publish',
-    handler: 'ia.draft.publish.v1',
-    digest: digest({ implementation: 'ia.draft.publish.v1', implementationDigest, root: base, destination }),
+    handler,
+    digest: digest({ implementation: handler, implementationDigest, root: base, destination }),
     effects: ['local-write'],
     recovery: 'reconcile',
     timeoutMs: 15000,
@@ -91,8 +106,7 @@ export function managedPublication(
       if (createHash('sha256').update(file.text).digest('hex') !== file.digest)
         throw new SessionError('IA-CORPUS-DENIED', 'Reviewed candidate bytes changed');
     const manifest = {
-      version: 1,
-      kind: 'ia.managed-draft.v1',
+      ...(legacy ? { version: 1, kind: 'ia.managed-draft.v1' } : currentStamp('managed-draft')),
       sessionId: context.sessionId,
       runId: context.runId,
       invocationId: context.invocationId,
@@ -130,32 +144,37 @@ export function managedPublication(
     await context.assertCurrent();
     context.signal.throwIfAborted();
   };
+  const adapter: OperationAdapter = {
+    id: definition.handler,
+    execute: async (input, context) => {
+      await current(context);
+      const value = content(input, context),
+        prepared = preparePublication(base, destination, value.files, value.metadata);
+      try {
+        await current(context);
+        content(input, context);
+        prepared.publish();
+        return { effect: 'applied', output: value.output };
+      } finally {
+        prepared.close();
+      }
+    },
+    reconcile: async (input, context) => {
+      await current(context);
+      const value = content(input, context);
+      const status = await inspectPublication(base, destination, value.files, value.metadata, async () => {
+        await current(context);
+        content(input, context);
+      });
+      return { status, output: status === 'applied' ? value.output : null };
+    },
+  };
   return {
     definition,
-    adapter: {
-      id: definition.handler,
-      execute: async (input, context) => {
-        await current(context);
-        const value = content(input, context),
-          prepared = preparePublication(base, destination, value.files, value.metadata);
-        try {
-          await current(context);
-          content(input, context);
-          prepared.publish();
-          return { effect: 'applied', output: value.output };
-        } finally {
-          prepared.close();
-        }
-      },
-      reconcile: async (input, context) => {
-        await current(context);
-        const value = content(input, context);
-        const status = await inspectPublication(base, destination, value.files, value.metadata, async () => {
-          await current(context);
-          content(input, context);
-        });
-        return { status, output: status === 'applied' ? value.output : null };
-      },
-    },
+    adapter,
+    adapters: Object.freeze({
+      [DRAFT_PUBLISH_HANDLER]: { ...adapter, id: DRAFT_PUBLISH_HANDLER },
+      [LEGACY_DRAFT_PUBLISH_HANDLER]: { ...adapter, id: LEGACY_DRAFT_PUBLISH_HANDLER },
+    }),
   };
 }
