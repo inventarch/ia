@@ -1,6 +1,6 @@
 # IA repository contract
 
-Owns the public workspace and its normative [language reference](docs/reference/language/SPEC.md). The native kernel and system schemas define the language; package contracts define compiler, graph, persistence, composition and host behavior. Vocabulary does not include curated expert methods or hosted marketplace policy.
+Owns the public workspace and its normative [language reference](docs/reference/language/SPEC.md). The native kernel and system schemas define the language; package contracts define compiler, graph, persistence, composition and host behavior. Vocabulary does not include curated expert methods or hosted marketplace policy: systems define locally pinned vocabulary and how words lower into validation and Engine execution, reusable starter kits live in the public marketplace, and organisation-specific API, MCP or authentication bindings stay in private repositories.
 
 The CLI, runtime and every other public npm package share the coordinated release version selected in [releases/current.json](releases/current.json). The public native systems and bundled language archive align with that version at each new major and are versioned by content within it. Native source syntax remains `#! ia 1.0`; syntax, schema, format, engine and protocol numbers retain their own compatibility meaning. The optional [product-structure distribution](distributions/product-structure/SPEC.md) is separate from the canonical language.
 
