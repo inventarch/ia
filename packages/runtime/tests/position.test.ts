@@ -888,13 +888,59 @@ it('reserves a blocking rule only where its activation admits the coordinate, an
   const plan = bodyOf(db, within, { seat: governanceSystem, shape: 'governance', phase: 'plan' });
   expect(ids(plan.rules)).toContain(planOnly);
   expect(plan.rules.find((r) => r.identity === planOnly)?.activation).toBeUndefined();
-  expect(plan.omittedRules).toEqual([{ identity: onMove, detail: 'phase is act, request is plan' }]);
+  expect(plan.omittedRules).toEqual([{ identity: onMove, word: 'law', detail: 'phase is act, request is plan' }]);
   const act = bodyOf(db, within, { seat: governanceSystem, shape: 'governance', phase: 'act' });
   expect(ids(act.rules)).not.toContain(planOnly);
-  expect(act.omittedRules).toEqual([{ identity: planOnly, detail: 'phase is plan, request is act' }]);
+  expect(act.omittedRules).toEqual([{ identity: planOnly, word: 'law', detail: 'phase is plan, request is act' }]);
   expect(act.rules.find((r) => r.identity === onMove)?.activation).toBe('phase is act and move is Execution');
   // Left out by activation, a rule is neither loaded, pointed to nor on the frontier.
   expect(ids(act.loaded)).not.toContain(planOnly);
   expect(act.pointers.some((p) => p.identity === planOnly)).toBe(false);
   expect(act.counts.rules).toBe(act.rules.length);
+});
+
+// #325: a record the walk would load is delivered only where its activation admits the coordinate too, as `ia context`
+// delivers it (R04). An advisory law that activates on a phase alone loads at that phase only; elsewhere `omittedRules`
+// names it with the contradictory term, and it is neither loaded, pointed to nor counted against the budget. One that
+// names an axis the key cannot bind (move) loads, marked with the group it waits on.
+it('loads a record only where its activation admits the coordinate, and names the rest', () => {
+  const root = workspace(),
+    planOnly = 'governance-system/governance/law/advisory-plan',
+    onMove = 'governance-system/governance/law/advisory-move';
+  put(
+    root,
+    `${records}/advisory-plan.ia`,
+    law('advisory-plan', 'advisory', '  activation\n    activate when phase is plan\n'),
+  );
+  put(
+    root,
+    `${records}/advisory-move.ia`,
+    law('advisory-move', 'advisory', '  activation\n    activate when move is Execution\n'),
+  );
+  const db = database(root),
+    within = db.resolveScope().token;
+  expect(db.report.findings.filter((f) => f.severity === 'error')).toEqual([]);
+  const key = { seat: governanceSystem, shape: 'governance' } as const,
+    loadedAs = (body: PositionBody, identity: string) =>
+      body.loaded.find((entry): entry is LoadedRecord => 'identity' in entry && entry.identity === identity);
+  // Both advisory laws are word members of the @system seat, so the walk seeds them at every phase.
+  const plan = bodyOf(db, within, { ...key, phase: 'plan' });
+  expect(loadedAs(plan, planOnly)).toBeDefined();
+  expect(loadedAs(plan, planOnly)?.activation).toBeUndefined();
+  expect(plan.omittedRules).toEqual([]);
+  const act = bodyOf(db, within, { ...key, phase: 'act' });
+  expect(ids(act.loaded)).not.toContain(planOnly);
+  expect(act.omittedRules).toEqual([{ identity: planOnly, word: 'law', detail: 'phase is plan, request is act' }]);
+  expect(act.pointers.some((p) => p.identity === planOnly)).toBe(false);
+  expect(loadedAs(act, onMove)?.activation).toBe('move is Execution');
+  expect(loadedAs(plan, onMove)?.activation).toBe('move is Execution');
+  // Left out, it takes no slot: a budget of exactly the records delivered loads them all and truncates none.
+  const tight = bodyOf(db, within, { ...key, phase: 'act', budget: act.loaded.length - 1 });
+  expect(ids(tight.loaded)).toEqual(ids(act.loaded));
+  expect(tight.counts.truncatedLoaded).toBe(0);
+  // The seat is what the key names: it loads whatever its own activation, which is never tested.
+  const seated = bodyOf(db, within, { seat: planOnly, shape: 'governance', phase: 'act' });
+  expect(seated.loaded[0]).toMatchObject({ identity: planOnly });
+  expect(seated.loaded[0]).not.toHaveProperty('activation');
+  expect(seated.omittedRules).toEqual([]);
 });

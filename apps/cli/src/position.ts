@@ -131,9 +131,16 @@ const recordFacts = (record: PositionRecord & { readonly workspace?: string }): 
   ...(record.steward === undefined ? [] : [[atom('steward', 'dim', 0), atom(record.steward, 'cyan', 2)]]),
   ...(record.workspace === undefined ? [] : [[atom('in workspace', 'dim', 0), atom(record.workspace, 'cyan', 2)]]),
 ];
+/** A delivered record's entry, then the groups it waits on when its activation names an axis the key cannot bind. */
+const deliveredFacts = (record: PositionRecord & { readonly activation?: string }): readonly (readonly Token[])[] => [
+  ...recordFacts(record),
+  ...(record.activation === undefined
+    ? []
+    : [[atom('applies only when', 'yellow', 0), ...words(record.activation, null, 2)]]),
+];
 const loadedFacts = (loaded: LoadedEntry): readonly (readonly Token[])[] =>
   'identity' in loaded
-    ? recordFacts(loaded)
+    ? deliveredFacts(loaded)
     : [
         [atom(spelled(loaded.path), 'cyan', 0)],
         words('a location, not a record', 'dim'),
@@ -180,9 +187,11 @@ function keyText(key: ScopeKey): string {
 
 /**
  * The key used and the capture's freshness; the loaded records, the pointers and their tallies; the rules and playbooks
- * that apply by word, with their tallies, and the playbook cells; the rules reserved outside the budget; the mandates;
- * the frontier; the unknowns; then the two widening keys as `ia position` commands, with the root this invocation gave:
- * one hop deeper (absent at depth 2), and the re-seat at any pointer or applies-by-word entry. Every string of the
+ * that apply by word, with their tallies, and the playbook cells; the rules reserved outside the budget; the records
+ * left out by activation, when there are any; the mandates; the frontier; the unknowns; then the two widening keys as
+ * `ia position` commands, with the root this invocation gave: one hop deeper (absent at depth 2), and the re-seat at
+ * any pointer or applies-by-word entry. A loaded record, applies-by-word entry or rule whose activation waits on an
+ * axis the key cannot bind says so under its entry, `applies only when` and the groups it waits on. Every string of the
  * output, what a source authored (cell text, a finding's message, identities and paths) included, is escaped by
  * `terminalSafe` before it is laid out, so no terminal control reaches the terminal; `--json` prints the output as is.
  */
@@ -240,7 +249,7 @@ export function renderPosition(output: PositionOutput, caps: Capabilities, roote
       section(
         'Applies by word (field match, not a row)',
         body.appliesByWord,
-        recordFacts,
+        deliveredFacts,
         'No rule or playbook applies by word.',
         caps,
       ),
@@ -257,25 +266,14 @@ export function renderPosition(output: PositionOutput, caps: Capabilities, roote
         'No playbook cell.',
         caps,
       ),
-      section(
-        'Rules (reserved outside the budget)',
-        body.rules,
-        (rule) => [
-          ...recordFacts(rule),
-          ...(rule.activation === undefined
-            ? []
-            : [[atom('applies only when', 'yellow', 0), ...words(rule.activation, null, 2)]]),
-        ],
-        'No blocking rule.',
-        caps,
-      ),
+      section('Rules (reserved outside the budget)', body.rules, deliveredFacts, 'No blocking rule.', caps),
       ...(body.omittedRules.length === 0
         ? []
         : [
             section(
-              'Rules left out by activation',
+              'Left out by activation',
               body.omittedRules,
-              (rule) => [[atom(rule.identity, 'cyan', 0)], words(rule.detail, 'dim')],
+              (left) => [[atom(left.identity, 'cyan', 0)], words(`@${left.word}: ${left.detail}`, 'dim')],
               '',
               caps,
             ),

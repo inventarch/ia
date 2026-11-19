@@ -4,6 +4,7 @@ import { conditionHolds, digest, effectiveSeverity, laneOf, reaches } from '@inv
 import type { ClaimMatch, DirectedEdgeRow, DirectedRow, Node } from '@inventarch/graph';
 import type { ReadHandle } from '@inventarch/db';
 import { activationAt } from './activation.js';
+import type { Activation } from './activation.js';
 import { RuntimeError } from './errors.js';
 import { fragmentText } from './locator.js';
 import { rootWorkspace } from './mandate-modes.js';
@@ -94,18 +95,23 @@ export interface PositionRecord {
 /** A loaded or reserved record: the tuple and the per-record digest (graph G13) of the occurrence the scope admits. */
 export interface LoadedRecord extends PositionRecord {
   readonly digest: string;
-}
-/**
- * A reserved rule. `activation` is present only when the rule's selectors leave it undecided at the key's coordinate (an
- * axis they name, such as move or artifact-set, is unbound): the undecided groups, `axis is value and ...`, joined by
- * `or`. A rule without it applies at the coordinate.
- */
-export interface RuleRecord extends LoadedRecord {
+  /**
+   * Present only when the record's selectors leave it undecided at the key's coordinate (an axis they name, such as
+   * move or artifact-set, is unbound): the undecided groups, `axis is value and ...`, joined by `or`. A record without
+   * it applies at the coordinate. The seat, which the key names, is never tested and never carries it.
+   */
   readonly activation?: string;
 }
-/** A blocking rule left out of `rules` because its activation contradicts the key's coordinate, as `ia context` omits it. */
+/** A reserved rule: a loaded record, `activation` marking one whose selectors leave it undecided at the coordinate. */
+export interface RuleRecord extends LoadedRecord {}
+/**
+ * A record left out because its activation contradicts the key's coordinate, as `ia context` omits it: a blocking rule
+ * `rules` would reserve, a record `loaded` would hold, or a rule or playbook that would apply by word.
+ */
 export interface OmittedRule {
   readonly identity: string;
+  /** The record's word, as the pointer tuple names it. */
+  readonly word: string;
   /** The contradictory terms, `axis is value, request is other`, joined by `; `. */
   readonly detail: string;
 }
@@ -137,6 +143,8 @@ export interface AppliesByWord extends PositionRecord {
   readonly via: Extract<PositionVia, { readonly by: 'subject' }>;
   /** (x, H, P, 1, 16, no word): the re-seat key at this entry. */
   readonly reseat: ScopeKey;
+  /** As on a loaded record: the groups the entry's activation waits on, when an axis they name is unbound. */
+  readonly activation?: string;
 }
 /**
  * A playbook's cell at (P, the explicit primitive or primitive(H)): the text of its cells at that address, as `ia read <address>` reads it, or,
@@ -218,7 +226,10 @@ export interface PositionBody {
   readonly revision: string;
   readonly key: ScopeKey;
   readonly seat: ResolvedSeat;
-  /** The seat first, then the first n of the other seeds and the reached records, in the shape's order, of w only. */
+  /**
+   * The seat first, then the first n of the other seeds and the reached records, in the shape's order, of w only. Only
+   * a record whose activation admits the key's coordinate is loaded (R04); one left undecided carries `activation`.
+   */
   readonly loaded: readonly LoadedEntry[];
   /**
    * The blocking governance candidates, and the blocking rules that apply by word to a candidate (R17), reserved
@@ -226,14 +237,19 @@ export interface PositionBody {
    * rule whose activation admits the key's coordinate is listed (R04); one left undecided carries `activation`.
    */
   readonly rules: readonly RuleRecord[];
-  /** The blocking rules the key's coordinate disqualifies by activation, by identity; never entered or pointed to. */
+  /**
+   * Every record the key's coordinate disqualifies by activation that the body would otherwise deliver, by identity:
+   * a reserved rule, a record that would load and a rule or playbook that would apply by word. A rule or record left
+   * out of `rules` or `loaded` is never entered, pointed to or on the frontier.
+   */
   readonly omittedRules: readonly OmittedRule[];
   /** The first 48 pointers in the shape's order, of w only. */
   readonly pointers: readonly PositionPointer[];
   readonly pointerTallies: readonly PointerTally[];
   /**
    * The first 48 rules and playbooks outside `rules` that apply by word to a loaded record or a blocking candidate in
-   * `rules`, by band ↓, identity ↑, of any word whatever w is.
+   * `rules`, by band ↓, identity ↑, of any word whatever w is. Only one whose activation admits the key's coordinate
+   * applies (R04); one left undecided carries `activation`.
    */
   readonly appliesByWord: readonly AppliesByWord[];
   /** The applies-by-word entries past the listed ones, per (word, owner system). */
@@ -610,29 +626,32 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
       if (matches.length > 0)
         matched.set(subject.identity, { hop: 0, via: { by: 'subject', label: FIELD_MATCH, matches } });
     }
-  // A blocking rule is reserved only where its activation admits the coordinate, as `ia context` delivers it (R04): a
-  // contradicted one is listed in `omittedRules` instead, and stays out of L, the pointers and the frontier, and an
-  // undecided one is listed with the groups it waits on.
-  const activations = new Map(
-    [...[...candidates].filter(blocking), ...matched.keys()].map((identity) => [
-      identity,
-      activationAt(nodes.get(identity)!, values),
-    ]),
-  );
-  const rules = sorted(
-    [...activations].filter(([, a]) => a.status !== 'omitted').map(([identity]) => identity),
-    (identity) => ruleReach(identity).hop,
-    true,
-  );
-  const omittedRules = [...activations]
-    .flatMap(([identity, a]) => (a.status === 'omitted' ? [{ identity, detail: a.detail }] : []))
-    .sort((a, b) => order(a.identity, b.identity));
-  const reserved = new Set(activations.keys());
-  const pool = sorted(
-    new Set([...seeds, ...hopReached].filter((identity) => !reserved.has(identity))),
-    hopOfReach,
-    governance,
-  );
+  // Activation, read once per record at the key's coordinate, as `ia context` reads it for every record before it
+  // delivers any (R04): a record the coordinate contradicts is delivered nowhere, neither reserved in `rules`, loaded
+  // nor applying by word, and `omittedRules` names it; one it leaves undecided is delivered with the groups it waits
+  // on. The seat, which the key names, is never tested.
+  const activations = new Map<string, Activation>();
+  const activation = (identity: string): Activation => {
+    let found = activations.get(identity);
+    if (found === undefined) activations.set(identity, (found = activationAt(nodes.get(identity)!, values)));
+    return found;
+  };
+  const active = (identity: string): boolean => activation(identity).status !== 'omitted';
+  /** The mark of a delivered record its activation leaves undecided: the groups it waits on. */
+  const marked = (identity: string): { readonly activation?: string } => {
+    const found = activation(identity);
+    return found.status === 'conditional' ? { activation: found.detail } : {};
+  };
+  // R is reserved whatever its activation; `rules` lists the members it admits, and a contradicted one stays out of L,
+  // the pointers and the frontier.
+  const reservable = [...[...candidates].filter(blocking), ...matched.keys()];
+  const rules = sorted(reservable.filter(active), (identity) => ruleReach(identity).hop, true);
+  const reserved = new Set(reservable);
+  // A record activation leaves out of L takes no slot of the budget and, like a reserved rule, is never pointed to or
+  // on the frontier: `omittedRules` alone names it.
+  const loadable = [...seeds, ...hopReached].filter((identity) => !reserved.has(identity)),
+    withheld = new Set([...reserved, ...loadable.filter((identity) => !active(identity))]);
+  const pool = sorted(new Set(loadable.filter(active)), hopOfReach, governance);
   const chosen = pool.slice(0, key.budget),
     entered = [...(seatId === undefined ? [] : [seatId]), ...chosen],
     inLoaded = new Set(entered);
@@ -641,7 +660,7 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
   // closure that composition or a hop reached; each once, by the first that reaches it.
   const pointed = new Map<string, Reach>();
   const point = (identity: string, reach: Reach): void => {
-    if (identity === seatId || inLoaded.has(identity) || reserved.has(identity) || pointed.has(identity)) return;
+    if (identity === seatId || inLoaded.has(identity) || withheld.has(identity) || pointed.has(identity)) return;
     if (wanted(identity)) pointed.set(identity, reach);
   };
   for (const identity of [...c0.keys(), ...hopReached]) point(identity, reachOf(identity));
@@ -662,7 +681,7 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
           wanted(to) &&
           to !== seatId &&
           !inLoaded.has(to) &&
-          !reserved.has(to) &&
+          !withheld.has(to) &&
           !pointed.has(to) &&
           !reached.has(to) &&
           !boundary.has(to)
@@ -677,11 +696,22 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
   // as claimants and cells do.
   const delivered = [...entered, ...rules.filter((identity) => candidates.has(identity))];
   const byBand = (a: string, b: string): number => nodes.get(b)!.band - nodes.get(a)!.band || order(a, b);
-  const applies = subjects
+  // A subject applies by word only where its own activation admits the coordinate: one it contradicts is no entry, so
+  // it delivers no cell, and `omittedRules` names it.
+  const matching = subjects
     .filter((subject) => !reserved.has(subject.identity))
     .map((subject) => ({ identity: subject.identity, matches: matchesOf(subject, delivered) }))
-    .filter((entry) => entry.matches.length > 0)
-    .sort((a, b) => byBand(a.identity, b.identity));
+    .filter((entry) => entry.matches.length > 0);
+  const applies = matching.filter((entry) => active(entry.identity)).sort((a, b) => byBand(a.identity, b.identity));
+  // Every record left out by activation that the body would otherwise deliver, once each, by identity.
+  const omittedRules = [...new Set([...reservable, ...loadable, ...matching.map((entry) => entry.identity)])]
+    .sort(order)
+    .flatMap((identity) => {
+      const found = activation(identity);
+      return found.status === 'omitted'
+        ? [{ identity, word: nodes.get(identity)!.discriminator, detail: found.detail }]
+        : [];
+    });
 
   // The cells at (P, the explicit primitive or primitive(H)) of the first c playbooks that apply by word: the text `ia read`
   // reads at the address, every cell there in source order, conditions unevaluated; else the nearest phase with a cell
@@ -880,15 +910,9 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
       seatId === undefined
         ? { path: seat.path ?? '', ...(declarers === undefined ? {} : { declarers }) }
         : loadedRecord(seatId, reachOf(seatId)),
-      ...chosen.map((identity) => loadedRecord(identity, reachOf(identity))),
+      ...chosen.map((identity) => ({ ...loadedRecord(identity, reachOf(identity)), ...marked(identity) })),
     ],
-    rules: rules.map((identity) => {
-      const a = activations.get(identity)!;
-      return {
-        ...loadedRecord(identity, ruleReach(identity)),
-        ...(a.status === 'conditional' ? { activation: a.detail } : {}),
-      };
-    }),
+    rules: rules.map((identity) => ({ ...loadedRecord(identity, ruleReach(identity)), ...marked(identity) })),
     omittedRules,
     pointers: listed.map(pointer),
     pointerTallies: wordTallies(tallied),
@@ -904,6 +928,7 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
           ...RESEAT,
           ...(key.primitive === undefined ? {} : { primitive: key.primitive }),
         },
+        ...marked(identity),
       };
     }),
     appliesByWordTallies: wordTallies(applies.slice(LISTED).map((entry) => entry.identity)),

@@ -1,0 +1,14 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "ia position honours activation for loaded records and playbook cells",
+  "summary": "`ia position` now applies a record's activation wherever it delivers the record, as `ia context` does at the same coordinate, and not only to blocking rules. A record that would load, and a rule or playbook that would apply by word, are left out where the key's coordinate contradicts their activation: an advisory law that activates at plan no longer loads at act, and a playbook's cells come only at a shape whose category its activation admits. Every record left out this way is named in `omittedRules`, whose entries gain `word`; one left out of the loaded set takes no slot of the budget and is not listed as a pointer. A loaded record or applies-by-word entry whose activation waits on an axis the key does not bind, such as move, now carries `activation`, as a reserved rule already does. The seat is never tested. The text view prints `applies only when` under such records and one `Left out by activation` section, which replaces `Rules left out by activation`.",
+  "packages": [
+    "@inventarch/cli",
+    "@inventarch/runtime"
+  ],
+  "paths": [
+    "apps/cli/",
+    "packages/runtime/"
+  ]
+}
