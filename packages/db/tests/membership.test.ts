@@ -355,3 +355,80 @@ it('lists the roots the capture declares, longest first, pruned with the workspa
     db.close();
   }
 });
+
+it('admits @workspace optional public-agent, private-agent and decides fields alongside governed-by, and refuses composition.parent', () => {
+  const root = workspace();
+  cpSync(
+    resolve(import.meta.dirname, '../../../.ia/src/systems/workspace-system/schemas/workspace.schema.ia'),
+    resolve(root, '.ia/src/systems/workspace-system/schemas/workspace.schema.ia'),
+  );
+  put(
+    root,
+    '.ia/src/workspace-pair.ia',
+    [
+      '#! ia 1.0',
+      '',
+      '@agent intake-agent',
+      '  meaning',
+      '    says "Receives cross-workspace requests."',
+      '    answers "Who handles intake?"',
+      '  governance',
+      '    applies []',
+      '',
+      '@agent delivery-agent',
+      '  meaning',
+      '    says "Executes internal work."',
+      '    answers "Who carries out work?"',
+      '  governance',
+      '    applies []',
+      '',
+      '@workspace child-workspace',
+      '  meaning',
+      '    says "Child workspace with dual agents and decides entries."',
+      '    answers "Which systems and decisions belong here?"',
+      '  composition',
+      '    systems [@system workspace-system, @system agent-system]',
+      '    public-agent @agent intake-agent',
+      '    private-agent @agent delivery-agent',
+      '    decides ["what-ships: Decides which features enter the release."]',
+      '  relationships',
+      '    governed-by @workspace foundation-workspace',
+      '',
+    ].join('\n'),
+  );
+  const db = open(root, { cache: false });
+  try {
+    expect(errors(db)).toEqual([]);
+    const child = db.get('workspace-system/definition/workspace/child-workspace');
+    expect(child).toBeDefined();
+    const refs = db.directedView('workspace-system/definition/workspace/child-workspace');
+    expect(refs.filter((r) => r.kind === 'field-ref').map((r) => [r.field, r.counterpart])).toContainEqual([
+      'composition.public-agent',
+      'agent-system/binding/agent/intake-agent',
+    ]);
+    expect(refs.filter((r) => r.kind === 'field-ref').map((r) => [r.field, r.counterpart])).toContainEqual([
+      'composition.private-agent',
+      'agent-system/binding/agent/delivery-agent',
+    ]);
+    const invalidDraft = db.preview([
+      {
+        path: '.ia/src/invalid-parent.ia',
+        text: [
+          '#! ia 1.0',
+          '',
+          '@workspace bad-parent-field',
+          '  meaning',
+          '    says "Tries to use composition.parent."',
+          '    answers "Does composition.parent exist?"',
+          '  composition',
+          '    systems [@system workspace-system]',
+          '    parent @workspace foundation-workspace',
+          '',
+        ].join('\n'),
+      },
+    ]);
+    expect(invalidDraft.report.findings.some((f) => f.code === 'IA-COMP-FIELD-UNKNOWN')).toBe(true);
+  } finally {
+    db.close();
+  }
+});

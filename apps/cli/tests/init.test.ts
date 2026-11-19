@@ -316,7 +316,9 @@ it('creates a target that did not exist yet, and renders what it applied', async
   expect(planned).not.toContain('Local system');
   const other = target('demo', false),
     system = (await run(['init', other, '--system'])).stdout.replace(/\s+/g, ' ');
-  expect(system).toContain('Local system @system demo and its steward; @distribution demo-distribution rooted at it');
+  expect(system).toContain(
+    'Local system @system demo, its steward @agent demo-steward and @mandate demo-stewardship; @distribution demo-distribution rooted at it',
+  );
   expect(system).toContain('@workspace demo composing 11 systems and @system demo; its participant @agent demo');
   expect(system).not.toContain('no distribution');
   expect(system).toContain(`Apply with "ia init ${quote(other)} --system --apply --yes".`);
@@ -362,17 +364,27 @@ it('init --system authors the local system, its steward and a @distribution root
     ],
     descriptor: { distribution: null },
   });
-  // The three records, then the 1.x local system and its steward, then the release root, read from the compiled graph.
+  // The three records, then the local system, its steward and stewardship mandate, then the release root.
   expect(envelope.applied).toMatchObject({
     distribution: 'workspace-system/definition/distribution/demo-distribution',
     authored: [
       ...AUTHORED,
       'floor/definition/system/demo',
       'agent-system/binding/agent/demo-steward',
+      'agent-system/policy/mandate/demo-stewardship',
       'workspace-system/definition/distribution/demo-distribution',
     ],
     effects: { project: 'skipped' },
   });
+  const systemSource = readFileSync(resolve(root, '.ia/src/systems/demo/system.ia'), 'utf8');
+  expect(systemSource).toContain('@mandate demo-stewardship\n');
+  expect(systemSource).toContain('    participant @agent demo-steward\n');
+  expect(systemSource).toContain('    covers [".ia/src/"]\n');
+  const validatedSystem = await run(['validate', '--root', root, '--json']);
+  expect(validatedSystem.exitCode, validatedSystem.stdout).toBe(0);
+  expect(
+    json(validatedSystem).findings.filter((finding: { severity: string }) => finding.severity === 'error'),
+  ).toEqual([]);
   expect(readFileSync(resolve(root, '.ia/src/systems/demo/records/distribution.ia'), 'utf8')).toContain(
     '  distribution\n    records [@system demo]\n',
   );
@@ -691,10 +703,13 @@ it('keeps the verified starter shape and its minimum refusals', async () => {
     // `ia validate` closed at that record; the admission report its refusal names, which runs in that state, lists the
     // findings.
     if (result.ok === false) {
-      expect(result).toMatchObject({ code: 'IA-RUNTIME-REQUEST-INVALID', where: { path: '.ia/src/workspace.ia' } });
-      expect(['agent-system/policy/mandate/demo-mandate', 'agent-system/binding/agent/demo']).toContain(
-        result.where.identity,
-      );
+      expect(result).toMatchObject({ code: 'IA-RUNTIME-REQUEST-INVALID', where: { path } });
+      expect([
+        'agent-system/policy/mandate/demo-mandate',
+        'agent-system/binding/agent/demo',
+        'agent-system/policy/mandate/demo-stewardship',
+        'agent-system/binding/agent/demo-steward',
+      ]).toContain(result.where.identity);
       result = json(await run(nextArgv(result.next))).result;
     }
     return result.findings

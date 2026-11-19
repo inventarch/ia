@@ -4,6 +4,7 @@ export {
   canonicalDistributionJson,
   commonRange,
   decodeDistributionJson,
+  hash,
   metadataDigest,
   packageId,
   range,
@@ -14,6 +15,7 @@ export {
   satisfies,
   supportsDistributionLockEngine,
   ENGINE_RELEASES,
+  HOSTED_ENTRY_ENGINE_VERSION,
   lockEngineMarker,
   PACKAGE_ENTRY_ENGINE_VERSION,
   RELEASE_ENGINE_VERSION,
@@ -32,6 +34,7 @@ export {
   generationSources,
   platformDebris,
   readExpandedBundle,
+  readHostedPins,
   readInstalledGeneration,
 } from './reader.js';
 export type { ExpandedBundle, InstalledGeneration } from './reader.js';
@@ -45,6 +48,8 @@ export {
   decodeActivationPointer,
   generationDigest,
   LOCK_ENTRY_KINDS,
+  lockEntryKey,
+  lockedHostedKits,
   lockedReleases,
 } from './contracts.js';
 export type {
@@ -57,6 +62,7 @@ export type {
   BundleManifest,
   LockedPackage,
   LockEntry,
+  HostedEntry,
   PackageEntry,
   PackageKit,
   DistributionLock,

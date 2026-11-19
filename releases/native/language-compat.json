@@ -20924,8 +20924,8 @@
       }
     },
     {
-      "version": "3.3.1",
-      "archive": "969a1cf9091534f9194c8584c0e45c92449f2e24849db1431841ef73df52b888",
+      "version": "3.4.0",
+      "archive": "4802cb536a19e91abbdf607806189176c92df1b06d4483ba6fd8715e08394f76",
       "engine": "^0.1.1",
       "language": [
         "1.0"
@@ -23926,6 +23926,23 @@
               "type": "ref",
               "required": false,
               "target": "agent"
+            },
+            {
+              "path": "composition.public-agent",
+              "type": "ref",
+              "required": false,
+              "target": "agent"
+            },
+            {
+              "path": "composition.private-agent",
+              "type": "ref",
+              "required": false,
+              "target": "agent"
+            },
+            {
+              "path": "composition.decides",
+              "type": "list of text",
+              "required": false
             }
           ],
           "edges": []

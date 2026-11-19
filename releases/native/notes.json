@@ -1,39 +1,69 @@
 {
   "format": "ia.native-release-notes.v1",
   "baseline": {
-    "tag": "v3.8.0",
-    "commit": "52db8d463f2ad452b0d19632e1b4a965957d7b45"
+    "tag": "v3.8.1",
+    "commit": "d3071c3ecc7c278101231ecc6f2628d28250eeee"
   },
   "changes": [
     {
       "id": "inventarch/agent-composition-system",
       "bump": "patch",
-      "summary": "compileHarness compares the input and output validators an operation descriptor lists, and the mapping an entry contract lists, by installed name, so a catalog whose alias table renames only an operation's validators or only an entry's mapping compiles; the alias such a listed name relies on is recorded in provenance.aliases. installedReadAdapters requires each read validator the harness pins, found through its recorded aliases, to equal the first-party validator the read lists."
+      "summary": "Rebuilt on workspace-system's optional workspace composition fields; no change of its own."
+    },
+    {
+      "id": "inventarch/agent-system",
+      "bump": "patch",
+      "summary": "Rebuilt on workspace-system's optional workspace composition fields; no change of its own."
     },
     {
       "id": "inventarch/authoring-system",
       "bump": "patch",
-      "summary": "Rebuilt on agent-composition-system's alias fix for listed validators and mappings; no change of its own."
+      "summary": "The @workspace authoring reference documents composition.public-agent, composition.private-agent and composition.decides, and is rebuilt on workspace-system."
+    },
+    {
+      "id": "inventarch/compliance-system",
+      "bump": "patch",
+      "summary": "Rebuilt on workspace-system's optional workspace composition fields; no change of its own."
+    },
+    {
+      "id": "inventarch/governance-system",
+      "bump": "patch",
+      "summary": "Rebuilt on workspace-system's optional workspace composition fields; no change of its own."
     },
     {
       "id": "inventarch/hook-authoring-system",
       "bump": "patch",
-      "summary": "Rebuilt on agent-composition-system's alias fix for listed validators and mappings; no change of its own."
+      "summary": "Rebuilt on workspace-system's optional workspace composition fields; no change of its own."
     },
     {
       "id": "inventarch/language",
-      "bump": "patch",
-      "summary": "IA syntax remains 1.0. Rebuilt on agent-composition-system's alias fix for listed validators and mappings; no change of its own."
+      "bump": "minor",
+      "summary": "IA syntax remains 1.0. @schema workspace adds optional composition.public-agent, composition.private-agent and composition.decides fields."
     },
     {
       "id": "inventarch/learning-system",
       "bump": "patch",
-      "summary": "Rebuilt on agent-composition-system's alias fix for listed validators and mappings; no change of its own."
+      "summary": "Rebuilt on workspace-system's optional workspace composition fields; no change of its own."
+    },
+    {
+      "id": "inventarch/session-system",
+      "bump": "patch",
+      "summary": "Rebuilt on workspace-system's optional workspace composition fields; no change of its own."
     },
     {
       "id": "inventarch/template-system",
       "bump": "patch",
-      "summary": "Rebuilt on agent-composition-system's alias fix for listed validators and mappings; no change of its own."
+      "summary": "Rebuilt on workspace-system's optional workspace composition fields; no change of its own."
+    },
+    {
+      "id": "inventarch/work-system",
+      "bump": "patch",
+      "summary": "Rebuilt on workspace-system's optional workspace composition fields; no change of its own."
+    },
+    {
+      "id": "inventarch/workspace-system",
+      "bump": "minor",
+      "summary": "@schema workspace adds optional composition.public-agent, composition.private-agent and composition.decides fields."
     }
   ]
 }

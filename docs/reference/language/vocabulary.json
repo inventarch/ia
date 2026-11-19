@@ -2,7 +2,7 @@
   "version": 1,
   "language": "ia 1.0",
   "status": "public IA 1.0 language contract",
-  "sourceDigest": "59d7d4d46723f7fa290277efcb89eaec2e89635b9502af1d66dd46593f61bcd8",
+  "sourceDigest": "e447c0ea7e10e8a84b98bebafd64b3860422f1e00c33a0cbdb2ea79fa6528e3f",
   "words": [
     {
       "word": "agent",
@@ -3947,6 +3947,26 @@
             "type": "ref",
             "required": false,
             "target": "agent"
+          },
+          {
+            "path": "composition.public-agent",
+            "type": "ref",
+            "required": false,
+            "description": "The intake participant that receives cross-workspace requests for this workspace.",
+            "target": "agent"
+          },
+          {
+            "path": "composition.private-agent",
+            "type": "ref",
+            "required": false,
+            "description": "The internal participant that carries out work inside this workspace.",
+            "target": "agent"
+          },
+          {
+            "path": "composition.decides",
+            "type": "list of text",
+            "required": false,
+            "description": "What this workspace decides, each entry spelled <id>: <one plain sentence>; structural admission does not check this form."
           }
         ],
         "edges": []

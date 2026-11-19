@@ -55,13 +55,16 @@ export {
   INSTALLED_KITS_DIRECTORY,
   RESTORE_NEEDED,
   STORE,
+  hostedKit,
+  hostedRefusal,
   installedPackageKits,
+  lockedHostedKits,
   lockedPackageKits,
   packagedKit,
   restoreRefusal,
   workspaceKits,
 } from './installed-kits.js';
-export type { InstalledKits, LockedKit } from './installed-kits.js';
+export type { HostedKit, InstalledKits, LockedKit } from './installed-kits.js';
 export {
   ENTRIES,
   PHASES,

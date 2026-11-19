@@ -46,6 +46,7 @@ const oneLine = (text: string): string => {
 /** Each `@capability` record's `meaning.says` in a kit's sources, by name, read as text without opening the kit. */
 export function capabilityDescriptions(kitDir: string): ReadonlyMap<string, string> {
   const found = new Map<string, string>();
+  if (!kitDir) return found;
   const systems = join(kitDir, '.ia', 'src', 'systems');
   if (!existsSync(systems)) return found;
   for (const system of readdirSync(systems).sort()) {
