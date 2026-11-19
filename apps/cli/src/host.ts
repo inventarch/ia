@@ -172,6 +172,10 @@ export const MACHINE_LOCAL: Readonly<Record<HostName, string>> = {
     'These files are machine-local: .mcp.json, .claude/settings.local.json, .claude/rules/ia-workspace.md, .claude/skills/ia-authoring/, the agents and skills generated from authored records under .claude/agents/ and .claude/skills/, and .ia/distributions/. Do not commit them; commit the bootstrap "ia host claude --commit" writes instead.',
   codex:
     'These files are machine-local: .codex/config.toml, AGENTS.md, .agents/skills/ia-authoring/, the skills generated from authored records under .agents/skills/, and .ia/distributions/. Do not commit them; commit the bootstrap "ia host codex --commit" writes instead.',
+  gemini:
+    'These files are machine-local: .gemini/settings.json, GEMINI.md, .gemini/skills/ia-authoring/, the agents and skills generated from authored records under .gemini/agents/ and .gemini/skills/, and .ia/distributions/. Do not commit them; commit the bootstrap "ia host gemini --commit" writes instead.',
+  antigravity:
+    'These files are machine-local: .agents/mcp_config.json, AGENTS.md, .agents/skills/ia-authoring/, the agents and skills generated from authored records under .agents/agents/ and .agents/skills/, and .ia/distributions/. Do not commit them; commit the bootstrap "ia host antigravity --commit" writes instead.',
 };
 /** The MCP element's one fixed addition, from the host's facts. */
 export const MCP_APPROVAL = 'Claude Code asks for approval before starting a project MCP server.';
@@ -182,7 +186,12 @@ export const MCP_APPROVAL = 'Claude Code asks for approval before starting a pro
 export const GUARD_SCOPE =
   'ia host registers one guard group per authored @hook, which refuses an edit its paths and tools select unless the acting agent holds a governing @mandate granting Synthesis there; it registers no per-system steward guard, and applying the projection retires one an earlier release registered.';
 /** §4's files, exported once so `ia doctor` names the same ones. */
-export const MCP_PATH: Readonly<Record<HostName, string>> = { claude: '.mcp.json', codex: '.codex/config.toml' };
+export const MCP_PATH: Readonly<Record<HostName, string>> = {
+  claude: '.mcp.json',
+  codex: '.codex/config.toml',
+  gemini: '.gemini/settings.json',
+  antigravity: '.agents/mcp_config.json',
+};
 export const SETTINGS = '.claude/settings.local.json';
 export const HOSTS_AREA = '.ia/distributions/hosts';
 /**
@@ -209,6 +218,8 @@ const OWNED_MCP: Readonly<Record<HostName, string>> = {
   codex:
     `the IA block in .codex/config.toml, from "# BEGIN IA PROJECTION host-${HOST_REGISTRATION}" ` +
     `through "# END IA PROJECTION host-${HOST_REGISTRATION}", markers included`,
+  gemini: 'the ia-workspace entry in .gemini/settings.json',
+  antigravity: 'the ia-workspace entry in .agents/mcp_config.json',
 };
 const OWNED_GUARD = `the IA guard group in ${SETTINGS}`;
 /** The groups registered for authored `@hook` records, each running the guard for its hook. */
@@ -660,8 +671,12 @@ export function collectHost(context: Context): HostView {
   const name: HostName = row.id;
   const remove = args.flag('remove'),
     selected = args.value('context');
-  if (selected !== undefined && name === 'codex')
-    throw new UsageError('--context applies to claude only; Codex hooks are unavailable');
+  if (selected !== undefined && name !== 'claude')
+    throw new UsageError(
+      name === 'codex'
+        ? '--context applies to claude only; Codex hooks are unavailable'
+        : '--context applies to claude only',
+    );
   const supplied = requireRoot(context);
   requireWorkspace(supplied);
   // Host registration spec §4's gate: until the binding's coordinate, bootstrap and policy are derived and one context
@@ -720,7 +735,7 @@ export function collectHost(context: Context): HostView {
     owned,
     rooted: context.args.value('root') !== undefined,
     userPlugin:
-      row.user === 'plugin'
+      row.id === 'claude' && row.user === 'plugin'
         ? {
             installed: readMaterializedPlugin(home) !== null || marketplaceRecorded(home),
             command: USER_PLUGIN_COMMAND,
@@ -1194,14 +1209,15 @@ export async function runHost(context: Context): Promise<Result> {
     // Refusals raised before a view exists — the --context gate, a pending journal — name `ia host` commands too. A
     // root that is not a directory is requireRoot's own refusal, whose next action already spells the whole invocation.
     const supplied = args.value('root'),
-      name = args.positionals[0];
+      name = args.positionals[0],
+      row = name === undefined ? undefined : workspaceRow(name);
     const given = supplied === undefined ? undefined : resolve(host.cwd, supplied);
     if (
       !(error instanceof Refusal) ||
       error.next === null ||
       given === undefined ||
       !statSync(given, { throwIfNoEntry: false })?.isDirectory() ||
-      (name !== 'claude' && name !== 'codex')
+      row === undefined
     )
       throw error;
     // The real path requireRoot resolved, which succeeded before any of these refusals could be raised.
@@ -1210,7 +1226,7 @@ export async function runHost(context: Context): Promise<Result> {
       error.message,
       error.exit,
       error.where,
-      rootedNext(error.next, name, realpathSync(given)),
+      rootedNext(error.next, row.id, realpathSync(given)),
       error.at,
     );
   }

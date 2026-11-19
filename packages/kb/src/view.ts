@@ -2,7 +2,7 @@ import { EditorSnapshot } from '@inventarch/db/editor';
 import { parseLocator, readBody } from '@inventarch/runtime';
 import { nativeInput } from './foundation.js';
 import { closed, data, digest, fail, frozen, LIMITS } from './format.js';
-import { requireSnapshot } from './local.js';
+import { requireSnapshot, sharedNativeReader } from './local.js';
 import type { KnowledgeSnapshot } from './local.js';
 import { isValidated } from './validate.js';
 import type { validateContent } from './validate.js';
@@ -31,8 +31,15 @@ export function openKnowledgeView(snapshot: KnowledgeSnapshot | ReturnType<typeo
   const commit = packaged ? snapshot.portable.provenance.commit : undefined;
   const records = [...snapshot.records].sort((a, b) => (a.identity < b.identity ? -1 : 1));
   const identities = new Set(records.map((r) => r.identity));
-  let reader: EditorSnapshot | undefined = new EditorSnapshot(nativeInput(snapshot.capture));
-  const scope = reader.resolveScope({ identities: [...identities] }).token;
+  let ownedReader: EditorSnapshot | undefined, fragment: { readonly reader: EditorSnapshot; scope: string } | undefined;
+  const fragmentReader = (): { readonly reader: EditorSnapshot; scope: string } => {
+    if (fragment !== undefined) return fragment;
+    const reader = packaged
+      ? (ownedReader = new EditorSnapshot(nativeInput(snapshot.capture)))
+      : sharedNativeReader(snapshot.capture);
+    fragment = { reader, scope: reader.resolveScope({ identities: [...identities] }).token };
+    return fragment;
+  };
   const nativeGraphRevision = snapshot.nativeGraphRevision;
   const admission = {
     ok: snapshot.admission.ok,
@@ -68,10 +75,21 @@ export function openKnowledgeView(snapshot: KnowledgeSnapshot | ReturnType<typeo
     let body = record.body,
       bodyPin = record.bodySha256;
     if ('fragment' in parsed) {
-      const result = readBody(reader!, locator, {
-        within: scope,
-        read: () => fail('Native fragments read no document'),
-      });
+      const held = fragmentReader();
+      let result: ReturnType<typeof readBody>;
+      try {
+        result = readBody(held.reader, locator, {
+          within: held.scope,
+          read: () => fail('Native fragments read no document'),
+        });
+      } catch (error) {
+        if ((error as { code?: unknown }).code !== 'IA-DB-STALE') throw error;
+        held.scope = held.reader.resolveScope({ identities: [...identities] }).token;
+        result = readBody(held.reader, locator, {
+          within: held.scope,
+          read: () => fail('Native fragments read no document'),
+        });
+      }
       if (!result.ok) return fail('Knowledge fragment unavailable', 'IA-KB-UNAVAILABLE');
       body = result.body.body;
       bodyPin = result.body.digest;
@@ -188,8 +206,9 @@ export function openKnowledgeView(snapshot: KnowledgeSnapshot | ReturnType<typeo
     close() {
       if (active) {
         active = false;
-        reader!.close();
-        reader = undefined;
+        ownedReader?.close();
+        ownedReader = undefined;
+        fragment = undefined;
         records.length = 0;
         identities.clear();
         edges = [];

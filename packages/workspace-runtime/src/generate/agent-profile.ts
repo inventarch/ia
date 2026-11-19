@@ -4,7 +4,14 @@ import type { CompiledValue } from '@inventarch/language';
 import { governingMandates, PACKET_MARKER, RuntimeError } from '@inventarch/runtime';
 import type { PacketHost } from '@inventarch/runtime';
 import { inputFailure } from '../projection-format.js';
-import { claudeProseCatalog, nativeValue, PROSE_EFFECT_TOOLS } from '../projection-host.js';
+import {
+  antigravityProseCatalog,
+  claudeProseCatalog,
+  geminiProseCatalog,
+  nativeValue,
+  PROSE_EFFECT_TOOLS,
+  yamlFlowTools,
+} from '../projection-host.js';
 import { frozen } from '../resource-format.js';
 import {
   authoredOf,
@@ -58,16 +65,26 @@ import type { GeneratedSet } from './format.js';
  * The claude host's tool names by tool id, the prose catalog's default selections. The generated files carry no profile
  * pin, so the implementation digest the catalog requires is a placeholder that no file names.
  */
-const CLAUDE_TOOLS: ReadonlyMap<string, string> = new Map(
-  claudeProseCatalog('0'.repeat(64)).tools.map((tool) => [tool.id, tool.name]),
-);
+const CATALOG_TOOLS: Readonly<Record<Exclude<PacketHost, 'codex'>, ReadonlyMap<string, string>>> = {
+  claude: new Map(claudeProseCatalog('0'.repeat(64)).tools.map((tool) => [tool.id, tool.name])),
+  gemini: new Map(geminiProseCatalog('0'.repeat(64)).tools.map((tool) => [tool.id, tool.name])),
+  antigravity: new Map(antigravityProseCatalog('0'.repeat(64)).tools.map((tool) => [tool.id, tool.name])),
+};
+const AGENT_DIRS: Readonly<Record<Exclude<PacketHost, 'codex'>, string>> = {
+  claude: '.claude/agents',
+  gemini: '.gemini/agents',
+  antigravity: '.agents/agents',
+};
 /**
- * The claude names of the host tools `effects` cover through the prose profiles' table, in first-stated order, each
+ * The host names of the tools `effects` cover through the prose profiles' table, in first-stated order, each
  * once. The same table is the ceiling `compileProjection` holds an agent's tools to.
  */
-const hostTools = (effects: readonly string[]): readonly string[] => [
-  ...new Set(effects.flatMap((effect) => PROSE_EFFECT_TOOLS.get(effect) ?? []).map((id) => CLAUDE_TOOLS.get(id) ?? id)),
-];
+const hostTools = (host: Exclude<PacketHost, 'codex'>, effects: readonly string[]): readonly string[] => {
+  const table = CATALOG_TOOLS[host];
+  return [
+    ...new Set(effects.flatMap((effect) => PROSE_EFFECT_TOOLS.get(effect) ?? []).map((id) => table.get(id) ?? id)),
+  ];
+};
 const CODEX =
   'Codex agents are unsupported: a codex agent needs an entry in .codex/config.toml, which holds the owned MCP block';
 
@@ -127,7 +144,7 @@ export function generateAgentProfiles(reader: ReadHandle, within: string, host: 
     }
   };
   return perRecord('agent-profile', profiles, (profile) => {
-    const path = `.claude/agents/${safeName(profile.name)}.md`,
+    const path = `${AGENT_DIRS[host]}/${safeName(profile.name)}.md`,
       roots = valuesAt(profile, 'composition.capabilities'),
       capabilities = capabilityClosure(roots, target),
       refused = closureRefusal(roots, target);
@@ -136,6 +153,7 @@ export function generateAgentProfiles(reader: ReadHandle, within: string, host: 
     if (refused !== undefined)
       inputFailure(`${profile.identity} renders no agent: ${refused}, which the composition compiler refuses`);
     const tools = hostTools(
+      host,
       roots.flatMap((capability) => {
         const node = target(capability);
         return node?.discriminator === 'capability' ? textsAt(node, 'execution.effects') : [];
@@ -147,7 +165,7 @@ export function generateAgentProfiles(reader: ReadHandle, within: string, host: 
       );
     return {
       path,
-      text: agentFile(profile, tools, roots, capabilities, target, named, fallback),
+      text: agentFile(host, profile, tools, roots, capabilities, target, named, fallback),
       identity: profile.identity,
       word: 'agent-profile' as const,
     };
@@ -155,6 +173,7 @@ export function generateAgentProfiles(reader: ReadHandle, within: string, host: 
 }
 
 function agentFile(
+  host: Exclude<PacketHost, 'codex'>,
   profile: Node,
   tools: readonly string[],
   roots: readonly CompiledValue[],
@@ -172,13 +191,31 @@ function agentFile(
     (agentNode !== undefined && agentNode.band === 100 ? textsAt(agentNode, 'meaning.says')[0] : undefined) ??
     says ??
     '';
-  // Every frontmatter value is JSON-quoted, so a name YAML reads as a keyword (`true`, `null`) stays a string; the
-  // tools are one comma-separated string, as `compileProjection` writes an agent's.
+  // Every frontmatter value is JSON-quoted on Claude, so a name YAML reads as a keyword (`true`, `null`) stays a string;
+  // Gemini and Antigravity emit YAML array `tools`, and Antigravity marks subagent frontmatter without model/color.
+  const frontmatterRows =
+    host === 'antigravity'
+      ? [
+          `name: ${JSON.stringify(profile.name)}`,
+          `description: ${JSON.stringify(inline(description))}`,
+          'subagent: true',
+          'mainAgent: false',
+          `tools: ${yamlFlowTools(tools)}`,
+        ]
+      : host === 'gemini'
+        ? [
+            `name: ${JSON.stringify(profile.name)}`,
+            `description: ${JSON.stringify(inline(description))}`,
+            `tools: ${yamlFlowTools(tools)}`,
+          ]
+        : [
+            `name: ${JSON.stringify(profile.name)}`,
+            `description: ${JSON.stringify(inline(description))}`,
+            `tools: ${JSON.stringify(tools.join(', '))}`,
+          ];
   const out = [
     '---',
-    `name: ${JSON.stringify(profile.name)}`,
-    `description: ${JSON.stringify(inline(description))}`,
-    `tools: ${JSON.stringify(tools.join(', '))}`,
+    ...frontmatterRows,
     '---',
     '',
     PACKET_MARKER,
@@ -232,7 +269,7 @@ function agentFile(
       ),
       ...capabilities.map((node) => {
         const effects = textsAt(node, 'execution.effects');
-        return `- ${code(node.identity)}: operations ${list(valuesAt(node, 'composition.operations').map(named))}; effects ${list(effects.map(inline))}; host tools ${list(hostTools(effects))}`;
+        return `- ${code(node.identity)}: operations ${list(valuesAt(node, 'composition.operations').map(named))}; effects ${list(effects.map(inline))}; host tools ${list(hostTools(host, effects))}`;
       }),
     ]),
   );

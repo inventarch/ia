@@ -28,7 +28,12 @@ import type { GeneratedSet } from './format.js';
  * projection writer owns: a playbook of that name would render over it.
  */
 const RESERVED = 'ia-authoring';
-const SKILLS: Readonly<Record<PacketHost, string>> = { claude: '.claude/skills', codex: '.agents/skills' };
+const SKILLS: Readonly<Record<PacketHost, string>> = {
+  claude: '.claude/skills',
+  codex: '.agents/skills',
+  gemini: '.gemini/skills',
+  antigravity: '.agents/skills',
+};
 
 /**
  * The skills of the authored `@playbook` records the scope token `within` admits, by identity, and an unsupported row

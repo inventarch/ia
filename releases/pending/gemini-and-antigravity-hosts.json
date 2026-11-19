@@ -1,0 +1,26 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "Gemini CLI and Google Antigravity hosts and standalone plugin projection",
+  "summary": "Adds `gemini` and `antigravity` as supported workspace and plugin hosts across `@inventarch/cli`, `@inventarch/distribution`, `@inventarch/runtime`, `@inventarch/steward-hook`, and `@inventarch/workspace-runtime`; compiles standalone zero-IA-dependency plugins via `ia project <host> --product plugin` with progressive-disclosure router skills, static OPAL packets, and standalone `@hook` guards; and reuses opened workspace snapshots across `ia_kb_*` queries in `@inventarch/kb` and `@inventarch/mcp-door`.",
+  "packages": [
+    "@inventarch/cli",
+    "@inventarch/distribution",
+    "@inventarch/kb",
+    "@inventarch/mcp-door",
+    "@inventarch/runtime",
+    "@inventarch/steward-hook",
+    "@inventarch/workspace-runtime"
+  ],
+  "paths": [
+    "apps/cli/",
+    "apps/distribution/",
+    "apps/mcp-door/",
+    "apps/steward-hook/",
+    "packages/kb/",
+    "packages/runtime/",
+    "packages/workspace-runtime/",
+    "pnpm-workspace.yaml",
+    "tools/"
+  ]
+}

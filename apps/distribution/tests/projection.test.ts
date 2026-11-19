@@ -117,6 +117,8 @@ it('refuses an unmanaged file, a hand edit and any path outside the allowlist, a
   expect(PROJECTION_PATHS).toEqual({
     claude: ['.claude/rules/ia-workspace.md', '.claude/skills/ia-authoring/SKILL.md'],
     codex: ['AGENTS.md', '.agents/skills/ia-authoring/SKILL.md'],
+    gemini: ['GEMINI.md', '.gemini/skills/ia-authoring/SKILL.md'],
+    antigravity: ['AGENTS.md', '.agents/skills/ia-authoring/SKILL.md'],
   });
   expect(
     GENERATED_PATHS.claude.test(STEWARD) && GENERATED_PATHS.claude.test('.claude/skills/note-review/SKILL.md'),
@@ -369,7 +371,7 @@ it('refuses an artifact whose own text is missing the marker line, a legacy mark
 it('refuses an invalid host with a typed error rather than a TypeError', () => {
   let error: unknown;
   try {
-    planProjection({ root: temp(), host: 'gemini' as unknown as 'claude', artifacts: [], marker: MARK });
+    planProjection({ root: temp(), host: 'cursor' as unknown as 'claude', artifacts: [], marker: MARK });
   } catch (caught) {
     error = caught;
   }
@@ -717,4 +719,34 @@ it("names the folder in one hop when the user's folder holds its own SKILL.md, a
   expect(
     where(() => planProjection({ root: other, host: 'claude', artifacts: artifacts(), marker: MARK })),
   ).toMatchObject({ code: 'IA-DIST-LOCAL-MODIFICATION', path: '.claude/skills/ia-authoring/SKILL.md' });
+});
+
+it('projects and cleanly reverses gemini and antigravity packets, generated skills and agents with their own state files', () => {
+  expect(PROJECTION_PATHS.gemini).toEqual(['GEMINI.md', '.gemini/skills/ia-authoring/SKILL.md']);
+  expect(PROJECTION_PATHS.antigravity).toEqual(['AGENTS.md', '.agents/skills/ia-authoring/SKILL.md']);
+  expect(GENERATED_PATHS.gemini.test('.gemini/skills/review-check/SKILL.md')).toBe(true);
+  expect(GENERATED_PATHS.gemini.test('.gemini/agents/reader.md')).toBe(true);
+  expect(GENERATED_PATHS.antigravity.test('.agents/skills/review-check/SKILL.md')).toBe(true);
+  expect(GENERATED_PATHS.antigravity.test('.agents/agents/reader.md')).toBe(true);
+
+  for (const [host, entry, skillDir, agentDir] of [
+    ['gemini', 'GEMINI.md', '.gemini/skills', '.gemini/agents'],
+    ['antigravity', 'AGENTS.md', '.agents/skills', '.agents/agents'],
+  ] as const) {
+    const root = temp();
+    const files = [
+      { path: entry, text: `${MARK}\n\n# Packet\n` },
+      { path: `${skillDir}/ia-authoring/SKILL.md`, text: `---\nname: ia-authoring\n---\n\n${MARK}\n\nSkill\n` },
+      { path: `${skillDir}/note-review/SKILL.md`, text: `---\nname: note-review\n---\n\n${MARK}\n\nGenerated\n` },
+      { path: `${agentDir}/reader.md`, text: `---\nname: reader\n---\n\n${MARK}\n\nReader\n` },
+    ];
+    applyProjection(planProjection({ root, host, artifacts: files, marker: MARK }));
+    expect(existsSync(resolve(root, `.ia/distributions/hosts/${host}-projection.json`))).toBe(true);
+    expect(observeProjection({ root, host, artifacts: files, marker: MARK })).toEqual([]);
+
+    // Reversal removes every owned file and collapses the projection state file.
+    applyProjection(planProjection({ root, host, artifacts: [], marker: MARK }));
+    for (const file of files) expect(existsSync(resolve(root, file.path)), `${host} ${file.path}`).toBe(false);
+    expect(existsSync(resolve(root, `.ia/distributions/hosts/${host}-projection.json`))).toBe(false);
+  }
 });
