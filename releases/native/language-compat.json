@@ -20924,8 +20924,8 @@
       }
     },
     {
-      "version": "3.3.1",
-      "archive": "cab3269794af4b80c10e72d011240dbc290560459fed7671fd65dfe263b7db6e",
+      "version": "3.3.2",
+      "archive": "dbb595145290a542b4d891efa01696532d06eb0f540403d7525d024aa68ff6a9",
       "engine": "^0.1.1",
       "language": [
         "1.0"

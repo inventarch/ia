@@ -15,7 +15,13 @@ import {
 import { claudeCodeRows, profileFromRows } from '../src/lifecycle-rows.js';
 import { TASK_CAPTURE_POLICY, taskCaptureSelection } from '../src/task-capture-format.js';
 import { verifyProjectionDescriptor } from '../src/projection-format.js';
-import { claudeProseCatalog, codexProseCatalog, verifyCatalog } from '../src/projection-host.js';
+import {
+  antigravityProseCatalog,
+  claudeProseCatalog,
+  codexProseCatalog,
+  geminiProseCatalog,
+  verifyCatalog,
+} from '../src/projection-host.js';
 import { metadataDigest } from '../src/resource-format.js';
 import {
   CANDIDATE_VALIDATE_HANDLER,
@@ -330,6 +336,28 @@ describe('projection descriptors and catalogs', () => {
         { ...old, formatVersion: 1 },
         { ...old, format: 'ia.projection-catalog.v2' },
         { ...catalog, profile: { ...catalog.profile, id: `ia.host.${name}.v2` } },
+      ])
+        expect(() => verifyCatalog(bad as never)).toThrow();
+    }
+    for (const [make, name] of [
+      [geminiProseCatalog, 'gemini-prose'],
+      [antigravityProseCatalog, 'antigravity-prose'],
+    ] as const) {
+      const catalog = make(impl);
+      expect(catalog).toMatchObject({
+        format: 'projection-catalog',
+        formatVersion: 1,
+        profile: { id: name },
+      });
+      expect(verifyCatalog(catalog)).toEqual(catalog);
+      const { formatVersion: _version, ...rest } = catalog,
+        releasedEnvelope = { ...rest, format: 'ia.projection-catalog.v1' as const };
+      expect(verifyCatalog(releasedEnvelope)).toEqual(releasedEnvelope);
+      for (const bad of [
+        { ...catalog, formatVersion: 2 },
+        { ...releasedEnvelope, formatVersion: 1 },
+        { ...catalog, profile: { ...catalog.profile, id: `ia.host.${name}.v1` } },
+        { ...releasedEnvelope, profile: { ...catalog.profile, id: `ia.host.${name}.v1` } },
       ])
         expect(() => verifyCatalog(bad as never)).toThrow();
     }

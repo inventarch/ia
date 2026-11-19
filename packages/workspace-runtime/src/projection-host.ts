@@ -177,8 +177,7 @@ export function antigravityProseCatalog(
 export const isCodex = (catalog: ProjectionCatalog): boolean =>
   catalog.profile.id === CODEX_PROSE_PROFILE || catalog.profile.id === LEGACY_CODEX_PROSE_PROFILE;
 export const isGemini = (catalog: ProjectionCatalog): boolean => catalog.profile.id === GEMINI_PROSE_PROFILE;
-export const isAntigravity = (catalog: ProjectionCatalog): boolean =>
-  catalog.profile.id === ANTIGRAVITY_PROSE_PROFILE;
+export const isAntigravity = (catalog: ProjectionCatalog): boolean => catalog.profile.id === ANTIGRAVITY_PROSE_PROFILE;
 export function outputPath(
   product: 'workspace' | 'plugin',
   entry: ProjectionExport,
