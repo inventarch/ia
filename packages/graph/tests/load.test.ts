@@ -335,10 +335,11 @@ describe('typed field references (G06a)', () => {
 /**
  * Index postings are built in time linear in the records they hold. Each posting list used to scan itself before every
  * insert, so a bucket of n identities (every record of one discriminator, kind, system, category or lane) took n²/2
- * comparisons: 9 s for 20,000 records of one word, against 0.2 s for 2,000. The test compares the load of 4,000 records
- * with the load of 1,000 by how much array scanning each does, not by time, so runner speed and garbage collection
- * cannot move it: four times the records cost about four times the scanning when the build is linear, and about sixteen
- * times when it is quadratic.
+ * comparisons: 9 s for 20,000 records of one word, against 0.2 s for 2,000. The test bounds the array scanning that
+ * each load does through the instrumented methods and the array iterator, comparing 4,000 records with 1,000, not their
+ * time, so runner speed and garbage collection cannot move it: four times the records cost about four times the
+ * scanning when posting is linear, and about sixteen times when a posting list scans itself. It bounds those scans
+ * only; work outside them, such as an index loop, is not counted, so it does not prove the whole load is linear.
  */
 describe('index postings are built in linear time', () => {
   const many = (n: number) => {
@@ -395,6 +396,9 @@ describe('index postings are built in linear time', () => {
     expect(identities).toHaveLength(4_000);
     expect(large.graph.byDiscriminator.get('playbook')).toEqual(identities);
     expect(new Set(large.graph.byKind.get(large.graph.nodes.get(identities[0]!)!.kind)).size).toBe(4_000);
-    expect(large.elements).toBeLessThan(8 * Math.max(small.elements, 1));
+    // Zero counts would mean the instrumentation saw nothing, not that the load is linear.
+    expect(small.elements).toBeGreaterThan(0);
+    expect(large.elements).toBeGreaterThan(0);
+    expect(large.elements / small.elements).toBeLessThan(8);
   });
 });
