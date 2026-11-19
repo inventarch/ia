@@ -431,8 +431,7 @@ describe('Claude Code 2.1.285 events through the context executable (HOST-02)', 
       expect(output.hookEventName).toBe(fields['hook_event_name']);
       expect(output.additionalContext.length).toBeLessThanOrEqual(10_000);
       expect(JSON.parse(output.additionalContext)).toMatchObject({
-        format: 'lifecycle-context-segment',
-        formatVersion: 1,
+        format: 'ia.lifecycle-context-segment.v1',
         slot: 0,
         totalSlots: 12,
         delivery: 'unconfirmed',

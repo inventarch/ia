@@ -120,8 +120,7 @@ it('applies the packet and its receipt, which doctor reads with no drift until a
   const receipt = JSON.parse(read(root, RECEIPT));
   expect(envelope.applied).toEqual(receipt);
   expect(receipt).toMatchObject({
-    format: 'packet-receipt',
-    formatVersion: 1,
+    format: 'ia.packet-receipt.v1',
     host: 'claude',
     entries: 47,
     packetDigest: envelope.plan.packetDigest,
@@ -129,6 +128,7 @@ it('applies the packet and its receipt, which doctor reads with no drift until a
     foreign: [],
     guard: 'none',
   });
+  expect(Object.hasOwn(receipt, 'formatVersion')).toBe(false);
   expect(receipt.files).toEqual(
     [RULES, SKILL].map((path) => ({ path, sha256: sha(readFileSync(resolve(root, path))) })),
   );
@@ -528,4 +528,25 @@ it('names ia project for a hand edit to a projection without a registration, and
   );
   expect(envelope.session.context.join(' ')).toContain('Host Claude: not registered.');
   expect(envelope.session.context.join(' ')).not.toContain('stale');
+});
+
+it('reads a packet receipt written under either ia.packet-receipt.v1 or packet-receipt formatVersion 1, and refuses malformed stamps', async () => {
+  const { root, env } = await initialized();
+  expect((await project(root, env, 'claude', '--apply', '--yes')).exitCode).toBe(0);
+  const original = JSON.parse(read(root, RECEIPT));
+  expect(original.format).toBe('ia.packet-receipt.v1');
+  expect(Object.hasOwn(original, 'formatVersion')).toBe(false);
+  put(root, RECEIPT, JSON.stringify({ ...original, format: 'packet-receipt', formatVersion: 1 }, null, 2) + '\n');
+  const plainCheck = await doctor(root, env);
+  expect(plainCheck.exitCode).toBe(0);
+  expect(row(plainCheck.checks, 'projection-claude')).toMatchObject({ status: 'ok' });
+  for (const bad of [
+    { ...original, format: 'packet-receipt' },
+    { ...original, format: 'packet-receipt', formatVersion: 2 },
+    { ...original, formatVersion: 1 },
+  ]) {
+    put(root, RECEIPT, JSON.stringify(bad, null, 2) + '\n');
+    const failed = await doctor(root, env);
+    expect(failed.exitCode).toBe(1);
+  }
 });

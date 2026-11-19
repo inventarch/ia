@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { digest } from '@inventarch/session-system';
@@ -9,6 +9,21 @@ import type { Capture } from '@inventarch/workspace-runtime';
 import { admitSourceCapture } from '@inventarch/workspace-runtime/sources';
 
 import { compilerCapture, compilerCatalog as catalogWithDigest } from './compiler-fixture.js';
+
+const flip = vi.hoisted(() => ({ plain: false }));
+vi.mock('../src/written-names.js', () => ({
+  get WRITE_PLAIN_NAMES() {
+    return flip.plain;
+  },
+}));
+function flipped<T>(body: () => T): T {
+  flip.plain = true;
+  try {
+    return body();
+  } finally {
+    flip.plain = false;
+  }
+}
 
 const root = fileURLToPath(new URL('../../../../..', import.meta.url));
 const captured = compilerCapture(root);
@@ -56,7 +71,8 @@ it('compiles the admitted native author/architect without execution and retains 
     'utf8',
   );
   const m = good();
-  expect(m).toMatchObject({ format: 'compiled-harness', formatVersion: 1 });
+  expect(m.format).toBe('ia.compiled-harness.v1');
+  expect(Object.hasOwn(m, 'formatVersion')).toBe(false);
   expect(m.profiles[name('author')]).toMatchObject({
     role: 'author',
     delegates: [name('architect')],
@@ -498,21 +514,26 @@ it('writes the plain completion evaluator and accepts the original independent r
 
 import './sdk-runtime/onboarding-case.js';
 
-it('stamps a compiled harness plainly, and reproduces and executes one compiled under the original literal', () => {
-  const current = good(),
+it('stamps a compiled harness with the released literal by default, plainly when flipped, and executes both', () => {
+  const original = good(),
+    current = flipped(() => good()),
     catalog = sampleCatalog('ide'),
-    result = compileHarness(captured, { ...options(), stamp: { format: 'ia.compiled-harness.v1' } });
-  if (!result.ok) throw new Error(JSON.stringify(result));
-  const original = result.manifest;
+    rebuiltPlain = compileHarness(captured, {
+      ...options(),
+      stamp: { format: 'compiled-harness', formatVersion: 1 },
+    });
+  if (!rebuiltPlain.ok) throw new Error(JSON.stringify(rebuiltPlain));
+  expect(rebuiltPlain.manifest).toEqual(current);
   expect(current).toMatchObject({ format: 'compiled-harness', formatVersion: 1 });
   expect(original.format).toBe('ia.compiled-harness.v1');
   expect(Object.hasOwn(original, 'formatVersion')).toBe(false);
   expect(original.digest).not.toBe(current.digest);
   expect(compiledStamp(current)).toEqual({ format: 'compiled-harness', formatVersion: 1 });
   expect(compiledStamp(original)).toEqual({ format: 'ia.compiled-harness.v1' });
-  // Either harness bridges to an executable manifest, the original one digested as it was written.
+  // Either harness bridges to an executable manifest, each digested as it was written.
   expect(() => executionManifest(current, catalog)).not.toThrow();
   expect(() => executionManifest(original, catalog)).not.toThrow();
+  expect(executionManifest(current, catalog).provenance).toMatchObject({ compiled: { digest: current.digest } });
   expect(executionManifest(original, catalog).provenance).toMatchObject({ compiled: { digest: original.digest } });
   const { digest: _digest, ...body } = original;
   expect(original.digest).toBe(digest(body));

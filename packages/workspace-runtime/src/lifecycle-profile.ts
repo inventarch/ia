@@ -1,7 +1,7 @@
 import { stableSerialize } from '@inventarch/graph';
 import { decodeJson, frozen, metadataDigest } from './resource-format.js';
 import { claudeCodeRows, profileFromRows } from './lifecycle-rows.js';
-import { currentStamp, peekStamp } from './plain-format.js';
+import { currentStamp, peekStamp, writeStamp } from './plain-format.js';
 
 export class LifecycleError extends Error {
   constructor(
@@ -109,9 +109,9 @@ export interface SegmentedLifecycleRow {
 const segmentedRows: ReadonlyMap<string, SegmentedLifecycleRow> = new Map(
   [...claudeCodeRows.keys()].flatMap((version) => {
     const row = frozen({ host: 'claude-code', version });
-    // A row's digest under the literal it shipped with still names it, for bindings written before the plain format.
+    // Both stamps name the same row: the plain format and the literal it shipped with before plain formats.
     return [
-      [lifecycleProfile('claude-code', version).digest, row] as const,
+      [profileFromRows(claudeCodeRows, 'claude-code', version, currentStamp('lifecycle-profile')).digest, row] as const,
       [
         profileFromRows(claudeCodeRows, 'claude-code', version, { format: 'ia.lifecycle-profile.v1' }).digest,
         row,
@@ -216,10 +216,13 @@ export function decodeLifecycleEvent(inputProfile: LifecycleProfile, input: stri
   if (source !== null && !['startup', 'resume', 'clear', 'compact', 'fork'].includes(source))
     fail('Unsupported SessionStart source');
   const prompt = start ? null : string(row['prompt'], profile.maxPromptBytes, true);
+  const eventStamp = writeStamp('lifecycle-event', 'ia.lifecycle-event.v1');
   const key =
     !start && promptId !== null
       ? metadataDigest({
-          ...currentStamp('lifecycle-input-key'),
+          ...(eventStamp.formatVersion === undefined
+            ? { format: 'ia.lifecycle-input-key.v1' as const }
+            : currentStamp('lifecycle-input-key')),
           profile: profile.digest,
           session,
           agent,
@@ -228,7 +231,7 @@ export function decodeLifecycleEvent(inputProfile: LifecycleProfile, input: stri
         })
       : null;
   return frozen({
-    ...currentStamp('lifecycle-event'),
+    ...eventStamp,
     profile: profile.digest,
     host: profile.host,
     kind: start ? 'start' : 'prompt',
@@ -257,11 +260,14 @@ export function createNativeLifecycleEvent(input: {
     agent = string(row['profile'], 256),
     prompt = string(row['text'], profile.maxPromptBytes, true);
   const promptId = row['invocation'] === null ? null : string(row['invocation'], 256);
+  const eventStamp = writeStamp('lifecycle-event', 'ia.lifecycle-event.v1');
   const key =
     promptId === null
       ? null
       : metadataDigest({
-          ...currentStamp('lifecycle-input-key'),
+          ...(eventStamp.formatVersion === undefined
+            ? { format: 'ia.lifecycle-input-key.v1' as const }
+            : currentStamp('lifecycle-input-key')),
           profile: profile.digest,
           session,
           agent,
@@ -269,7 +275,7 @@ export function createNativeLifecycleEvent(input: {
           event: 'NativeContext',
         });
   return frozen({
-    ...currentStamp('lifecycle-event'),
+    ...eventStamp,
     profile: profile.digest,
     host: profile.host,
     kind: 'native',
