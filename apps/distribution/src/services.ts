@@ -163,9 +163,17 @@ export function readInstalledState(options: {
     installed = readInstalledGeneration(root);
   const hosts =
     options.hosts === true ? { hosts: observeHosts(root, options.hostRelease ?? null, options.verify) } : {};
-  return installed
-    ? { status: 'installed', pointer: installed.pointer, lock: installed.lock, inputs: installed.inputs, ...hosts }
-    : { status: 'uninstalled', ...hosts };
+  if (installed)
+    return {
+      status: 'installed',
+      pointer: installed.pointer,
+      lock: installed.lock,
+      inputs: installed.inputs,
+      ...hosts,
+    };
+  const hostedLock =
+    bytes(root, INSTALL_PATHS.lock, DISTRIBUTION_LIMITS.metadata) !== null ? readWorkspaceLock({ root }) : undefined;
+  return { status: 'uninstalled', ...(hostedLock === undefined ? {} : { lock: hostedLock }), ...hosts };
 }
 
 export interface CatalogRequest {

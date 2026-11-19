@@ -1,9 +1,11 @@
 import { existsSync, lstatSync, readdirSync, realpathSync } from 'node:fs';
 import { join, parse, resolve } from 'node:path';
+import semver from 'semver';
 import type { RevisionSource } from '@inventarch/graph';
 import { lstatNamed, readOpened } from '../named.js';
 import {
   canonicalDistributionJson,
+  decodeDistributionJson,
   DISTRIBUTION_ENGINE_VERSION,
   DISTRIBUTION_LIMITS,
   InstallationError,
@@ -20,9 +22,10 @@ import {
   decodeDistributionLock,
   decodeGenerationInputs,
   generationDigest,
+  lockedHostedKits,
   lockedReleases,
 } from './contracts.js';
-import type { ActivationPointer, DistributionLock, GenerationInputs, LockedPackage } from './contracts.js';
+import type { ActivationPointer, DistributionLock, GenerationInputs, HostedEntry, LockedPackage } from './contracts.js';
 import { deriveGenerationInputs, installationWorkspace } from './membership.js';
 import type { BundleMetadata } from './membership.js';
 import { verifyReleaseControl } from './release-control.js';
@@ -42,14 +45,17 @@ const needs = (declared: string): string => {
   const release = requiredRelease(declared);
   return release === null ? '' : `It needs ${release}. `;
 };
-function requireEngine(declared: string, subject: string, lock = false): void {
-  const compatible = lock
-    ? supportsDistributionLockEngine(DISTRIBUTION_ENGINE_VERSION, declared)
-    : satisfies(DISTRIBUTION_ENGINE_VERSION, declared);
+function requireEngine(
+  declared: string,
+  subject: string,
+  lock = false,
+  reader: string = DISTRIBUTION_ENGINE_VERSION,
+): void {
+  const compatible = lock ? supportsDistributionLockEngine(reader, declared) : satisfies(reader, declared);
   if (!compatible)
     throw new InstallationError(
       'engine-incompatible',
-      `${subject} requires distribution engine ${declared}; this reader is ${DISTRIBUTION_ENGINE_VERSION}. ${needs(declared)}Use a compatible IA installation; preserve the lock and archive engine ranges.`,
+      `${subject} requires distribution engine ${declared}; this reader is ${reader}. ${needs(declared)}Use a compatible IA installation; preserve the lock and archive engine ranges.`,
     );
 }
 /** The root as `open` takes it: a link above the workspace is not a link inside the installation. */
@@ -270,6 +276,28 @@ export interface InstalledGeneration {
   readonly sources: readonly RevisionSource[];
   readonly fingerprint: string;
 }
+function hostedOnlyLock(
+  portableBytes: Buffer,
+  reader: string = DISTRIBUTION_ENGINE_VERSION,
+): DistributionLock | undefined {
+  let parsed: unknown;
+  try {
+    parsed = decodeDistributionJson(utf8(portableBytes));
+  } catch {
+    return undefined;
+  }
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return undefined;
+  const row = parsed as Record<string, unknown>;
+  const declared = row['engine'];
+  const unsupportedEngine =
+    typeof declared === 'string' &&
+    semver.validRange(declared) !== null &&
+    !supportsDistributionLockEngine(reader, declared);
+  if (!Object.hasOwn(row, 'entries') && !unsupportedEngine) return undefined;
+  const lock = decode(portableBytes, (value) => decodeDistributionLock(value, reader));
+  requireEngine(lock.engine, 'Installation lock', true, reader);
+  return lockedReleases(lock).length === 0 && lockedHostedKits(lock).length > 0 ? lock : undefined;
+}
 export function readInstalledGeneration(
   workspace: string,
   candidate?: ActivationPointer,
@@ -280,8 +308,10 @@ export function readInstalledGeneration(
   const activeBytes = read(root, INSTALL_PATHS.active),
     portableBytes = read(root, INSTALL_PATHS.lock);
   if (!candidate && !activeBytes && !portableBytes) return undefined;
-  if (!candidate && !activeBytes)
+  if (!candidate && !activeBytes) {
+    if (hostedOnlyLock(portableBytes!) !== undefined) return undefined;
     throw new InstallationError('restore-required', 'Portable lock has no active installation');
+  }
   const pointer = candidate ? decodeActivationPointer(candidate) : decode(activeBytes!, decodeActivationPointer),
     directory = `${INSTALL_PATHS.generations}/${pointer.generation}`;
   const lockBytes = required(root, `${directory}/lock.json`),
@@ -335,6 +365,32 @@ export function readInstalledGeneration(
     sources: Object.freeze(sources),
     fingerprint: metadataDigest({ pointer, lock, inputs }),
   });
+}
+/**
+ * Resolves the workspace's verified hosted kit pins (`HostedEntry` rows sorted by id), whether alongside an active
+ * generation or from a hosted-only portable lock with no installed generation. Preserves `recovery-required`,
+ * `restore-required`, `lock-drift`, `contract-invalid` and `engine-incompatible` checks for all non-hosted locks.
+ */
+export function readHostedPins(
+  workspace: string,
+  reader: string = DISTRIBUTION_ENGINE_VERSION,
+): readonly HostedEntry[] {
+  const root = canonical(workspace);
+  if (read(root, INSTALL_PATHS.pending))
+    throw new InstallationError('recovery-required', 'Run explicit distribution recovery before reading');
+  const activeBytes = read(root, INSTALL_PATHS.active),
+    portableBytes = read(root, INSTALL_PATHS.lock);
+  if (!activeBytes && !portableBytes) return Object.freeze([]);
+  if (!activeBytes) {
+    const lock = hostedOnlyLock(portableBytes!, reader);
+    if (lock === undefined) throw new InstallationError('restore-required', 'Portable lock has no active installation');
+    return lockedHostedKits(lock);
+  }
+  const installed = readInstalledGeneration(workspace);
+  if (!installed) return Object.freeze([]);
+  const checked = decodeDistributionLock(installed.lock, reader);
+  requireEngine(checked.engine, 'Installation lock', true, reader);
+  return lockedHostedKits(checked);
 }
 /**
  * Files a platform writes into any directory it opens, which never belong to a payload: Finder's `.DS_Store`, and the

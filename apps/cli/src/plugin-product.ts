@@ -2,7 +2,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { PluginFile } from '@inventarch/workspace-runtime/internal/generate';
+import type { PluginFile, StandalonePluginHost } from '@inventarch/workspace-runtime/internal/generate';
 import {
   comparePlugin,
   HostPluginError,
@@ -14,7 +14,7 @@ import {
 } from '@inventarch/workspace-runtime/internal/host-plugin';
 import type { Context, Result } from './consumer.js';
 import { confirm, Refusal, requireRoot } from './consumer.js';
-import { renderPluginFor } from './host-projection.js';
+import { renderPluginFor, renderPluginProductFor } from './host-projection.js';
 import { checkPluginOut, writeFreshPlugin } from './plugin-sources.js';
 import { quote } from './render.js';
 
@@ -138,20 +138,29 @@ const renderCheck = (report: {
     '',
   ].join('\n');
 
+const PLUGIN_HOSTS: ReadonlySet<string> = new Set<StandalonePluginHost>(['claude', 'codex', 'gemini', 'antigravity']);
+
 /** The plugin form's usage, judged before the workspace is read: its host, and `--compare` only with `--check`. */
-function pluginUsage(context: Context): void {
+function pluginUsage(context: Context): StandalonePluginHost {
   const { args } = context;
   const given = args.value('root'),
     option = given === undefined ? '' : ` --root ${quote(given)}`;
   const host = args.positionals[0] ?? '';
-  // One plugin carries every host its product lists; the positional names the host the command runs for.
-  if (host !== 'claude' && host !== 'codex')
+  if (!PLUGIN_HOSTS.has(host))
     throw new Refusal(
       'IA-CLI-USAGE',
-      `ia project --product plugin takes claude or codex; got ${host}. One plugin carries every host its product lists`,
+      `ia project --product plugin takes claude, codex, gemini or antigravity; got ${host}`,
       2,
       null,
-      `Run "ia project claude --product plugin --check${option}" to check the plugin, whose manifests cover every listed host.`,
+      `Run "ia project claude --product plugin --check${option}" to check a lowered plugin.`,
+    );
+  if (args.flag('check') && host !== 'claude' && host !== 'codex')
+    throw new Refusal(
+      'IA-CLI-USAGE',
+      `ia project --product plugin --check takes claude or codex; got ${host}`,
+      2,
+      null,
+      `Run "ia project claude --product plugin --check${option}" to check a lowered plugin.`,
     );
   const compare = args.value('compare');
   if (compare !== undefined && !args.flag('check'))
@@ -162,20 +171,24 @@ function pluginUsage(context: Context): void {
       null,
       `Run "ia project ${host} --product plugin --check --compare ${quote(compare)}${option}" to compare without writing.`,
     );
+  return host as StandalonePluginHost;
 }
 
 export async function runPluginProduct(context: Context): Promise<Result> {
   const { args, json } = context;
-  pluginUsage(context);
+  const host = pluginUsage(context);
   const root = requireRoot(context);
-  const next = `Run "ia project ${args.positionals[0] ?? 'claude'} --product plugin --check --root ${quote(root)}" to compare without writing.`;
+  const next =
+    host === 'claude' || host === 'codex'
+      ? `Run "ia project ${host} --product plugin --check --root ${quote(root)}" to compare without writing.`
+      : 'Run "ia project --help" for the options, and choose an absent or empty output directory outside the workspace.';
   try {
     if (args.flag('check')) return checkPluginProduct(context, root);
     const given = args.value('out');
     if (given === undefined)
       throw new Refusal('IA-CLI-USAGE', '--product plugin needs --out <directory> or --check', 2, null, next);
     const out = checkPluginOut(root, resolve(context.host.cwd, given));
-    const files: readonly PluginFile[] = renderPluginFor(root);
+    const files: readonly PluginFile[] = renderPluginProductFor(root, host);
     const view: PluginView = {
       out,
       files: files.map((file) => ({

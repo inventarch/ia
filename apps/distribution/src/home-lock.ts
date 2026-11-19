@@ -14,7 +14,7 @@
  */
 import { hostname } from 'node:os';
 import { randomUUID } from 'node:crypto';
-import { linkSync, mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
+import { constants, copyFileSync, linkSync, mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -279,7 +279,13 @@ async function acquire(
   for (let lastLook = false; ; ) {
     signal?.throwIfAborted();
     try {
-      linkSync(stage, lock);
+      try {
+        linkSync(stage, lock);
+      } catch (error) {
+        if (process.platform === 'win32' && codeOf(error) === 'EPERM')
+          copyFileSync(stage, lock, constants.COPYFILE_EXCL);
+        else throw error;
+      }
     } catch (error) {
       if (codeOf(error) !== 'EEXIST') throw error;
       onBlocked();

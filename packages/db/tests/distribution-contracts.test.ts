@@ -467,8 +467,10 @@ const hostedStudio = {
   id: 'inventarch/ia-studio-kit',
   version: '0.5.1',
   hosted: true as const,
+  archive: 'c'.repeat(64),
+  manifest: 'd'.repeat(64),
 };
-it('decodes hosted kit entries under engine ^0.1.3 without adding release archive requirements, and refuses invalid or older-engine forms', () => {
+it('decodes hosted kit entries with archive and manifest digests under engine ^0.1.3 without location or store requirements, and refuses invalid or older-engine forms', () => {
   const withHosted = {
     ...lock,
     engine: `^${HOSTED_ENTRY_ENGINE_VERSION}`,
@@ -476,10 +478,18 @@ it('decodes hosted kit entries under engine ^0.1.3 without adding release archiv
   };
   const decoded = decodeDistributionLock(withHosted);
   expect(decoded).toEqual(withHosted);
+  expect('location' in decoded.entries![0]!).toBe(false);
   expect(canonicalDistributionJson(decodeDistributionLock(canonicalDistributionJson(withHosted)))).toBe(
     canonicalDistributionJson(withHosted),
   );
   expect(lockedHostedKits(decoded)).toEqual([hostedStudio]);
+  // Canonical SemVer with build metadata is accepted on hosted entries just as on releases.
+  expect(
+    decodeDistributionLock({
+      ...withHosted,
+      entries: [{ ...hostedStudio, version: '1.2.3+build.1' }, kitsPackage],
+    }).entries?.[0],
+  ).toMatchObject({ version: '1.2.3+build.1' });
   // Hosted pins require zero archive bytes: lockedReleases includes only release rows and packaged kits.
   expect(lockedReleases(decoded)).toEqual(lockedReleases(decodeDistributionLock(packaged)));
   expect(lockEngineMarker(DISTRIBUTION_ENGINE_VERSION, [])).toBe('0.1.1');
@@ -526,6 +536,21 @@ it('decodes hosted kit entries under engine ^0.1.3 without adding release archiv
   expect(() => decodeDistributionLock({ ...onlyHosted, entries: [{ ...hostedStudio, hosted: false }] })).toThrow(
     /sets hosted to true/,
   );
+  // Missing, empty or corrupt archive/manifest digests, and any location or extra field, refuse as contract-invalid.
+  const { archive: _archive, ...noArchive } = hostedStudio;
+  const { manifest: _manifest, ...noManifest } = hostedStudio;
+  for (const bad of [
+    noArchive,
+    noManifest,
+    { ...hostedStudio, archive: '' },
+    { ...hostedStudio, manifest: '' },
+    { ...hostedStudio, archive: 'C'.repeat(64) },
+    { ...hostedStudio, manifest: 'z'.repeat(64) },
+    { ...hostedStudio, archive: 'c'.repeat(63) },
+    { ...hostedStudio, location: `sha256:${hostedStudio.archive}` },
+    { ...hostedStudio, version: '1.0.0-01' },
+  ])
+    expect(() => decodeDistributionLock({ ...onlyHosted, entries: [bad] })).toThrow(/contract-invalid/);
   expect(() => decodeDistributionLock({ ...onlyHosted, entries: [{ ...hostedStudio, id: common.id }] })).toThrow(
     /named twice/,
   );

@@ -105,7 +105,8 @@ export function authoringResources(root, pending = new Map()) {
   const output =
     JSON.stringify(
       {
-        format: 'ia.authoring-resources.v1',
+        format: 'authoring-resources',
+        formatVersion: 1,
         files,
         associations: selection['associations'],
         index: selection['index'],

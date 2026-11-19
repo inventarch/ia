@@ -2,8 +2,9 @@
   "format": "ia.npm-change-note.v1",
   "bump": "minor",
   "title": "Add optional `@workspace` agent and decision fields, hosted kit lock pins, and uniform `ia init --system` stewardship mandates",
-  "summary": "Extend `@schema workspace` with optional `composition.public-agent`, `composition.private-agent` and `composition.decides` fields; advance distribution lock engine to `0.1.3` for offline-safe `hosted` kit pins (`ia install --hosted`, `source: hosted` in `ia_session` and `IA-CORE-KIT-HOSTED` in `ia_method`); and pair `@agent <id>-steward` uniformly with `@mandate <id>-stewardship` in `ia init --system`.",
+  "summary": "Extend `@schema workspace` with optional `composition.public-agent`, `composition.private-agent` and `composition.decides` fields; advance distribution lock engine to `0.1.3` for offline-safe `hosted` kit pins with `archive` and `manifest` SHA-256 digests (`ia install --hosted`, `readHostedPins`, `source: hosted` in `ia_session` and `IA-CORE-KIT-HOSTED` in `ia_method`); and pair `@agent <id>-steward` uniformly with `@mandate <id>-stewardship` in `ia init --system`. Exported `LockEntry`, `KitOrigin`, `KitInstallation['via']` and `KitSource` unions widen to include `'hosted'`.",
   "packages": [
+    "@inventarch/agent-composition-system",
     "@inventarch/agent-system",
     "@inventarch/authoring-system",
     "@inventarch/cli",
@@ -11,19 +12,26 @@
     "@inventarch/db",
     "@inventarch/distribution",
     "@inventarch/governance-system",
+    "@inventarch/hook-authoring-system",
+    "@inventarch/learning-system",
     "@inventarch/mcp-door",
     "@inventarch/runtime",
     "@inventarch/session-system",
+    "@inventarch/template-system",
     "@inventarch/work-system",
     "@inventarch/workspace-system"
   ],
   "paths": [
     ".ia/authoring.resources.json",
+    ".ia/src/systems/agent-composition-system/",
     ".ia/src/systems/agent-system/",
     ".ia/src/systems/authoring-system/",
     ".ia/src/systems/compliance-system/",
     ".ia/src/systems/governance-system/",
+    ".ia/src/systems/hook-authoring-system/",
+    ".ia/src/systems/learning-system/",
     ".ia/src/systems/session-system/",
+    ".ia/src/systems/template-system/",
     ".ia/src/systems/work-system/",
     ".ia/src/systems/workspace-system/",
     "CLAUDE.md",
@@ -34,7 +42,6 @@
     "examples/",
     "packages/db/",
     "packages/runtime/",
-    "pnpm-workspace.yaml",
     "tools/"
   ]
 }

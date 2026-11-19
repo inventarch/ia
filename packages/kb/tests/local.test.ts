@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Foundation } from '../src/foundation.js';
 import { digest } from '../src/format.js';
-import { captureKnowledge } from '../src/local.js';
+import { captureKnowledge, sharedNativeReader } from '../src/local.js';
 import { openKnowledgeView } from '../src/view.js';
 vi.mock('@inventarch/db', { spy: true });
 const base = JSON.parse(
@@ -180,6 +180,87 @@ it('reports unsupported external body locators unavailable without fetching them
   try {
     expect(view.check()).toMatchObject({ ok: false, records: 0, unavailable: [{ identity: ID }] });
     expect(view.search('example')).toMatchObject({ results: [], incomplete: true });
+  } finally {
+    view.close();
+  }
+});
+it('keeps an open knowledge view able to read record fragments after a changed workspace snapshot is captured', () => {
+  const root = local(),
+    pbPath = join(root, '.ia/src/playbook.ia'),
+    pbId = 'governance-system/definition/procedure/demo-pb';
+  writeFileSync(
+    pbPath,
+    [
+      '#! ia 1.0',
+      '@playbook demo-pb',
+      '  meaning',
+      '    says "Demo playbook v1."',
+      '    answers "How does demo run?"',
+      '  cognition',
+      '    orient',
+      '      primary Memory',
+      '      Memory means "First orient cell v1."',
+      '    plan',
+      '      primary Inference',
+      '      Inference means "First plan cell v1."',
+      '',
+    ].join('\n'),
+  );
+  const first = openKnowledgeView(captureKnowledge(root, { input }));
+  writeFileSync(
+    pbPath,
+    readFileSync(pbPath, 'utf8')
+      .replace('First orient cell v1.', 'Updated orient cell v2.')
+      .replace('First plan cell v1.', 'Updated plan cell v2.'),
+  );
+  let second: ReturnType<typeof openKnowledgeView> | undefined;
+  try {
+    expect(first.read(`${pbId}#orient/Memory`).body).toContain('First orient cell v1.');
+    second = openKnowledgeView(captureKnowledge(root, { input }));
+    expect(second.read(`${pbId}#orient/Memory`).body).toContain('Updated orient cell v2.');
+    // Subsequent fragment read on the earlier view still succeeds on its pinned snapshot without IA-DB-SCOPE-UNAVAILABLE.
+    expect(first.read(`${pbId}#plan/Inference`).body).toContain('First plan cell v1.');
+  } finally {
+    first.close();
+    second?.close();
+  }
+});
+
+it('retries a fragment read with a fresh scope when the shared native reader evicts the cached scope token (IA-DB-STALE)', () => {
+  const root = local(),
+    pbPath = join(root, '.ia/src/playbook.ia'),
+    pbId = 'governance-system/definition/procedure/demo-pb';
+  writeFileSync(
+    pbPath,
+    [
+      '#! ia 1.0',
+      '@playbook demo-pb',
+      '  meaning',
+      '    says "Demo playbook."',
+      '    answers "How does demo run?"',
+      '  cognition',
+      '    orient',
+      '      primary Memory',
+      '      Memory means "Orient cell content."',
+      '    plan',
+      '      primary Inference',
+      '      Inference means "Plan cell content."',
+      '    act',
+      '      primary Decision',
+      '      Decision means "Act cell content."',
+      '',
+    ].join('\n'),
+  );
+  const snapshot = captureKnowledge(root, { input }),
+    view = openKnowledgeView(snapshot);
+  try {
+    expect(view.read(`${pbId}#orient/Memory`).body).toContain('Orient cell content.');
+    const shared = sharedNativeReader(snapshot.capture),
+      newerThanHeld = shared.resolveScope().token;
+    for (let i = 0; i < 4096; i++) shared.resolveScope();
+    expect(() => shared.get(pbId, { within: newerThanHeld })).toThrow(expect.objectContaining({ code: 'IA-DB-STALE' }));
+    expect(view.read(`${pbId}#plan/Inference`).body).toContain('Plan cell content.');
+    expect(view.read(`${pbId}#act/Decision`).body).toContain('Act cell content.');
   } finally {
     view.close();
   }

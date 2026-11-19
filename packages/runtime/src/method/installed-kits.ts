@@ -43,6 +43,8 @@ export interface HostedKit {
   readonly id: string;
   readonly version: string;
   readonly hosted: true;
+  readonly archive: string;
+  readonly manifest: string;
 }
 const HEX = /^[a-f0-9]{64}$/;
 const malformed = (message: string): never => {
@@ -96,10 +98,20 @@ export function lockedHostedKits(root: string): HostedKit[] {
   return lock.entries.flatMap((value): HostedKit[] => {
     const entry = objectAt(value) ?? malformed('an entry must be an object');
     if (entry['kind'] !== 'hosted') return [];
-    const { id, version, hosted } = entry;
-    if (typeof id !== 'string' || id === '' || typeof version !== 'string' || version === '' || hosted !== true)
-      return malformed('a hosted entry needs its id, version and hosted: true');
-    return [{ id, version, hosted: true }];
+    const { id, version, hosted, archive, manifest } = entry;
+    if (
+      typeof id !== 'string' ||
+      id === '' ||
+      typeof version !== 'string' ||
+      version === '' ||
+      hosted !== true ||
+      typeof archive !== 'string' ||
+      !HEX.test(archive) ||
+      typeof manifest !== 'string' ||
+      !HEX.test(manifest)
+    )
+      return malformed('a hosted entry needs its id, version, hosted: true, archive and manifest digests');
+    return [{ id, version, hosted: true, archive, manifest }];
   });
 }
 
@@ -275,15 +287,18 @@ export function workspaceKits(
   ]);
   if (named.size === 0) return { kits: all, missing: [] };
   const kept = all.filter((kit) => !named.has(kit.id));
-  const hostedRows: Kit[] = hosted.map((row) => ({
-    folder: row.id.slice(row.id.indexOf('/') + 1),
-    dir: '',
-    id: row.id,
-    version: row.version,
-    latest: null,
-    releases: [],
-    origin: 'hosted',
-  }));
+  const hostedRows: Kit[] = hosted.map((row) => {
+    const release = { version: row.version, archive: row.archive, manifest: row.manifest, records: [] };
+    return {
+      folder: row.id.slice(row.id.indexOf('/') + 1),
+      dir: '',
+      id: row.id,
+      version: row.version,
+      latest: release,
+      releases: [release],
+      origin: 'hosted',
+    };
+  });
   return {
     kits: [
       ...kept.filter((kit) => kit.origin === 'bundled'),

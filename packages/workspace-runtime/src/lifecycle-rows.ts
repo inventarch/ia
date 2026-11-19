@@ -1,5 +1,7 @@
 import type { LifecycleProfile } from './lifecycle-profile.js';
 import { frozen, metadataDigest } from './resource-format.js';
+import { currentStamp } from './plain-format.js';
+import type { Stamp } from './plain-format.js';
 
 /** Each available Claude Code row, keyed by its literal version, and its closed UserPromptSubmit fields. */
 export const claudeCodeRows: ReadonlyMap<string, readonly string[]> = new Map([
@@ -17,12 +19,13 @@ export function profileFromRows(
   rows: ReadonlyMap<string, readonly string[]>,
   host: string,
   version: string,
+  stamp: Stamp<'lifecycle-profile', 'ia.lifecycle-profile.v1'> = currentStamp('lifecycle-profile'),
 ): LifecycleProfile {
   const native = host === 'ia-native' && version === '1',
     fields = host === 'claude-code' ? rows.get(version) : undefined,
     available = fields !== undefined || native;
   const body = {
-    format: 'ia.lifecycle-profile.v1' as const,
+    ...stamp,
     host,
     version,
     available,

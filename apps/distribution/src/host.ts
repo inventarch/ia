@@ -104,6 +104,8 @@ const containers: readonly JsonPath[] = [['mcpServers']];
 export const HOST_CONFIG: Readonly<Record<Host, { readonly file: string; readonly format: 'json' | 'toml' }>> = {
   claude: { file: '.mcp.json', format: 'json' },
   codex: { file: '.codex/config.toml', format: 'toml' },
+  gemini: { file: '.gemini/settings.json', format: 'json' },
+  antigravity: { file: '.agents/mcp_config.json', format: 'json' },
 };
 const configFile = (host: Host): string => HOST_CONFIG[host].file;
 /** One registration id per workspace and host for the v2 consumer payload. */
@@ -139,7 +141,7 @@ export function recordedNode(command: unknown): 'ok' | 'modified' | 'missing' {
 export function derivedCommand(state: Pick<State, 'host' | 'id' | 'cache' | 'owned'>, root: string): string | null {
   let command: unknown;
   try {
-    if (state.host === 'claude') command = plain(decodeDistributionJson(state.owned))['command'];
+    if (HOST_CONFIG[state.host].format === 'json') command = plain(decodeDistributionJson(state.owned))['command'];
     else {
       const found = /^\[mcp_servers\."[a-z0-9-]+"\]\ncommand = ("(?:[^"\\\n]|\\.)*")\n/.exec(state.owned);
       command = found === null ? null : JSON.parse(found[1]!);

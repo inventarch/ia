@@ -22,7 +22,12 @@ import type { GeneratedFile, GeneratedSet, UnsupportedRecord } from './format.js
  * records alone.
  */
 const RESERVED = 'ia-authoring';
-const SKILLS: Readonly<Record<PacketHost, string>> = { claude: '.claude/skills', codex: '.agents/skills' };
+const SKILLS: Readonly<Record<PacketHost, string>> = {
+  claude: '.claude/skills',
+  codex: '.agents/skills',
+  gemini: '.gemini/skills',
+  antigravity: '.agents/skills',
+};
 const MODES = ['model', 'user', 'delegated', 'none'] as const;
 
 /** The invocable capabilities' skills through the scope token `within`, by identity, and their unsupported rows. */

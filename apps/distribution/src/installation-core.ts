@@ -105,7 +105,12 @@ export function planInstallationSnapshot(input: NativeInstallationInput): Native
   const current = row['current'] === null ? { pointer: null, lock: null } : object(row['current'], ['pointer', 'lock']);
   const previous = current['pointer'] === null ? null : decodeActivationPointer(current['pointer']),
     previousLock = current['lock'] === null ? null : decodeDistributionLock(current['lock']);
-  if (op !== 'restore' && (previous === null) !== (previousLock === null))
+  const hostedOnlyPrior =
+    previous === null &&
+    previousLock !== null &&
+    lockedReleases(previousLock).length === 0 &&
+    lockedHostedKits(previousLock).length > 0;
+  if (op !== 'restore' && !hostedOnlyPrior && (previous === null) !== (previousLock === null))
     fail('RESTORE-REQUIRED', 'Current installation requires explicit recovery or restore');
   const lock = decodeDistributionLock(row['lock']);
   if (!supportsDistributionLockEngine(DISTRIBUTION_ENGINE_VERSION, lock.engine))
@@ -163,7 +168,13 @@ export function planInstallationSnapshot(input: NativeInstallationInput): Native
           .filter((pkg) => old.some((prior) => prior.id === pkg.id && prior.archive !== pkg.archive))
           .map((pkg) => pkg.id),
         ...nextHosted
-          .filter((row) => oldHosted.some((prior) => prior.id === row.id && prior.version !== row.version))
+          .filter((row) =>
+            oldHosted.some(
+              (prior) =>
+                prior.id === row.id &&
+                (prior.version !== row.version || prior.archive !== row.archive || prior.manifest !== row.manifest),
+            ),
+          )
           .map((row) => row.id),
       ]),
       shadowed,

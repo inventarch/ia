@@ -168,7 +168,7 @@ The example with `--compare` prints `Round trip: content-exact and a fixed point
 | `ia pack --descriptor <file>` | Builds a digest-named archive, by default under `.ia/work/dist`. A descriptor that names no distribution, as a default `init` writes, is refused; `ia init --system` authors one. |
 | `ia install <id>[@<range>]...` | Plans an installation, kits included, from a registry, a `--catalog` or the `--offline` cache. |
 | `ia install --package <name>[@<version>]` | Plans installing an npm package of IA kit archives, such as `@inventarch/public-kits`: one entry in `.ia/distributions.lock.json` with its version, npm integrity and each kit's archive and manifest digests, and the kits installed as ordinary releases. npm is transport only; `ia restore` refetches the archives by digest, offline from npm's cache. |
-| `ia install --hosted <id>@<version>...` | Plans recording hosted kit pins in `.ia/distributions.lock.json` without local archive bytes; `ia restore` and `ia validate` succeed offline. |
+| `ia install --hosted <id>@<version> --archive <sha256> --manifest <sha256>...` | Plans recording hosted kit pins with their archive and manifest SHA-256 digests in `.ia/distributions.lock.json` without local archive bytes; `ia restore` and `ia validate` succeed offline. |
 | `ia adopt <id>[@version]` | Plans a source-only workspace adoption: pinned source mounted at band 50, then a capture and a refresh of registered projections. `ia init --adopt` adopts at initialization. |
 | `ia update <id>` | Plans a version change for one direct request, `--to <range>`. |
 | `ia remove <id>` | Plans the removal of one direct request or hosted kit pin. |

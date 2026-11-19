@@ -34,6 +34,7 @@ import type {
   ResourceOccurrence,
   ResourceRoot,
 } from './resources.js';
+import { currentStamp, peekStamp, stampKeys } from './plain-format.js';
 
 export interface AuthoringManifestImport {
   readonly alias: string;
@@ -331,12 +332,10 @@ function resolveSelections(capture: Capture, sources: readonly ManifestBinding[]
   };
   for (const source of sources) {
     const value = detachedManifest(source.manifest);
-    const row = object(value, ['format', 'files', 'associations', 'index']);
+    const stamp = peekStamp(value, 'authoring-resources', ['ia.authoring-resources.v1']);
+    const row = object(value, [...stampKeys(stamp), 'files', 'associations', 'index']);
     // The same bound applies to object input before any selected file is opened.
-    if (
-      row['format'] !== 'ia.authoring-resources.v1' ||
-      Buffer.byteLength(JSON.stringify(row)) > RESOURCE_LIMITS.metadataBytes
-    )
+    if (stamp === undefined || Buffer.byteLength(JSON.stringify(row)) > RESOURCE_LIMITS.metadataBytes)
       invalid('Invalid authoring manifest format or size');
     const key = (input: unknown): ResourceKey => {
       const selector = object(input, ['source', 'path']),
@@ -479,7 +478,7 @@ export function captureAuthoringManifestBytes(
     return { ...pin, content: selected };
   });
   const body = {
-    format: 'ia.captured-resources.v1' as const,
+    ...currentStamp('captured-resources'),
     nativeCaptureRevision: capture.revision,
     sourceRevisions: resourceOccurrences(capture).sourceRevisions,
     files: ordered(files, (file) => keyOf(file.key)),

@@ -50,6 +50,26 @@ const ROWS = [
     bootstrap: { instructions: ['AGENTS.md'], mcp: [{ file: '.codex/config.toml', format: 'toml' }] },
   },
   {
+    id: 'gemini',
+    label: 'Gemini CLI',
+    status: 'supported',
+    user: 'plugin',
+    workspace: true,
+    hooks: true,
+    invocations: {},
+    bootstrap: { instructions: ['GEMINI.md'], mcp: [{ file: '.gemini/settings.json', format: 'mcp-json' }] },
+  },
+  {
+    id: 'antigravity',
+    label: 'Google Antigravity',
+    status: 'supported',
+    user: 'plugin',
+    workspace: true,
+    hooks: true,
+    invocations: {},
+    bootstrap: { instructions: ['AGENTS.md'], mcp: [{ file: '.agents/mcp_config.json', format: 'mcp-json' }] },
+  },
+  {
     id: 'copilot',
     label: 'GitHub Copilot',
     status: 'partial',
@@ -97,7 +117,7 @@ export const bootstrapRow = (id: string): BootstrapRow | undefined => {
  */
 export function asWorkspaceHost(value: unknown): WorkspaceHost {
   const row = typeof value === 'string' ? ROWS.find((candidate) => candidate.id === value) : undefined;
-  if (!row || !isWorkspace(row)) fail('HOST-UNSUPPORTED', 'Expected Claude or Codex');
+  if (!row || !isWorkspace(row)) fail('HOST-UNSUPPORTED', 'Expected Claude, Codex, Gemini CLI or Google Antigravity');
   return row.id;
 }
 /** §7.3 `nextActions`: the host's own invocation where the row declares one, otherwise the plain command. */

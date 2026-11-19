@@ -4,6 +4,7 @@ import type { LegacyPortable } from './format.js';
 import type { Foundation } from './foundation.js';
 import { validateContent } from './validate.js';
 import { requireFoundation } from './foundation.js';
+import { currentStamp, peekStamp, stampKeys } from './plain-format.js';
 const caches = new WeakMap<
   Foundation,
   { entries: Map<string, { value: ReturnType<typeof validateContent<LegacyPortable>>; bytes: number }>; bytes: number }
@@ -12,8 +13,10 @@ export { createLegacyFoundation } from './foundation.js';
 export type { LegacyPortable } from './format.js';
 /** Frozen v1 decoder. New selections must use the new package writer. */
 export function verifyPortable(input: unknown): LegacyPortable {
-  const p = closed<LegacyPortable>(data(input), ['format', 'provenance', 'files', 'digest']);
-  if (p.format !== 'iakb.portable.v1') fail('Invalid portable format');
+  const raw = data(input),
+    stamp = peekStamp(raw, 'kb-portable', ['iakb.portable.v1']);
+  const p = closed<LegacyPortable>(raw, [...stampKeys(stamp), 'provenance', 'files', 'digest']);
+  if (stamp === undefined) fail('Invalid portable format');
   closed(p.provenance, ['sourceId', 'commit', 'verification']);
   slug(p.provenance.sourceId);
   commitId(p.provenance.commit);
@@ -72,7 +75,7 @@ export function packageFromCommit(request: LegacyPackageRequest): LegacyPortable
     return file;
   });
   const body = {
-    format: 'iakb.portable.v1' as const,
+    ...currentStamp('kb-portable'),
     provenance: { sourceId: request.sourceId, commit: request.commit, verification: 'unverified' as const },
     files,
   };

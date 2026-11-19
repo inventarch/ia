@@ -48,10 +48,22 @@ it('matches the golden bodies of K0 and three keys over the conformance corpus, 
   for (const [name, partial] of Object.entries(GOLDEN)) {
     const body = bodyOf(db, within, partial);
     expect(body.revision).toBe(db.revision);
-    const file = resolve(import.meta.dirname, 'golden', `${name}.json`),
+    const file = resolve(import.meta.dirname, 'golden', 'plain', `${name}.json`),
       text = `${JSON.stringify({ ...body, revision: '<revision>' }, null, 2)}\n`;
     if (process.env['IA_POSITION_GOLDEN'] === 'write') writeFileSync(file, text);
     else expect(text, name).toBe(readFileSync(file, 'utf8'));
+  }
+});
+
+// The goldens written before formats stopped carrying a version are immutable evidence and are kept as they were: the
+// body of today differs from them only in its stamp, which the plain goldens above spell.
+it('keeps the original goldens: each is the plain body with its original format literal and no formatVersion', () => {
+  const db = database(workspace()),
+    within = db.resolveScope().token;
+  for (const [name, partial] of Object.entries(GOLDEN)) {
+    const { format: _format, formatVersion: _version, ...rest } = bodyOf(db, within, partial);
+    const original = `${JSON.stringify({ format: 'ia.position-body.v1', ...rest, revision: '<revision>' }, null, 2)}\n`;
+    expect(original, name).toBe(readFileSync(resolve(import.meta.dirname, 'golden', `${name}.json`), 'utf8'));
   }
 });
 

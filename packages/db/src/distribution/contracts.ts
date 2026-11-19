@@ -115,15 +115,18 @@ export interface PackageEntry {
   readonly kits: readonly PackageKit[];
 }
 /**
- * A lock entry of kind `hosted` (engine 0.1.3): a hosted kit pin recorded by `id`, exact `version` and `hosted: true`.
- * Hosted kits execute remotely and carry no local archive bytes in `.ia/distributions/store/`, so offline restore and
- * validation succeed without fetching or expanding a tarball for them.
+ * A lock entry of kind `hosted` (engine 0.1.3): a hosted kit pin recorded by `id`, exact `version`, `hosted: true`,
+ * and its `archive` and `manifest` SHA-256 digests, with no `location` field. Hosted kits execute remotely and carry
+ * no local archive bytes in `.ia/distributions/store/`, so offline restore and validation succeed without fetching or
+ * expanding a tarball for them.
  */
 export interface HostedEntry {
   readonly kind: 'hosted';
   readonly id: string;
   readonly version: string;
   readonly hosted: true;
+  readonly archive: string;
+  readonly manifest: string;
 }
 /** A lock entry that is not a release: the kinds `LOCK_ENTRY_KINDS` names. */
 export type LockEntry = PackageEntry | HostedEntry;
@@ -408,9 +411,16 @@ function lockEntries(value: unknown, engine: string, packages: readonly LockedPa
         !Array.isArray(v) &&
         (v as Record<string, unknown>)['kind'] === 'hosted'
       ) {
-        const r = object(v, ['kind', 'id', 'version', 'hosted']);
+        const r = object(v, ['kind', 'id', 'version', 'hosted', 'archive', 'manifest']);
         if (r['hosted'] !== true) refuse('A hosted lock entry sets hosted to true');
-        return { kind: 'hosted', id: packageId(r['id']), version: version(r['version']), hosted: true };
+        return {
+          kind: 'hosted',
+          id: packageId(r['id']),
+          version: version(r['version']),
+          hosted: true,
+          archive: hash(r['archive']),
+          manifest: hash(r['manifest']),
+        };
       }
       const r = object(v, ['kind', 'name', 'version', 'integrity', 'kits']);
       if (r['kind'] !== 'package') refuse('Unknown lock entry kind');

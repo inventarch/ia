@@ -34,6 +34,7 @@ import type {
   ResourceResolveOptions,
   SourceRevision,
 } from './resource-format.js';
+import { peekStamp, stampKeys } from './plain-format.js';
 
 /** One verified, frozen copy of the caller's capture and the admission derived from it. */
 export interface NativeContext {
@@ -211,8 +212,16 @@ export function validateAssociations(inputs: unknown, context: NativeContext): R
 /** verifyResources over an existing context. */
 export function verifyResourcesWith(input: unknown, context: NativeContext): CapturedResources {
   const value = typeof input === 'string' ? decodeJson(input) : input;
-  const row = object(value, ['format', 'sourceRevisions', 'nativeCaptureRevision', 'files', 'associations', 'digest']);
-  if (row['format'] !== 'ia.captured-resources.v1' || row['nativeCaptureRevision'] !== context.capture.revision)
+  const stamp = peekStamp(value, 'captured-resources', ['ia.captured-resources.v1']);
+  const row = object(value, [
+    ...stampKeys(stamp),
+    'sourceRevisions',
+    'nativeCaptureRevision',
+    'files',
+    'associations',
+    'digest',
+  ]);
+  if (stamp === undefined || row['nativeCaptureRevision'] !== context.capture.revision)
     invalid('Resource format or native capture revision differs');
   const sourceRevisions = list(row['sourceRevisions'], RESOURCE_LIMITS.owners + 1).map(sourceRevision);
   if (stableSerialize(sourceRevisions) !== stableSerialize(context.sourceRevisions))
@@ -236,7 +245,7 @@ export function verifyResourcesWith(input: unknown, context: NativeContext): Cap
     for (const use of association.resources)
       if (use.required && !available.has(keyOf(use.key))) invalid('Required associated resource is missing');
   const body = {
-    format: 'ia.captured-resources.v1' as const,
+    ...stamp,
     sourceRevisions,
     nativeCaptureRevision: context.capture.revision,
     files: ordered(files, (f) => keyOf(f.key)),

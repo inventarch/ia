@@ -157,3 +157,10 @@ export function renderPlugin(
   for (const asset of assets) add(portable(asset.output), asset.bytes);
   return Object.freeze(out.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0)));
 }
+
+export {
+  compileStandalonePlugin,
+  type StandaloneBindingRow,
+  type StandalonePluginHost,
+  type StandalonePluginOptions,
+} from './standalone-plugin.js';

@@ -97,7 +97,8 @@ export interface AuthoringIndexInput {
   readonly lifecycles: readonly LifecycleModel[];
 }
 export interface CapturedAuthoringIndex extends Omit<AuthoringIndexInput, 'artifacts' | 'documents'> {
-  readonly format: 'ia.authoring-index.v1';
+  readonly format: 'authoring-index' | 'ia.authoring-index.v1';
+  readonly formatVersion?: 1;
   readonly nativeCaptureRevision: string;
   readonly resourceDigest: string;
   readonly artifacts: readonly CapturedArtifact[];
@@ -143,7 +144,8 @@ export interface PrimaryGuide {
   } | null;
 }
 export interface AuthoringView {
-  readonly format: 'ia.authoring-view.v1';
+  readonly format: 'authoring-view';
+  readonly formatVersion: 1;
   readonly captureRevision: string;
   readonly resourceDigest: string;
   readonly indexDigest: string;
