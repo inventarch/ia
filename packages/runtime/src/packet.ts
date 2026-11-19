@@ -29,7 +29,7 @@ import { position } from './position.js';
 import type { HostNote } from './position.js';
 import { statedText, valueText } from './render.js';
 import { freeze } from './types.js';
-import { currentStamp } from './plain-format.js';
+import { writeStamp } from './plain-format.js';
 
 /**
  * The position packet (SPEC R19). One host-neutral packet a host adapter renders: body(K0)'s digest, the seat, the
@@ -379,7 +379,7 @@ export function renderPacket(handle: ReadHandle, within: string, catalog: readon
   );
 
   const packet: PositionPacket = {
-    ...currentStamp('position-packet'),
+    ...writeStamp('position-packet', 'ia.position-packet.v1'),
     revision: body.revision,
     body: k0.digest,
     seat: {

@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { decodeDistributionJson } from '@inventarch/db/distribution';
 import { teachingLinkClasses, teachingLinkFindings } from '../docs/teaching-links.mjs';
 import { containedFile, readRegular } from '../shared/paths.mjs';
+import { WRITE_PLAIN_NAMES } from '../shared/written-names.mjs';
 
 export const AUTHORING_MANIFEST = '.ia/authoring.resources.json';
 export const AUTHORING_LIBRARY = '.ia/src/systems/authoring-system/library.json';
@@ -105,8 +106,9 @@ export function authoringResources(root, pending = new Map()) {
   const output =
     JSON.stringify(
       {
-        format: 'authoring-resources',
-        formatVersion: 1,
+        ...(WRITE_PLAIN_NAMES
+          ? { format: 'authoring-resources', formatVersion: 1 }
+          : { format: 'ia.authoring-resources.v1' }),
         files,
         associations: selection['associations'],
         index: selection['index'],

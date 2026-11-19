@@ -8,57 +8,57 @@
     {
       "id": "inventarch/agent-composition-system",
       "bump": "patch",
-      "summary": "Admits plain format names and handler ids alongside legacy names, and is rebuilt on workspace-system's optional workspace composition fields."
+      "summary": "Rebuilt on workspace-system's optional workspace composition fields; no change of its own."
     },
     {
       "id": "inventarch/agent-system",
       "bump": "patch",
-      "summary": "Rebuilt on workspace-system's optional workspace composition fields and the plain format names for compiler, runtime, kb and workspace-runtime documents."
+      "summary": "Rebuilt on workspace-system's optional workspace composition fields; no change of its own."
     },
     {
       "id": "inventarch/authoring-system",
       "bump": "patch",
-      "summary": "The @workspace authoring reference documents composition.public-agent, composition.private-agent and composition.decides, and is rebuilt on workspace-system and agent-composition-system."
+      "summary": "The @workspace authoring reference documents composition.public-agent, composition.private-agent and composition.decides, and is rebuilt on workspace-system."
     },
     {
       "id": "inventarch/compliance-system",
       "bump": "patch",
-      "summary": "Rebuilt on workspace-system's optional workspace composition fields and the plain format names for compiler, runtime, kb and workspace-runtime documents."
+      "summary": "Rebuilt on workspace-system's optional workspace composition fields; no change of its own."
     },
     {
       "id": "inventarch/governance-system",
       "bump": "patch",
-      "summary": "Rebuilt on workspace-system's optional workspace composition fields and the plain format names for compiler, runtime, kb and workspace-runtime documents."
+      "summary": "Rebuilt on workspace-system's optional workspace composition fields; no change of its own."
     },
     {
       "id": "inventarch/hook-authoring-system",
       "bump": "patch",
-      "summary": "Rebuilt on workspace-system's optional workspace composition fields and agent-composition-system's plain format support."
+      "summary": "Rebuilt on workspace-system's optional workspace composition fields; no change of its own."
     },
     {
       "id": "inventarch/language",
       "bump": "minor",
-      "summary": "IA syntax remains 1.0. @schema workspace adds optional composition.public-agent, composition.private-agent and composition.decides fields; rebuilt with plain format names."
+      "summary": "IA syntax remains 1.0. @schema workspace adds optional composition.public-agent, composition.private-agent and composition.decides fields."
     },
     {
       "id": "inventarch/learning-system",
       "bump": "patch",
-      "summary": "Rebuilt on workspace-system's optional workspace composition fields and agent-composition-system's plain format support."
+      "summary": "Rebuilt on workspace-system's optional workspace composition fields; no change of its own."
     },
     {
       "id": "inventarch/session-system",
       "bump": "patch",
-      "summary": "Rebuilt on workspace-system's optional workspace composition fields and the plain format names for compiler, runtime, kb and workspace-runtime documents."
+      "summary": "Rebuilt on workspace-system's optional workspace composition fields; no change of its own."
     },
     {
       "id": "inventarch/template-system",
       "bump": "patch",
-      "summary": "Structured template readers accept plain format names alongside legacy names, and the archive is rebuilt on workspace-system's optional workspace composition fields."
+      "summary": "Rebuilt on workspace-system's optional workspace composition fields; no change of its own."
     },
     {
       "id": "inventarch/work-system",
       "bump": "patch",
-      "summary": "Rebuilt on workspace-system's optional workspace composition fields and the plain format names for compiler, runtime, kb and workspace-runtime documents."
+      "summary": "Rebuilt on workspace-system's optional workspace composition fields; no change of its own."
     },
     {
       "id": "inventarch/workspace-system",

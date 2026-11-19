@@ -96,8 +96,7 @@ try {
   writeFileSync(
     join(workspace, '.ia/knowledge.json'),
     JSON.stringify({
-      format: 'kb-selection',
-      formatVersion: 1,
+      format: 'ia.kb.selection.v1',
       sourceId: 'example',
       records: [id],
       resources: ['docs/architecture.md'],

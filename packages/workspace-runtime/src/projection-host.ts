@@ -6,17 +6,23 @@ import { catalogId, fail, id, inputFailure, unique } from './projection-format.j
 import type { ProfilePin, ProjectionExport } from './projection-format.js';
 import {
   CODEX_PROSE_FEATURES,
-  CODEX_PROSE_PROFILE,
   LEGACY_CODEX_PROSE_PROFILE,
+  PLAIN_CODEX_PROSE_PROFILE,
   codexInvocation,
   codexOutputPath,
   serializeCodexExport,
 } from './projection-codex.js';
 import type { SerializedExport } from './projection-codex.js';
-import { currentStamp, peekStamp, stampKeys } from './plain-format.js';
+import { peekStamp, stampKeys, writeStamp, written } from './plain-format.js';
 import type { Stamp } from './plain-format.js';
 
-export { CODEX_PROSE_FEATURES, codexAgentRegistration } from './projection-codex.js';
+export {
+  CODEX_PROSE_FEATURES,
+  CODEX_PROSE_PROFILE,
+  LEGACY_CODEX_PROSE_PROFILE,
+  PLAIN_CODEX_PROSE_PROFILE,
+  codexAgentRegistration,
+} from './projection-codex.js';
 
 export interface ProjectionCatalog {
   readonly format: 'projection-catalog' | 'ia.projection-catalog.v1';
@@ -26,9 +32,11 @@ export interface ProjectionCatalog {
   readonly tools: readonly { readonly id: string; readonly name: string }[];
   readonly inputFields: readonly { readonly name: string; readonly type: 'text' }[];
 }
-export const CLAUDE_PROSE_PROFILE = 'claude-prose';
-/** The id this profile shipped under before ids stopped carrying their version; still read, never written. */
+/** The plain id once `WRITE_PLAIN_NAMES` is `true`. */
+export const PLAIN_CLAUDE_PROSE_PROFILE = 'claude-prose';
+/** The id this profile shipped under before ids stopped carrying their version; still read, and written while `WRITE_PLAIN_NAMES` is `false`. */
 export const LEGACY_CLAUDE_PROSE_PROFILE = 'ia.host.claude-prose.v1';
+export const CLAUDE_PROSE_PROFILE = written(PLAIN_CLAUDE_PROSE_PROFILE, LEGACY_CLAUDE_PROSE_PROFILE);
 export const CLAUDE_PROSE_FEATURES = Object.freeze([
   'agents',
   'native-agents',
@@ -65,13 +73,20 @@ export function claudeProseCatalog(
     inputFields: [],
   },
 ): ProjectionCatalog {
-  return proseCatalog(CLAUDE_PROSE_PROFILE, implementationDigest, selections);
+  return proseCatalog(
+    written(PLAIN_CLAUDE_PROSE_PROFILE, LEGACY_CLAUDE_PROSE_PROFILE),
+    implementationDigest,
+    selections,
+  );
 }
 function proseCatalog(
   profile: string,
   implementationDigest: string,
   selections: Pick<ProjectionCatalog, 'models' | 'tools' | 'inputFields'>,
-  stamp: Stamp<'projection-catalog', 'ia.projection-catalog.v1'> = currentStamp('projection-catalog'),
+  stamp: Stamp<'projection-catalog', 'ia.projection-catalog.v1'> = writeStamp(
+    'projection-catalog',
+    'ia.projection-catalog.v1',
+  ),
 ): ProjectionCatalog {
   object(selections, ['models', 'tools', 'inputFields']);
   const names = (value: unknown) =>
@@ -106,9 +121,9 @@ export function verifyCatalog(value: ProjectionCatalog): ProjectionCatalog {
   if (
     stamp === undefined ||
     ![
-      CLAUDE_PROSE_PROFILE,
+      PLAIN_CLAUDE_PROSE_PROFILE,
       LEGACY_CLAUDE_PROSE_PROFILE,
-      CODEX_PROSE_PROFILE,
+      PLAIN_CODEX_PROSE_PROFILE,
       LEGACY_CODEX_PROSE_PROFILE,
       GEMINI_PROSE_PROFILE,
       ANTIGRAVITY_PROSE_PROFILE,
@@ -138,7 +153,7 @@ export function codexProseCatalog(
     inputFields: [],
   },
 ): ProjectionCatalog {
-  return proseCatalog(CODEX_PROSE_PROFILE, implementationDigest, selections);
+  return proseCatalog(written(PLAIN_CODEX_PROSE_PROFILE, LEGACY_CODEX_PROSE_PROFILE), implementationDigest, selections);
 }
 export function geminiProseCatalog(
   implementationDigest: string,
@@ -175,7 +190,7 @@ export function antigravityProseCatalog(
   return proseCatalog(ANTIGRAVITY_PROSE_PROFILE, implementationDigest, selections);
 }
 export const isCodex = (catalog: ProjectionCatalog): boolean =>
-  catalog.profile.id === CODEX_PROSE_PROFILE || catalog.profile.id === LEGACY_CODEX_PROSE_PROFILE;
+  catalog.profile.id === PLAIN_CODEX_PROSE_PROFILE || catalog.profile.id === LEGACY_CODEX_PROSE_PROFILE;
 export const isGemini = (catalog: ProjectionCatalog): boolean => catalog.profile.id === GEMINI_PROSE_PROFILE;
 export const isAntigravity = (catalog: ProjectionCatalog): boolean => catalog.profile.id === ANTIGRAVITY_PROSE_PROFILE;
 export function outputPath(

@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import { canonical, digest } from '@inventarch/session-system';
 import { createSourcePolicy, mountSourceCapture } from '@inventarch/workspace-runtime/sources';
 import { verifyCapture } from '@inventarch/workspace-runtime/corpus';
@@ -12,6 +12,13 @@ import { taskContextDeclaration } from '../src/task-context-declaration.js';
 import type { TaskCaptureRequest, TaskContextDeclaration } from '../src/task-capture.js';
 import { resourceOccurrences } from '@inventarch/workspace-runtime/resources';
 import { sha256 } from '@inventarch/workspace-runtime/resource-format';
+
+const flip = vi.hoisted(() => ({ plain: false }));
+vi.mock('../src/written-names.js', () => ({
+  get WRITE_PLAIN_NAMES() {
+    return flip.plain;
+  },
+}));
 
 const fixture = fileURLToPath(new URL('../fixtures/task-capture.json', import.meta.url));
 const areas: string[] = [];
@@ -904,23 +911,24 @@ it('reads a task selection and a declaration under the plain stamp or the origin
   const f = setup(),
     full = f.open();
   try {
-    const prepared = prepareTaskCapture(full, request, options),
-      { revision: _revision, selection, ...body } = prepared.capture;
+    const originalPrepared = prepareTaskCapture(full, request, options);
+    expect(originalPrepared.capture.selection).toMatchObject({ format: 'ia.task-capture-selection.v1' });
+    expect(Object.hasOwn(originalPrepared.capture.selection!, 'formatVersion')).toBe(false);
+    expect(verifyTaskCapture(originalPrepared.capture, full, options)).toEqual(originalPrepared);
+    flip.plain = true;
+    const prepared = prepareTaskCapture(full, request, options);
+    flip.plain = false;
+    const { revision: _revision, selection, ...body } = prepared.capture;
     expect(selection).toMatchObject({ format: 'task-capture-selection', formatVersion: 1 });
-    expect(verifyTaskCapture(prepared.capture, full, options)).toEqual(prepared);
-    // A selection written under the original literal verifies as written: its digest covers that literal.
-    const { formatVersion: _version, ...bare } = selection!,
-      originalBody = { ...body, selection: { ...bare, format: 'ia.task-capture-selection.v1' as const } },
-      original = { ...originalBody, revision: digest(originalBody) };
-    expect(verifyCapture(original)).toEqual(original);
-    expect(original.revision).not.toBe(prepared.capture.revision);
+    expect(verifyCapture(prepared.capture)).toEqual(prepared.capture);
+    expect(originalPrepared.capture.revision).not.toBe(prepared.capture.revision);
     for (const stamp of [
       { format: 'task-capture-selection' },
       { format: 'task-capture-selection', formatVersion: 2 },
       { format: 'ia.task-capture-selection.v1', formatVersion: 1 },
       { format: 'ia.task-capture-selection.v2' },
     ]) {
-      const { format: _format, ...rest } = bare,
+      const { format: _format, formatVersion: _version, ...rest } = selection!,
         invalidBody = { ...body, selection: { ...stamp, ...rest } };
       expect(() => verifyCapture({ ...invalidBody, revision: digest(invalidBody) } as never)).toThrow();
     }
@@ -937,6 +945,7 @@ it('reads a task selection and a declaration under the plain stamp or the origin
     ])
       expect(() => taskContextDeclaration({ ...declared, ...stamp })).toThrow();
   } finally {
+    flip.plain = false;
     full.close();
   }
 });

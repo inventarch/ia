@@ -17,8 +17,7 @@ function fixture() {
     return Object.fromEntries(Object.entries(value).map(([key, v]) => [key, select(v)]));
   };
   const manifest = {
-    format: 'authoring-resources',
-    formatVersion: 1,
+    format: 'ia.authoring-resources.v1',
     files: f.resources.files.map(({ key, content: _content, ...file }) => ({ ...file, path: key.path })),
     associations: select(f.resources.associations),
     index: select(f.input),

@@ -1,8 +1,7 @@
-// Regenerates the position golden bodies and the golden packet in the plain/ directory from the current code (runtime SPEC
+// Regenerates the position golden bodies and the golden packet in this directory from the current code (runtime SPEC
 // R15, R19). Run it explicitly, `node packages/runtime/tests/golden/write.mjs`, then review the diff with the change that
 // makes it: the golden cases of tests/position.test.ts and tests/packet.test.ts write their output instead of comparing
-// it only under IA_POSITION_GOLDEN=write, which nothing else sets. The goldens beside plain/ were written before formats
-// stopped carrying a version; they are immutable evidence of that form and nothing regenerates them.
+// it only under IA_POSITION_GOLDEN=write, which nothing else sets.
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';

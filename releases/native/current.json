@@ -4,13 +4,13 @@
     "tag": "v3.8.1",
     "commit": "d3071c3ecc7c278101231ecc6f2628d28250eeee"
   },
-  "notesSha256": "4b99d92c61202d3698a9d23ab495be3dbc5bec47f2287ffea1c1faaa99622503",
+  "notesSha256": "23d187d7734075d5f523a83775865141e379ab83bd0b8d637685a2e2f335dc10",
   "archives": [
     {
       "id": "inventarch/agent-composition-system",
       "version": "3.2.2",
-      "archive": "21da0234ecd1d35330c14dfd6eacc274471fa1f955ff75e02b9499e2892cd537",
-      "manifest": "dfe4a4fa753d41027a0a430a648376e2aa88a01b2084ba8db27894e4385c4ebb",
+      "archive": "c14677813e5a4daf351ab82b349aa59ba5e326a83eec01572470aa294f25c12f",
+      "manifest": "e7d25c203d9608bfba350684e8741dbd1d06ef8393e463cbeabf92629c226c7d",
       "dependencies": [
         "inventarch/agent-system",
         "inventarch/authoring-system",
@@ -23,8 +23,8 @@
     {
       "id": "inventarch/agent-system",
       "version": "3.1.5",
-      "archive": "06e0b190dd78723a74907a0d39ce970a31650f9a11c2a9e919f5d93eff407d6a",
-      "manifest": "ac274562057806c61174fb60e116a23d9a1f25d151e294ef7a2ae165fac6bcea",
+      "archive": "2861e5545ec15f12865b8239e657b85ac1507bc4e882aec0f8d2dd3dac3b3767",
+      "manifest": "7a11ecdbef895445d309b41140b759814e59cacdefce9aeaaa8c93199b8e1544",
       "dependencies": [
         "inventarch/workspace-system"
       ]
@@ -32,8 +32,8 @@
     {
       "id": "inventarch/authoring-system",
       "version": "3.3.2",
-      "archive": "0de3a2435e2413d46622d29405fb6e1227fe7833ad8764244bac44969e7e7d2f",
-      "manifest": "382560d0a3719e744c823c90d46d75172c70f4087eddb127190b513e9ed08543",
+      "archive": "5e21675f23dc751ee25b06b3ed9e71b9c7dee6f81109c99937baba3077285fff",
+      "manifest": "6a1978c69d245984a3451388f2d56d88d2b32e4b0ee5ac3b7b94b72a8b445492",
       "dependencies": [
         "inventarch/agent-composition-system",
         "inventarch/agent-system",
@@ -50,8 +50,8 @@
     {
       "id": "inventarch/compliance-system",
       "version": "3.1.5",
-      "archive": "aeb69fe977c551d39b75d731f589eded348708015d19ac6aac44e7dcb7c35fe3",
-      "manifest": "97486205a765be41d2b7bdeaa682228b43f30708835369073a9bd1b0f41d3a7e",
+      "archive": "c4bfdb08618569db65d5c041ae60cdabf32c739ff8722789d20adbfe15eb08d1",
+      "manifest": "41ba89763b299a8e8a72ec0c9b6d8b4b428885118cf6fb1158fecef69432ede5",
       "dependencies": [
         "inventarch/agent-system",
         "inventarch/workspace-system"
@@ -60,8 +60,8 @@
     {
       "id": "inventarch/governance-system",
       "version": "3.2.1",
-      "archive": "efe7baca71ae76ca72ea49e4dc669ece17093a62ef58be76e8e876154e2580ba",
-      "manifest": "261b9dbb9f65efc5f2b9323ef5d5d23457ecbe434a1d31f1bf1bf2ece019d3fd",
+      "archive": "be46fb96f5eb0cf4576d393e94672cdf06efa945c3e289e12c98becc17f537f8",
+      "manifest": "59051b97d1bf4ae6cab8be9a0c52afbea239328581780b7f4f33d3162a565179",
       "dependencies": [
         "inventarch/agent-system",
         "inventarch/compliance-system",
@@ -71,8 +71,8 @@
     {
       "id": "inventarch/hook-authoring-system",
       "version": "3.2.2",
-      "archive": "8e62a1d3252512ec5e4a1485f7b13fa17959eaaea8536dd46c3e6df5d975c472",
-      "manifest": "3b552162e3b0cfa9d0f8eeadde96908057fb0d2151590360efe0303c7261f330",
+      "archive": "e2ff311d9df4f5bd056bc6633be162e2d74be0d68691c201f0011d7a7900b51e",
+      "manifest": "e870e076958c7ab40cc7b52a2052483dd52dbeaa68bee2812d5419ba3160175f",
       "dependencies": [
         "inventarch/agent-system",
         "inventarch/authoring-system",
@@ -103,8 +103,8 @@
     {
       "id": "inventarch/learning-system",
       "version": "3.2.2",
-      "archive": "d311ff1416a51249b15ecee22478c6483296d40b29b37b56447e99d7d1bb86a1",
-      "manifest": "4d88dfea0663f47e28d6d2930fa2d739b4b852989fe55d3a9ffacb05fd4e52f5",
+      "archive": "8789a6d328b4120c8e8098c7e97999fa7523125d4fceced9e6c13ea5c292f8f1",
+      "manifest": "214f912cf7a3da801f2c723064eef304b94601dc496ed1bb101bf6b8c2a124f0",
       "dependencies": [
         "inventarch/agent-system",
         "inventarch/authoring-system",
@@ -116,8 +116,8 @@
     {
       "id": "inventarch/session-system",
       "version": "3.2.2",
-      "archive": "d4b50fc9ebb8d67fa0ad0b7a3973b318632b63e4bebcf860fc9a9825ac0e1103",
-      "manifest": "7ba91a511d413b425c0054192eb2fb1e48bbb880f9a3e66194dfd7d118b46e1a",
+      "archive": "4e5b40486f1089c7c24bcc457bbca461ecf30657bb015a171ab2411ee0b3220b",
+      "manifest": "757abbeee265a490cd31c5bf8fa852a69b1c21ac920963af12826702e1809b39",
       "dependencies": [
         "inventarch/agent-system",
         "inventarch/governance-system",
@@ -127,8 +127,8 @@
     {
       "id": "inventarch/template-system",
       "version": "3.3.2",
-      "archive": "e777195b4601f44212cb5950f805693ec5d29c257df769a8c91ff230ffdcadab",
-      "manifest": "4c2f4026489477988c636b5b46a9ca84a669ee4228d586d7e568e0a3cf41505b",
+      "archive": "8c93d4d4e15159e913efab8926a77f48baf41eba40c18a57b3ac36a25ddf172e",
+      "manifest": "897b02aa7edccc1b8f13b10b8c006683e7c1fc2646a67c39326bed58a283b37c",
       "dependencies": [
         "inventarch/agent-system",
         "inventarch/authoring-system",
@@ -140,8 +140,8 @@
     {
       "id": "inventarch/work-system",
       "version": "3.3.1",
-      "archive": "066b32aad250a5bb7b3a323d53091c4492ad2e3c21dbebb1d78ca0f73b14d584",
-      "manifest": "5b1b673b47f408caf5dd6e8ae9af322c9fd8b6dd9570a9e143e37dcc755db255",
+      "archive": "15ff6acd15056e633408dfb3ed3e1243a8dbd71804e45b5976adb505d1e5d022",
+      "manifest": "7626f4b5ebd889d3a78ca347f2671a5f5baeefd013b9d6f705eb489905a598b3",
       "dependencies": [
         "inventarch/agent-system",
         "inventarch/compliance-system",
@@ -152,8 +152,8 @@
     {
       "id": "inventarch/workspace-system",
       "version": "3.2.0",
-      "archive": "8cd943a9fa360b76e9a086ae82e4c322caa7f79954e1528f1a44bdd844548702",
-      "manifest": "0210a32862f025be4b19f5ea1d4df58d34a59126647ed532c7a3f064c2bb5da7",
+      "archive": "9199cc9c9d025011c00332f599ec62e26a73cd7fbc4e94869d813f0b3271ac09",
+      "manifest": "95f7d7f6aa1088a75d98d5eb7d80b6789195266175e2cbe1185da95fcbe43f91",
       "dependencies": [
         "inventarch/agent-system",
         "inventarch/compliance-system"
