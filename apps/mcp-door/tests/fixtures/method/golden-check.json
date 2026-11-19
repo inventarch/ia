@@ -47,7 +47,7 @@
     "mapped": false,
     "workspace": {
       "root": "<ROOT>/consumer",
-      "revision": "bb1097ad4d45531119d8f79520d6da87bf1436aedda7d6d153d0807d5e2528a0"
+      "revision": "7176270ea6d78b5c8dbbaa0116c0b9895a33d9ec7de922a5b87abdc51eee1702"
     }
   },
   "instructions": [
@@ -207,5 +207,5 @@
     ]
   },
   "kitUpdateAvailable": null,
-  "digest": "2d793c07f1e05d4910b7972825f244f9f7cee90d8b75a721ffb8446a27b5a1a2"
+  "digest": "fa101fd325311b00b3963c3c3b2a8f788db6f18577352605cde01228debee65d"
 }
