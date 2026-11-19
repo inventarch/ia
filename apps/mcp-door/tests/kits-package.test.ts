@@ -215,7 +215,16 @@ it('surfaces hosted kit pins in ia_session as hosted without restore warnings, a
             dependencies: [],
           },
         ],
-        entries: [{ kind: 'hosted', id: 'inventarch/ia-studio-kit', version: '0.5.1', hosted: true }],
+        entries: [
+          {
+            kind: 'hosted',
+            id: 'inventarch/ia-studio-kit',
+            version: '0.5.1',
+            hosted: true,
+            archive: '1'.repeat(64),
+            manifest: '2'.repeat(64),
+          },
+        ],
       },
       'install',
     ),

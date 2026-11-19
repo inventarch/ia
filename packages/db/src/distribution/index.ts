@@ -4,6 +4,7 @@ export {
   canonicalDistributionJson,
   commonRange,
   decodeDistributionJson,
+  hash,
   metadataDigest,
   packageId,
   range,
@@ -33,6 +34,7 @@ export {
   generationSources,
   platformDebris,
   readExpandedBundle,
+  readHostedPins,
   readInstalledGeneration,
 } from './reader.js';
 export type { ExpandedBundle, InstalledGeneration } from './reader.js';

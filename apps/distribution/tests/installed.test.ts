@@ -186,7 +186,14 @@ it('installs the kits of a package entry as ordinary releases, restores them by 
     entries: [other],
   }).lock;
   expect(carried).toMatchObject({ engine: '^0.1.2', entries: [other] });
-  const hosted = { kind: 'hosted' as const, id: 'inventarch/studio-kit', version: '1.2.0', hosted: true as const };
+  const hosted = {
+    kind: 'hosted' as const,
+    id: 'inventarch/studio-kit',
+    version: '1.2.0',
+    hosted: true as const,
+    archive: '3'.repeat(64),
+    manifest: '4'.repeat(64),
+  };
   const carriedHosted = resolveReleases(requests, candidates, DISTRIBUTION_ENGINE_VERSION, {
     ...lock,
     engine: '^0.1.3',

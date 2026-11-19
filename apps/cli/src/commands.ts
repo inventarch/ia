@@ -669,7 +669,8 @@ export const COMMANDS: readonly CommandSpec[] = [
       '           [--catalog <file>] [--offline] [--plan-out <file>]',
       '           [--apply] [--yes] [--json]',
       'ia install --package <name>[@<version>] [--offline] [--plan-out <file>] [--apply] [--yes] [--json]',
-      'ia install --hosted <id>@<version>... [--offline] [--plan-out <file>] [--apply] [--yes] [--json]',
+      'ia install --hosted <id>@<version> --archive <sha256> --manifest <sha256>...',
+      '           [--offline] [--plan-out <file>] [--apply] [--yes] [--json]',
     ],
     grammar: grammar(
       [
@@ -678,7 +679,7 @@ export const COMMANDS: readonly CommandSpec[] = [
           name: 'package',
           kind: 'value',
           excludesPositionals: true,
-          conflicts: ['requests', 'registry', 'catalog', 'hosted'],
+          conflicts: ['requests', 'registry', 'catalog', 'hosted', 'archive', 'manifest'],
           placeholder: '<name>[@<version>]',
           summary: 'An npm package of IA kit archives, such as @inventarch/public-kits, installed as one lock entry',
         }),
@@ -690,6 +691,24 @@ export const COMMANDS: readonly CommandSpec[] = [
           conflicts: ['package', 'requests', 'registry', 'catalog'],
           placeholder: '<id>@<version>',
           summary: 'A hosted kit pin recorded in the lock without local archive bytes; repeatable',
+        }),
+        option({
+          name: 'archive',
+          kind: 'value',
+          repeatable: true,
+          excludesPositionals: true,
+          conflicts: ['package', 'requests', 'registry', 'catalog'],
+          placeholder: '<sha256>',
+          summary: 'Archive SHA-256 digest for the matching --hosted kit pin; repeatable',
+        }),
+        option({
+          name: 'manifest',
+          kind: 'value',
+          repeatable: true,
+          excludesPositionals: true,
+          conflicts: ['package', 'requests', 'registry', 'catalog'],
+          placeholder: '<sha256>',
+          summary: 'Manifest SHA-256 digest for the matching --hosted kit pin; repeatable',
         }),
         option({
           name: 'requests',

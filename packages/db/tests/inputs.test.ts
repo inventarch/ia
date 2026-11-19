@@ -48,6 +48,8 @@ import {
   DISTRIBUTION_ENGINE_VERSION,
   generationDigest,
   installationWorkspace,
+  PACKAGE_ENTRY_ENGINE_VERSION,
+  readHostedPins,
   readInstalledGeneration,
   sha256,
 } from '../src/distribution/index.js';
@@ -711,6 +713,62 @@ it('reads installation state through a root reached by a link and still refuses 
 });
 it('reads a root that does not exist as no installation', () => {
   expect(installation(resolve(workspace(), 'absent'))).toBeUndefined();
+});
+it('resolves hosted-only lock pins without an installed generation or false restore-required error, while keeping release and digest refusals intact', () => {
+  const root = workspace();
+  const hosted = {
+    kind: 'hosted' as const,
+    id: 'inventarch/ia-studio-kit',
+    version: '0.5.1',
+    hosted: true as const,
+    archive: 'c'.repeat(64),
+    manifest: 'd'.repeat(64),
+  };
+  const lock = {
+    formatVersion: 1 as const,
+    engine: '^0.1.3',
+    requests: [],
+    packages: [],
+    entries: [hosted],
+  };
+  put(root, '.ia/distributions.lock.json', canonicalDistributionJson(lock));
+  expect(readInstalledGeneration(root)).toBeUndefined();
+  expect(readHostedPins(root)).toEqual([hosted]);
+  const handle = open(root, { cache: false });
+  expect(handle.records().length).toBeGreaterThan(0);
+  handle.close();
+
+  // Incompatible 0.1.2 reader refuses hosted-only lock with engine-incompatible.
+  expect(() => readHostedPins(root, PACKAGE_ENTRY_ENGINE_VERSION)).toThrow(/engine-incompatible.*ia >= 3\.9\.0/);
+
+  // Corrupt or missing digest on hosted-only lock refuses with contract-invalid even without active.json.
+  const corruptDigest = { ...lock, entries: [{ ...hosted, manifest: 'x' }] };
+  put(root, '.ia/distributions.lock.json', JSON.stringify(corruptDigest));
+  expect(() => readInstalledGeneration(root)).toThrow(/contract-invalid: Expected SHA-256/);
+  expect(() => readHostedPins(root)).toThrow(/contract-invalid: Expected SHA-256/);
+
+  // Package/release lock without active.json still requires restore.
+  const withRelease = {
+    formatVersion: 1 as const,
+    engine: '^0.1.3',
+    requests: [{ id: 'test/foundation', range: '^0.1.0' }],
+    packages: [
+      {
+        id: 'test/foundation',
+        version: '0.1.0',
+        archive: 'a'.repeat(64),
+        manifest: 'b'.repeat(64),
+        location: `sha256:${'a'.repeat(64)}`,
+        dependencies: [],
+      },
+    ],
+    entries: [hosted],
+  };
+  put(root, '.ia/distributions.lock.json', canonicalDistributionJson(withRelease));
+  expect(installation(root)).toMatchObject(
+    distribution('restore-required', 'Portable lock has no active installation'),
+  );
+  expect(() => readHostedPins(root)).toThrow(/restore-required: Portable lock has no active installation/);
 });
 it.skipIf(process.platform === 'win32')(
   'refuses a FIFO or a socket as installation state without waiting for a writer, and throws a path through a file',

@@ -497,6 +497,7 @@ export interface KitInstallation {
   readonly via: 'package' | 'entry' | 'hosted';
   readonly version: string;
   readonly archive: string | null;
+  readonly manifest?: string | null;
 }
 /** The lock's row for the kit and where it came from, or null when no row names it; version and archive are as locked. */
 export function kitInstallation(root: string, kitId: string): KitInstallation | null {
@@ -504,13 +505,30 @@ export function kitInstallation(root: string, kitId: string): KitInstallation | 
   const row = (lock?.packages ?? []).find((pkg) => pkg.id === kitId);
   if (row !== undefined) return { via: 'package', version: row.version, archive: row.archive ?? null };
   for (const entry of Array.isArray(lock?.entries) ? lock.entries : []) {
-    const record = entry as { kind?: unknown; kits?: unknown; id?: unknown; version?: unknown; hosted?: unknown };
+    const record = entry as {
+      kind?: unknown;
+      kits?: unknown;
+      id?: unknown;
+      version?: unknown;
+      hosted?: unknown;
+      archive?: unknown;
+      manifest?: unknown;
+    };
     if (record.kind === 'package' && Array.isArray(record.kits)) {
       const kit = (record.kits as LockedPackage[]).find((candidate) => candidate?.id === kitId);
       if (kit !== undefined) return { via: 'entry', version: kit.version, archive: kit.archive ?? null };
     }
-    if (record.kind === 'hosted' && record.hosted === true && record.id === kitId && typeof record.version === 'string')
-      return { via: 'hosted', version: record.version, archive: null };
+    if (
+      record.kind === 'hosted' &&
+      record.hosted === true &&
+      record.id === kitId &&
+      typeof record.version === 'string' &&
+      typeof record.archive === 'string' &&
+      /^[a-f0-9]{64}$/.test(record.archive) &&
+      typeof record.manifest === 'string' &&
+      /^[a-f0-9]{64}$/.test(record.manifest)
+    )
+      return { via: 'hosted', version: record.version, archive: record.archive, manifest: record.manifest };
   }
   return null;
 }
