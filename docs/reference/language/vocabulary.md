@@ -2,7 +2,7 @@
 
 Generated from the public contract corpus by `pnpm vocabulary:generate`. Required sections and fields are structural obligations; `id` is not an implicit enumeration. See [the language guide](README.md) for shared syntax, allowed values, relationship resolution, domain constraints and evaluator limits. The [JSON catalogue](vocabulary.json) carries the same machine-readable contract.
 
-This catalogue contains 44 words. Source digest: `e447c0ea7e10e8a84b98bebafd64b3860422f1e00c33a0cbdb2ea79fa6528e3f`.
+This catalogue contains 44 words. Source digest: `729e602c7c43e16e15ff2ea57046104f2ebb35e26f4b6748ae8e009e97c31c21`.
 
 ## @agent
 
@@ -655,6 +655,7 @@ Required sections: meaning, governance. Optional sections: execution, authority,
 | authority.participant | ref to agent | no | The agent this mandate binds. |
 | authority.moves | list of id in [Observation, Execution, Delegation, Synthesis, Verification] | no |  |
 | authority.scope | list of ref to workspace | no | The workspaces the mandate applies in. |
+| authority.words | list of id | no | Words the participant may author under this mandate. |
 | authority.excluded-words | list of id | no | Words the participant may not author under this mandate. |
 | authority.covers | list of text | no | Path selections the mandate claims, matched by the location resolver. |
 

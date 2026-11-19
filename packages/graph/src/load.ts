@@ -58,7 +58,7 @@ export function load(records: readonly CompiledRecord[], registry: FrozenRegistr
       if (seen.has(key)) throw new TypeError(`Duplicate record occurrence ${key}`);
       seen.add(key);
       const dimensions = dimensionsOf(record);
-      diagnostics.push(...dimensions.diagnostics);
+      for (const d of dimensions.diagnostics) diagnostics.push(d);
       const node: Node = {
         ...record,
         band: record.placement.band,
@@ -94,10 +94,12 @@ export function load(records: readonly CompiledRecord[], registry: FrozenRegistr
   const shadows: Shadow[] = [];
   const ties: Tie[] = [];
   for (const [identity, group] of groups) {
-    const band = Math.max(...group.map((o) => o.node.band));
+    let band = group[0]!.node.band;
+    for (let i = 1; i < group.length; i++) if (group[i]!.node.band > band) band = group[i]!.node.band;
     const highest = group.filter((o) => o.node.band === band);
     if (highest.length > 1) {
       ties.push({ identity, band: highest[0]!.node.band, occurrences: highest.map((o) => o.key) });
+      const tieLocations = summarizeTieLocations(highest);
       for (const occurrence of highest) {
         states.set(occurrence.key, { status: 'tied' });
         diagnostics.push(
@@ -105,7 +107,7 @@ export function load(records: readonly CompiledRecord[], registry: FrozenRegistr
             'IA-GRAPH-IDENTITY-TIE',
             occurrence.node.source.path,
             occurrence.node.source.line,
-            `${identity} ties at band ${band}: ${highest.map((o) => `${o.node.source.path}:${o.node.source.line}`).join(', ')}`,
+            `${identity} ties at band ${band}: ${tieLocations}`,
           ),
         );
       }
@@ -338,6 +340,25 @@ export function load(records: readonly CompiledRecord[], registry: FrozenRegistr
     claims: claimsOf(nodes.values()),
     text: buildTextIndex(nodes.values()),
   });
+}
+
+function summarizeTieLocations(highest: readonly Occurrence[]): string {
+  if (highest.length <= 32) {
+    const full = highest.map((o) => `${o.node.source.path}:${o.node.source.line}`).join(', ');
+    if (full.length <= 512) return full;
+  }
+  const shown: string[] = [];
+  let chars = 0;
+  for (let i = 0; i < highest.length && shown.length < 32; i++) {
+    const raw = `${highest[i]!.node.source.path}:${highest[i]!.node.source.line}`;
+    const item = raw.length > 128 ? `${raw.slice(0, 128)}...` : raw;
+    const added = (shown.length > 0 ? 2 : 0) + item.length;
+    if (shown.length > 0 && chars + added > 512) break;
+    shown.push(item);
+    chars += added;
+  }
+  const rest = highest.length - shown.length;
+  return rest > 0 ? `${shown.join(', ')}, ... (${rest} more)` : shown.join(', ');
 }
 
 function structuralGround(author: Node, edge: CompiledEdge, target: Node, registry: FrozenRegistry): boolean {

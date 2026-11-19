@@ -1,5 +1,5 @@
 import type { ChildNode, FieldNode, FileNode, RecordNode, Span } from '../ast.js';
-import { diag } from '../diagnostics.js';
+import { diag, pushAll, summarizeList } from '../diagnostics.js';
 import type { Diagnostic } from '../diagnostics.js';
 import { collisions, identityOf, renderIdentity } from '../identity.js';
 import type { Identity, IdentityOccurrence } from '../identity.js';
@@ -135,7 +135,7 @@ export function compile(
   for (const record of ast.records) compileRecord(record, undefined, ctx);
   // One identity twice in this file is a collision on both (spec 3.2); across files the caller and the graph decide.
   const found = collisions(ctx.drafts.map((draft) => draft.occurrence));
-  ctx.diagnostics.push(...found.diagnostics);
+  pushAll(ctx.diagnostics, found.diagnostics);
   // Parents precede their descendants in source order. Follow actual occurrences, not names:
   // a refused enclosing record cannot leave compiled children with a dangling parent.
   const refused = new Set(found.refused);
@@ -158,7 +158,7 @@ export function compile(
     })),
   );
   const duplicateRequirements = requirementCollisions(occurrences);
-  ctx.diagnostics.push(...duplicateRequirements.diagnostics);
+  pushAll(ctx.diagnostics, duplicateRequirements.diagnostics);
   const refusedRequirements = new Set([...duplicateRequirements.refused].map((occurrence) => occurrence.requirement));
   const final = related.map((draft) => {
     const requirements = draft.record.requirements.filter((requirement) => !refusedRequirements.has(requirement));
@@ -194,12 +194,10 @@ function lowerProducts(draft: Draft, ctx: Context): Draft {
     ctx.path,
     spellingsFor(registration, ctx.registry.schemas.get(registration.schema), 'governance'),
   );
-  ctx.diagnostics.push(
-    ...misplacedConditions(draft.node, ctx.path),
-    ...cells.diagnostics,
-    ...selectors.diagnostics,
-    ...variants.diagnostics,
-  );
+  pushAll(ctx.diagnostics, misplacedConditions(draft.node, ctx.path));
+  pushAll(ctx.diagnostics, cells.diagnostics);
+  pushAll(ctx.diagnostics, selectors.diagnostics);
+  pushAll(ctx.diagnostics, variants.diagnostics);
   return {
     ...draft,
     record: { ...draft.record, cells: cells.cells, selectors: selectors.selectors, variants: variants.variants },
@@ -217,7 +215,9 @@ function lowerRelationships(draft: Draft, pool: ReturnType<typeof indexedResolve
   const edges = readEdges(draft.node, draft.record, ctx.registry, pool, draft.record.edges);
   const contract = readContract(draft.node, ctx.path, ctx.registry, edges.edges, edges.refusedBindings);
   const scenario = validateCase(draft.node, ctx.path, ctx.registry, edges.edges, edges.refusedBindings);
-  ctx.diagnostics.push(...edges.diagnostics, ...contract.diagnostics, ...scenario.diagnostics);
+  pushAll(ctx.diagnostics, edges.diagnostics);
+  pushAll(ctx.diagnostics, contract.diagnostics);
+  pushAll(ctx.diagnostics, scenario.diagnostics);
   return {
     ...draft,
     record: { ...draft.record, edges: edges.edges, requirements: contract.requirements },
@@ -239,13 +239,13 @@ function compileRecord(record: RecordNode, parent: IdentityOccurrence | undefine
         'IA-LANG-DISCRIMINATOR-UNREGISTERED',
         path,
         line,
-        `${path}:${line}: discriminator '${record.discriminator}' ${why}; visible systems: ${registry.order.join(', ')}`,
+        `${path}:${line}: discriminator '${record.discriminator}' ${why}; visible systems: ${summarizeList(registry.order)}`,
       ),
     );
     return; // nothing beneath a refused record compiles: a nested record would have no parent identity
   }
   const identified = identityOf(record, registration, path);
-  ctx.diagnostics.push(...identified.diagnostics);
+  pushAll(ctx.diagnostics, identified.diagnostics);
   const identity = identified.identity;
   if (identity === undefined) return;
   const occurrence: IdentityOccurrence = { identity: identity.identity, path, line, band: ctx.location.placement.band };
@@ -326,19 +326,65 @@ function compileChildren(
   fieldSpans: { path: string; span: Span }[],
   ctx: Context,
 ): CompiledChild[] {
-  const out: CompiledChild[] = [];
-  for (const child of children) {
+  const rootOut: CompiledChild[] = [];
+  const stack: {
+    readonly children: readonly ChildNode[];
+    index: number;
+    readonly prefix: string;
+    readonly out: CompiledChild[];
+    readonly field?: {
+      readonly node: FieldNode;
+      readonly key: string;
+      readonly value: CompiledValue;
+      readonly parentOut: CompiledChild[];
+    };
+  }[] = [{ children, index: 0, prefix, out: rootOut }];
+  while (stack.length > 0) {
+    const top = stack[stack.length - 1]!;
+    if (top.index >= top.children.length) {
+      stack.pop();
+      if (top.field !== undefined) {
+        const { node, key, value, parentOut } = top.field;
+        parentOut.push({
+          key,
+          value,
+          ...(node.when === undefined ? {} : { when: node.when }),
+          span: node.span,
+          fields: top.out,
+        });
+      }
+      continue;
+    }
+    const child = top.children[top.index++]!;
     if (child.kind === 'record') {
       compileRecord(child, parent, ctx);
       continue;
     } // containment is structural, not a field (spec 2.5)
     if (child.kind === 'item') {
-      out.push({ item: compiledValue(child.value), span: child.span });
+      top.out.push({ item: compiledValue(child.value), span: child.span });
       continue;
     }
-    out.push(compileField(child, spellings, prefix, parent, fieldSpans, ctx));
+    const { key, value } = resolveKey(child, spellings);
+    const fieldPath = `${top.prefix}.${key}`;
+    fieldSpans.push({ path: fieldPath, span: child.span });
+    if (child.children.length === 0) {
+      top.out.push({
+        key,
+        value,
+        ...(child.when === undefined ? {} : { when: child.when }),
+        span: child.span,
+      });
+    } else {
+      stack.push({
+        children: child.children,
+        index: 0,
+        prefix: fieldPath,
+        out: [],
+        field: { node: child, key, value, parentOut: top.out },
+      });
+    }
   }
-  return out;
+  return rootOut;
 }
 
 function compileField(

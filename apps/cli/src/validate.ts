@@ -141,6 +141,8 @@ const ACTIONS: Readonly<Record<string, string>> = {
     'Remove the move or path the cited mandate does not allow from the citing mandate, or widen the cited mandate, then run "ia validate" again.',
   'IA-COMP-CANON-LOCAL-TIGHTEN':
     'Give the local law or convention the subject word of the canon law it cites and a severity at least as strong, or stop citing that law, then run "ia validate" again.',
+  'IA-COMP-MANDATE-WORD':
+    'Move or remove the record, or update the governing @mandate authority.words or authority.excluded-words in source, then run "ia validate" again.',
 };
 
 /** The next action for a check verification did not evaluate: its evaluator is built in, so there is none to supply. */

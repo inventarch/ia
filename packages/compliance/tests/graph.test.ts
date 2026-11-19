@@ -15,6 +15,7 @@ import {
   validateFragments,
   validateGraphSchema,
   validateIdentity,
+  validateMandateWords,
   validateParse,
   validateSelectors,
 } from '../src/index.js';
@@ -613,5 +614,192 @@ describe("agent-system's mandate moves (C05)", () => {
   });
   it('leaves an empty list of another word, or of another mandate field, as valid as C05 says', () => {
     expect(findings(probe(['moves [Observation]', 'excluded-words []', 'covers []'])).graph).toEqual([]);
+  });
+});
+
+describe('mandate word restrictions in workspace validation (COMP-MANDATE, #286)', () => {
+  const AUTHORED = {
+    placement: { kind: 'authored' as const, band: 100 as const, reach: '' },
+    provenance: 'workspace' as const,
+  };
+  const ADOPTED = {
+    placement: { kind: 'adopted' as const, band: 90 as const, reach: '' },
+    provenance: 'workspace' as const,
+  };
+  function buildGraph(files: readonly { path: string; text: string; location?: typeof AUTHORED | typeof ADOPTED }[]) {
+    const extraSources = files.map((file) => ({
+      path: file.path,
+      text: `#! ia 1.0\n${file.text}`,
+      location: file.location ?? AUTHORED,
+    }));
+    const pass = (pool: readonly CompiledRecord[]) =>
+      extraSources.flatMap(
+        (s) =>
+          compile(
+            parse(s.text, s.path).ast,
+            registry,
+            s.location,
+            pool.filter((r) => r.source.path !== s.path),
+          ).records,
+      );
+    const compiled = pass([...records, ...pass(records)]);
+    return load([...records, ...compiled], registry, {
+      ...options,
+      sources: [...inputs, ...extraSources],
+    });
+  }
+
+  it('reports IA-COMP-MANDATE-WORD when all governing Synthesis mandates disallow an authored record word', () => {
+    const graph = buildGraph([
+      {
+        path: '.ia/src/workspace.ia',
+        text: [
+          '@workspace org',
+          '  meaning',
+          '    says "Org workspace."',
+          '    answers "What does org hold?"',
+          '  composition',
+          '    systems [@system agent-system, @system work-system, @system workspace-system]',
+          '    sources [".ia/src @authored"]',
+          '',
+          '@agent eng-author',
+          '  meaning',
+          '    says "Engineering author."',
+          '  governance',
+          '    applies []',
+          '',
+          '@mandate eng-mandate',
+          '  meaning',
+          '    says "Allows decision and task only."',
+          '    answers "Which words may eng-author author?"',
+          '  governance',
+          '    requires "Stay within allowed words."',
+          '  authority',
+          '    participant @agent eng-author',
+          '    moves [Observation, Verification, Synthesis]',
+          '    scope [@workspace org]',
+          '    words [decision, task]',
+          '    excluded-words [task]',
+        ].join('\n'),
+      },
+      {
+        path: '.ia/src/decisions.ia',
+        text: [
+          '@decision ok-dec',
+          '  meaning',
+          '    says "Allowed decision."',
+          '  work',
+          '    title "Allowed"',
+          '    status made',
+          '  decision',
+          '    question "Allowed?"',
+          '',
+          '@plan disallowed-plan',
+          '  meaning',
+          '    says "Disallowed plan."',
+          '  work',
+          '    title "Disallowed"',
+          '    status active',
+        ].join('\n'),
+      },
+    ]);
+    const verdict = validateMandateWords(graph);
+    expect(verdict.outcome).toBe('fail');
+    expect(verdict.findings).toEqual([
+      expect.objectContaining({
+        code: 'IA-COMP-MANDATE-WORD',
+        severity: 'error',
+        path: '.ia/src/decisions.ia',
+        identity: 'work-system/definition/plan/disallowed-plan',
+        message: expect.stringContaining('@plan is not permitted by any governing Synthesis mandate'),
+      }),
+    ]);
+    // Bootstrap words (`@workspace`, `@agent`, `@mandate`) and `@decision ok-dec` produce zero findings.
+    expect(verdict.findings.map((f) => f.identity)).toEqual(['work-system/definition/plan/disallowed-plan']);
+  });
+
+  it('passes when at least one governing Synthesis mandate permits the word, in nested department workspaces, and on band-90 records', () => {
+    const graph = buildGraph([
+      {
+        path: '.ia/src/workspace.ia',
+        text: [
+          '@workspace org',
+          '  meaning',
+          '    says "Org workspace."',
+          '  composition',
+          '    systems [@system agent-system, @system work-system, @system workspace-system]',
+          '    sources [".ia/src @authored"]',
+          '',
+          '@agent root-author',
+          '  meaning',
+          '    says "Root author."',
+          '  governance',
+          '    applies []',
+          '',
+          '@mandate root-decisions',
+          '  meaning',
+          '    says "Root allows decision only."',
+          '  governance',
+          '    requires "Decisions only at root."',
+          '  authority',
+          '    participant @agent root-author',
+          '    moves [Synthesis]',
+          '    scope [@workspace org]',
+          '    words [decision]',
+        ].join('\n'),
+      },
+      {
+        path: '.ia/src/scopes/eng/workspace.ia',
+        text: [
+          '@workspace eng',
+          '  meaning',
+          '    says "Engineering workspace."',
+          '  composition',
+          '    systems [@system agent-system, @system work-system, @system workspace-system]',
+          '    sources [".ia/src/scopes/eng @authored"]',
+          '',
+          '@agent eng-plans',
+          '  meaning',
+          '    says "Eng planner."',
+          '  governance',
+          '    applies []',
+          '',
+          '@mandate eng-plan-mandate',
+          '  meaning',
+          '    says "Allows plans in eng."',
+          '  governance',
+          '    requires "Plans in eng."',
+          '  authority',
+          '    participant @agent eng-plans',
+          '    moves [Synthesis]',
+          '    scope [@workspace eng]',
+          '    words [plan]',
+        ].join('\n'),
+      },
+      {
+        path: '.ia/src/scopes/eng/plans.ia',
+        text: [
+          '@plan eng-plan',
+          '  meaning',
+          '    says "Permitted in eng even though root only allows decision."',
+          '  work',
+          '    title "Eng plan"',
+          '    status active',
+        ].join('\n'),
+      },
+      {
+        path: '.ia/src/adopted.ia',
+        location: ADOPTED,
+        text: [
+          '@plan adopted-plan',
+          '  meaning',
+          '    says "Band-90 adopted record is exempt."',
+          '  work',
+          '    title "Adopted"',
+          '    status active',
+        ].join('\n'),
+      },
+    ]);
+    expect(validateMandateWords(graph)).toMatchObject({ outcome: 'pass', findings: [] });
   });
 });

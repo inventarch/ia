@@ -8,6 +8,7 @@ import type { EvaluatorCatalog } from './catalog.js';
 import { bindConformance } from './conformance/bind.js';
 import type { ConformanceOptions, ConformanceSummary } from './conformance/bind.js';
 import {
+  checkRunner,
   validateCheck,
   validateCheckStructure,
   validateConsent,
@@ -18,6 +19,7 @@ import {
   validateParse,
   validateSelectors,
 } from './graph-checks.js';
+import { validateMandateWords } from './mandate-words.js';
 import { canonAssessments } from './canon/rules.js';
 import { validateSystems } from './systems.js';
 import type { SystemFolder } from './systems.js';
@@ -59,6 +61,11 @@ export interface Report {
   readonly conformance?: ConformanceSummary;
 }
 const compare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+const STANDARD_FINDING_KEYS = new Set(['code', 'severity', 'path', 'line', 'endLine', 'message', 'identity']);
+function findingDedupKey(f: Finding): string {
+  for (const key in f) if (!STANDARD_FINDING_KEYS.has(key)) return stableSerialize(f);
+  return `${f.code}\0${f.severity}\0${f.path}\0${f.line}\0${f.endLine ?? ''}\0${f.identity ?? ''}\0${f.message}`;
+}
 function unavailable(check: string, message: string): Assessment {
   return assess(check, 'graph', [{ code: 'IA-COMP-NOT-EVALUATED', severity: 'warning', path: '', line: 1, message }]);
 }
@@ -91,8 +98,15 @@ export function evaluate(graph: Graph, options: ReportOptions = {}): Report {
     ...validateAdoption(graph, options.adoptionEvaluators, options.coordinate),
     ...canonAssessments(nodes, options.folders, graph),
   ];
-  assessments.push(...(options.admission?.filter((a) => a.outcome !== 'pass') ?? []));
-  assessments.push(...(options.canonFiles ?? []));
+  const mandateWords = validateMandateWords(graph);
+  if (
+    mandateWords.findings.length > 0 ||
+    nodes.some((node) => node.discriminator === 'check' && checkRunner(node) === 'COMP-MANDATE')
+  ) {
+    assessments.push(mandateWords);
+  }
+  for (const a of options.admission ?? []) if (a.outcome !== 'pass') assessments.push(a);
+  for (const a of options.canonFiles ?? []) assessments.push(a);
   if (options.folders === undefined)
     for (const check of ['COMP-SYSTEM', 'COMP-STEWARD'])
       assessments.push(unavailable(check, 'System folder discovery observations were not supplied'));
@@ -134,7 +148,9 @@ export function evaluate(graph: Graph, options: ReportOptions = {}): Report {
       grouped.set(key, assessment);
       continue;
     }
-    const findings = new Map([...previous.findings, ...assessment.findings].map((f) => [stableSerialize(f), f]));
+    const findings = new Map<string, Finding>();
+    for (const f of previous.findings) findings.set(findingDedupKey(f), f);
+    for (const f of assessment.findings) findings.set(findingDedupKey(f), f);
     const outcome = rank[assessment.outcome] > rank[previous.outcome] ? assessment.outcome : previous.outcome;
     grouped.set(key, { ...assess(assessment.check, assessment.scope, [...findings.values()]), outcome });
   }
@@ -149,7 +165,7 @@ export function evaluate(graph: Graph, options: ReportOptions = {}): Report {
       .sort((a, b) => compare(a.check, b.check) || compare(a.scope, b.scope)),
   );
   const findings = new Map<string, Finding>();
-  for (const result of verdicts) for (const item of result.findings) findings.set(stableSerialize(item), item);
+  for (const result of verdicts) for (const item of result.findings) findings.set(findingDedupKey(item), item);
   return Object.freeze({
     revision: graph.revision,
     outcome: verdicts.some((v) => v.outcome === 'fail')

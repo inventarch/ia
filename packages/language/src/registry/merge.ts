@@ -1,5 +1,5 @@
 import type { Span } from '../ast.js';
-import { diag } from '../diagnostics.js';
+import { diag, summarizeList, summarizeOthers } from '../diagnostics.js';
 import type { Diagnostic } from '../diagnostics.js';
 import type { Band } from '../taxonomy.js';
 import type { Entry, Registration, SystemDeclaration } from './types.js';
@@ -31,18 +31,18 @@ export function mergeByName<T extends Named>(
   const winners = new Map<string, T>();
   const diagnostics: Diagnostic[] = [];
   for (const [name, group] of [...groups.entries()].sort(([a], [b]) => byName(a, b))) {
-    const top = Math.max(...group.map((item) => item.band));
+    let top = group[0]!.band;
+    for (let i = 1; i < group.length; i++) if (group[i]!.band > top) top = group[i]!.band;
     const atTop = group.filter((item) => item.band === top);
     const winner = atTop[0];
     if (atTop.length === 1 && winner !== undefined) {
       winners.set(name, winner);
       continue;
     }
-    for (const item of atTop) {
-      const others = atTop
-        .filter((o) => o !== item)
-        .map((o) => `${o.path}:${o.span.line}`)
-        .join(', ');
+    const labels = atTop.map((o) => `${o.path}:${o.span.line}`);
+    for (let i = 0; i < atTop.length; i++) {
+      const item = atTop[i]!;
+      const others = summarizeOthers(labels, i);
       diagnostics.push(
         diag(
           'IA-LANG-IDENTITY-COLLISION',
@@ -98,7 +98,8 @@ export function mergeRegistrations(
   for (const [keyword, list] of [...candidates.entries()].sort(([a], [b]) => byName(a, b))) {
     // Extraction owns the reserved-keyword diagnostic; preserve the supplied floor here.
     if (registrations.has(keyword)) continue;
-    const top = Math.max(...list.map((c) => c.registration.band));
+    let top = list[0]!.registration.band;
+    for (let i = 1; i < list.length; i++) if (list[i]!.registration.band > top) top = list[i]!.registration.band;
     const atTop = list.filter((c) => c.registration.band === top);
     const winner = atTop[0];
     if (atTop.length === 1 && winner !== undefined) {
@@ -106,7 +107,7 @@ export function mergeRegistrations(
       continue;
     }
     blocked.add(keyword);
-    const names = atTop.map((c) => c.system.displayName).join(', ');
+    const names = summarizeList(atTop.map((c) => c.system.displayName));
     for (const c of atTop) {
       diagnostics.push(
         diag(

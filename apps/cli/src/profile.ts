@@ -30,11 +30,13 @@ import { relative, resolve } from 'node:path';
 import {
   defaultActor,
   governingMandates,
+  governingWorkspace,
   rootWorkspace,
   isAdmissionRefusal,
   MODE_MOVES,
   profileRefusal,
   RuntimeError,
+  seatedWorkspace,
 } from '@inventarch/runtime';
 import type { GoverningMandate, Mode, ProfileVerdict } from '@inventarch/runtime';
 import type { Context } from './consumer.js';
@@ -66,10 +68,16 @@ const hostMode = (argv: readonly string[]): Mode | undefined =>
 /** What a gated command's profile leaves on its invocation for the refusals it raises later. */
 export interface GateState {
   readonly workspace?: string;
+  readonly rootWorkspace?: string;
   readonly actor?: string;
   readonly by?: Profile['by'];
   /** The mandates that govern at the workspace for the actor, whatever path the command targets. */
   readonly mandates: readonly GoverningMandate[];
+  /** For a command seated away from `rootWorkspace`, the profile state of pathless follow-up commands (`ia validate`). */
+  readonly rootDefaultMandates?: readonly GoverningMandate[];
+  readonly rootDefaultRefusal?: boolean;
+  readonly rootActorMandates?: readonly GoverningMandate[];
+  readonly rootActors?: readonly string[];
   /** ` --root <root>` as the invocation gave it, or nothing. */
   readonly rooted: string;
   readonly roots?: readonly (string | undefined)[];
@@ -234,97 +242,123 @@ function usableDigest(args: Context['args']): boolean {
 export function requireProfile(request: ProfileRequest): Profile {
   const { reader, within, context, mode } = request,
     words = request.words ?? [],
-    rooted = rootedOf(context),
-    workspace = repositoryWorkspace(reader, within);
-  // The CLI's one call of governingMandates: the profile, the gate state and every next command it judges read the
-  // mandates through it, so an option the runtime adds is passed here once. `fold` is db's `pathKey`, as the edit guard
-  // passes it, which folds case on win32 and darwin whatever the volume: there a `covers` selection claims the target
-  // path in any letter case, a directory not made yet and a selection cased otherwise than the directory on disk
-  // included; on other platforms case is significant.
-  const governing = (actor: string | undefined, path: string | undefined): readonly GoverningMandate[] =>
-    governingMandates(reader, within, {
-      ...(actor === undefined ? {} : { actor }),
-      ...(workspace === undefined ? {} : { workspace }),
-      ...(path === undefined ? {} : { path, fold: pathKey }),
-    });
-  const judge = (actor: string | undefined): { mandates: readonly GoverningMandate[]; verdict: ProfileVerdict } => {
-    const mandates = governing(actor, request.path);
-    return { mandates, verdict: profileRefusal(mandates, mode, words) };
-  };
-  /**
-   * An `ia author` form without a usable `--digest` (absent, or not 64 lowercase hex digits) would refuse again when
-   * named as it is, so an actor choice names its preview, which prints the digest: the actor must be allowed that
-   * preview too.
-   */
-  const previewFirst = context.command.name === 'author' && !usableDigest(context.args);
-  const administrative = mode === 'author' && words.some((word) => ADMINISTRATIVE_WORDS.includes(word));
-  const administrativeNext = (): string =>
-    `Run "ia position${workspace === undefined ? '' : ` --seat ${workspace} --shape governance`}${rooted}" to inspect the workspace's authority; an owner must change administrative records in source and validate them.`;
-  const allows = (actor: string | undefined): boolean =>
-    judge(actor).verdict.refusal === undefined &&
-    (!previewFirst || profileRefusal(governing(actor, request.path), 'validate', words).refusal === undefined);
-  /** This command, or for `previewFirst` its preview, with `--actor` set to `actor` or dropped. */
-  const rerun = (actor: readonly string[]): string =>
-    previewFirst
-      ? respell({ command: findCommand('preview')!, args: context.args }, { options: { actor } })
-      : respell(context, { options: { actor } });
-  /** The next command after an open or refused actor choice: this one as the first participant allowed to run it. */
-  const choose = (participants: readonly string[]): string => {
-    if (administrative) return administrativeNext();
-    const allowed = participants.find(allows);
-    if (allowed !== undefined)
-      return previewFirst
-        ? `Run "${rerun([allowed])}" as ${allowed}, a participant whose mandates allow it here, for the candidate and the digest ia author needs.`
-        : `Run "${rerun([allowed])}" to act as ${allowed}, a participant whose mandates allow it here.`;
-    return workspace === undefined
-      ? `Run "${rerun([])}" without naming an actor; this repository authors no @workspace.`
-      : `Run "ia position --seat ${workspace} --shape governance${rooted}" for the workspace's participants and the mandates that bind them; none of them may run this command here.`;
-  };
-  /**
-   * The next command after an `--actor` that names no participant: where the workspace's default actor may run this
-   * command, the command without `--actor`; where it may not, the governance position; only where the choice is open,
-   * the first participant allowed (`choose`).
-   */
-  const mistyped = (participants: readonly string[]): string => {
-    if (administrative) return administrativeNext();
-    const fallback = workspace === undefined ? undefined : defaultActor(reader, within, workspace);
-    if (fallback?.actor !== undefined)
-      return allows(fallback.actor)
-        ? `Run "${rerun([])}" as the workspace's default actor, ${fallback.actor}.`
-        : `Run "ia position --seat ${workspace} --shape governance${rooted}" for the workspace's participants and the mandates that bind them.`;
-    if (participants.length > 0) return choose(participants);
-    // With no participant the command runs without an actor, so that profile is judged before it is named.
-    if (allows(undefined)) return `Run "${rerun([])}" without naming an actor.`;
-    return workspace === undefined
-      ? `Run "ia position${rooted}" for the repository's position and the mandates that govern it.`
-      : `Run "ia position --seat ${workspace} --shape governance${rooted}" for the mandates that govern here; none of them allows this command without an actor.`;
-  };
+    rooted = rootedOf(context);
+  let workspace: string | undefined;
   try {
+    const rootWs = repositoryWorkspace(reader, within),
+      resolution = request.path === undefined ? undefined : reader.resolveSeat(request.path, { within }),
+      seatedWs = request.path === undefined ? rootWs : seatedWorkspace(reader, within, request.path),
+      governingWs = request.path === undefined ? rootWs : governingWorkspace(reader, within, request.path);
+    workspace = seatedWs ?? governingWs;
+    const isAuthoredWorkspace = (id: string | undefined): id is string =>
+      id !== undefined && reader.get(id, { within })?.band === 100;
+    const actorWorkspaces =
+      resolution?.by === 'shared'
+        ? (resolution.declarers ?? []).filter(isAuthoredWorkspace)
+        : isAuthoredWorkspace(seatedWs)
+          ? [seatedWs]
+          : [];
+    const eligibleActors = [
+      ...new Set(actorWorkspaces.flatMap((ws) => defaultActor(reader, within, ws).actors)),
+    ].sort();
+    // The CLI's one call of governingMandates: the profile, the gate state and every next command it judges read the
+    // mandates through it, so an option the runtime adds is passed here once. `fold` is db's `pathKey`, as the edit guard
+    // passes it, which folds case on win32 and darwin whatever the volume: there a `covers` selection claims the target
+    // path in any letter case, a directory not made yet and a selection cased otherwise than the directory on disk
+    // included; on other platforms case is significant.
+    const governingAt = (
+      targetWs: string | undefined,
+      actor: string | undefined,
+      path: string | undefined,
+    ): readonly GoverningMandate[] =>
+      governingMandates(reader, within, {
+        ...(actor === undefined ? {} : { actor }),
+        ...(targetWs === undefined ? {} : { workspace: targetWs }),
+        ...(path === undefined ? {} : { path, fold: pathKey }),
+      });
+    const governing = (actor: string | undefined, path: string | undefined): readonly GoverningMandate[] =>
+      governingAt(governingWs, actor, path);
+    const judge = (actor: string | undefined): { mandates: readonly GoverningMandate[]; verdict: ProfileVerdict } => {
+      const mandates = governing(actor, request.path);
+      return { mandates, verdict: profileRefusal(mandates, mode, words) };
+    };
+    /**
+     * An `ia author` form without a usable `--digest` (absent, or not 64 lowercase hex digits) would refuse again when
+     * named as it is, so an actor choice names its preview, which prints the digest: the actor must be allowed that
+     * preview too.
+     */
+    const previewFirst = context.command.name === 'author' && !usableDigest(context.args);
+    const administrative = mode === 'author' && words.some((word) => ADMINISTRATIVE_WORDS.includes(word));
+    const administrativeNext = (): string =>
+      `Run "ia position${workspace === undefined ? '' : ` --seat ${workspace} --shape governance`}${rooted}" to inspect the workspace's authority; an owner must change administrative records in source and validate them.`;
+    const allows = (actor: string | undefined): boolean =>
+      judge(actor).verdict.refusal === undefined &&
+      (!previewFirst || profileRefusal(governing(actor, request.path), 'validate', words).refusal === undefined);
+    /** This command, or for `previewFirst` its preview, with `--actor` set to `actor` or dropped. */
+    const rerun = (actor: readonly string[]): string =>
+      previewFirst
+        ? respell({ command: findCommand('preview')!, args: context.args }, { options: { actor } })
+        : respell(context, { options: { actor } });
+    /** The next command after an open or refused actor choice: this one as the first participant allowed to run it. */
+    const choose = (participants: readonly string[]): string => {
+      if (administrative) return administrativeNext();
+      const allowed = participants.find(allows);
+      if (allowed !== undefined)
+        return previewFirst
+          ? `Run "${rerun([allowed])}" as ${allowed}, a participant whose mandates allow it here, for the candidate and the digest ia author needs.`
+          : `Run "${rerun([allowed])}" to act as ${allowed}, a participant whose mandates allow it here.`;
+      return workspace === undefined
+        ? `Run "${rerun([])}" without naming an actor; this repository authors no @workspace.`
+        : `Run "ia position --seat ${workspace} --shape governance${rooted}" for the workspace's participants and the mandates that bind them; none of them may run this command here.`;
+    };
+    /**
+     * The next command after an `--actor` that names no participant: where the workspace's default actor may run this
+     * command, the command without `--actor`; where it may not, the governance position; only where the choice is open,
+     * the first participant allowed (`choose`).
+     */
+    const mistyped = (participants: readonly string[]): string => {
+      if (administrative) return administrativeNext();
+      const fallback = isAuthoredWorkspace(seatedWs) ? defaultActor(reader, within, seatedWs) : undefined;
+      if (fallback?.actor !== undefined)
+        return allows(fallback.actor)
+          ? `Run "${rerun([])}" as the workspace's default actor, ${fallback.actor}.`
+          : `Run "ia position --seat ${workspace} --shape governance${rooted}" for the workspace's participants and the mandates that bind them.`;
+      if (participants.length > 0) return choose(participants);
+      // With no participant the command runs without an actor, so that profile is judged before it is named.
+      if (allows(undefined)) return `Run "${rerun([])}" without naming an actor.`;
+      return workspace === undefined
+        ? `Run "ia position${rooted}" for the repository's position and the mandates that govern it.`
+        : `Run "ia position --seat ${workspace} --shape governance${rooted}" for the mandates that govern here; none of them allows this command without an actor.`;
+    };
     const spelled = context.args.value('actor');
     let actor: string | undefined, by: Profile['by'];
     if (spelled !== undefined) {
-      const participants = workspace === undefined ? [] : defaultActor(reader, within, workspace).actors,
-        named = namedAgent(reader, within, spelled);
-      if (named === undefined || !participants.includes(named))
+      const named = namedAgent(reader, within, spelled);
+      if (named === undefined || !eligibleActors.includes(named)) {
+        const scopeLabel =
+          actorWorkspaces.length > 1
+            ? actorWorkspaces.join(', ')
+            : (workspace ?? 'this repository, which authors no @workspace');
         throw new Refusal(
           'IA-RUNTIME-MANDATE-ACTOR',
-          `${named ?? spelled} is not an authored participant of ${workspace ?? 'this repository, which authors no @workspace'}${
-            participants.length === 0 ? '' : `; its participants are ${participants.join(', ')}`
+          `${named ?? spelled} is not an authored participant of ${scopeLabel}${
+            eligibleActors.length === 0 ? '' : `; its participants are ${eligibleActors.join(', ')}`
           }`,
           1,
           workspace === undefined ? null : { identity: workspace },
-          mistyped(participants),
+          mistyped(eligibleActors),
         );
+      }
       actor = named;
       by = 'actor';
-    } else if (workspace !== undefined) {
-      const fallback = defaultActor(reader, within, workspace);
+    } else if (isAuthoredWorkspace(seatedWs)) {
+      const fallback = defaultActor(reader, within, seatedWs);
       if (fallback.refusal !== undefined)
         throw new Refusal(
           fallback.refusal.code,
           `${fallback.refusal.message}, or name the acting participant`,
           1,
-          { identity: workspace },
+          { identity: seatedWs },
           choose(fallback.actors),
         );
       if (fallback.actor !== undefined) {
@@ -337,14 +371,15 @@ export function requireProfile(request: ProfileRequest): Profile {
       // The runtime names the governance position of the mandate concerned; the CLI spells that command itself, with
       // the root this invocation gave.
       const seat = seatOf(verdict.refusal.next) ?? workspace;
-      const unbound = verdict.refusal.code === 'IA-RUNTIME-MANDATE-ACTOR' && by !== 'actor' && workspace !== undefined;
+      const unbound =
+        verdict.refusal.code === 'IA-RUNTIME-MANDATE-ACTOR' && by !== 'actor' && actorWorkspaces.length > 0;
       throw new Refusal(
         verdict.refusal.code,
         verdict.refusal.message,
         1,
         seat === undefined ? null : { identity: seat },
         unbound
-          ? choose(defaultActor(reader, within, workspace).actors.filter((participant) => participant !== actor))
+          ? choose(eligibleActors.filter((participant) => participant !== actor))
           : seat === undefined
             ? `Run "ia position${rooted}" for the repository's position and the mandates that govern it.`
             : `Run "ia position --seat ${seat} --shape governance${rooted}" for the mandates that govern here and what they allow.`,
@@ -354,16 +389,38 @@ export function requireProfile(request: ProfileRequest): Profile {
       granted = mandates.find(
         (mandate) => mandate.binds !== false && (mandate.moves === undefined || mandate.moves.includes(move)),
       );
-    if (context.gate !== undefined)
+    if (context.gate !== undefined) {
+      const differentRoot = governingWs !== rootWs;
+      const rootFallback =
+        differentRoot && isAuthoredWorkspace(rootWs) ? defaultActor(reader, within, rootWs) : undefined;
+      const rootActors = rootFallback?.actors ?? [];
+      const rootDefaultMandates =
+        differentRoot && rootFallback?.refusal === undefined
+          ? governingAt(rootWs, rootFallback?.actor, undefined)
+          : undefined;
+      const rootActorMandates =
+        differentRoot && actor !== undefined && rootActors.includes(actor)
+          ? governingAt(rootWs, actor, undefined)
+          : undefined;
       context.gate.state = Object.freeze({
         ...(workspace === undefined ? {} : { workspace }),
+        ...(rootWs === undefined ? {} : { rootWorkspace: rootWs }),
         ...(actor === undefined ? {} : { actor }),
         ...(by === undefined ? {} : { by }),
         mandates: request.path === undefined ? mandates : governing(actor, undefined),
+        ...(differentRoot
+          ? {
+              ...(rootDefaultMandates === undefined ? {} : { rootDefaultMandates }),
+              rootDefaultRefusal: rootFallback?.refusal !== undefined,
+              ...(rootActorMandates === undefined ? {} : { rootActorMandates }),
+              rootActors,
+            }
+          : {}),
         rooted,
         roots: [reader.root, context.args.value('root')],
         ...(context.host === undefined ? {} : { advice: { cwd: context.host.cwd, env: context.host.env ?? {} } }),
       });
+    }
     return Object.freeze({
       ...(workspace === undefined ? {} : { workspace }),
       ...(actor === undefined ? {} : { actor }),
@@ -522,6 +579,34 @@ function judgeNext(next: string, gate: Gate | undefined): string {
     (verb === 'preview' || verb === 'author') && !argv.includes('--relate') && !argv.includes('--set')
       ? argv.slice(2).find((token) => !token.startsWith('-'))
       : undefined;
+  const targetsSeat = verb === 'preview' || verb === 'author';
+  if (!targetsSeat && state.rootActors !== undefined) {
+    // Pathless follow-up commands (`ia validate` after a scoped department `ia author`) execute at `rootWorkspace`.
+    if (
+      state.actor !== undefined &&
+      state.rootActors.includes(state.actor) &&
+      state.rootActorMandates !== undefined &&
+      profileRefusal(state.rootActorMandates, mode).refusal === undefined
+    ) {
+      if (state.by !== 'actor' || argv.includes('--actor')) return next;
+      const actor = ` --actor ${quote(state.actor)}`;
+      const command = match[1]!.includes(' -- ') ? match[1]!.replace(' -- ', `${actor} -- `) : `${match[1]}${actor}`;
+      return next.replace(match[0], `"${command}"`);
+    }
+    if (!state.rootDefaultRefusal && state.rootDefaultMandates !== undefined) {
+      const rootVerdict = profileRefusal(state.rootDefaultMandates, mode);
+      if (rootVerdict.refusal === undefined) return next;
+      const seat = seatOf(rootVerdict.refusal.next) ?? state.rootWorkspace ?? state.workspace;
+      const why = `${verb} needs ${MODE_MOVES[mode]}, which they do not grant at the repository root`;
+      return seat === undefined
+        ? `Run "ia position${state.rooted}" for the repository's position and the mandates that govern it; ${why}.`
+        : `Run "ia position --seat ${seat} --shape governance${state.rooted}" for what the mandates that govern here allow; ${why}.`;
+    }
+    const seat = state.rootWorkspace ?? state.workspace;
+    return seat === undefined
+      ? `Run "ia position${state.rooted}" for the repository's position and the mandates that govern it.`
+      : `Run "ia position --seat ${seat} --shape governance${state.rooted}" for the repository workspace's participants and the mandates that govern it.`;
+  }
   const verdict = profileRefusal(state.mandates, mode, word === undefined ? [] : [word]);
   if (verdict.refusal !== undefined) {
     const seat = seatOf(verdict.refusal.next) ?? state.workspace;

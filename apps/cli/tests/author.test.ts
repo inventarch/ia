@@ -947,13 +947,17 @@ describe('the mandate profile on every gated mode', () => {
     const read = await refused(root, ['read', participant, '--actor', 'nobody'], 'IA-RUNTIME-MANDATE-ACTOR');
     expect(nextArgv(read['next'] as string)).toEqual(commandRoots(['read', participant, '--root', root]));
   });
-  it('judges excluded words only for preview and author, leaving read, validate, next and capture alone', async () => {
+  it('judges an actor-specific excluded word for preview and author while another Synthesis mandate permits existing records', async () => {
     const root = workspace((at) =>
-      rewrite(at, '.ia/src/workspace.ia', (text) =>
-        text.replace(
-          '    scope [@workspace demo]\n',
-          '    scope [@workspace demo]\n    excluded-words [milestone, plan, mandate, workspace, agent]\n',
-        ),
+      rewrite(
+        at,
+        '.ia/src/workspace.ia',
+        (text) =>
+          text.replace(
+            '    scope [@workspace demo]\n',
+            '    scope [@workspace demo]\n    excluded-words [milestone, plan, mandate, workspace, agent]\n',
+          ) +
+          '\n@agent owner\n  meaning\n    says "Workspace owner."\n    answers "Who owns all words in demo?"\n  governance\n    applies []\n\n@mandate owner-mandate\n  meaning\n    says "Owner unrestricted Synthesis authority."\n    answers "Which words may owner author?"\n  governance\n    requires "Claim no host permission or execution from this mandate."\n  authority\n    participant @agent owner\n    moves [Observation, Verification, Synthesis, Execution]\n    scope [@workspace demo]\n',
       ),
     );
     for (const argv of [
@@ -967,8 +971,74 @@ describe('the mandate profile on every gated mode', () => {
       const result = await unchanged(root, argv);
       expect(result.exitCode, `${argv.join(' ')}: ${result.stdout}`).toBe(0);
     }
-    // The words they read are excluded only from what preview and author write.
+    // Default actor `demo` still cannot preview or author words its own mandate excludes.
     await refused(root, ['preview', 'milestone', 'm9'], 'IA-RUNTIME-MANDATE-WORD');
+  });
+  it('enforces authority.words allow-lists in preview, author and ia validate (#286)', async () => {
+    const root = workspace((at) =>
+      rewrite(at, '.ia/src/workspace.ia', (text) =>
+        text.replace(
+          '    scope [@workspace demo]\n',
+          '    scope [@workspace demo]\n    words [plan, milestone, task, decision]\n    excluded-words [decision]\n',
+        ),
+      ),
+    );
+    // `task` is in `words` and not in `excluded-words`: preview and author succeed cleanly.
+    const candidate = await unchanged(root, [
+      'preview',
+      'task',
+      't-allowed',
+      'meaning.says=Allowed by authority.words',
+      'work.title=Allowed task',
+      'work.status=open',
+      'work.action=Verify allow-list',
+      'work.milestone=@milestone m1',
+    ]);
+    expect(candidate.exitCode, candidate.stdout).toBe(0);
+    const digest = (JSON.parse(candidate.stdout) as { digest: string }).digest;
+    const authored = await run(
+      [
+        'author',
+        'task',
+        't-allowed',
+        'meaning.says=Allowed by authority.words',
+        'work.title=Allowed task',
+        'work.status=open',
+        'work.action=Verify allow-list',
+        'work.milestone=@milestone m1',
+        '--digest',
+        digest,
+        '--root',
+        root,
+        '--json',
+      ],
+      { env: HOMES },
+    );
+    expect(authored.exitCode, authored.stdout).toBe(0);
+    // `spec` is omitted from `authority.words`: refused with IA-RUNTIME-MANDATE-WORD.
+    const specRefusal = await refused(root, ['preview', 'spec', 's1'], 'IA-RUNTIME-MANDATE-WORD');
+    expect(specRefusal['message']).toContain('allows words plan, milestone, task, decision; disallowed: spec');
+    // `decision` is in `words` AND `excluded-words`: `excluded-words` still refuses it.
+    const decRefusal = await refused(root, ['preview', 'decision', 'd1'], 'IA-RUNTIME-MANDATE-WORD');
+    expect(decRefusal['message']).toContain('excludes decision');
+    // Narrowing the sole governing Synthesis mandate so `milestone` is no longer allowed makes `ia validate` report `IA-COMP-MANDATE-WORD`.
+    rewrite(root, '.ia/src/workspace.ia', (text) =>
+      text.replace('    words [plan, milestone, task, decision]\n', '    words [plan, task]\n'),
+    );
+    const invalid = await run(['validate', '--root', root, '--json'], { env: HOMES });
+    expect(invalid.exitCode, invalid.stdout).toBe(1);
+    const report = JSON.parse(invalid.stdout) as {
+      findings: Array<{ code: string; identity?: string; message: string }>;
+    };
+    expect(report.findings.filter((f) => f.code === 'IA-COMP-MANDATE-WORD')).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'IA-COMP-MANDATE-WORD',
+          identity: milestone('m1'),
+          message: expect.stringContaining('@milestone is not permitted by any governing Synthesis mandate'),
+        }),
+      ]),
+    );
   });
   it("lets ia next name ia preview plan only when the actor's profile allows Verification", async () => {
     const noPlan = (list: string) =>
