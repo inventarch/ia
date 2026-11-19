@@ -213,6 +213,72 @@ it('kits info when none installed', () => {
     expect.objectContaining({ id: 'kits', status: 'info', detail: 'no kits installed', remedy: null, fix: null }),
   ]);
 });
+it('reports hosted-only and mixed hosted+local pins as managed remotely without triggering false unmapped or refresh checks', () => {
+  const { root: hostedOnly } = workspace([]);
+  const hostedEntry = {
+    kind: 'hosted' as const,
+    id: 'inventarch/ia-studio-kit',
+    version: '0.5.1',
+    hosted: true as const,
+    archive: HEX('1'),
+    manifest: HEX('2'),
+  };
+  put(
+    join(hostedOnly, '.ia/distributions.lock.json'),
+    canonicalDistributionJson({
+      formatVersion: 1,
+      engine: '^0.1.3',
+      requests: [],
+      packages: [],
+      entries: [hostedEntry],
+    }),
+  );
+  expect(kitsOf(rows(home([]), hostedOnly))).toEqual([
+    expect.objectContaining({
+      id: 'kits',
+      status: 'info',
+      detail: '1 kit (1 hosted, managed remotely)',
+      remedy: null,
+      fix: null,
+    }),
+  ]);
+  expect(facts(home([]), hostedOnly).refresh).toBeNull();
+
+  // Mixed workspace (e.g. local language/release unit + hosted pin): counts both and keeps local status accurate.
+  const { root: mixedRoot, registry } = workspace([]);
+  put(
+    join(mixedRoot, '.ia/distributions.lock.json'),
+    canonicalDistributionJson({
+      formatVersion: 1,
+      engine: '^0.1.3',
+      requests: [{ id: 'acme/rel', range: '1.0.0' }],
+      packages: [locked('acme/rel', 'a')],
+      entries: [hostedEntry],
+    }),
+  );
+  expect(kitsOf(rows(home([]), mixedRoot))).toEqual([
+    expect.objectContaining({
+      id: 'kits',
+      status: 'unknown',
+      detail: 'not checked: 1 of 2 kits (1 hosted, managed remotely)',
+    }),
+  ]);
+  expect(kitsOf(rows(home([entry(registry, 'acme/rel', '1.0.0', '2026-11-03T09:30:00Z')]), mixedRoot))).toEqual([
+    expect.objectContaining({
+      id: 'kits',
+      status: 'ok',
+      detail: '2 kits, all local current (1 hosted, managed remotely) · checked 2026-11-03 09:30 UTC',
+      fix: null,
+    }),
+  ]);
+  const behindChecks = kitsOf(rows(home([entry(registry, 'acme/rel', '1.1.0', '2026-11-03T09:30:00Z')]), mixedRoot));
+  expect(behindChecks[0]).toMatchObject({
+    id: 'kits',
+    status: 'warn',
+    detail: '1 of 2 kits has an update (1 hosted, managed remotely) · checked 2026-11-03 09:30 UTC',
+  });
+  expect(behindChecks[1]).toMatchObject({ id: 'kit-update:acme/rel' });
+});
 it("kits ok when every unit's key is current, and it states the oldest check time", () => {
   const { root, registry } = mixed();
   const at = home([

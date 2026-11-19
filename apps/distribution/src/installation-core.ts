@@ -3,6 +3,7 @@ import { EditorSnapshot } from '@inventarch/db/editor';
 import {
   decodeActivationPointer,
   decodeDistributionLock,
+  lockedHostedKits,
   lockedReleases,
   decodeGenerationInputs,
   deriveGenerationInputs,
@@ -104,7 +105,12 @@ export function planInstallationSnapshot(input: NativeInstallationInput): Native
   const current = row['current'] === null ? { pointer: null, lock: null } : object(row['current'], ['pointer', 'lock']);
   const previous = current['pointer'] === null ? null : decodeActivationPointer(current['pointer']),
     previousLock = current['lock'] === null ? null : decodeDistributionLock(current['lock']);
-  if (op !== 'restore' && (previous === null) !== (previousLock === null))
+  const hostedOnlyPrior =
+    previous === null &&
+    previousLock !== null &&
+    lockedReleases(previousLock).length === 0 &&
+    lockedHostedKits(previousLock).length > 0;
+  if (op !== 'restore' && !hostedOnlyPrior && (previous === null) !== (previousLock === null))
     fail('RESTORE-REQUIRED', 'Current installation requires explicit recovery or restore');
   const lock = decodeDistributionLock(row['lock']);
   if (!supportsDistributionLockEngine(DISTRIBUTION_ENGINE_VERSION, lock.engine))
@@ -145,12 +151,32 @@ export function planInstallationSnapshot(input: NativeInstallationInput): Native
   }
   const old = previousLock === null ? [] : lockedReleases(previousLock),
     next = lockedReleases(lock),
+    oldHosted = previousLock === null ? [] : lockedHostedKits(previousLock),
+    nextHosted = lockedHostedKits(lock),
+    sortIds = (ids: readonly string[]): readonly string[] => [...ids].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)),
     changes = {
-      added: next.filter((pkg) => !old.some((prior) => prior.id === pkg.id)).map((pkg) => pkg.id),
-      removed: old.filter((pkg) => !next.some((row) => row.id === pkg.id)).map((pkg) => pkg.id),
-      updated: next
-        .filter((pkg) => old.some((prior) => prior.id === pkg.id && prior.archive !== pkg.archive))
-        .map((pkg) => pkg.id),
+      added: sortIds([
+        ...next.filter((pkg) => !old.some((prior) => prior.id === pkg.id)).map((pkg) => pkg.id),
+        ...nextHosted.filter((row) => !oldHosted.some((prior) => prior.id === row.id)).map((row) => row.id),
+      ]),
+      removed: sortIds([
+        ...old.filter((pkg) => !next.some((row) => row.id === pkg.id)).map((pkg) => pkg.id),
+        ...oldHosted.filter((row) => !nextHosted.some((after) => after.id === row.id)).map((row) => row.id),
+      ]),
+      updated: sortIds([
+        ...next
+          .filter((pkg) => old.some((prior) => prior.id === pkg.id && prior.archive !== pkg.archive))
+          .map((pkg) => pkg.id),
+        ...nextHosted
+          .filter((row) =>
+            oldHosted.some(
+              (prior) =>
+                prior.id === row.id &&
+                (prior.version !== row.version || prior.archive !== row.archive || prior.manifest !== row.manifest),
+            ),
+          )
+          .map((row) => row.id),
+      ]),
       shadowed,
     };
   const body = {

@@ -2,7 +2,7 @@
 
 Generated from the public contract corpus by `pnpm vocabulary:generate`. Required sections and fields are structural obligations; `id` is not an implicit enumeration. See [the language guide](README.md) for shared syntax, allowed values, relationship resolution, domain constraints and evaluator limits. The [JSON catalogue](vocabulary.json) carries the same machine-readable contract.
 
-This catalogue contains 44 words. Source digest: `59d7d4d46723f7fa290277efcb89eaec2e89635b9502af1d66dd46593f61bcd8`.
+This catalogue contains 44 words. Source digest: `e447c0ea7e10e8a84b98bebafd64b3860422f1e00c33a0cbdb2ea79fa6528e3f`.
 
 ## @agent
 
@@ -1164,3 +1164,6 @@ Required sections: meaning, composition. Optional sections: relationships.
 | composition.systems | list of ref to system | yes |  |
 | composition.sources | list of text | no | A root and the placement it is captured at, spelled \<root> @\<placement> with the placement one of authored, adopted, open, floor or runtime; for example .ia/src @authored. Admission does not check this form; an entry spelled any other way declares no root. |
 | composition.steward | ref to agent | no |  |
+| composition.public-agent | ref to agent | no | The intake participant that receives cross-workspace requests for this workspace. |
+| composition.private-agent | ref to agent | no | The internal participant that carries out work inside this workspace. |
+| composition.decides | list of text | no | What this workspace decides, each entry spelled \<id>: \<one plain sentence>; structural admission does not check this form. |

@@ -144,13 +144,33 @@ describe('classifyBaseChange', () => {
   it('lets breaking outrank unclassified and additive', () => {
     expect(kindOf(base({ other: word() }, { languageRecord: 'x'.repeat(64) }))).toBe('breaking');
   });
-  it('classifies the published 3.2.0 to the built 3.2.1 as a label', () => {
-    const published = readBaseLedger(root).bases.find((entry) => entry.version === '3.2.0')!;
-    const previous = baseCatalogue(ledgerArchive(root, published), published.archive);
-    const built = buildLanguageBase(root);
-    expect(classifyBaseChange(previous, baseCatalogue(built.bytes, built.pin.archive))).toEqual({
+  it('classifies the published 3.2.0 to the published 3.2.1 as a label, and 3.3.0 to built 3.4.0 as additive', () => {
+    const bases = readBaseLedger(root).bases;
+    const published320 = bases.find((entry) => entry.version === '3.2.0')!;
+    const published321 = bases.find((entry) => entry.version === '3.2.1')!;
+    const published330 = bases.find((entry) => entry.version === '3.3.0')!;
+    expect(
+      classifyBaseChange(
+        baseCatalogue(ledgerArchive(root, published320), published320.archive),
+        baseCatalogue(ledgerArchive(root, published321), published321.archive),
+      ),
+    ).toEqual({
       kind: 'label',
       changes: [],
+    });
+    const built = buildLanguageBase(root);
+    expect(
+      classifyBaseChange(
+        baseCatalogue(ledgerArchive(root, published330), published330.archive),
+        baseCatalogue(built.bytes, built.pin.archive),
+      ),
+    ).toEqual({
+      kind: 'additive',
+      changes: [
+        { kind: 'field-added', key: 'workspace.composition.public-agent' },
+        { kind: 'field-added', key: 'workspace.composition.private-agent' },
+        { kind: 'field-added', key: 'workspace.composition.decides' },
+      ],
     });
   });
 });

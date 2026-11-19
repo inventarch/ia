@@ -267,6 +267,7 @@ export function kitUnitKeys(
   });
   return {
     units: installed.units.map((unit) => {
+      if (unit.source.kind === 'hosted') return { unit, key: null, why: null };
       if (unit.source.kind === 'package')
         return { unit, key: { registry: 'npm', kind: 'package', id: unit.id }, why: null };
       try {

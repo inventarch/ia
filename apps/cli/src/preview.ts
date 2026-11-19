@@ -766,7 +766,7 @@ function previewSystem(run: Invocation, name: string, mode: EditMode): Candidate
     within: run.within,
     context: run.context,
     mode,
-    words: ['system', 'agent'],
+    words: ['system', 'agent', 'mandate'],
     path,
   });
   if (run.registry.systems.has(name))

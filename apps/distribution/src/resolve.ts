@@ -163,7 +163,7 @@ export function resolveReleases<R extends BundleMetadata = VerifiedArchive>(
           ? chosen
           : decodeDistributionLock({
               ...releasesOnly,
-              engine: lockEngineMarker(engine, true),
+              engine: lockEngineMarker(engine, existing.entries),
               entries: existing.entries,
             });
       built = { lock, releases, inputs: generationInputs(chosen, releases), assignments };

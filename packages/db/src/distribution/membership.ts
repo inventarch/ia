@@ -78,7 +78,10 @@ export function installationWorkspace(
 ): string | null {
   if (!lockedReleases(lock).length) return null;
   // The direct distributions: the requests, then each kit a package entry names.
-  const direct = [...lock.requests.map((r) => r.id), ...(lock.entries ?? []).flatMap((e) => e.kits.map((k) => k.id))];
+  const direct = [
+    ...lock.requests.map((r) => r.id),
+    ...(lock.entries ?? []).flatMap((e) => (e.kind === 'package' ? e.kits.map((k) => k.id) : [])),
+  ];
   const uses = direct.map((id) => {
     const release = releases.get(id);
     if (!release) throw new InstallationError('conflict', 'Missing direct distribution');
