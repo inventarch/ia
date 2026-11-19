@@ -12,12 +12,6 @@
     covers [".ia/src/records/**"]
   relationships
     cites @contract repository-architecture-boundary
-    governs @decision coordinated-npm-release
-    governs @decision npm-release-policy
-    governs @plan npm-release-hygiene
-    governs @milestone npm-release-prepared
-    governs @task npm-release-hygiene-checks
-    governs @task npm-release-publication-review
 
 @contract repository-architecture-boundary
   version "1.0.0"
@@ -29,7 +23,6 @@
     REQ-REPOSITORY-RELEASE-SELECTION "Active release work uses maintained policy and derived cohort membership; immutable historical release records may retain their original choices."
   relationships
     governs @workspace language-workspace
-    cites @decision npm-release-policy
 
 @check repository-architecture-coverage
   meaning

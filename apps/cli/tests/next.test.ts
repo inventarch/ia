@@ -471,19 +471,10 @@ it('refuses each delivery refusal at exit 1 with the runtime code and message, n
   );
 });
 
-it('reads the repository maintenance plan without selecting public example plans', async () => {
-  // The repository authors two plans, the maintenance plan and the shared-root plan, and admits no example plan:
-  // an unseated read refuses and counts only those two, so the maintenance plan is read by its seat.
+it('selects no public example plan in the repository, which authors no plan of its own', async () => {
+  // The repository keeps its work records outside it and admits no example plan, so an unseated read finds no plan.
   const refused = await next(repository, [], 1);
-  expect(refused.code).toBe('IA-RUNTIME-NEXT-AMBIGUOUS');
-  expect(refused.message).toContain('2 admitted @plan records');
-  const { view } = await next(repository, ['--seat', 'work-system/definition/plan/npm-release-hygiene']);
-  expect(view.plan).toBe('work-system/definition/plan/npm-release-hygiene');
-  expect(view.tasks.map((row) => row.identity)).toEqual([
-    task('npm-release-hygiene-checks'),
-    task('npm-release-publication-review'),
-  ]);
-  for (const delivered of view.tasks) expect(delivered.line.length, delivered.identity).toBeGreaterThan(0);
+  expect(refused.code).toBe('IA-RUNTIME-NEXT-NO-PLAN');
 });
 
 it('refuses several fixture plans without a seat, and reads the one the refusal names', async () => {
