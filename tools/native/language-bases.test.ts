@@ -6,7 +6,7 @@ import { gzipSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import { verifyArchive } from '../../apps/distribution/src/archive.js';
 import type { LanguageBase } from './language-base.js';
-import { buildLanguageBase } from './language-base.js';
+import { BASE_ID, buildLanguageBase } from './language-base.js';
 import {
   BASES_DIRECTORY,
   compareVersions,
@@ -20,11 +20,36 @@ import {
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const ledger = readBaseLedger(root);
+/** The native release notes: each archive change since the baseline release, until a release folds them away. */
+const NOTES = 'releases/native/notes.json';
 
 const compare = (a: string, b: string): number => {
   const [x, y] = [a, b].map((v) => v.split('.').map(Number));
   return x![0]! - y![0]! || x![1]! - y![1]! || x![2]! - y![2]!;
 };
+
+/**
+ * Why the ledger under `ledgerRoot` fails to record `built`, the base this tree builds, or undefined when it does. A
+ * build newer than the ledger's last row is unreleased only while the native release notes still carry its
+ * `inventarch/language` change. Once a release folds that note away, the build is the base the baseline release
+ * published, and the language compatibility gate compares the ledger's newest base with it, so the ledger must hold it.
+ */
+function unrecordedBase(ledgerRoot: string, built: LanguageBase['pin']): string | undefined {
+  const last = readBaseLedger(ledgerRoot).bases.at(-1);
+  if (last?.version === built.version)
+    return last.archive === built.archive && last.manifest === built.manifest
+      ? undefined
+      : `The ledger's ${last.version} row (${last.archive}) is not the built base (${built.archive})`;
+  if (last !== undefined && compare(last.version, built.version) > 0)
+    return `The ledger's ${last.version} is newer than the built base ${built.version}`;
+  const notes = JSON.parse(readFileSync(resolve(ledgerRoot, NOTES), 'utf8')) as { changes: { id: string }[] };
+  if (notes.changes.some((change) => change.id === BASE_ID)) return undefined;
+  return (
+    `${BASE_ID}@${built.version} is newer than the ledger's ${last?.version ?? 'first row'} and ${NOTES} has no ` +
+    `${BASE_ID} note: record the published base with pnpm language-bases:fetch --fetch ${built.version} ` +
+    `--from @inventarch/cli@<the release that published it>, or add the note if the change is unreleased`
+  );
+}
 
 describe('language base ledger', () => {
   it('verifies every ledger archive against its digest and manifest', () => {
@@ -65,13 +90,28 @@ describe('language base ledger', () => {
     }
   });
 
-  it('ends with the base the repository builds, or the build is newer and unreleased', () => {
+  it('ends with the base the repository builds, unless a pending native note keeps a newer build unreleased', () => {
+    expect(unrecordedBase(root, buildLanguageBase(root).pin)).toBeUndefined();
+  });
+
+  it('reports a published base the ledger misses once the release notes no longer carry its change', () => {
     const built = buildLanguageBase(root).pin;
-    const last = ledger.bases[ledger.bases.length - 1]!;
-    if (built.version === last.version) {
-      expect(built.archive).toBe(last.archive);
-      expect(built.manifest).toBe(last.manifest);
-    } else expect(compare(last.version, built.version)).toBeLessThan(0);
+    const scratch = mkdtempSync(resolve(tmpdir(), 'ia-bases-unrecorded-'));
+    try {
+      cpSync(resolve(root, 'releases/native'), resolve(scratch, 'releases/native'), { recursive: true });
+      const copy = JSON.parse(readFileSync(resolve(scratch, LEDGER_PATH), 'utf8')) as { bases: { version: string }[] };
+      copy.bases = copy.bases.filter((base) => compareVersions(base.version, built.version) < 0);
+      writeFileSync(resolve(scratch, LEDGER_PATH), `${JSON.stringify(copy, null, 2)}\n`);
+      const notes = JSON.parse(readFileSync(resolve(root, NOTES), 'utf8')) as Record<string, unknown>;
+      const withChanges = (changes: unknown[]) =>
+        writeFileSync(resolve(scratch, NOTES), `${JSON.stringify({ ...notes, changes }, null, 2)}\n`);
+      withChanges([{ id: BASE_ID, bump: 'patch', summary: 'Scratch-only pending change.' }]);
+      expect(unrecordedBase(scratch, built)).toBeUndefined();
+      withChanges([]);
+      expect(unrecordedBase(scratch, built)).toContain(`pnpm language-bases:fetch --fetch ${built.version}`);
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
   });
 
   it('holds exactly the archives the ledger names', () => {
