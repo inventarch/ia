@@ -998,5 +998,29 @@ describe('Track 2B: standalone plugin CLI projection for seated and multi-capabi
       expect(envelope.plan.unsupported).toContainEqual(expectedRow);
       expect(envelope.applied.unsupported).toContainEqual(expectedRow);
     }
+
+    // Standalone plugin compilation also accepts .ia/bindings.json written in the plain document identity.
+    const plainBindings = JSON.parse(readFileSync(join(root, '.ia/bindings.json'), 'utf8')) as Record<string, unknown>;
+    delete plainBindings['format'];
+    writeFileSync(
+      join(root, '.ia/bindings.json'),
+      JSON.stringify({ format: 'bindings', formatVersion: 1, ...plainBindings }, null, 2),
+    );
+    const plainOut = join(scratch('standalone-cli-plain-bindings'), 'antigravity');
+    const plainRes = await run([
+      'project',
+      'antigravity',
+      '--product',
+      'plugin',
+      '--out',
+      plainOut,
+      '--root',
+      root,
+      '--apply',
+      '--yes',
+      '--json',
+    ]);
+    expect(plainRes.exitCode, plainRes.stdout).toBe(0);
+    expect(readdirSync(join(plainOut, 'skills')).sort()).toEqual(['delivery', 'knowledge', 'work']);
   });
 });

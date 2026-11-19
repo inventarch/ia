@@ -29,7 +29,7 @@ import {
   type BigIntStats,
 } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
-import { pathKey } from '@inventarch/db';
+import { pathKey, readIdentity } from '@inventarch/db';
 import { renderHost, renderPacket, PACKET_MARKER } from '@inventarch/runtime';
 import type {
   HookGroupRow,
@@ -141,7 +141,12 @@ function readOptionalSeatBindings(root: string): {
       defaults?: Record<string, StandaloneBindingRow>;
       precedence?: string[];
     };
-    if (parsed.format !== 1 || typeof parsed.bindings !== 'object' || parsed.bindings === null) return {};
+    if (
+      readIdentity(parsed, 'bindings', [1], [{ key: 'format', value: 1, version: 1 }]) === undefined ||
+      typeof parsed.bindings !== 'object' ||
+      parsed.bindings === null
+    )
+      return {};
     const bindings: Record<string, StandaloneBindingRow | readonly StandaloneBindingRow[]> = { ...parsed.bindings };
     for (const [lane, row] of Object.entries(parsed.defaults ?? {})) {
       if (bindings[`${lane}.*`] === undefined && row && typeof row.capability === 'string') {
@@ -165,7 +170,12 @@ function readOptionalKitRecommendations(root: string): Record<string, Standalone
       format?: unknown;
       recommend?: Record<string, { capability?: unknown; kit?: unknown; profile?: unknown }>;
     };
-    if (parsed.format !== 1 || typeof parsed.recommend !== 'object' || parsed.recommend === null) return undefined;
+    if (
+      readIdentity(parsed, 'kit-bindings', [1], [{ key: 'format', value: 1, version: 1 }]) === undefined ||
+      typeof parsed.recommend !== 'object' ||
+      parsed.recommend === null
+    )
+      return undefined;
     const out: Record<string, StandaloneBindingRow> = {};
     for (const [key, row] of Object.entries(parsed.recommend)) {
       if (row && typeof row.capability === 'string') {
