@@ -2,7 +2,7 @@ import { parseLocator } from '@inventarch/runtime';
 import { closed, data, fail, frozen, KnowledgeError, LIMITS } from './format.js';
 import { boundedResponse } from './view.js';
 import type { openKnowledgeView } from './view.js';
-import { peekStamp, stampKeys } from './plain-format.js';
+import { peekStamp, stampKeys, written } from './plain-format.js';
 export const KB_PROTOCOL_VERSION = 1;
 export interface KnowledgeResponse {
   readonly version: 1;
@@ -44,7 +44,10 @@ export const KB_OPERATIONS = frozen([
       {
         citation: {
           type: 'object',
-          description: 'The complete citation (format kb-citation, formatVersion 1) returned by a knowledge read.',
+          description: written(
+            'The complete citation (format kb-citation, formatVersion 1) returned by a knowledge read.',
+            'The complete ia.kb.citation.v1 returned by a knowledge read.',
+          ),
         },
       },
       ['citation'],

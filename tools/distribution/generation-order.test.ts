@@ -97,8 +97,7 @@ it('stabilizes source-mutated vocabulary, authoring, selectors and archives with
     baseline: baseline.source,
     changes: baseline.archives.map((row) => ({
       id: row.id,
-      // Minor while the temporary patch notes are in the tree: a scratch patch would select the versions already written.
-      bump: 'minor',
+      bump: row.id === 'inventarch/work-system' ? workBump : 'patch',
       summary: 'Scratch-only convergence fixture.',
     })),
   });

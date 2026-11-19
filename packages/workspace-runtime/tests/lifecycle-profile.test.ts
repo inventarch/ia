@@ -12,8 +12,6 @@ import { metadataDigest } from '../src/resource-format.js';
 
 const profile = lifecycleProfile('claude-code', '2.1.278');
 const selected = lifecycleProfile('claude-code', '2.1.285');
-const legacyProfile = (version: string) =>
-  profileFromRows(claudeCodeRows, 'claude-code', version, { format: 'ia.lifecycle-profile.v1' });
 const input = (fields: Record<string, unknown> = {}) =>
   JSON.stringify({
     hook_event_name: 'UserPromptSubmit',
@@ -156,8 +154,7 @@ describe('Claude Code 2.1.285 payloads against the 2.1.278 decoder (HOST-02)', (
     (_name, fields) => {
       const start = fields['hook_event_name'] === 'SessionStart';
       expect(decodeLifecycleEvent(profile, json(fields))).toEqual({
-        format: 'lifecycle-event',
-        formatVersion: 1,
+        format: 'ia.lifecycle-event.v1',
         profile: profile.digest,
         host: 'claude-code',
         kind: start ? 'start' : 'prompt',
@@ -655,8 +652,7 @@ describe('the selected claude-code@2.1.285 row (HOST-03)', () => {
     expect(selected.version).toBe(SELECTED_CLAUDE_CODE_VERSION);
     for (const row of [profile, selected])
       expect(row).toMatchObject({
-        format: 'lifecycle-profile',
-        formatVersion: 1,
+        format: 'ia.lifecycle-profile.v1',
         host: 'claude-code',
         available: true,
         reason: null,
@@ -683,11 +679,8 @@ describe('the selected claude-code@2.1.285 row (HOST-03)', () => {
   // bindings and the captured host evidence pin their digests. This case pins both digests, both
   // field tables and the closed set of unfolded rows; every row added from here folds its table into its digest (below).
   it('keeps the claude-code@2.1.278 and 2.1.285 rows byte-identical and pins their unfolded field tables', () => {
-    // The pinned digests are those of the profiles under the literal they shipped with; the plain profiles digest anew.
-    expect(legacyProfile('2.1.278').digest).toBe('911d05a7fbf511e2de10a26dc573092b1cc99a1082f239e3b51aa7a6a9df4733');
-    expect(legacyProfile('2.1.285').digest).toBe('b25a5786a27e21e6b81449739d114d66be7c77ac9339c058919402111c8525b2');
-    expect(profile.digest).not.toBe(legacyProfile('2.1.278').digest);
-    expect(selected.digest).not.toBe(legacyProfile('2.1.285').digest);
+    expect(profile.digest).toBe('911d05a7fbf511e2de10a26dc573092b1cc99a1082f239e3b51aa7a6a9df4733');
+    expect(selected.digest).toBe('b25a5786a27e21e6b81449739d114d66be7c77ac9339c058919402111c8525b2');
     const { version: _retainedVersion, digest: _retainedDigest, ...retained } = profile,
       { version: _selectedVersion, digest: _selectedDigest, ...current } = selected;
     expect(current).toEqual(retained);
@@ -701,8 +694,7 @@ describe('the selected claude-code@2.1.285 row (HOST-03)', () => {
   it.each(positive285)('decodes the constructed %s payload under the selected row', (_name, fields) => {
     const start = fields['hook_event_name'] === 'SessionStart';
     expect(decodeLifecycleEvent(selected, json(fields))).toEqual({
-      format: 'lifecycle-event',
-      formatVersion: 1,
+      format: 'ia.lifecycle-event.v1',
       profile: selected.digest,
       host: 'claude-code',
       kind: start ? 'start' : 'prompt',

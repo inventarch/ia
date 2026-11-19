@@ -1,3 +1,5 @@
+import { WRITE_PLAIN_NAMES } from './written-names.js';
+
 /**
  * A document names its format plainly and carries an integer `formatVersion`, so no identifier carries its version in
  * its name. A document written before that carries exactly one of its recorded legacy literals and no `formatVersion`;
@@ -7,11 +9,16 @@ export type Stamp<N extends string = string, L extends string = string> =
   | { readonly format: N; readonly formatVersion: 1 }
   | { readonly format: L; readonly formatVersion?: never };
 export type FormatStamp = Stamp;
-/** The stamp every new write carries. */
+/** The plain stamp, with `formatVersion` 1. */
 export const currentStamp = <N extends string>(name: N): { readonly format: N; readonly formatVersion: 1 } => ({
   format: name,
   formatVersion: 1,
 });
+/** The stamp a writer emits: the plain one once `WRITE_PLAIN_NAMES` is `true`, otherwise the released literal. */
+export const writeStamp = <N extends string, L extends string>(name: N, legacy: L): Stamp<N, L> =>
+  WRITE_PLAIN_NAMES ? currentStamp(name) : { format: legacy };
+/** A scalar identifier a writer emits: `plain` once `WRITE_PLAIN_NAMES` is `true`, otherwise `legacy`. */
+export const written = <N, L>(plain: N, legacy: L): N | L => (WRITE_PLAIN_NAMES ? plain : legacy);
 /** The stamp `value` already carries under its own recorded literal, or undefined when it is neither form. */
 export function peekStamp<N extends string, L extends string>(
   value: unknown,

@@ -1,17 +1,16 @@
 import { createHash } from 'node:crypto';
-import {
-  cpSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  readdirSync,
-  realpathSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { afterEach, beforeEach, expect, it } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+
+/** The package's one switch, flipped here to prove the plain names come back exactly when the follow-up release flips it. */
+const flip = vi.hoisted(() => ({ plain: false }));
+vi.mock('../src/written-names.js', () => ({
+  get WRITE_PLAIN_NAMES() {
+    return flip.plain;
+  },
+}));
 import { canonical } from '../src/method/packet.js';
 import { folderKits, retainKit, retainedKit } from '../src/method/index.js';
 import { currentStamp, peekStamp } from '../src/plain-format.js';
@@ -20,7 +19,10 @@ let dir: string;
 beforeEach(() => {
   dir = realpathSync(mkdtempSync(join(tmpdir(), 'ia-plain-formats-')));
 });
-afterEach(() => rmSync(dir, { recursive: true, force: true }));
+afterEach(() => {
+  flip.plain = false;
+  rmSync(dir, { recursive: true, force: true });
+});
 
 const sha = (text: string): string => createHash('sha256').update(text).digest('hex');
 const put = (path: string, value: unknown): void => {
@@ -41,21 +43,32 @@ function retained() {
 const manifestOf = (store: string, digest: string) =>
   JSON.parse(readFileSync(join(store, digest, 'manifest.json'), 'utf8')) as Record<string, unknown>;
 
-it('retains method bytes under the plain stamp and still reads bytes retained under the original literal', () => {
+// Forward compatibility (dec-008, A15): an older program reads a retained manifest only under the literal it was released
+// with, so by default the manifest is retained under it; flipped, under the plain stamp. Both are read either way.
+it('retains method bytes under the released literal, and under the plain stamp once the switch flips', () => {
   const { store, kept } = retained();
   const manifest = manifestOf(store, kept.retained!);
-  expect(manifest).toMatchObject({ format: 'method-bytes', formatVersion: 1 });
+  expect(manifest['format']).toBe('inventarch.method-bytes/1');
+  expect(Object.hasOwn(manifest, 'formatVersion')).toBe(false);
   expect(sha(canonical(manifest))).toBe(kept.retained);
-  // The same bytes retained before formats stopped carrying a version: the original literal, its own digest.
   const { format: _format, formatVersion: _version, ...rest } = manifest,
-    original = { format: 'inventarch.method-bytes/1', ...rest },
-    digest = sha(canonical(original));
+    plain = { format: 'method-bytes', formatVersion: 1, ...rest },
+    digest = sha(canonical(plain));
   expect(digest).not.toBe(kept.retained);
+  // The plain copy a later release retains verifies under its own digest, and the released one keeps reading.
   cpSync(join(store, kept.retained!), join(store, digest), { recursive: true });
-  writeFileSync(join(store, digest, 'manifest.json'), `${canonical(original)}\n`);
+  writeFileSync(
+    join(store, digest, 'manifest.json'),
+    `${canonical(plain)}
+`,
+  );
   expect(retainedKit(digest, store)).toMatchObject({ id: 'inventarch/ia-kb-kit', retained: digest });
-  // A pin to the old digest keeps reading it; retaining the kit again keeps the plain copy and adds nothing else.
-  expect(readdirSync(store).sort()).toEqual([kept.retained!, digest].sort());
+  expect(retainedKit(kept.retained!, store)).toMatchObject({ retained: kept.retained });
+  flip.plain = true;
+  rmSync(store, { recursive: true, force: true });
+  const flipped = retained();
+  expect(manifestOf(flipped.store, flipped.kept.retained!)).toMatchObject({ format: 'method-bytes', formatVersion: 1 });
+  expect(flipped.kept.retained).toBe(digest);
 });
 
 it('refuses a retained manifest that is neither the plain stamp nor the original literal', () => {

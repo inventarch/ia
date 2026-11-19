@@ -25,9 +25,13 @@ export function candidateInputSchema(): Json {
   });
 }
 
-/** The handler this validation shipped under before handler ids stopped carrying their version; still dispatched. */
+import { written } from './plain-format.js';
+
+/** The plain handler id once `WRITE_PLAIN_NAMES` is `true`. */
+export const PLAIN_CANDIDATE_VALIDATE_HANDLER = 'candidate-validate';
+/** The handler this validation shipped under before handler ids stopped carrying their version; still dispatched, and written while `WRITE_PLAIN_NAMES` is `false`. */
 export const LEGACY_CANDIDATE_VALIDATE_HANDLER = 'ia.candidate.validate.v1';
-export const CANDIDATE_VALIDATE_HANDLER = 'candidate-validate';
+export const CANDIDATE_VALIDATE_HANDLER = written(PLAIN_CANDIDATE_VALIDATE_HANDLER, LEGACY_CANDIDATE_VALIDATE_HANDLER);
 /** Validation is a read. Publication and source application need separate installed bindings. */
 export function candidateValidation(
   capture: Capture,
@@ -55,11 +59,12 @@ export function candidateValidation(
     required: Object.keys(properties),
     additionalProperties: false,
   });
+  const handler = written(PLAIN_CANDIDATE_VALIDATE_HANDLER, LEGACY_CANDIDATE_VALIDATE_HANDLER);
   const definition: OperationDefinition = {
     id: 'candidate.validate',
-    handler: CANDIDATE_VALIDATE_HANDLER,
+    handler,
     digest: digest({
-      implementation: CANDIDATE_VALIDATE_HANDLER,
+      implementation: handler,
       implementationDigest,
       capture: frozen.revision,
       boundary,
@@ -108,7 +113,7 @@ export function candidateValidation(
     definition,
     adapter,
     adapters: Object.freeze({
-      [CANDIDATE_VALIDATE_HANDLER]: adapter,
+      [PLAIN_CANDIDATE_VALIDATE_HANDLER]: { ...adapter, id: PLAIN_CANDIDATE_VALIDATE_HANDLER },
       [LEGACY_CANDIDATE_VALIDATE_HANDLER]: { ...adapter, id: LEGACY_CANDIDATE_VALIDATE_HANDLER },
     }),
   };
