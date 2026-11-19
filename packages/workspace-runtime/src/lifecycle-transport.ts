@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 import { stableSerialize } from '@inventarch/graph';
 import { decodeJson, frozen, metadataDigest } from './resource-format.js';
 import { isSegmentedLifecycleProfile, LifecycleError } from './lifecycle-profile.js';
+import { currentStamp, peekStamp } from './plain-format.js';
+import type { Stamp } from './plain-format.js';
 
 export const LIFECYCLE_CONTEXT_SLOTS = 12;
 export const LIFECYCLE_CONTEXT_CHARACTERS = 10_000;
@@ -45,7 +47,7 @@ function payloadInfo(payload: string) {
     pins = object(body['pins']),
     event = object(body['event']);
   if (
-    body['format'] !== 'ia.lifecycle-context.v1' ||
+    peekStamp(body, 'lifecycle-context', ['ia.lifecycle-context.v1']) === undefined ||
     body['delivery'] !== 'unconfirmed' ||
     id !== metadataDigest(body) ||
     !isSegmentedLifecycleProfile(pins['profile']) ||
@@ -79,12 +81,17 @@ function payloadInfo(payload: string) {
   };
 }
 /** Exact deterministic transport only; no view, permission, input or delivery cache. */
-export function fragmentLifecycleContext(payload: string): LifecycleFragments {
+export function fragmentLifecycleContext(
+  payload: string,
+  stamp: Stamp<'lifecycle-context-segment', 'ia.lifecycle-context-segment.v1'> = currentStamp(
+    'lifecycle-context-segment',
+  ),
+): LifecycleFragments {
   const info = payloadInfo(payload),
     totalBytes = Buffer.byteLength(payload),
     wholeDigest = digest(payload);
   const frame = (slot: number, count: number, chunk: string | null) => ({
-    format: 'ia.lifecycle-context-segment.v1',
+    ...stamp,
     packetId: info.id,
     pins: info.pins,
     event: info.event,
@@ -150,7 +157,11 @@ export function assembleLifecycleContextSegments(input: readonly string[]): {
   for (const row of rows) {
     if (row['chunk'] !== null) payload += bounded(row['chunk'], LIFECYCLE_CONTEXT_CHARACTERS);
   }
-  const expected = fragmentLifecycleContext(payload),
+  // A set emitted before formats stopped carrying a version is compared with its frames rebuilt under that literal.
+  const expected = fragmentLifecycleContext(
+      payload,
+      peekStamp(rows[0], 'lifecycle-context-segment', ['ia.lifecycle-context-segment.v1']) ?? undefined,
+    ),
     info = payloadInfo(payload);
   for (let slot = 0; slot < LIFECYCLE_CONTEXT_SLOTS; slot++)
     if (

@@ -1,0 +1,19 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "Plain format readers for the structured template and the runner recompile",
+  "summary": "verifyStructuredTemplate reads a template under the plain structured-template name with formatVersion 1 as well as under the original ia.structured-template.v1 literal, preserving the stamp it was written with. The runner rebuilds a retained compiled harness under the stamp it carries, so a harness compiled before formats stopped carrying a version still verifies against its capture.",
+  "packages": [
+    "@inventarch/runner",
+    "@inventarch/template-system"
+  ],
+  "paths": [
+    ".ia/authoring.resources.json",
+    ".ia/src/systems/template-system/",
+    "CLAUDE.md",
+    "apps/runner/",
+    "docs/",
+    "examples/",
+    "tools/"
+  ]
+}

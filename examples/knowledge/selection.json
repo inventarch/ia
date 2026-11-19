@@ -1,5 +1,6 @@
 {
-  "format": "ia.kb.selection.v1",
+  "format": "kb-selection",
+  "formatVersion": 1,
   "sourceId": "example",
   "records": [
     "work-system/contract/spec/portable-knowledge"

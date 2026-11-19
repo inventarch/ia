@@ -7,21 +7,28 @@ import type { ProfilePin, ProjectionExport } from './projection-format.js';
 import {
   CODEX_PROSE_FEATURES,
   CODEX_PROSE_PROFILE,
+  LEGACY_CODEX_PROSE_PROFILE,
   codexInvocation,
   codexOutputPath,
   serializeCodexExport,
 } from './projection-codex.js';
 import type { SerializedExport } from './projection-codex.js';
+import { currentStamp, peekStamp, stampKeys } from './plain-format.js';
+import type { Stamp } from './plain-format.js';
 
 export { CODEX_PROSE_FEATURES, codexAgentRegistration } from './projection-codex.js';
 
 export interface ProjectionCatalog {
-  readonly format: 'ia.projection-catalog.v1';
+  readonly format: 'projection-catalog' | 'ia.projection-catalog.v1';
+  readonly formatVersion?: 1;
   readonly profile: ProfilePin;
   readonly models: readonly { readonly id: string; readonly name: string }[];
   readonly tools: readonly { readonly id: string; readonly name: string }[];
   readonly inputFields: readonly { readonly name: string; readonly type: 'text' }[];
 }
+export const CLAUDE_PROSE_PROFILE = 'claude-prose';
+/** The id this profile shipped under before ids stopped carrying their version; still read, never written. */
+export const LEGACY_CLAUDE_PROSE_PROFILE = 'ia.host.claude-prose.v1';
 export const CLAUDE_PROSE_FEATURES = Object.freeze([
   'agents',
   'native-agents',
@@ -32,8 +39,8 @@ export const CLAUDE_PROSE_FEATURES = Object.freeze([
   'resources',
   'conditional-guidance',
 ]);
-export const GEMINI_PROSE_PROFILE = 'ia.host.gemini-prose.v1';
-export const ANTIGRAVITY_PROSE_PROFILE = 'ia.host.antigravity-prose.v1';
+export const GEMINI_PROSE_PROFILE = 'gemini-prose';
+export const ANTIGRAVITY_PROSE_PROFILE = 'antigravity-prose';
 export const GEMINI_PROSE_FEATURES = CLAUDE_PROSE_FEATURES;
 export const ANTIGRAVITY_PROSE_FEATURES = CLAUDE_PROSE_FEATURES;
 /** Fixed v1 table of prose profiles: the host tool ids a native capability effect covers. No other effect maps a tool. */
@@ -58,12 +65,13 @@ export function claudeProseCatalog(
     inputFields: [],
   },
 ): ProjectionCatalog {
-  return proseCatalog('ia.host.claude-prose.v1', implementationDigest, selections);
+  return proseCatalog(CLAUDE_PROSE_PROFILE, implementationDigest, selections);
 }
 function proseCatalog(
   profile: string,
   implementationDigest: string,
   selections: Pick<ProjectionCatalog, 'models' | 'tools' | 'inputFields'>,
+  stamp: Stamp<'projection-catalog', 'ia.projection-catalog.v1'> = currentStamp('projection-catalog'),
 ): ProjectionCatalog {
   object(selections, ['models', 'tools', 'inputFields']);
   const names = (value: unknown) =>
@@ -83,7 +91,7 @@ function proseCatalog(
     (r) => r.name,
   );
   return frozen({
-    format: 'ia.projection-catalog.v1',
+    ...stamp,
     profile: { id: profile, version: 1, implementationDigest: hash(implementationDigest) },
     models: names(selections.models),
     tools: names(selections.tools),
@@ -91,29 +99,29 @@ function proseCatalog(
   });
 }
 export function verifyCatalog(value: ProjectionCatalog): ProjectionCatalog {
-  const row = object(value, ['format', 'profile', 'models', 'tools', 'inputFields']);
+  // A catalog or profile id written before formats and ids stopped carrying a version is rebuilt as written.
+  const stamp = peekStamp(value, 'projection-catalog', ['ia.projection-catalog.v1']);
+  const row = object(value, [...stampKeys(stamp), 'profile', 'models', 'tools', 'inputFields']);
   const pin = object(row['profile'], ['id', 'version', 'implementationDigest']);
   if (
-    row['format'] !== 'ia.projection-catalog.v1' ||
-    !['ia.host.claude-prose.v1', CODEX_PROSE_PROFILE, GEMINI_PROSE_PROFILE, ANTIGRAVITY_PROSE_PROFILE].includes(
-      pin['id'] as string,
-    ) ||
+    stamp === undefined ||
+    ![
+      CLAUDE_PROSE_PROFILE,
+      LEGACY_CLAUDE_PROSE_PROFILE,
+      CODEX_PROSE_PROFILE,
+      LEGACY_CODEX_PROSE_PROFILE,
+      GEMINI_PROSE_PROFILE,
+      ANTIGRAVITY_PROSE_PROFILE,
+    ].includes(pin['id'] as string) ||
     pin['version'] !== 1
   )
     inputFailure('Unknown projection catalog');
-  const create =
-    pin['id'] === CODEX_PROSE_PROFILE
-      ? codexProseCatalog
-      : pin['id'] === GEMINI_PROSE_PROFILE
-        ? geminiProseCatalog
-        : pin['id'] === ANTIGRAVITY_PROSE_PROFILE
-          ? antigravityProseCatalog
-          : claudeProseCatalog;
-  return create(hash(pin['implementationDigest']), {
-    models: value.models,
-    tools: value.tools,
-    inputFields: value.inputFields,
-  });
+  return proseCatalog(
+    pin['id'] as string,
+    hash(pin['implementationDigest']),
+    { models: value.models, tools: value.tools, inputFields: value.inputFields },
+    stamp,
+  );
 }
 export function codexProseCatalog(
   implementationDigest: string,
@@ -166,7 +174,8 @@ export function antigravityProseCatalog(
 ): ProjectionCatalog {
   return proseCatalog(ANTIGRAVITY_PROSE_PROFILE, implementationDigest, selections);
 }
-export const isCodex = (catalog: ProjectionCatalog): boolean => catalog.profile.id === CODEX_PROSE_PROFILE;
+export const isCodex = (catalog: ProjectionCatalog): boolean =>
+  catalog.profile.id === CODEX_PROSE_PROFILE || catalog.profile.id === LEGACY_CODEX_PROSE_PROFILE;
 export const isGemini = (catalog: ProjectionCatalog): boolean => catalog.profile.id === GEMINI_PROSE_PROFILE;
 export const isAntigravity = (catalog: ProjectionCatalog): boolean => catalog.profile.id === ANTIGRAVITY_PROSE_PROFILE;
 export function outputPath(
