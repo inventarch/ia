@@ -316,6 +316,24 @@ describe('E5 mandate narrowing', () => {
     const graph = graphOf(parent, ['child.ia', mandateOf('child-mandate', 'Execution', '"docs/"', 'parent-mandate')]);
     expect(ruleFindings(graph, WIDEN)).toEqual([]);
   });
+  it('E5 enforces authority.words narrowing on a citing mandate (#286)', () => {
+    const wordParent = [
+      'parent.ia',
+      '@mandate parent-mandate\n  meaning\n    says "Parent."\n    answers "What?"\n  governance\n    requires "Stay in bounds."\n  authority\n    moves [Synthesis]\n    words [decision, task]\n    covers [".ia/src/"]\n',
+    ] as const;
+    const narrower = graphOf(...narrowLaw, wordParent, [
+      'child.ia',
+      '@mandate child-mandate\n  meaning\n    says "Child."\n    answers "What?"\n  governance\n    requires "Stay in bounds."\n  authority\n    moves [Synthesis]\n    words [decision]\n    covers [".ia/src/"]\n  relationships\n    cites @mandate parent-mandate\n',
+    ]);
+    expect(ruleFindings(narrower, WIDEN)).toEqual([]);
+    const wider = graphOf(...narrowLaw, wordParent, [
+      'child.ia',
+      '@mandate child-mandate\n  meaning\n    says "Child."\n    answers "What?"\n  governance\n    requires "Stay in bounds."\n  authority\n    moves [Synthesis]\n    words [decision, plan]\n    covers [".ia/src/"]\n  relationships\n    cites @mandate parent-mandate\n',
+    ]);
+    const found = ruleFindings(wider, WIDEN);
+    expect(found).toHaveLength(1);
+    expect(found[0]!.message).toContain('plan');
+  });
 });
 
 const CANON_DIR = '.ia/src/systems/governance-system/records/canon';

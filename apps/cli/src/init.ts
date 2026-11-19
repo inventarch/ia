@@ -157,7 +157,7 @@ import {
   words,
 } from './render.js';
 
-export type HostSelection = 'claude' | 'codex' | 'none';
+export type HostSelection = HostName | 'none';
 /**
  * How the plan classifies the target. `recovery-required` is never rendered as a plan: it refuses before anything
  * reasons about the target.
@@ -223,11 +223,11 @@ export interface Starter {
   /** Null when neither `--id` nor the directory name yields a valid name; a conflict then asks for `--id`. */
   readonly name: string | null;
   readonly id: string | null;
-  /** `--system`: the local `@system`, its steward and the `@distribution` rooted at it are authored too. */
+  /** `--system`: the local `@system`, its steward and stewardship mandate, and the `@distribution` rooted at it are authored too. */
   readonly system: boolean;
   /** The authored files, in the order the author step writes them. */
   readonly files: readonly { readonly path: string; readonly text: string }[];
-  /** The records those files hold, in file order: three, or six with `--system`. */
+  /** The records those files hold, in file order: three, or seven with `--system`. */
   readonly records: readonly StarterRecord[];
   /** The assets `--from` lowered; empty otherwise. */
   readonly assets: readonly { readonly path: string; readonly role: 'asset' | 'documentation' | 'license' }[];
@@ -264,7 +264,7 @@ export interface CaptureEffect {
 }
 /** The project effect: the host, the files its receipt lists with their digests, and the receipt's own path. */
 export interface ProjectEffect {
-  readonly host: 'claude' | 'codex';
+  readonly host: HostName;
   readonly files: readonly { readonly path: string; readonly sha256: string }[];
   readonly receipt: string;
 }
@@ -530,9 +530,10 @@ export function starterIdentity(
 }
 
 /**
- * `--system`'s local system, the 1.x starter system unchanged (verbatim in shape): the steward needs `agent-system`,
- * and `governance` is required. `work-system` is required so the system folder can hold `@plan`, `@milestone`, `@task`
- * and `@decision` records with no edit: a system may use only words owned by systems it directly requires.
+ * `--system`'s local system, paired uniformly with `@agent <name>-steward` and `@mandate <name>-stewardship` covering
+ * `.ia/src/`: both words belong to `agent-system`, and `work-system` is required so the system folder can hold `@plan`,
+ * `@milestone`, `@task` and `@decision` records with no edit (a system may use only words owned by systems it directly
+ * requires).
  */
 export function starterSystem(name: string): string {
   return [
@@ -554,6 +555,17 @@ export function starterSystem(name: string): string {
     '    answers "Who owns this system?"',
     '  governance',
     '    applies []',
+    '',
+    `@mandate ${name}-stewardship`,
+    '  meaning',
+    `    says "The bounded stewardship authority of ${name}-steward over the ${name} system."`,
+    `    answers "Which moves may ${name}-steward make, and which paths does this mandate cover?"`,
+    '  governance',
+    '    requires "Claim no host permission or execution from this mandate."',
+    '  authority',
+    `    participant @agent ${name}-steward`,
+    '    moves [Observation, Verification, Synthesis, Delegation, Execution]',
+    '    covers [".ia/src/"]',
     '',
   ].join('\n');
 }
@@ -644,6 +656,7 @@ export function starterFiles(
         ? [
             { word: 'system', name, path: systemPath(name) },
             { word: 'agent', name: `${name}-steward`, path: systemPath(name) },
+            { word: 'mandate', name: `${name}-stewardship`, path: systemPath(name) },
             { word: 'distribution', name: `${name}-distribution`, path: distributionPath(name) },
           ]
         : []),
@@ -1359,7 +1372,7 @@ const starterRows = (view: InitView, caps: Capabilities): readonly string[] => {
                   symbol: 'info' as const,
                   label: 'Local system',
                   value: words(
-                    `@system ${starter.name} and its steward; @distribution ${starter.name}-distribution rooted at it`,
+                    `@system ${starter.name}, its steward @agent ${starter.name}-steward and @mandate ${starter.name}-stewardship; @distribution ${starter.name}-distribution rooted at it`,
                   ),
                 },
               ]
@@ -1773,7 +1786,7 @@ async function offerTracking(context: Context, root: string, result: Result): Pr
  * followed by "rerun" would send the user back to this init, which now refuses as initialized, so it names `ia host`
  * instead, which names that recovery itself. The effect is read from the receipt the projection apply just wrote.
  */
-function registerHost(context: Context, selected: 'claude' | 'codex', root: string, done: string): Projected {
+function registerHost(context: Context, selected: HostName, root: string, done: string): Projected {
   const host = `ia host ${selected} --root ${quote(root)} --apply`;
   const finish = `Run "${host}" to finish host registration.`,
     recover = `Run "${host}" for the recovery it names, then run it again to finish host registration.`;
@@ -2117,7 +2130,13 @@ export function collectMigration(request: MigrationRequest): MigrationView {
   const kept = (value === undefined ? [] : value.kind === 'list' ? value.items : [value]).flatMap((item) =>
     item.kind === 'ref' && item.discriminator === 'system' && item.name !== name ? [item.name] : [],
   );
-  const planned = starterFiles(name, kept, system);
+  // 1.1.0 `system.ia` keeps its two original records (`@system` and `@agent`), without the new stewardship `@mandate`.
+  const planned = {
+    files: starterFiles(name, kept, system).files,
+    records: starterFiles(name, kept, system).records.filter(
+      (record) => !(record.path === systemPath(name) && record.word === 'mandate'),
+    ),
+  };
   const moves = others.map((file): MigrationMove => {
     const from = `${systemFolder(name)}/records/${file}`;
     return { from, to: `.ia/src/${file}`, identities: identities(from) };

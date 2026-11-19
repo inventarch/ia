@@ -5,6 +5,7 @@ import type { FrontField, FrontValue } from './frontmatter.js';
 import { MANIFESTS, NAME, type PluginEntry, type PluginHost, type PluginInventory } from './inventory.js';
 import { sameJson } from './json.js';
 import { type PluginProduct, pluginManifest } from './manifest.js';
+import { writeStamp } from '../plain-format.js';
 
 export type AssetRole = 'asset' | 'documentation' | 'license';
 export type DispositionKind = 'field' | 'resource' | 'asset' | 'derived' | 'retired' | 'unresolved';
@@ -16,7 +17,8 @@ export interface Disposition {
   readonly reason: string | null;
 }
 export interface LoweringMap {
-  readonly format: 'ia.lowering-map.v1';
+  readonly format: 'lowering-map' | 'ia.lowering-map.v1';
+  readonly formatVersion?: 1;
   readonly plugin: string;
   readonly system: string;
   readonly entries: readonly Disposition[];
@@ -57,10 +59,14 @@ export function toolsOf(effects: readonly string[]): string[] {
     ),
   ];
 }
-/** The one effect set whose tools are exactly `tools` (as a set), or null. This version knows `read` only. */
+const EFFECT_ORDER: readonly string[] = [...PROSE_EFFECT_TOOLS.keys()];
+/** The effect subset whose tools are `tools` (as a set without duplicates), in table order, or null. */
 function effectsFor(tools: readonly string[]): string[] | null {
   const want = [...tools].sort().join(',');
-  for (const effect of PROSE_EFFECT_TOOLS.keys()) if ([...toolsOf([effect])].sort().join(',') === want) return [effect];
+  for (let mask = 1; mask < 1 << EFFECT_ORDER.length; mask++) {
+    const subset = EFFECT_ORDER.filter((_, index) => (mask & (1 << index)) !== 0);
+    if ([...toolsOf(subset)].sort().join(',') === want) return subset;
+  }
   return null;
 }
 const control = (text: string): boolean => [...text].some((c) => c.charCodeAt(0) < 0x20 || c.charCodeAt(0) === 0x7f);
@@ -462,7 +468,7 @@ export function lowerPlugin(inventory: PluginInventory, system: string): Lowerin
       a.source === b.source ? cmp(a.key ?? '', b.key ?? '') : cmp(a.source, b.source),
     );
     const map: LoweringMap = Object.freeze({
-      format: 'ia.lowering-map.v1',
+      ...writeStamp('lowering-map', 'ia.lowering-map.v1'),
       plugin: name ?? '',
       system,
       entries: Object.freeze(sortedEntries),
@@ -486,7 +492,7 @@ export function lowerPlugin(inventory: PluginInventory, system: string): Lowerin
     const owners = new Map<string, { path: string; role: string; delivery: string }[]>();
     for (const r of resources) owners.set(r.owner, [...(owners.get(r.owner) ?? []), r]);
     const manifest = {
-      format: 'ia.authoring-resources.v1',
+      ...writeStamp('authoring-resources', 'ia.authoring-resources.v1'),
       files: [...resources]
         .sort((a, b) => cmp(a.path, b.path))
         .map((r) => ({

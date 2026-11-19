@@ -19,8 +19,15 @@ import {
   sourcesDigest,
 } from './kits.js';
 import type { Kit, KitSources } from './kits.js';
-import { lockedPackageKits, restoreRefusal, workspaceKits } from './installed-kits.js';
-import type { LockedKit } from './installed-kits.js';
+import {
+  hostedKit,
+  hostedRefusal,
+  lockedHostedKits,
+  lockedPackageKits,
+  restoreRefusal,
+  workspaceKits,
+} from './installed-kits.js';
+import type { HostedKit, LockedKit } from './installed-kits.js';
 import { assemblePacket } from './packet.js';
 import type { MethodPacket } from './packet.js';
 import { kitUpdate, pinRootFor, readPin, writePin } from './pin.js';
@@ -231,9 +238,9 @@ export function resolveMethod(request: MethodRequest, context: MethodContext): M
     } catch {
       carried = [];
     }
-    let locked: readonly LockedKit[] = [];
+    let locked: readonly (LockedKit | HostedKit)[] = [];
     try {
-      locked = lockedPackageKits(workspaceRoot!);
+      locked = [...lockedPackageKits(workspaceRoot!), ...lockedHostedKits(workspaceRoot!)];
     } catch {
       locked = [];
     }
@@ -247,7 +254,11 @@ export function resolveMethod(request: MethodRequest, context: MethodContext): M
     );
   };
   const kitId = unbound ? binding.kit : canonicalId(binding.kit);
-  if (!unbound) requireKitInstalled(workspaceRoot!, { id: kitId });
+  if (!unbound) {
+    requireKitInstalled(workspaceRoot!, { id: kitId });
+    const pinnedHosted = hostedKit(workspaceRoot!, kitId);
+    if (pinnedHosted !== undefined) throw hostedRefusal(pinnedHosted);
+  }
 
   const keyPin = pin?.keys?.[activityKey] ?? null;
   const savedKit = pin?.kits?.[kitId] ?? null;

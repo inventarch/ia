@@ -69,7 +69,20 @@ it('stabilizes source-mutated vocabulary, authoring, selectors and archives with
     target = JSON.parse(readFileSync(join(root, 'releases/current.json'), 'utf8'))
       .version.split('.')
       .map(Number);
-  target[2] = target[2]! + 1;
+  const selector = '.ia/src/systems/work-system/system.ia',
+    beforeSelector = readFileSync(join(root, selector), 'utf8');
+  const workBaseline = baseline.archives
+    .find((row) => row.id === 'inventarch/work-system')!
+    .version.split('.')
+    .map(Number);
+  const workPatch = `${workBaseline[0]}.${workBaseline[1]}.${workBaseline[2]! + 1}`;
+  const workBump = beforeSelector.includes(`  version "${workPatch}"`) ? 'minor' : 'patch';
+  if (workBump === 'minor') {
+    target[1] = target[1]! + 1;
+    target[2] = 0;
+  } else {
+    target[2] = target[2]! + 1;
+  }
   const version = target.join('.');
   const json = (path: string, value: unknown) => writeFileSync(join(root, path), JSON.stringify(value, null, 2) + '\n');
   json('releases/current.json', {
@@ -84,7 +97,7 @@ it('stabilizes source-mutated vocabulary, authoring, selectors and archives with
     baseline: baseline.source,
     changes: baseline.archives.map((row) => ({
       id: row.id,
-      bump: 'patch',
+      bump: row.id === 'inventarch/work-system' ? workBump : 'patch',
       summary: 'Scratch-only convergence fixture.',
     })),
   });
@@ -95,8 +108,6 @@ it('stabilizes source-mutated vocabulary, authoring, selectors and archives with
   writeFileSync(join(root, schema), old.replace(phrase, 'Scratch convergence: the action that completes this task.'));
   const guide = '.ia/src/systems/authoring-system/reference/task.md',
     beforeGuide = readFileSync(join(root, guide), 'utf8');
-  const selector = '.ia/src/systems/work-system/system.ia',
-    beforeSelector = readFileSync(join(root, selector), 'utf8');
   const generated = new Set<string>();
   const snapshot = () => new Map([...generated].sort().map((path) => [path, readFileSync(join(root, path), 'utf8')]));
   const write = (outputs: ReadonlyMap<string, string>) => {

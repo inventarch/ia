@@ -25,12 +25,24 @@ export function candidateInputSchema(): Json {
   });
 }
 
+import { written } from './plain-format.js';
+
+/** The plain handler id once `WRITE_PLAIN_NAMES` is `true`. */
+export const PLAIN_CANDIDATE_VALIDATE_HANDLER = 'candidate-validate';
+/** The handler this validation shipped under before handler ids stopped carrying their version; still dispatched, and written while `WRITE_PLAIN_NAMES` is `false`. */
+export const LEGACY_CANDIDATE_VALIDATE_HANDLER = 'ia.candidate.validate.v1';
+export const CANDIDATE_VALIDATE_HANDLER = written(PLAIN_CANDIDATE_VALIDATE_HANDLER, LEGACY_CANDIDATE_VALIDATE_HANDLER);
 /** Validation is a read. Publication and source application need separate installed bindings. */
 export function candidateValidation(
   capture: Capture,
   scope: CandidateScope,
   implementationDigest: string,
-): { definition: OperationDefinition; adapter: OperationAdapter } {
+): {
+  definition: OperationDefinition;
+  adapter: OperationAdapter;
+  /** The same adapter under the plain handler and the original one, for manifests pinned before the rename. */
+  adapters: Readonly<Record<string, OperationAdapter>>;
+} {
   const frozen = verifyCapture(capture),
     boundary = JSON.parse(JSON.stringify(scope)) as CandidateScope;
   if (
@@ -47,11 +59,12 @@ export function candidateValidation(
     required: Object.keys(properties),
     additionalProperties: false,
   });
+  const handler = written(PLAIN_CANDIDATE_VALIDATE_HANDLER, LEGACY_CANDIDATE_VALIDATE_HANDLER);
   const definition: OperationDefinition = {
     id: 'candidate.validate',
-    handler: 'ia.candidate.validate.v1',
+    handler,
     digest: digest({
-      implementation: 'ia.candidate.validate.v1',
+      implementation: handler,
       implementationDigest,
       capture: frozen.revision,
       boundary,
@@ -70,33 +83,38 @@ export function candidateValidation(
       citations: list(string),
     }),
   };
+  const adapter: OperationAdapter = {
+    id: definition.handler,
+    execute: async (input, context) => {
+      if (!context.grant.sources.includes(frozen.revision))
+        throw new SessionError('IA-CORPUS-DENIED', 'Candidate sources exceed the current grant');
+      const result = validateCandidate(
+        {
+          root: '',
+          sources: frozen.sources,
+          folders: frozen.folders,
+          floorOrigin: frozen.floorOrigin,
+          fingerprint: frozen.revision,
+        },
+        input,
+        boundary,
+      );
+      // Closed engine schemas have no union/nullability operator; undisclosed locations use empty/zero.
+      return {
+        effect: 'none',
+        output: {
+          ...result,
+          diagnostics: result.diagnostics.map((d) => ({ code: d.code, path: d.path ?? '', line: d.line ?? 0 })),
+        } as unknown as Json,
+      };
+    },
+  };
   return {
     definition,
-    adapter: {
-      id: definition.handler,
-      execute: async (input, context) => {
-        if (!context.grant.sources.includes(frozen.revision))
-          throw new SessionError('IA-CORPUS-DENIED', 'Candidate sources exceed the current grant');
-        const result = validateCandidate(
-          {
-            root: '',
-            sources: frozen.sources,
-            folders: frozen.folders,
-            floorOrigin: frozen.floorOrigin,
-            fingerprint: frozen.revision,
-          },
-          input,
-          boundary,
-        );
-        // Closed engine schemas have no union/nullability operator; undisclosed locations use empty/zero.
-        return {
-          effect: 'none',
-          output: {
-            ...result,
-            diagnostics: result.diagnostics.map((d) => ({ code: d.code, path: d.path ?? '', line: d.line ?? 0 })),
-          } as unknown as Json,
-        };
-      },
-    },
+    adapter,
+    adapters: Object.freeze({
+      [PLAIN_CANDIDATE_VALIDATE_HANDLER]: { ...adapter, id: PLAIN_CANDIDATE_VALIDATE_HANDLER },
+      [LEGACY_CANDIDATE_VALIDATE_HANDLER]: { ...adapter, id: LEGACY_CANDIDATE_VALIDATE_HANDLER },
+    }),
   };
 }

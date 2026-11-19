@@ -209,6 +209,7 @@ export function qualifyInstalledViews(cli, cwd, env, workspace) {
   const delivery = machine(['next']);
   assert.equal(delivery.ok, true);
   assert.equal(delivery.view.format, 'ia.delivery-view.v1');
+  assert.equal('formatVersion' in delivery.view, false);
   assert.equal(delivery.view.plan, plan);
   assert.equal(delivery.view.revision, captured.revision);
   assert.deepEqual(

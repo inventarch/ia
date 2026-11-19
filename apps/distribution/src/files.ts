@@ -1,6 +1,8 @@
 import { createHash, randomUUID } from 'node:crypto';
 import {
   closeSync,
+  constants,
+  copyFileSync,
   existsSync,
   fchmodSync,
   fsyncSync,
@@ -203,7 +205,13 @@ export function createFile(root: string, path: string, content: Buffer, mode = 0
   contained(root, path);
   const temp = drafted(target, content, mode);
   try {
-    linkSync(temp, target);
+    try {
+      linkSync(temp, target);
+    } catch (error) {
+      if (process.platform === 'win32' && (error as NodeJS.ErrnoException).code === 'EPERM')
+        copyFileSync(temp, target, constants.COPYFILE_EXCL);
+      else throw error;
+    }
     syncDirectory(dirname(target));
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'EEXIST') fail('LOCAL-MODIFICATION', 'Draft output already exists');

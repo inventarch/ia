@@ -17,6 +17,22 @@ import {
 } from '../src/lifecycle.js';
 import type { LifecyclePins, LifecycleView, RequiredContextParts } from '../src/lifecycle.js';
 
+/** The package's one switch, flipped here to prove the plain names come back exactly when the follow-up release flips it. */
+const flip = vi.hoisted(() => ({ plain: false }));
+vi.mock('../src/written-names.js', () => ({
+  get WRITE_PLAIN_NAMES() {
+    return flip.plain;
+  },
+}));
+const withPlain = <T>(run: () => T): T => {
+  flip.plain = true;
+  try {
+    return run();
+  } finally {
+    flip.plain = false;
+  }
+};
+
 const temporary = mkdtempSync(join(tmpdir(), 'ia-lifecycle-'));
 const root = join(temporary, 'project'),
   method = 'governance-system/definition/procedure/sample-procedure';
@@ -189,6 +205,33 @@ describe('shared scoped lifecycle context', () => {
       prepareScopedContextSegments({ ...input, requiredParts, budgets: { ...budgets, bytes: 1000 } }),
     ).toThrow(/budget|bound/i);
   });
+  it('accepts an event under the released literal as written, and one under the plain stamp with its own key', () => {
+    const input = request(),
+      plainEvent = withPlain(() =>
+        decodeLifecycleEvent(
+          profile,
+          JSON.stringify({
+            hook_event_name: 'UserPromptSubmit',
+            session_id: 'session',
+            prompt_id: 'p1',
+            cwd: root,
+            prompt: 'Author a native method',
+          }),
+        ),
+      );
+    expect(event).toMatchObject({ format: 'ia.lifecycle-event.v1' });
+    expect(Object.hasOwn(event, 'formatVersion')).toBe(false);
+    expect(plainEvent).toMatchObject({ format: 'lifecycle-event', formatVersion: 1 });
+    expect(plainEvent.key).not.toBe(event.key);
+    expect(JSON.parse(prepareScopedContext({ ...input, event }).payload).event.key).toBe(event.key);
+    expect(JSON.parse(prepareScopedContext({ ...input, event: plainEvent }).payload).event.key).toBe(plainEvent.key);
+    // A plain event carrying the key of the original literal is not the event it claims to be.
+    expect(() => prepareScopedContext({ ...input, event: { ...plainEvent, key: event.key } })).toThrow(/identity/);
+    expect(() =>
+      prepareScopedContext({ ...input, event: { ...event, format: 'ia.lifecycle-event.v2' as never } }),
+    ).toThrow();
+    expect(() => prepareScopedContext({ ...input, event: { ...event, formatVersion: 1 } as never })).toThrow();
+  });
   it('uses an explicit retained native profile and measures its own payload wrapper', () => {
     const native = lifecycleProfile('ia-native', '1'),
       input = request();
@@ -205,6 +248,11 @@ describe('shared scoped lifecycle context', () => {
       pins: { ...input.pins, profile: native.digest },
     });
     expect(prepared.output).toMatchObject({ format: 'ia.native-context.v1', additionalContext: expect.any(String) });
+    expect(prepared.output).not.toHaveProperty('formatVersion');
+    const flipped = withPlain(() =>
+      prepareScopedContext({ ...input, profile: native, event, pins: { ...input.pins, profile: native.digest } }),
+    );
+    expect(flipped.output).toMatchObject({ format: 'native-context', formatVersion: 1 });
     expect(prepared.output).not.toHaveProperty('hookSpecificOutput');
     expect(prepared.usage.bytes).toBe(Buffer.byteLength(JSON.stringify(prepared.output)));
     expect(() => decodeLifecycleEvent(native, '{}')).toThrow(/native.*factory/i);

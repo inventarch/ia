@@ -32,6 +32,7 @@ export function sourceProtectionCheck(root: string): Check {
         );
         return (
           executionLimit ||
+          mandate.words !== undefined ||
           (mandate.excludedWords?.length ?? 0) > 0 ||
           (mandate.moves !== undefined && MOVES.some((move) => !mandate.moves!.includes(move)))
         );

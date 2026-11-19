@@ -55,8 +55,8 @@ export const NATIVE_HELP = `Native distribution commands:
   plan update --root <workspace> --catalog <file> --id <provider/name> --to <range> [--out <draft>]
   plan remove --root <workspace> --id <provider/name> [--out <draft>]
   plan rollback --root <workspace> --generation <digest> [--out <draft>]
-  plan host --root <workspace> --host claude|codex --cache <absolute cache> [--out <draft>]
-  plan host-remove --root <workspace> --host claude|codex --id <plugin> [--out <draft>]
+  plan host --root <workspace> --host claude|codex|gemini|antigravity --cache <absolute cache> [--out <draft>]
+  plan host-remove --root <workspace> --host claude|codex|gemini|antigravity --id <plugin> [--out <draft>]
   plan lifecycle --root <workspace> --cache <absolute cache> --binding <file> [--out <draft>]
   plan lifecycle-remove --root <workspace> --id <plugin> [--out <draft>]
   apply --root <workspace> --plan <file>

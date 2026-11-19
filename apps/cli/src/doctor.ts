@@ -450,7 +450,7 @@ function unverified(cache: string | null, recorded: string | null, verify: HostV
  */
 function unreadableStates(observed: HostObservation): readonly string[] {
   if (observed.elements.length === 0) return [STATE.mcp(observed.host)];
-  if (observed.host === 'codex' || !observed.elements.includes('hooks')) return [STATE.projection(observed.host)];
+  if (observed.host !== 'claude' || !observed.elements.includes('hooks')) return [STATE.projection(observed.host)];
   if (observed.elements.includes('projection')) return [STATE.hooks];
   return [STATE.hooks, STATE.projection(observed.host)];
 }
@@ -472,8 +472,8 @@ function repairOf(root: string, observed: HostObservation): string {
   }
   // A file that no longer parses is repaired by making it parse; apply then names anything left to do.
   const unparsed = [
-    ...(host === 'claude' && observed.reasons.includes('mcp-modified') && !parses(root, MCP_PATH.claude)
-      ? [MCP_PATH.claude]
+    ...(host !== 'codex' && observed.reasons.includes('mcp-modified') && !parses(root, MCP_PATH[host])
+      ? [MCP_PATH[host]]
       : []),
     ...(observed.reasons.includes('guard-modified') && !parses(root, SETTINGS) ? [SETTINGS] : []),
   ];

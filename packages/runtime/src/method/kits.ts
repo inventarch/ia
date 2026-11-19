@@ -15,7 +15,7 @@ import type { ReleaseRow } from './releases.js';
  * `kits/<folder>/<version>/`. A workspace whose lock installs kits from an npm package of kits also reads them from its
  * store (installed-kits.ts), origin `installed`.
  */
-export type KitOrigin = 'bundled' | 'home' | 'installed';
+export type KitOrigin = 'bundled' | 'home' | 'installed' | 'hosted';
 export interface Kit {
   readonly folder: string;
   readonly dir: string;
@@ -94,6 +94,7 @@ export const sha256File = (path: string): string => createHash('sha256').update(
 
 /** The files `.ia/release.json` declares beside `.ia/`, sorted by path; one that escapes the kit or is missing refuses. */
 export function declaredAssets(kitDir: string): readonly { readonly rel: string; readonly abs: string }[] {
+  if (!kitDir) return [];
   const descriptorPath = join(kitDir, '.ia', 'release.json');
   if (!existsSync(descriptorPath)) return [];
   const assets = ((JSON.parse(readFileSync(descriptorPath, 'utf8')) as { assets?: { path?: unknown }[] }).assets ??
@@ -124,6 +125,7 @@ export function declaredAssets(kitDir: string): readonly { readonly rel: string;
 
 /** One digest over a kit's sources (paths and LF-normalized bytes): `.ia/`, the declared assets, then each sidecar present. */
 export function sourcesDigest(kitDir: string): string {
+  if (!kitDir) throw new MethodError('hosted kit carries no local source bytes', 'IA-CORE-KIT-HOSTED');
   const hash = createHash('sha256');
   const ia = join(kitDir, '.ia');
   const feed = (rel: string, path: string): void => {
@@ -149,6 +151,7 @@ export function implementationDigest(
   kit: Pick<Kit, 'dir' | 'carrier'>,
   carrier: string | undefined = kit.carrier,
 ): string {
+  if (!kit.dir) throw new MethodError('hosted kit carries no local implementation bytes', 'IA-CORE-KIT-HOSTED');
   const hash = createHash('sha256');
   const roots: [string, string | undefined][] = [
     ['kit', kit.dir],
@@ -271,6 +274,7 @@ export interface KitRecordName {
 }
 /** A kit's record names as (system, word, name), read from its text sources. */
 export function kitRecordNames(kitDir: string): KitRecordName[] {
+  if (!kitDir) return [];
   const systems = join(kitDir, '.ia', 'src', 'systems');
   const names: KitRecordName[] = [];
   if (!existsSync(systems)) return names;
@@ -322,6 +326,7 @@ export interface KitCheck {
 const plainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 const readSidecar = (kit: Pick<Kit, 'dir'>, name: string): Record<string, unknown> | undefined => {
+  if (!kit.dir) return undefined;
   const path = join(kit.dir, name);
   return existsSync(path) ? (JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>) : undefined;
 };
@@ -489,9 +494,10 @@ export function installedKit(root: string, kitId: string): LockedPackage | undef
 }
 
 export interface KitInstallation {
-  readonly via: 'package' | 'entry';
+  readonly via: 'package' | 'entry' | 'hosted';
   readonly version: string;
   readonly archive: string | null;
+  readonly manifest?: string | null;
 }
 /** The lock's row for the kit and where it came from, or null when no row names it; version and archive are as locked. */
 export function kitInstallation(root: string, kitId: string): KitInstallation | null {
@@ -499,10 +505,30 @@ export function kitInstallation(root: string, kitId: string): KitInstallation | 
   const row = (lock?.packages ?? []).find((pkg) => pkg.id === kitId);
   if (row !== undefined) return { via: 'package', version: row.version, archive: row.archive ?? null };
   for (const entry of Array.isArray(lock?.entries) ? lock.entries : []) {
-    const kits = (entry as { kind?: unknown; kits?: unknown }).kits;
-    if ((entry as { kind?: unknown }).kind !== 'package' || !Array.isArray(kits)) continue;
-    const kit = (kits as LockedPackage[]).find((candidate) => candidate?.id === kitId);
-    if (kit !== undefined) return { via: 'entry', version: kit.version, archive: kit.archive ?? null };
+    const record = entry as {
+      kind?: unknown;
+      kits?: unknown;
+      id?: unknown;
+      version?: unknown;
+      hosted?: unknown;
+      archive?: unknown;
+      manifest?: unknown;
+    };
+    if (record.kind === 'package' && Array.isArray(record.kits)) {
+      const kit = (record.kits as LockedPackage[]).find((candidate) => candidate?.id === kitId);
+      if (kit !== undefined) return { via: 'entry', version: kit.version, archive: kit.archive ?? null };
+    }
+    if (
+      record.kind === 'hosted' &&
+      record.hosted === true &&
+      record.id === kitId &&
+      typeof record.version === 'string' &&
+      typeof record.archive === 'string' &&
+      /^[a-f0-9]{64}$/.test(record.archive) &&
+      typeof record.manifest === 'string' &&
+      /^[a-f0-9]{64}$/.test(record.manifest)
+    )
+      return { via: 'hosted', version: record.version, archive: record.archive, manifest: record.manifest };
   }
   return null;
 }

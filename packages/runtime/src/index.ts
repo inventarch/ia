@@ -44,7 +44,7 @@ export type {
   PacketTally,
   PositionPacket,
 } from './packet.js';
-export { PACKET_MARKER, renderHost } from './packet-host.js';
+export { PACKET_HOSTS, PACKET_MARKER, renderHost } from './packet-host.js';
 export type {
   DefinitionWord,
   GeneratedFileWord,
@@ -117,6 +117,7 @@ export {
   MOVES,
   defaultActor,
   governingMandates,
+  governingWorkspace,
   isAdmissionRefusal,
   isMode,
   mandateAuthorityOf,

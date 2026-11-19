@@ -114,9 +114,9 @@ it('executes native graph, all language fixtures, all refusal-code boundaries an
   const { report, fixtures, boundaries, qualification } = checkCompliance(root);
   expect(fixtures).toBe(179);
   // IA-COMP-PROJECTION-INVALID retired with the projection renderers; the mandate resolver adds the default-actor and
-  // two profile refusals, the `@mandate` guard its three hook refusals, and admission a second IA-COMP-FIELD-VALUE
-  // boundary, the stated empty `authority.moves` it refuses.
-  expect(boundaries).toBe(128);
+  // two profile refusals, the `@mandate` guard its three hook refusals, admission a second IA-COMP-FIELD-VALUE
+  // boundary (the stated empty `authority.moves` it refuses), and COMP-MANDATE its IA-COMP-MANDATE-WORD boundary.
+  expect(boundaries).toBe(129);
   expect(qualification).toEqual({
     platform: process.platform,
     deferredPlatformCodes:

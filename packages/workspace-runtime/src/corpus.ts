@@ -11,7 +11,13 @@ import { EditorSnapshot } from '@inventarch/db/editor';
 import { canonical, digest, SessionError } from '@inventarch/session-system';
 import type { Json } from '@inventarch/session-system';
 import type { Grant, OperationAdapter } from '@inventarch/agent-system';
+import { written } from './plain-format.js';
 
+/** The plain adapter id once `WRITE_PLAIN_NAMES` is `true`. */
+export const PLAIN_CORPUS_INSPECT_HANDLER = 'corpus-inspect';
+/** The adapter id this inspection shipped under before ids stopped carrying their version; still answered, and written while `WRITE_PLAIN_NAMES` is `false`. */
+export const LEGACY_CORPUS_INSPECT_HANDLER = 'ia.corpus.inspect.v1';
+export const CORPUS_INSPECT_HANDLER = written(PLAIN_CORPUS_INSPECT_HANDLER, LEGACY_CORPUS_INSPECT_HANDLER);
 export interface Capture {
   version: 1 | 2;
   id: string;
@@ -133,7 +139,7 @@ export class Corpus {
     };
   }
   readonly adapter: OperationAdapter = {
-    id: 'ia.corpus.inspect.v1',
+    id: written(PLAIN_CORPUS_INSPECT_HANDLER, LEGACY_CORPUS_INSPECT_HANDLER),
     execute: async (input, context) => {
       this.authorize(context.grant);
       const args = input as { operation: string; query?: string; path?: string; start?: number; limit?: number };
@@ -201,6 +207,13 @@ export class Corpus {
       return { effect: 'none', output: { text, revision: this.capture.revision, citations } };
     },
   };
+  /** The adapter under the plain id and the original one, for manifests pinned before the rename. */
+  get adapters(): Readonly<Record<string, OperationAdapter>> {
+    return Object.freeze({
+      [PLAIN_CORPUS_INSPECT_HANDLER]: { ...this.adapter, id: PLAIN_CORPUS_INSPECT_HANDLER },
+      [LEGACY_CORPUS_INSPECT_HANDLER]: { ...this.adapter, id: LEGACY_CORPUS_INSPECT_HANDLER },
+    });
+  }
   close(): void {
     this.reader.close();
   }

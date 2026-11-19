@@ -269,8 +269,8 @@
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/mandate.md",
-      "bytes": 2227,
-      "sha256": "287e8ca92426c510001fe844a1aaf66d3fba76459c17faeffdde8123bd7b3d95",
+      "bytes": 2325,
+      "sha256": "b72dc1015bb4c418e15ac4754b3fb5691cc4627d735e5a77f0968de360ae7dd8",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -409,8 +409,8 @@
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/workspace.md",
-      "bytes": 1634,
-      "sha256": "cba0fd1df1d7f36b368da60af000b04594c901aa01f1d33ed76a56775366c044",
+      "bytes": 2075,
+      "sha256": "3cdad11c15b213ed58afb984de1fb4392228b9824edfb96ba51dc9902ad68bf0",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },

@@ -52,6 +52,7 @@ import {
   DISTRIBUTION_ENGINE_VERSION,
   INSTALL_PATHS,
   languageFloor,
+  lockedHostedKits,
   lockedReleases,
   satisfies,
   usageOf,
@@ -119,15 +120,18 @@ import {
 import { codeOf } from './session.js';
 import {
   acquirePackageArchives,
+  hostedSpec,
+  lockWithHosted,
   lockWithPackage,
   npmRunner,
   packageEntry,
   packageSpec,
   packageTarball,
+  parseHostedArguments,
   sameLock,
   viewPackage,
 } from './kits-package.js';
-import type { Npm } from './kits-package.js';
+import type { HostedPinInput, Npm } from './kits-package.js';
 import type { AdviceContext, Capabilities, SymbolName } from './render.js';
 import {
   atom,
@@ -219,15 +223,22 @@ const SYMBOL: Readonly<Record<ChangeRow['kind'], SymbolName>> = {
  */
 export function changeRows(plan: InstallationPlan, previous: DistributionLock | undefined): readonly ChangeRow[] {
   const rows: ChangeRow[] = [];
-  // A kit a package entry names is a direct release, as a request is (contract C7b).
+  // A kit a package entry names is a direct release, as a request is (contract C7b); hosted pins carry origin `hosted`.
   const installed = lockedReleases(plan.lock),
-    before = previous === undefined ? [] : lockedReleases(previous);
+    before = previous === undefined ? [] : lockedReleases(previous),
+    hostedAfter = lockedHostedKits(plan.lock),
+    hostedBefore = previous === undefined ? [] : lockedHostedKits(previous);
   const direct = new Set([
     ...plan.lock.requests.map((request) => request.id),
-    ...(plan.lock.entries ?? []).flatMap((entry) => entry.kits.map((kit) => kit.id)),
+    ...(plan.lock.entries ?? []).flatMap((entry) => (entry.kind === 'package' ? entry.kits.map((kit) => kit.id) : [])),
   ]);
   for (const kind of ['added', 'removed', 'updated', 'shadowed'] as const)
     for (const id of plan.changes[kind]) {
+      const hosted = hostedAfter.find((row) => row.id === id) ?? hostedBefore.find((row) => row.id === id);
+      if (hosted !== undefined && !installed.some((pkg) => pkg.id === id) && !before.some((pkg) => pkg.id === id)) {
+        rows.push({ kind, id, version: hosted.version, archive: hosted.archive, origin: 'hosted' });
+        continue;
+      }
       const locked = installed.find((pkg) => pkg.id === id) ?? before.find((pkg) => pkg.id === id);
       const required = installed
         .filter((pkg) => pkg.dependencies.includes(id))
@@ -494,6 +505,7 @@ export interface PlanRequest {
    * entry. npm is transport only; `npm` and `env` find it, and a restore refetches its archives by digest through them.
    */
   readonly package?: string;
+  readonly hosted?: readonly HostedPinInput[];
   readonly npm?: Npm;
   readonly env?: Readonly<Record<string, string | undefined>>;
 }
@@ -533,6 +545,7 @@ function repin(
   id: string,
   to: string | undefined,
   reruns: Reruns,
+  rooted?: string | undefined,
 ): readonly Dependency[] {
   if (previous === undefined)
     throw new Refusal(
@@ -542,6 +555,17 @@ function repin(
       null,
       `Run "${reruns.install}" first.`,
     );
+  const hosted = lockedHostedKits(previous).find((entry) => entry.id === id);
+  if (hosted !== undefined) {
+    const targetVersion = to !== undefined && attempt(() => exactVersion(to)) !== undefined ? to : '<version>';
+    throw new Refusal(
+      'IA-DIST-INPUT-INVALID',
+      `${id} (${hosted.version}) is pinned as a hosted kit entry rather than a registry request; replace its pin with exact version and digests`,
+      3,
+      { path: INSTALL_PATHS.lock },
+      `Run "ia install --hosted ${quote(`${id}@${targetVersion}`)} --archive <sha256> --manifest <sha256>${rooted === undefined ? '' : ` --root ${quote(rooted)}`}" to replace the hosted kit pin.`,
+    );
+  }
   if (!previous.requests.some((request) => request.id === id))
     throw new Refusal(
       'IA-DIST-INPUT-INVALID',
@@ -933,6 +957,9 @@ function requestReruns(request: PlanRequest): Reruns {
   ): string => {
     const parts = [`ia ${named}`, ...(variant.ids ?? request.ids).map(quote)];
     if (named === 'install' && request.package !== undefined) parts.push('--package', quote(request.package));
+    if (named === 'install' && request.hosted !== undefined)
+      for (const item of request.hosted)
+        parts.push('--hosted', quote(item.spec), '--archive', quote(item.archive), '--manifest', quote(item.manifest));
     const range = variant.to ?? (operation === 'update' ? to : undefined);
     if (named === 'update' && range !== undefined) parts.push('--to', quote(range));
     if (request.requestsFile !== undefined && named !== 'update') parts.push('--requests', quote(request.requestsFile));
@@ -967,7 +994,10 @@ function planPackage(request: PlanRequest, previous: DistributionLock | undefine
   const npm = request.npm ?? npmRunner(request.env ?? {}),
     env = request.env ?? {};
   const spec = packageSpec(request.package!, again);
-  const recorded = previous?.entries?.find((entry) => entry.name === spec.name);
+  const recorded = previous?.entries?.find(
+    (entry): entry is Extract<typeof entry, { readonly kind: 'package' }> =>
+      entry.kind === 'package' && entry.name === spec.name,
+  );
   // Offline, only the version the lock already records can be installed: npm view needs the registry.
   if (request.offline && (recorded === undefined || (spec.version !== 'latest' && spec.version !== recorded.version)))
     throw new Refusal(
@@ -990,6 +1020,45 @@ function planPackage(request: PlanRequest, previous: DistributionLock | undefine
   const { entry, archives } = packageEntry(viewed, tarball, again);
   for (const [digest, bytes] of archives) cacheArchive(request.root, bytes, digest);
   const lock = lockWithPackage(previous, entry);
+  return planInstallation(
+    request.root,
+    sameLock(previous, lock) ? previous! : lock,
+    previous === undefined ? 'install' : 'update',
+  );
+}
+
+/**
+ * `install --hosted <id>@<version> --archive <sha256> --manifest <sha256>`: records hosted kit pins in
+ * `.ia/distributions.lock.json` under distribution engine `^0.1.3` without fetching or caching any local archive bytes.
+ */
+function planHosted(request: PlanRequest, previous: DistributionLock | undefined): InstallationPlan {
+  const rooted = request.rooted === true ? request.root : undefined;
+  const specs = (request.hosted ?? []).map((item) => hostedSpec(item, rooted));
+  const seen = new Set<string>();
+  for (const row of specs) {
+    if (seen.has(row.id))
+      throw new Refusal(
+        'IA-CLI-USAGE',
+        `Duplicate --hosted kit id: ${row.id}`,
+        2,
+        null,
+        `Run "ia install --hosted ${quote(`${row.id}@${row.version}`)} --archive ${row.archive} --manifest ${row.manifest}${rooted === undefined ? '' : ` --root ${quote(rooted)}`}" specifying each hosted kit id at most once.`,
+      );
+    seen.add(row.id);
+  }
+  let lock: DistributionLock;
+  try {
+    lock = lockWithHosted(previous, specs);
+  } catch (error) {
+    if (error instanceof Refusal) throw error;
+    throw new Refusal(
+      'IA-DIST-CONFLICT',
+      error instanceof Error ? error.message : String(error),
+      3,
+      { path: INSTALL_PATHS.lock },
+      `Run "ia inspect${rooted === undefined ? '' : ` --root ${quote(rooted)}`}" to review the current installation.`,
+    );
+  }
   return planInstallation(
     request.root,
     sameLock(previous, lock) ? previous! : lock,
@@ -1022,7 +1091,10 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
       );
     }
   };
-  const bases = operation === 'remove' || request.package !== undefined ? [] : carriedBases(request);
+  const bases =
+    operation === 'remove' || request.package !== undefined || (request.hosted?.length ?? 0) > 0
+      ? []
+      : carriedBases(request);
   const newest = bases.at(-1)?.pin;
   // The update of one id from this command's source; a 1.x request's is spelled from its own fields.
   const update = reruns.update ?? requestReruns(request).update!;
@@ -1123,6 +1195,8 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
     }
   } else if (request.package !== undefined) {
     plan = planPackage(request, previous, reruns.again);
+  } else if ((request.hosted?.length ?? 0) > 0) {
+    plan = planHosted(request, previous);
   } else if (operation === 'remove') {
     plan = planInstallation(
       root,
@@ -1133,7 +1207,7 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
     const updated = operation === 'update' ? request.ids[0]! : undefined;
     let requests =
       updated !== undefined
-        ? repin(previous, updated, request.to, reruns)
+        ? repin(previous, updated, request.to, reruns, request.rooted === true ? root : undefined)
         : request.requestsFile === undefined
           ? mergeRequests(previous, request.ids)
           : decodeDistributionRequests(supplied(request.requestsFile, 'requests'));
@@ -1610,7 +1684,17 @@ function invocationOf(
   };
   if (operation === 'update' && variant.to !== undefined) parts.push('--to', quote(variant.to));
   else if (operation === 'update') value('to');
-  if (operation === 'install') value('package');
+  if (operation === 'install') {
+    value('package');
+    const hosted = args.list('hosted'),
+      archives = args.list('archive'),
+      manifests = args.list('manifest');
+    for (let index = 0; index < hosted.length; index += 1) {
+      parts.push('--hosted', quote(hosted[index]!));
+      if (archives[index] !== undefined) parts.push('--archive', quote(archives[index]!));
+      if (manifests[index] !== undefined) parts.push('--manifest', quote(manifests[index]!));
+    }
+  }
   if (operation !== 'update') value('requests');
   if (variant.source === undefined) {
     value('registry');
@@ -1681,6 +1765,10 @@ export function runDistribute(operation: Operation): (context: Context) => Promi
     const catalog = args.value('catalog'),
       offline = args.flag('offline'),
       registry = args.value('registry');
+    const hostedKits =
+      operation === 'install'
+        ? parseHostedArguments(args.list('hosted'), args.list('archive'), args.list('manifest'), args.value('root'))
+        : [];
     const root = requireRoot(context),
       rooted = args.value('root') !== undefined;
     const choose = operation === 'remove' ? undefined : hostRegistryChooser(host, root, registry);
@@ -1691,6 +1779,7 @@ export function runDistribute(operation: Operation): (context: Context) => Promi
     const kitsPackage = operation === 'install' ? args.value('package') : undefined;
     const planned = await collectPlan({
       ...(kitsPackage === undefined ? {} : { package: kitsPackage }),
+      ...(hostedKits.length === 0 ? {} : { hosted: hostedKits }),
       npm: npmRunner(host.env),
       env: host.env,
       packageRoot: host.packageRoot,

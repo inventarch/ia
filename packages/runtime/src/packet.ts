@@ -29,6 +29,7 @@ import { position } from './position.js';
 import type { HostNote } from './position.js';
 import { statedText, valueText } from './render.js';
 import { freeze } from './types.js';
+import { writeStamp } from './plain-format.js';
 
 /**
  * The position packet (SPEC R19). One host-neutral packet a host adapter renders: body(K0)'s digest, the seat, the
@@ -84,6 +85,8 @@ export interface PacketMandate {
   readonly moves?: readonly Move[];
   /** `authority.scope`: each @workspace the reference resolves to, or the reference as authored. */
   readonly scope: readonly string[];
+  /** `authority.words`. */
+  readonly words?: readonly string[];
   /** `authority.excluded-words`. */
   readonly excludedWords?: readonly string[];
   /** `authority.covers`, the path selections it claims. */
@@ -143,7 +146,9 @@ export interface PacketProvenance {
   readonly slug?: string;
 }
 export interface PositionPacket {
-  readonly format: 'ia.position-packet.v1';
+  /** `position-packet` at `formatVersion` 1; a packet digested before formats stopped carrying a version keeps its literal. */
+  readonly format: 'position-packet' | 'ia.position-packet.v1';
+  readonly formatVersion?: 1;
   /**
    * The authored revision of the view the scope reads, body(K0)'s (db `Snapshot.authoredRevision`), which no
    * runtime-band source moves.
@@ -296,6 +301,7 @@ export function renderPacket(handle: ReadHandle, within: string, catalog: readon
       participant: agent.identity,
       ...(stated(node, 'authority.moves') ? { moves: textsAt(node, 'authority.moves').filter(isMove) } : {}),
       scope: refsAt(node, 'authority.scope'),
+      ...(stated(node, 'authority.words') ? { words: textsAt(node, 'authority.words') } : {}),
       ...(stated(node, 'authority.excluded-words') ? { excludedWords: textsAt(node, 'authority.excluded-words') } : {}),
       ...(stated(node, 'authority.covers') ? { covers: textsAt(node, 'authority.covers') } : {}),
     });
@@ -376,7 +382,7 @@ export function renderPacket(handle: ReadHandle, within: string, catalog: readon
   );
 
   const packet: PositionPacket = {
-    format: 'ia.position-packet.v1',
+    ...writeStamp('position-packet', 'ia.position-packet.v1'),
     revision: body.revision,
     body: k0.digest,
     seat: {

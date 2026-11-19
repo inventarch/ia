@@ -1,6 +1,13 @@
 import { cpSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
+
+const flip = vi.hoisted(() => ({ plain: false }));
+vi.mock('../src/written-names.js', () => ({
+  get WRITE_PLAIN_NAMES() {
+    return flip.plain;
+  },
+}));
 import { CAPTURE_FORMAT, writeCapture } from '@inventarch/db';
 import type { Handle } from '@inventarch/db';
 import type { Location } from '@inventarch/language';
@@ -132,6 +139,13 @@ it('orders the plan in one sort, prerequisites first and ties by milestone then 
   const root = delivery('base'),
     delivered = view(root);
   expect(delivered.format).toBe('ia.delivery-view.v1');
+  expect(Object.hasOwn(delivered, 'formatVersion')).toBe(false);
+  flip.plain = true;
+  try {
+    expect(view(root)).toMatchObject({ format: 'delivery-view', formatVersion: 1 });
+  } finally {
+    flip.plain = false;
+  }
   expect(delivered.plan).toBe(id('plan', 'release'));
   // guide < schema by identity; examples requires schema; build requires foundation, though build sorts first.
   expect(delivered.tasks.map((t) => t.identity)).toEqual(

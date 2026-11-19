@@ -1,7 +1,14 @@
 import { createHash } from 'node:crypto';
 import { cpSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
+
+const flip = vi.hoisted(() => ({ plain: false }));
+vi.mock('../src/written-names.js', () => ({
+  get WRITE_PLAIN_NAMES() {
+    return flip.plain;
+  },
+}));
 import { readInputs } from '@inventarch/db';
 import type { Handle } from '@inventarch/db';
 import { stableSerialize } from '@inventarch/graph';
@@ -48,10 +55,30 @@ it('matches the golden bodies of K0 and three keys over the conformance corpus, 
   for (const [name, partial] of Object.entries(GOLDEN)) {
     const body = bodyOf(db, within, partial);
     expect(body.revision).toBe(db.revision);
+    expect(body.format, name).toBe('ia.position-body.v1');
+    expect(Object.hasOwn(body, 'formatVersion'), name).toBe(false);
     const file = resolve(import.meta.dirname, 'golden', `${name}.json`),
       text = `${JSON.stringify({ ...body, revision: '<revision>' }, null, 2)}\n`;
     if (process.env['IA_POSITION_GOLDEN'] === 'write') writeFileSync(file, text);
     else expect(text, name).toBe(readFileSync(file, 'utf8'));
+  }
+});
+
+it('matches the golden bodies under the plain names once the switch flips, the revision asserted apart', () => {
+  flip.plain = true;
+  try {
+    const db = database(workspace()),
+      within = db.resolveScope().token;
+    for (const [name, partial] of Object.entries(GOLDEN)) {
+      const body = bodyOf(db, within, partial);
+      expect(body).toMatchObject({ format: 'position-body', formatVersion: 1 });
+      const file = resolve(import.meta.dirname, 'golden', 'plain', `${name}.json`),
+        text = `${JSON.stringify({ ...body, revision: '<revision>' }, null, 2)}\n`;
+      if (process.env['IA_POSITION_GOLDEN'] === 'write') writeFileSync(file, text);
+      else expect(text, name).toBe(readFileSync(file, 'utf8'));
+    }
+  } finally {
+    flip.plain = false;
   }
 });
 

@@ -1,7 +1,12 @@
 import type { ProjectionExport, ProjectionOutput } from './projection-format.js';
 import type { ProjectionCatalog } from './projection-host.js';
+import { written } from './plain-format.js';
 
-export const CODEX_PROSE_PROFILE = 'ia.host.codex-prose.v1';
+/** The plain id once `WRITE_PLAIN_NAMES` is `true`. */
+export const PLAIN_CODEX_PROSE_PROFILE = 'codex-prose';
+/** The id this profile shipped under before ids stopped carrying their version; still read, and written while `WRITE_PLAIN_NAMES` is `false`. */
+export const LEGACY_CODEX_PROSE_PROFILE = 'ia.host.codex-prose.v1';
+export const CODEX_PROSE_PROFILE = written(PLAIN_CODEX_PROSE_PROFILE, LEGACY_CODEX_PROSE_PROFILE);
 export const CODEX_PROSE_FEATURES = Object.freeze([
   'agents',
   'skills',

@@ -46,7 +46,8 @@ const AUTHORED = 100;
 
 /** An unknown host is IA-PROJECTION-INPUT-INVALID. */
 export function knownHost(host: PacketHost): void {
-  if (host !== 'claude' && host !== 'codex') inputFailure(`Unknown host: ${String(host)}`);
+  if (host !== 'claude' && host !== 'codex' && host !== 'gemini' && host !== 'antigravity')
+    inputFailure(`Unknown host: ${String(host)}`);
 }
 /**
  * A name that becomes a host path segment: lower-case letters, digits and single hyphens, a letter first and no hyphen

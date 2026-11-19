@@ -9,9 +9,10 @@ import {
   isMode,
   mandateAuthorityOf,
   mandateRefusal,
+  profileRefusal,
 } from '../src/index.js';
 import type { CompiledRecord } from '@inventarch/language';
-import type { MandateAuthority, Mode } from '../src/index.js';
+import type { MandateAuthority, Mode, ProfileMandate } from '../src/index.js';
 import { database, workspace } from './workspace.js';
 
 const identity = 'agent-system/policy/mandate/sample-mandate';
@@ -106,4 +107,77 @@ it('reads the authority section of the compiled conformance mandate and refuses 
       where: { path: mandate.source.path, line: mandate.source.line, identity: mandate.identity },
     }),
   );
+});
+
+it('enforces authority.words allow-lists, combined excluded-words, multi-mandate grants and participant-less ceilings (#286)', () => {
+  const allowList: MandateAuthority = { identity, moves: ['Synthesis'], words: ['decision', 'task'] };
+  expect(mandateRefusal(allowList, 'author', ['decision', 'task'])).toBeUndefined();
+  expect(mandateRefusal(allowList, 'author', ['decision', 'milestone'])).toEqual({
+    code: 'IA-RUNTIME-MANDATE-WORD',
+    message: `${identity} allows words decision, task; disallowed: milestone`,
+    next,
+  });
+  expect(mandateRefusal({ identity, moves: ['Synthesis'], words: [] }, 'author', ['task'])).toEqual({
+    code: 'IA-RUNTIME-MANDATE-WORD',
+    message: `${identity} allows no words; disallowed: task`,
+    next,
+  });
+  // When both `words` and `excluded-words` are stated, a word must be in `words` AND not in `excluded-words`.
+  const both: MandateAuthority = {
+    identity,
+    moves: ['Synthesis'],
+    words: ['decision', 'task'],
+    excludedWords: ['decision'],
+  };
+  expect(mandateRefusal(both, 'author', ['task'])).toBeUndefined();
+  expect(mandateRefusal(both, 'author', ['decision'])).toEqual({
+    code: 'IA-RUNTIME-MANDATE-WORD',
+    message: `${identity} excludes decision`,
+    next,
+  });
+  expect(mandateRefusal(both, 'author', ['spec'])).toEqual({
+    code: 'IA-RUNTIME-MANDATE-WORD',
+    message: `${identity} allows words decision, task; disallowed: spec`,
+    next,
+  });
+
+  // In profileRefusal, multiple granting mandates for the same bound actor pool their allowed words unless excluded or capped.
+  const first: ProfileMandate = {
+    identity: 'agent-system/policy/mandate/m-tasks',
+    participant: 'agent-system/binding/agent/author',
+    binds: true,
+    moves: ['Synthesis'],
+    words: ['task'],
+  };
+  const second: ProfileMandate = {
+    identity: 'agent-system/policy/mandate/m-decisions',
+    participant: 'agent-system/binding/agent/author',
+    binds: true,
+    moves: ['Synthesis'],
+    words: ['decision'],
+  };
+  expect(profileRefusal([first, second], 'author', ['task', 'decision'])).toEqual({});
+  expect(profileRefusal([first, second], 'author', ['milestone']).refusal).toEqual({
+    code: 'IA-RUNTIME-MANDATE-WORD',
+    message:
+      'agent-system/policy/mandate/m-tasks allows words task; agent-system/policy/mandate/m-decisions allows words decision; disallowed: milestone',
+    next: 'ia position --seat agent-system/policy/mandate/m-tasks --shape governance',
+  });
+  // A participant-less mandate stating `words` acts as a ceiling even when the actor's mandate is unrestricted.
+  const ceiling: ProfileMandate = {
+    identity: 'agent-system/policy/mandate/ceiling',
+    moves: ['Synthesis'],
+    words: ['decision'],
+  };
+  const unrestricted: ProfileMandate = {
+    identity: 'agent-system/policy/mandate/unrestricted',
+    participant: 'agent-system/binding/agent/author',
+    binds: true,
+    moves: ['Synthesis'],
+  };
+  expect(profileRefusal([ceiling, unrestricted], 'author', ['decision'])).toEqual({});
+  expect(profileRefusal([ceiling, unrestricted], 'author', ['task']).refusal).toMatchObject({
+    code: 'IA-RUNTIME-MANDATE-WORD',
+    message: 'agent-system/policy/mandate/ceiling allows words decision; disallowed: task',
+  });
 });
