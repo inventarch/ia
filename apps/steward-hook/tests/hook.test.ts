@@ -533,4 +533,78 @@ it('normalizes Gemini BeforeTool and Antigravity PreToolUse payloads, returns { 
       packetFile,
     ).toMatch(/^IA-HOOK-PROJECTION-MANAGED:/);
   }
+
+  // Plain and legacy <host>-projection.json states for gemini and antigravity protect owned files and fail closed on mixed stamps.
+  const hash = 'a'.repeat(64);
+  for (const stamp of [
+    { format: 'host-projection-state', formatVersion: 1 },
+    { format: 'ia.host-projection-state.v1' },
+  ] as const) {
+    const ownedWs = temp();
+    cpSync(fixture, ownedWs, { recursive: true });
+    mkdirSync(resolve(ownedWs, '.ia/distributions/hosts'), { recursive: true });
+    writeFileSync(
+      resolve(ownedWs, '.ia/distributions/hosts/gemini-projection.json'),
+      JSON.stringify({
+        ...stamp,
+        host: 'gemini',
+        files: { 'GEMINI.md': hash, '.gemini/agents/reviewer.md': hash },
+      }) + '\n',
+    );
+    writeFileSync(
+      resolve(ownedWs, '.ia/distributions/hosts/antigravity-projection.json'),
+      JSON.stringify({
+        ...stamp,
+        host: 'antigravity',
+        files: { 'AGENTS.md': hash, '.agents/agents/reviewer.md': hash },
+      }) + '\n',
+    );
+    expect(
+      evaluateHook(ownedWs, {
+        hook_event_name: 'BeforeTool',
+        tool_name: 'write_file',
+        tool_input: { file_path: resolve(ownedWs, '.gemini/agents/reviewer.md') },
+        cwd: ownedWs,
+      }),
+    ).toEqual({
+      decision: 'deny',
+      reason: expect.stringMatching(/^IA-HOOK-PROJECTION-MANAGED:/),
+    });
+    expect(
+      evaluateHook(ownedWs, {
+        cwd: ownedWs,
+        toolCall: { name: 'write_to_file', args: { TargetFile: resolve(ownedWs, '.agents/agents/reviewer.md') } },
+      }),
+    ).toEqual({
+      decision: 'deny',
+      reason: expect.stringMatching(/^IA-HOOK-PROJECTION-MANAGED:/),
+    });
+    // Unowned candidate file (CLAUDE.md) is allowed once explicit projection ownership state exists.
+    expect(
+      evaluateHook(ownedWs, {
+        hook_event_name: 'BeforeTool',
+        tool_name: 'write_file',
+        tool_input: { file_path: resolve(ownedWs, 'CLAUDE.md') },
+        cwd: ownedWs,
+      }),
+    ).toEqual({});
+  }
+  const mixedWs = temp();
+  cpSync(fixture, mixedWs, { recursive: true });
+  mkdirSync(resolve(mixedWs, '.ia/distributions/hosts'), { recursive: true });
+  writeFileSync(
+    resolve(mixedWs, '.ia/distributions/hosts/gemini-projection.json'),
+    JSON.stringify({ format: 'ia.host-projection-state.v1', formatVersion: 1, host: 'gemini', files: {} }) + '\n',
+  );
+  expect(
+    evaluateHook(mixedWs, {
+      hook_event_name: 'BeforeTool',
+      tool_name: 'write_file',
+      tool_input: { file_path: resolve(mixedWs, 'GEMINI.md') },
+      cwd: mixedWs,
+    }),
+  ).toEqual({
+    decision: 'deny',
+    reason: expect.stringMatching(/^IA-HOOK-PATH-UNSAFE:/),
+  });
 });
