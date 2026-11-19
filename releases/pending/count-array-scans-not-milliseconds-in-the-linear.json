@@ -1,0 +1,12 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "none",
+  "title": "Count array scans, not milliseconds, in the linear-postings test",
+  "summary": "Test only: the linear-time posting test counts array scans instead of timing loads, so runner speed can no longer fail it. No consumer-facing change.",
+  "packages": [
+    "@inventarch/graph"
+  ],
+  "paths": [
+    "packages/graph/"
+  ]
+}
