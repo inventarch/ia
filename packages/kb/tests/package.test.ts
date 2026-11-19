@@ -1,4 +1,12 @@
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
+
+/** The package's one switch, flipped here to prove the plain names come back exactly when the follow-up release flips it. */
+const flip = vi.hoisted(() => ({ plain: false }));
+vi.mock('../src/written-names.js', () => ({
+  get WRITE_PLAIN_NAMES() {
+    return flip.plain;
+  },
+}));
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -39,7 +47,21 @@ it('retains legacy committed-writer envelopes and exact selected bytes', () => {
     paths: ['.ia/src/notes.ia', 'docs/alpha.md'],
     sourceId: 'legacy',
   });
-  expect(p).toMatchObject({ format: 'kb-portable', formatVersion: 1 });
+  expect(p.format).toBe('iakb.portable.v1');
+  expect(p).not.toHaveProperty('formatVersion');
+  flip.plain = true;
+  try {
+    expect(
+      legacyPackageFromCommit({
+        repository: root,
+        commit: revision,
+        paths: ['.ia/src/notes.ia', 'docs/alpha.md'],
+        sourceId: 'legacy',
+      }),
+    ).toMatchObject({ format: 'kb-portable', formatVersion: 1 });
+  } finally {
+    flip.plain = false;
+  }
   expect(p.files[1]).toMatchObject({ path: 'docs/alpha.md', text: 'Legacy body' });
   expect(p.files[1]).not.toHaveProperty('bytes');
 });
@@ -139,9 +161,8 @@ it('packages explicit root Markdown and selection from the exact commit despite 
   writeFileSync(join(root, 'selection.json'), '{}');
   const result = packageFromCommit({ repository: root, commit: revision, selection: 'selection.json', foundation });
   expect(result).toMatchObject({
-    format: 'kb-package',
-    formatVersion: 1,
-    selection: { format: 'kb-selection', formatVersion: 1 },
+    format: 'ia.kb.package.v1',
+    selection: { format: 'ia.kb.selection.v1' },
     provenance: { commit: revision, verification: 'unverified' },
   });
   expect(JSON.stringify(result)).toContain('Committed needle.');
@@ -301,28 +322,30 @@ it('reads a committed file of exactly the byte limit and refuses larger files by
   }
 });
 
-// Plain names: a package, its selection, a legacy portable and a citation name their format beside formatVersion 1; ones
-// written before that carry exactly one original literal and no formatVersion, and are read as written.
-const original = (pkg: KnowledgePackage): KnowledgePackage => {
-  const { digest: _digest, formatVersion: _version, selection, ...rest } = pkg,
-    { formatVersion: _selectionVersion, ...bare } = selection,
-    body = {
-      ...rest,
-      format: 'ia.kb.package.v1' as const,
-      selection: { ...bare, format: 'ia.kb.selection.v1' as const },
-    };
-  return { ...body, digest: digest(body) };
+// Forward compatibility (dec-008, A15): a package, its selection, a legacy portable and a citation are written under the
+// released literals, which an older program accepts, until the switch flips; the plain names beside formatVersion 1 are
+// read as written either way.
+const withPlain = <T>(run: () => T): T => {
+  flip.plain = true;
+  try {
+    return run();
+  } finally {
+    flip.plain = false;
+  }
 };
-it('writes the plain stamp, and reads a package and a selection written under the original literals as written', () => {
+it('writes the released literals, the plain stamp once the switch flips, and reads both as written', () => {
   const { root, commit } = repository(),
     revision = commit(),
-    plain = packageFromCommit({ repository: root, commit: revision, selection: 'selection.json', foundation }),
-    old = original(plain);
+    pack = () => packageFromCommit({ repository: root, commit: revision, selection: 'selection.json', foundation }),
+    old = pack(),
+    plain = withPlain(pack);
+  expect(old).toMatchObject({ format: 'ia.kb.package.v1', selection: { format: 'ia.kb.selection.v1' } });
+  expect(Object.hasOwn(old, 'formatVersion')).toBe(false);
+  expect(Object.hasOwn(old.selection, 'formatVersion')).toBe(false);
   expect(plain).toMatchObject({ format: 'kb-package', formatVersion: 1 });
   expect(plain.selection).toMatchObject({ format: 'kb-selection', formatVersion: 1 });
   expect(verifyPackage(plain)).toEqual(plain);
   expect(verifyPackage(old)).toEqual(old);
-  expect(Object.hasOwn(old, 'formatVersion')).toBe(false);
   expect(old.digest).not.toBe(plain.digest);
   validatePackage(plain, foundation);
   // A legacy package validates under its own digest, the digest a citation pins.
@@ -347,34 +370,55 @@ it('writes the plain stamp, and reads a package and a selection written under th
   ])
     expect(() => verifySelection({ ...stamp, ...selection })).toThrow();
 }, 60_000);
-it('packs a selection file written under the original literal into a plain package', () => {
+it('packs a selection file written under the original literal into a package under the written stamp', () => {
   const { root, commit } = repository();
   writeFileSync(
     join(root, 'selection.json'),
     JSON.stringify({ format: 'ia.kb.selection.v1', sourceId: 'example', records: [ID], resources: ['README.md'] }),
   );
-  const pkg = packageFromCommit({ repository: root, commit: commit(), selection: 'selection.json', foundation });
-  expect(pkg).toMatchObject({ format: 'kb-package', formatVersion: 1 });
-  expect(pkg.selection).toMatchObject({ format: 'kb-selection', formatVersion: 1 });
+  const revision = commit(),
+    pack = () => packageFromCommit({ repository: root, commit: revision, selection: 'selection.json', foundation }),
+    pkg = pack(),
+    plain = withPlain(pack);
+  expect(pkg).toMatchObject({ format: 'ia.kb.package.v1', selection: { format: 'ia.kb.selection.v1' } });
+  expect(plain).toMatchObject({ format: 'kb-package', formatVersion: 1 });
+  expect(plain.selection).toMatchObject({ format: 'kb-selection', formatVersion: 1 });
 }, 60_000);
 it('resolves a citation under either stamp against its own package and refuses another', () => {
   const { root, commit } = repository(),
-    plain = packageFromCommit({ repository: root, commit: commit(), selection: 'selection.json', foundation });
-  for (const pkg of [plain, original(plain)]) {
-    const view = openKnowledgeView(validatePackage(pkg, foundation)),
-      cited = view.read(ID).citation;
-    expect(cited).toMatchObject({ format: 'kb-citation', formatVersion: 1 });
-    expect(view.resolveCitation(cited).identity).toBe(ID);
-    const { formatVersion: _version, ...rest } = cited,
-      oldCitation = { ...rest, format: 'ia.kb.citation.v1' };
-    expect(view.resolveCitation(oldCitation).citation).toEqual(oldCitation);
-    for (const bad of [
-      { ...cited, formatVersion: 2 },
-      { ...oldCitation, formatVersion: 1 },
-      { ...oldCitation, format: 'ia.kb.citation.v2' },
-      rest,
-    ])
-      expect(() => view.resolveCitation(bad)).toThrow();
-    view.close();
+    revision = commit(),
+    pack = () => packageFromCommit({ repository: root, commit: revision, selection: 'selection.json', foundation });
+  for (const written of [false, true]) {
+    flip.plain = written;
+    try {
+      const view = openKnowledgeView(validatePackage(pack(), foundation)),
+        cited = view.read(ID).citation,
+        { formatVersion: _version, ...rest } = cited,
+        plainCitation = { ...rest, format: 'kb-citation', formatVersion: 1 },
+        oldCitation = { ...rest, format: 'ia.kb.citation.v1' };
+      expect(cited).toMatchObject(written ? plainCitation : oldCitation);
+      expect(Object.hasOwn(cited, 'formatVersion')).toBe(written);
+      expect(view.resolveCitation(plainCitation).identity).toBe(ID);
+      expect(view.resolveCitation(oldCitation).citation).toEqual(oldCitation);
+      for (const bad of [
+        { ...plainCitation, formatVersion: 2 },
+        { ...oldCitation, formatVersion: 1 },
+        { ...oldCitation, format: 'ia.kb.citation.v2' },
+        { ...rest, format: 'kb-citation' },
+      ])
+        expect(() => view.resolveCitation(bad)).toThrow();
+      view.close();
+    } finally {
+      flip.plain = false;
+    }
   }
+}, 60_000);
+it('forward compatibility: by default nothing it writes carries a plain format name or a formatVersion', () => {
+  const { root, commit } = repository(),
+    text = JSON.stringify(
+      packageFromCommit({ repository: root, commit: commit(), selection: 'selection.json', foundation }),
+    );
+  expect(text).toContain('"format":"ia.kb.package.v1"');
+  expect(text).toContain('"format":"ia.kb.selection.v1"');
+  expect(text).not.toMatch(/formatVersion|"kb-(package|selection|portable|citation|snapshot|foundation)"/);
 }, 60_000);

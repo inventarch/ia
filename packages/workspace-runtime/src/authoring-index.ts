@@ -16,7 +16,7 @@ import type {
   CapturedDocument,
 } from './authoring-types.js';
 import { decodeAuthoring, indexBody, invalidAuthoring } from './authoring-format.js';
-import { currentStamp, peekStamp } from './plain-format.js';
+import { peekStamp, writeStamp } from './plain-format.js';
 import type { Stamp } from './plain-format.js';
 
 type IndexStamp = Stamp<'authoring-index', 'ia.authoring-index.v1'>;
@@ -140,7 +140,7 @@ function validateBase(context: AuthoringContext, base: ResourceOccurrence, syste
 function derive(
   context: AuthoringContext,
   input: AuthoringIndexInput,
-  stamp: IndexStamp = currentStamp('authoring-index'),
+  stamp: IndexStamp = writeStamp('authoring-index', 'ia.authoring-index.v1'),
 ): CapturedAuthoringIndex {
   const registry = context.reader.inspect().graph.registry;
   for (const association of input.systems) {

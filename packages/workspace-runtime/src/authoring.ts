@@ -15,7 +15,7 @@ import type {
   PrimaryGuide,
   RequiredAuthoringPart,
 } from './authoring-types.js';
-import { currentStamp } from './plain-format.js';
+import { writeStamp } from './plain-format.js';
 export { AUTHORING_LIMITS, AuthoringError } from './authoring-format.js';
 export { createAuthoringIndex, verifyAuthoringIndex } from './authoring-index.js';
 export type * from './authoring-types.js';
@@ -301,7 +301,7 @@ export function resolveAuthoring(
       documents: [...copiedScope.allowedDocuments].sort(),
     });
     const body = {
-      ...currentStamp('authoring-view'),
+      ...writeStamp('authoring-view', 'ia.authoring-view.v1'),
       captureRevision: capture.revision,
       resourceDigest: resources.digest,
       indexDigest: index.digest,

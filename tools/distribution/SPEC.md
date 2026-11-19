@@ -34,6 +34,7 @@ Generate public and authoring resources, assemble host payloads, qualify install
 - [installed-views.d.mts](installed-views.d.mts) — interface declaration; implementation checking is tracked separately.
 - [installed-views.mjs](installed-views.mjs).
 - [installed-views.test.ts](installed-views.test.ts) — behavior and refusal coverage.
+- [v381-compatibility.test.ts](v381-compatibility.test.ts) — cross-version 3.8.1 compatibility proof for public exports, default outputs, permissive readers, saved plans, host bindings and retry identity.
 - [language-guide.test.ts](language-guide.test.ts) — behavior and refusal coverage.
 - [npm-consumer.mjs](npm-consumer.mjs).
 - [npm-registry-consumer.mjs](npm-registry-consumer.mjs).

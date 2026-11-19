@@ -7,15 +7,17 @@ import type { Json } from '@inventarch/session-system';
 import { validateShape } from '@inventarch/agent-system';
 import type { OperationAdapter, OperationContext, OperationDefinition } from '@inventarch/agent-system';
 import { candidateInputSchema } from './candidate.js';
-import { currentStamp } from './plain-format.js';
+import { currentStamp, written } from './plain-format.js';
 
-/** The handler this publication shipped under before handler ids stopped carrying their version; still dispatched. */
+/** The plain handler id once `WRITE_PLAIN_NAMES` is `true`. */
+export const PLAIN_DRAFT_PUBLISH_HANDLER = 'draft-publish';
+/** The handler this publication shipped under before handler ids stopped carrying their version; still dispatched, and written while `WRITE_PLAIN_NAMES` is `false`. */
 export const LEGACY_DRAFT_PUBLISH_HANDLER = 'ia.draft.publish.v1';
-export const DRAFT_PUBLISH_HANDLER = 'draft-publish';
+export const DRAFT_PUBLISH_HANDLER = written(PLAIN_DRAFT_PUBLISH_HANDLER, LEGACY_DRAFT_PUBLISH_HANDLER);
 /**
  * Explicit host installation only. The inspection catalog never gains a write implicitly. A binding compiled under the
- * original handler keeps it, with the manifest shape that handler wrote, so an interrupted publication reconciles
- * against the bytes it began with.
+ * original or plain handler keeps it, with the manifest shape that handler wrote, so an interrupted publication
+ * reconciles against the bytes it began with.
  */
 export function managedPublication(
   root: string,
@@ -28,8 +30,13 @@ export function managedPublication(
   /** The same adapter under the plain handler and the original one, for manifests pinned before the rename. */
   adapters: Readonly<Record<string, OperationAdapter>>;
 } {
-  const legacy = binding?.handler === LEGACY_DRAFT_PUBLISH_HANDLER,
-    handler = legacy ? LEGACY_DRAFT_PUBLISH_HANDLER : DRAFT_PUBLISH_HANDLER;
+  const handler =
+      binding?.handler === LEGACY_DRAFT_PUBLISH_HANDLER
+        ? LEGACY_DRAFT_PUBLISH_HANDLER
+        : binding?.handler === PLAIN_DRAFT_PUBLISH_HANDLER
+          ? PLAIN_DRAFT_PUBLISH_HANDLER
+          : written(PLAIN_DRAFT_PUBLISH_HANDLER, LEGACY_DRAFT_PUBLISH_HANDLER),
+    legacy = handler === LEGACY_DRAFT_PUBLISH_HANDLER;
   if (!/^[a-f0-9]{64}$/.test(implementationDigest))
     throw new SessionError('IA-CORPUS-DENIED', 'Installed publication implementation is unavailable');
   const base = resolve(root),
@@ -173,7 +180,7 @@ export function managedPublication(
     definition,
     adapter,
     adapters: Object.freeze({
-      [DRAFT_PUBLISH_HANDLER]: { ...adapter, id: DRAFT_PUBLISH_HANDLER },
+      [PLAIN_DRAFT_PUBLISH_HANDLER]: { ...adapter, id: PLAIN_DRAFT_PUBLISH_HANDLER },
       [LEGACY_DRAFT_PUBLISH_HANDLER]: { ...adapter, id: LEGACY_DRAFT_PUBLISH_HANDLER },
     }),
   };
