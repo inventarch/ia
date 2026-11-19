@@ -1,7 +1,15 @@
 import { createHash } from 'node:crypto';
 import { cpSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
+/** The package's one switch, flipped here to prove the plain names come back exactly when the follow-up release flips it. */
+const flip = vi.hoisted(() => ({ plain: false }));
+vi.mock('../src/written-names.js', () => ({
+  get WRITE_PLAIN_NAMES() {
+    return flip.plain;
+  },
+}));
+
 import { readInputs } from '@inventarch/db';
 import type { Handle } from '@inventarch/db';
 import { stableSerialize } from '@inventarch/graph';
@@ -48,22 +56,34 @@ it('matches the golden bodies of K0 and three keys over the conformance corpus, 
   for (const [name, partial] of Object.entries(GOLDEN)) {
     const body = bodyOf(db, within, partial);
     expect(body.revision).toBe(db.revision);
-    const file = resolve(import.meta.dirname, 'golden', 'plain', `${name}.json`),
-      text = `${JSON.stringify({ ...body, revision: '<revision>' }, null, 2)}\n`;
+    expect(body.format, name).toBe('ia.position-body.v1');
+    expect(Object.hasOwn(body, 'formatVersion'), name).toBe(false);
+    const file = resolve(import.meta.dirname, 'golden', `${name}.json`),
+      text = `${JSON.stringify({ ...body, revision: '<revision>' }, null, 2)}
+`;
     if (process.env['IA_POSITION_GOLDEN'] === 'write') writeFileSync(file, text);
     else expect(text, name).toBe(readFileSync(file, 'utf8'));
   }
 });
 
-// The goldens written before formats stopped carrying a version are immutable evidence and are kept as they were: the
-// body of today differs from them only in its stamp, which the plain goldens above spell.
-it('keeps the original goldens: each is the plain body with its original format literal and no formatVersion', () => {
-  const db = database(workspace()),
-    within = db.resolveScope().token;
-  for (const [name, partial] of Object.entries(GOLDEN)) {
-    const { format: _format, formatVersion: _version, ...rest } = bodyOf(db, within, partial);
-    const original = `${JSON.stringify({ format: 'ia.position-body.v1', ...rest, revision: '<revision>' }, null, 2)}\n`;
-    expect(original, name).toBe(readFileSync(resolve(import.meta.dirname, 'golden', `${name}.json`), 'utf8'));
+// The plain goldens are what the same bodies are once the follow-up release flips the switch (dec-008, A15): the plain
+// name with its formatVersion and nothing else different from the released goldens above.
+it('matches the golden bodies under the plain names once the switch flips, the revision asserted apart', () => {
+  flip.plain = true;
+  try {
+    const db = database(workspace()),
+      within = db.resolveScope().token;
+    for (const [name, partial] of Object.entries(GOLDEN)) {
+      const body = bodyOf(db, within, partial);
+      expect(body).toMatchObject({ format: 'position-body', formatVersion: 1 });
+      const file = resolve(import.meta.dirname, 'golden', 'plain', `${name}.json`),
+        text = `${JSON.stringify({ ...body, revision: '<revision>' }, null, 2)}
+`;
+      if (process.env['IA_POSITION_GOLDEN'] === 'write') writeFileSync(file, text);
+      else expect(text, name).toBe(readFileSync(file, 'utf8'));
+    }
+  } finally {
+    flip.plain = false;
   }
 });
 

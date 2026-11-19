@@ -646,7 +646,11 @@ export function compileProjection(
       diagnostics: [],
     });
   } catch (error) {
-    return frozen({ ...writeStamp('projection-result', 'ia.projection-result.v1'), status: 'refused', diagnostics: [diagnostic(error)] });
+    return frozen({
+      ...writeStamp('projection-result', 'ia.projection-result.v1'),
+      status: 'refused',
+      diagnostics: [diagnostic(error)],
+    });
   }
 }
 

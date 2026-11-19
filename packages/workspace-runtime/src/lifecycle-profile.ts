@@ -1,7 +1,7 @@
 import { stableSerialize } from '@inventarch/graph';
 import { decodeJson, frozen, metadataDigest } from './resource-format.js';
 import { claudeCodeRows, profileFromRows } from './lifecycle-rows.js';
-import { peekStamp, writeStamp } from './plain-format.js';
+import { currentStamp, peekStamp, writeStamp } from './plain-format.js';
 
 export class LifecycleError extends Error {
   constructor(
@@ -109,9 +109,10 @@ export interface SegmentedLifecycleRow {
 const segmentedRows: ReadonlyMap<string, SegmentedLifecycleRow> = new Map(
   [...claudeCodeRows.keys()].flatMap((version) => {
     const row = frozen({ host: 'claude-code', version });
-    // A row's digest under the literal it shipped with still names it, for bindings written before the plain format.
+    // A row's digest names it under each stamp it can be written under, whichever the switch is at: the plain profile
+    // and the one under the literal it shipped with, which bindings written before the plain format carry.
     return [
-      [lifecycleProfile('claude-code', version).digest, row] as const,
+      [profileFromRows(claudeCodeRows, 'claude-code', version, currentStamp('lifecycle-profile')).digest, row] as const,
       [
         profileFromRows(claudeCodeRows, 'claude-code', version, { format: 'ia.lifecycle-profile.v1' }).digest,
         row,

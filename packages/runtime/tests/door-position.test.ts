@@ -332,7 +332,7 @@ it('holds the position row of the machine protocol table to the Door', () => {
   for (const primitive of params.properties['primitive']!.enum!)
     expect(resultOf(positioned(loop)({ primitive })).body.key.primitive).toBe(primitive);
   const example = positioned(loop)(row.example);
-  expect(example).toMatchObject({ ok: true, result: { body: { format: 'position-body', formatVersion: 1 } } });
+  expect(example).toMatchObject({ ok: true, result: { body: { format: 'ia.position-body.v1' } } });
   expect(resultOf(example).body.loaded[0]).toMatchObject({ identity: row.example['seat'] });
   // Each cap is admitted and one past it refused.
   for (const part of ['depth', 'budget'] as const) {

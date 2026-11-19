@@ -1,6 +1,14 @@
 import { cpSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
+
+/** The package's one switch, flipped here to prove the plain names come back exactly when the follow-up release flips it. */
+const flip = vi.hoisted(() => ({ plain: false }));
+vi.mock('../src/written-names.js', () => ({
+  get WRITE_PLAIN_NAMES() {
+    return flip.plain;
+  },
+}));
 import { CAPTURE_FORMAT, CAPTURE_FORMAT_VERSION, writeCapture } from '@inventarch/db';
 import type { Handle } from '@inventarch/db';
 import type { Location } from '@inventarch/language';
@@ -131,8 +139,8 @@ it('registers each delivery refusal in RUNTIME_CODES', () => {
 it('orders the plan in one sort, prerequisites first and ties by milestone then task, from any seat in it', () => {
   const root = delivery('base'),
     delivered = view(root);
-  expect(delivered.format).toBe('delivery-view');
-  expect(delivered.formatVersion).toBe(1);
+  expect(delivered.format).toBe('ia.delivery-view.v1');
+  expect(Object.hasOwn(delivered, 'formatVersion')).toBe(false);
   expect(delivered.plan).toBe(id('plan', 'release'));
   // guide < schema by identity; examples requires schema; build requires foundation, though build sorts first.
   expect(delivered.tasks.map((t) => t.identity)).toEqual(
@@ -1612,7 +1620,7 @@ it('holds the next row of the machine protocol table to the Door', () => {
   const base = door(delivery('base'));
   expect(base.request({ operation: 'next', params: row.example })).toMatchObject({
     ok: true,
-    result: { format: 'delivery-view', formatVersion: 1, plan: id('plan', 'release') },
+    result: { format: 'ia.delivery-view.v1', plan: id('plan', 'release') },
   });
   expect(
     door(resolve(import.meta.dirname, '../../compliance/fixtures/loop')).request({
@@ -1635,4 +1643,18 @@ it('holds the next row of the machine protocol table to the Door', () => {
   expect(observed).toEqual(Object.keys(triggers));
   expect(row.refusals.map((refusal) => refusal.code).sort()).toEqual(Object.keys(triggers).sort());
   expect(NEXT_CODES.every((code) => row.refusals.some((refusal) => refusal.code === code))).toBe(true);
+});
+
+// Forward compatibility (dec-008, A15): a program released before formats stopped carrying a version accepts only the
+// original literal, so the view is written under it until the switch flips; flipped, it is the plain stamp.
+it('writes the delivery view under its released literal, and under the plain stamp once the switch flips', () => {
+  const root = delivery('base');
+  expect(view(root)).toMatchObject({ format: 'ia.delivery-view.v1' });
+  expect(Object.hasOwn(view(root), 'formatVersion')).toBe(false);
+  flip.plain = true;
+  try {
+    expect(view(root)).toMatchObject({ format: 'delivery-view', formatVersion: 1 });
+  } finally {
+    flip.plain = false;
+  }
 });

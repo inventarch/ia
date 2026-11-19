@@ -334,9 +334,9 @@ it("renders this repository's read-captured-source operation as a definition row
       definition: {
         name: 'read-captured-source',
         description: 'Read one exact captured native source through the first-party adapter.',
-        handler: 'captured-source-read',
-        input: 'captured-source-read-input',
-        output: 'captured-source-read-output',
+        handler: 'captured-source-read-v1',
+        input: 'captured-source-read-input-v1',
+        output: 'captured-source-read-output-v1',
         effects: ['read-only'],
       },
     },
