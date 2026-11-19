@@ -37,7 +37,9 @@ export interface NativeBaseline {
   archives: NativeArchive[];
 }
 export interface NativeNotes {
-  format: 'ia.native-release-notes.v1';
+  /** `ia.native-release-notes` with `formatVersion` 1, or the legacy `ia.native-release-notes.v1` literal (no `formatVersion`). */
+  format: 'ia.native-release-notes' | 'ia.native-release-notes.v1';
+  formatVersion?: 1;
   baseline: NativeBaseline['source'];
   changes: { id: string; bump: 'patch' | 'minor' | 'major'; summary: string; compatibility?: 'reviewed-additive' }[];
 }
@@ -164,7 +166,12 @@ export function planNativeVersions(
   }
   if (notes !== undefined) {
     assert.ok(notes && typeof notes === 'object', 'Invalid native release notes');
-    assert.equal(notes.format, 'ia.native-release-notes.v1');
+    assert.ok(
+      notes.format === 'ia.native-release-notes'
+        ? notes.formatVersion === 1
+        : notes.format === 'ia.native-release-notes.v1' && !Object.hasOwn(notes, 'formatVersion'),
+      'Unexpected native release notes format',
+    );
     assert.ok(!Object.hasOwn(notes, 'alignment'), 'Native notes cannot select an independent alignment version');
     assert.ok(notes.baseline && typeof notes.baseline.tag === 'string' && typeof notes.baseline.commit === 'string');
     assert.ok(Array.isArray(notes.changes));

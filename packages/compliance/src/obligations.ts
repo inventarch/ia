@@ -136,7 +136,8 @@ export interface ObligationExplanation {
 }
 
 export const PREDICATE_ID = /^[a-z][a-z0-9]*(-[a-z0-9]+)*@[1-9][0-9]*$/;
-export const RESOLUTION_FORMAT = 'ia-obligation-resolution/1';
+export const RESOLUTION_FORMAT = 'ia-obligation-resolution';
+export const RESOLUTION_FORMAT_VERSION = 1;
 const REFUSING: readonly Finding['code'][] = ['IA-COMP-OBLIGATION-UNRESOLVED', 'IA-COMP-OBLIGATION-CONFLICT'];
 const WORDS = ['law', 'contract', 'check'];
 const resolutions = new WeakSet<object>();
@@ -167,7 +168,16 @@ export function obligationIdOf(subject: string, occurrence: string, requirement:
 /** The D2 integrity digest over a resolution's canonical content (every field except `digest`). */
 export function resolutionDigest(resolution: Omit<ObligationResolution, 'digest'>): string {
   const { status, subject, policyRevision, catalogDigest, obligations, assessment } = resolution;
-  return sha256({ format: RESOLUTION_FORMAT, status, subject, policyRevision, catalogDigest, obligations, assessment });
+  return sha256({
+    format: RESOLUTION_FORMAT,
+    formatVersion: RESOLUTION_FORMAT_VERSION,
+    status,
+    subject,
+    policyRevision,
+    catalogDigest,
+    obligations,
+    assessment,
+  });
 }
 /** True only for a resolution returned by resolveObligations in this module instance (deeply frozen, so unmodified). */
 export const isIssuedResolution = (value: unknown): boolean =>

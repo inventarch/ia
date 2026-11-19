@@ -35,7 +35,10 @@ export interface CollectionIndex<K extends 'kit' | 'workspace'> {
   readonly releases: readonly (K extends 'kit' ? KitRelease : WorkspaceRelease)[];
 }
 /** What a caller may hand the builder: the plain shape, or the legacy literal it still holds. It is always written plain. */
-export type CollectionIndexInput<K extends 'kit' | 'workspace'> = Omit<CollectionIndex<K>, 'format' | 'formatVersion'> & {
+export type CollectionIndexInput<K extends 'kit' | 'workspace'> = Omit<
+  CollectionIndex<K>,
+  'format' | 'formatVersion'
+> & {
   readonly format: `ia.registry-${K}` | `ia.registry-${K}.v1`;
   readonly formatVersion?: 1;
 };
@@ -150,7 +153,12 @@ export function decodeCollectionIndex<K extends 'kit' | 'workspace'>(
     if (r['revision'] !== revision) fail('INTEGRITY-MISMATCH', 'Workspace source revision differs');
     return Object.freeze({ version: v, withdrawn: r['withdrawn'], revision, files });
   });
-  return Object.freeze({ format, formatVersion: 1 as const, id, releases: Object.freeze(releases) }) as CollectionIndex<K>;
+  return Object.freeze({
+    format,
+    formatVersion: 1 as const,
+    id,
+    releases: Object.freeze(releases),
+  }) as CollectionIndex<K>;
 }
 export async function selectCollection<K extends 'kit' | 'workspace'>(
   registry: Registry,

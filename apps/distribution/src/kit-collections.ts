@@ -30,7 +30,10 @@ export const KIT_COLLECTIONS_FORMAT = 'ia-kit-collections';
 export const KIT_COLLECTIONS_FORMAT_VERSION = 1;
 /** The literal a record committed before `formatVersion` existed carries; still read, never written. */
 const LEGACY_KIT_COLLECTIONS_FORMATS: readonly string[] = ['ia-kit-collections-1'];
-const KIT_COLLECTIONS_HEADER = { format: KIT_COLLECTIONS_FORMAT, formatVersion: KIT_COLLECTIONS_FORMAT_VERSION } as const;
+const KIT_COLLECTIONS_HEADER = {
+  format: KIT_COLLECTIONS_FORMAT,
+  formatVersion: KIT_COLLECTIONS_FORMAT_VERSION,
+} as const;
 
 export interface CollectionMember {
   readonly id: string;
@@ -119,8 +122,10 @@ export function decodeKitCollections(input: string): KitCollections {
     return fail('INPUT-INVALID', `${KIT_COLLECTIONS} is not valid JSON`);
   }
   if (!isRecord(value)) return fail('INPUT-INVALID', `${KIT_COLLECTIONS} is not an object`);
-  const current = value['format'] === KIT_COLLECTIONS_FORMAT && value['formatVersion'] === KIT_COLLECTIONS_FORMAT_VERSION,
-    legacy = LEGACY_KIT_COLLECTIONS_FORMATS.includes(value['format'] as string) && !Object.hasOwn(value, 'formatVersion');
+  const current =
+      value['format'] === KIT_COLLECTIONS_FORMAT && value['formatVersion'] === KIT_COLLECTIONS_FORMAT_VERSION,
+    legacy =
+      LEGACY_KIT_COLLECTIONS_FORMATS.includes(value['format'] as string) && !Object.hasOwn(value, 'formatVersion');
   if (!current && !legacy)
     return fail('UNSUPPORTED-FORMAT', `${KIT_COLLECTIONS} has format ${String(value['format'])}`);
   const collections = value['collections'],

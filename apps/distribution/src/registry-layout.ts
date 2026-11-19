@@ -100,7 +100,11 @@ export function decodeRegistryInfo(content: string): RegistryInfo {
       ['name'],
       'Not an ia.registry registry',
     );
-    return frozen({ format: 'ia.registry' as const, formatVersion: 1 as const, name: field('name', undefined, () => text(row['name'], 128)) });
+    return frozen({
+      format: 'ia.registry' as const,
+      formatVersion: 1 as const,
+      name: field('name', undefined, () => text(row['name'], 128)),
+    });
   });
 }
 export function decodePackageIndex(content: string, expectedId: string): PackageIndex {

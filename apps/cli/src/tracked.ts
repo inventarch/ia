@@ -159,7 +159,12 @@ function load(home: string): Loaded {
 /** The document with its rows replaced; every other key, and every key of a kept row, as it was read. */
 function save(home: string, loaded: Loaded, rows: readonly object[]): void {
   // Every other key stays as it was read; the format itself is always written in the plain shape.
-  const document = { ...loaded.document, format: TRACKED_FORMAT, formatVersion: TRACKED_FORMAT_VERSION, workspaces: rows };
+  const document = {
+    ...loaded.document,
+    format: TRACKED_FORMAT,
+    formatVersion: TRACKED_FORMAT_VERSION,
+    workspaces: rows,
+  };
   writeHomeFile(home, TRACKED_FILE, JSON.stringify(document, null, 2) + '\n');
 }
 

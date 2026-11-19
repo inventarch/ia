@@ -89,7 +89,12 @@ it('reads a missing package index as an empty index and never caches indexes', a
   const dir = registryDir(),
     budget = registryBudget(10);
   const local = await openRegistry(parseRegistryBase(dir, dir), { budget });
-  expect(await local.index('acme/none')).toEqual({ format: 'ia.registry-package', formatVersion: 1, id: 'acme/none', releases: [] });
+  expect(await local.index('acme/none')).toEqual({
+    format: 'ia.registry-package',
+    formatVersion: 1,
+    id: 'acme/none',
+    releases: [],
+  });
   put(
     dir,
     'packages/acme/none.json',
