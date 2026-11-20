@@ -1,10 +1,10 @@
 import { createHash } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { readBaseLedger } from './language-bases.js';
+import { LEDGER_PATH, readBaseLedger } from './language-bases.js';
 import { buildLanguageBase } from './language-base.js';
 import { readPublicManifest } from './public-manifest.mjs';
 import { languageCompatOutputs, settleLanguageCompat } from './language-compat.js';
@@ -29,7 +29,6 @@ function fixture() {
     ...manifest.floor,
     ...manifest.systems.flatMap(({ name, schemas }) => [`.ia/src/systems/${name}/system.ia`, ...schemas]),
     'examples/public-language',
-    'releases/native',
     'LICENSE',
     'NOTICE',
   ];
@@ -38,6 +37,13 @@ function fixture() {
     mkdirSync(dirname(destination), { recursive: true });
     cpSync(resolve(root, path), destination, { recursive: true });
   }
+  // Publication changes the real repository ledger. Every test controls its own recorded/unrecorded state.
+  const ledger = resolve(directory, LEDGER_PATH);
+  mkdirSync(dirname(ledger), { recursive: true });
+  writeFileSync(
+    ledger,
+    JSON.stringify({ format: 'ia.language-bases.v1', id: 'inventarch/language', major: 3, bases: [] }),
+  );
   mkdirSync(resolve(directory, 'apps/cli/assets'), { recursive: true });
   return directory;
 }
@@ -97,7 +103,15 @@ describe('post-publication language-base recording', () => {
     settleLanguageCompat(directory, languageCompatOutputs(directory), 'write');
     const before = readFileSync(resolve(directory, 'apps/cli/assets/language-compat.json'));
     const bytes = tarball(current);
-    expect(retainPublishedBase(directory, bytes, receipt(bytes).packages[0]!).changed).toBe(true);
+    const entry = receipt(bytes).packages[0]!;
+    expect(readBaseLedger(directory).bases).toEqual([]);
+    const recorded = retainPublishedBase(directory, bytes, entry);
+    expect(recorded.changed).toBe(true);
+    expect(readBaseLedger(directory).bases).toEqual([recorded.base]);
+    expect(readFileSync(resolve(directory, 'apps/cli/assets/language-compat.json'))).toEqual(before);
+    const recordedLedger = readFileSync(resolve(directory, LEDGER_PATH));
+    expect(retainPublishedBase(directory, bytes, entry)).toEqual({ changed: false, base: recorded.base, paths: [] });
+    expect(readFileSync(resolve(directory, LEDGER_PATH))).toEqual(recordedLedger);
     expect(readFileSync(resolve(directory, 'apps/cli/assets/language-compat.json'))).toEqual(before);
   }, 30_000);
   it('writes the four expected products and has no churn on identical replay', () => {
