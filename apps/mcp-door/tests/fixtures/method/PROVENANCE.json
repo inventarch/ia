@@ -3,19 +3,22 @@
   "license": "Apache-2.0",
   "source": {
     "repository": "https://github.com/inventarch/marketplace",
-    "commit": "63f5d75b57b4218c633b56f85f25db28f0ebd4ba",
-    "paths": ["plugins/ia", "kits/ia-kb"]
+    "commits": [
+      { "commit": "4d2b974229523c8648090cb9f64cca7f70e6964e", "paths": ["plugins/ia"] },
+      { "commit": "63f5d75b57b4218c633b56f85f25db28f0ebd4ba", "paths": ["kits/ia-kb"] }
+    ]
   },
   "generator": {
     "script": "generate.mjs",
     "steps": [
-      "git -C <marketplace> archive 63f5d75b57b4218c633b56f85f25db28f0ebd4ba plugins/ia kits/ia-kb | tar -x -C <folder>",
-      "pnpm build (for apps/cli/dist/main.js)",
+      "git -C <marketplace> archive 4d2b974229523c8648090cb9f64cca7f70e6964e plugins/ia | tar -x -C <folder>",
+      "git -C <marketplace> archive 63f5d75b57b4218c633b56f85f25db28f0ebd4ba kits/ia-kb | tar -x -C <folder>",
+      "pnpm build (for apps/cli/dist/main.js and apps/distribution/dist/install.js)",
       "node apps/mcp-door/tests/fixtures/method/generate.mjs <folder> apps/cli/dist/main.js"
     ]
   },
   "files": {
-    "plugin.json.gz": "A gzipped JSON object from each path to its UTF-8 text: plugins/ia/scripts/** as scripts/**, plugins/ia/.claude-plugin/plugin.json, plugins/ia/config/qualified-process-tools.json, and kits/ia-kb/** (inventarch/ia-kb-kit 0.9.0, releases format 2) as config/kits/ia-kb/**, unchanged.",
+    "plugin.json.gz": "A gzipped JSON object from each path to its UTF-8 text: the closure the plugin's own resolver retains for the kit (retainKit in plugins/ia/scripts/lib/retained.mjs, which generate.mjs runs on the archive into a store of its own), unchanged. That is kits/ia-kb/** as config/kits/ia-kb/**, plugins/ia/scripts/** as scripts/**, and the support files that resolver names beside them, at this plugin commit .claude-plugin/plugin.json, config/qualified-process-tools.json and config/trusted-publishers.json. The plugin is the first commit, marketplace main on 2026-11-19, later than the ia-v1.7.0 tag. The kit is the second, inventarch/ia-kb-kit 0.9.0 (releases format 2), the release the CLI's kits-package fixture, the floor test and the language compatibility gate are built from too, so its bytes did not change when the plugin moved. The goldens' pin names this closure's digest; generate.mjs keeps nothing when it does not.",
     "bindings.json": "The consumer workspace's .ia/bindings.json: knowledge.find to kb-retrieve and knowledge.check to kb-check. Written by hand; generate.mjs reads it.",
     "golden-find.json": "The plugin's resolve.mjs --entry knowledge --activity find --root <ROOT>/consumer --project consumer --task golden --subject sha256:<sha256 of 'the decision records'>, with IA_HOME=<ROOT>/home, IA_CORE_KITS_DIR=<ROOT>/plugin/config/kits and IA_CLI_PATH at the built @inventarch/cli, the plugin's ia-kb kit exactly as published (its lock pins the language base 3.2.0 its release was packed on, which the CLI's ia restore carries and restores exactly; nothing is re-locked); the temporary root written as <ROOT> with forward slashes, the envelope removed, and the digest recomputed over that content with the plugin's own packetDigest.",
     "golden-check.json": "As golden-find.json, then --activity check in the same task (pin revision 2).",
