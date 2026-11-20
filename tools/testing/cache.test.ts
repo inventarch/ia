@@ -360,8 +360,10 @@ it('reexecutes after Nx reports unpack failure with success status and preserves
 
 // What Nx 23.2.1 prints when its self-hosted remote cache client fails (nx/src/native/cache/errors.rs and
 // http_remote_cache.rs): a restore whose request never completed, as in main 45ede1e1's macOS job (host replaced);
-// a store whose connection was reset after the task passed; a 503; a refused token; a response body that broke; and
-// a download that is not a cache archive.
+// a store whose connection was reset after the task passed; a 503; a refused token; a response body that broke; a
+// download that is not a cache archive; and a store refused with a plain-text 401 after the task passed, which Nx
+// prints as the failed task's output, without its banner. The 'reads' case below puts each under the header Nx
+// prints above a failed task.
 const NX_CACHE_ERRORS = [
   '\x1b[7m\x1b[1m\x1b[31m NX \x1b[39m\x1b[22m\x1b[27m  \x1b[31mFailed to send request: error sending request for url (https://cache.example.test/v1/cache/10489617692160495416)\x1b[39m',
   'Failed to send request: error sending request for url (http://127.0.0.1:51536/v1/cache/9425303953198554857)\n\nCaused by: client error (SendRequest)\n\nCaused by: connection error\n\nCaused by: Connection reset by peer (os error 54)',
@@ -369,6 +371,7 @@ const NX_CACHE_ERRORS = [
   ' NX   Unauthorized: invalid token',
   ' NX   Failed to read remote cache response body: error decoding response body',
   ' NX   Failed to read entries from tarball',
+  'Unauthorized: invalid token',
 ];
 
 const failedRun = (stderr: string) => ({
@@ -398,10 +401,35 @@ it('reads the cache errors Nx prints itself, and not the same words in a task ou
       .join('\n');
     expect(looksLikeCacheTransportFailure(streamed), streamed).toBe(false);
   }
-  // A task restored from the cache replays its output without that prefix, so the generic phrases need more than
-  // their words: the cache's URL path, or Nx's banner.
-  for (const replayed of ['Unauthorized: invalid token', 'Failed to send request: timed out after 30s'])
-    expect(looksLikeCacheTransportFailure(`${replayed}\n`), replayed).toBe(false);
+  // A nested run's refused store as the outer run streams it: each line prefixed, the blank ones dropped.
+  const nested =
+    '@inventarch/ia: ::group::❌ > nx run @inventarch/language:language-build\n@inventarch/ia: Unauthorized: invalid token\n@inventarch/ia: ::endgroup::\n';
+  expect(looksLikeCacheTransportFailure(nested), nested).toBe(false);
+  // Under GitHub Actions the failed task's header opens a log group (Nx 23.2.1, observed in CI).
+  expect(
+    looksLikeCacheTransportFailure(
+      '::group::❌ > nx run @inventarch/language:language-build\n\nUnauthorized: invalid token\n::endgroup::\n',
+    ),
+  ).toBe(true);
+  // A task restored from the cache replays its output without that prefix, under a header that names the cache, so
+  // the generic phrases need more than their words: the cache's URL path, Nx's banner, or a failed task's header.
+  for (const replayed of [
+    'Unauthorized: invalid token\n',
+    'Failed to send request: timed out after 30s\n',
+    '> nx run @inventarch/language:language-build  [local cache]\n\nUnauthorized: invalid token\n',
+    '::group::🔁 > nx run @inventarch/language:language-build  [remote cache]\n\nUnauthorized: invalid token\n',
+    '::group::✅ > nx run @inventarch/language:language-build\n\nUnauthorized: invalid token\n',
+    '> nx run @inventarch/language:language-build\n\n> pnpm tests:run --task language:build\n\nUnauthorized: invalid token\n',
+  ])
+    expect(looksLikeCacheTransportFailure(replayed), replayed).toBe(false);
+});
+
+it('reads a long run of blank lines in linear time', () => {
+  // A replayed body can hold any number of blank lines. Matched at every line start with the failed task's header
+  // checked first, they cost time quadratic in their number: about a minute for these, against a millisecond.
+  const started = performance.now();
+  expect(looksLikeCacheTransportFailure(`${'\n'.repeat(100_000)}> nx run a:b\n\nUnauthorized: x\n`)).toBe(true);
+  expect(performance.now() - started).toBeLessThan(5_000);
 });
 
 it('retries a failed cache request with the local cache kept, and says why in a GitHub warning', async () => {
@@ -475,9 +503,10 @@ it('retries without any cache when a download in the same run broke, whatever fa
 /**
  * A local cache endpoint that fails the ways the real one has: `drops` closes every connection, so the first restore
  * never completes; `refuses-store` answers each restore as a miss and closes each store, after the task has passed;
- * `unavailable` answers 503.
+ * `unauthorized-store` answers each restore as a miss and each store with a plain-text 401, which Nx prints under the
+ * failed task without its banner; `unavailable` answers 503.
  */
-async function failingCache(failure: 'drops' | 'refuses-store' | 'unavailable') {
+async function failingCache(failure: 'drops' | 'refuses-store' | 'unauthorized-store' | 'unavailable') {
   const requests: string[] = [];
   const server =
     failure === 'drops'
@@ -489,7 +518,10 @@ async function failingCache(failure: 'drops' | 'refuses-store' | 'unavailable') 
           requests.push(`${request.method} ${request.url}`);
           if (failure === 'unavailable') response.writeHead(503, { 'content-type': 'text/plain' }).end('unavailable');
           else if (request.method === 'GET') response.writeHead(404).end();
-          else request.socket.destroy();
+          else if (failure === 'unauthorized-store') {
+            request.resume();
+            response.writeHead(401, { 'content-type': 'text/plain' }).end('invalid token');
+          } else request.socket.destroy();
         });
   await new Promise<void>((listening) => server.listen(0, '127.0.0.1', listening));
   return {
@@ -503,7 +535,7 @@ async function failingCache(failure: 'drops' | 'refuses-store' | 'unavailable') 
   };
 }
 
-it.each(['drops', 'refuses-store', 'unavailable'] as const)(
+it.each(['drops', 'refuses-store', 'unauthorized-store', 'unavailable'] as const)(
   'runs the task again without the remote cache when the cache endpoint %s',
   async (failure) => {
     const cache = await failingCache(failure);
@@ -530,7 +562,7 @@ it.each(['drops', 'refuses-store', 'unavailable'] as const)(
       expect(invoke.mock.calls[1]![2].env).not.toHaveProperty(CACHE_SERVER_VARIABLE);
       expect(invoke.mock.calls[1]![1]).not.toContain('--skip-nx-cache');
       // Nx kept the passed task locally before its upload failed, so the retry restores it instead of running it again.
-      if (failure === 'refuses-store') expect((await invoke.mock.results[1]!.value).stdout).toContain('[local cache]');
+      if (failure.endsWith('-store')) expect((await invoke.mock.results[1]!.value).stdout).toContain('[local cache]');
     } finally {
       invoke.mockRestore();
       for (const [name, value] of [

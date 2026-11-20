@@ -114,13 +114,30 @@ export function runManyArgs(targets: readonly string[], skipCache: boolean, para
  * handleDiscreteWorkerFailure). Nx prints both at the start of a line, while every line a task prints as it runs
  * carries its project prefix under `--output-style stream`. A task restored from a cache replays its output without
  * that prefix, so the two generic phrases are tied to the cache: a failed request names the cache's URL path, and
- * a refused token counts only as Nx's banner.
+ * a refused token counts as Nx's banner or as the first line under a failed task's header.
  */
+
+/**
+ * The header Nx prints, unprefixed, above the error that failed a task: `> nx run <task>`, opening a log group with the
+ * failure icon under GitHub Actions (`::group::❌ > nx run <task>`, nx/src/utils/output.js logCommandOutput), then blank
+ * lines. In this repository's runs (`run-many --output-style stream`, `nx:run-commands` tasks, no batch mode, no
+ * `NX_CACHE_FAILURES`), none of the following is one:
+ * - a header that starts a task is followed by that task's prefixed output;
+ * - a task replayed from a cache names its source after the task (`> nx run <task>  [local cache]`);
+ * - under GitHub Actions, another status opens its group with another icon.
+ * The one task that drives Nx itself, `tools:test-cache`, is never cached, so no replay holds a nested failure.
+ */
+const FAILED_TASK_HEADER = String.raw`^[ \t]*(?:::group::❌[ \t]+)?>[ \t]*nx run[ \t]+[^\s[]+[ \t]*\r?\n(?:[ \t]*\r?\n)*`;
 
 /** Errors that write nothing locally: a request that never completed, a refused token, an unexpected status, or a
  * response body that broke before anything was unpacked. */
-const NX_REMOTE_REQUEST_ERROR =
-  /^[ \t]*(?:NX[ \t]+Unauthorized:|(?:NX[ \t]+)?(?:Failed to send request: [^\n]*\/v1\/cache\/|Misconfigured remote cache endpoint:|Failed to read remote cache response body:))/m;
+const NX_REMOTE_REQUEST_ERROR = new RegExp(
+  String.raw`^[ \t]*(?:NX[ \t]+Unauthorized:|(?:NX[ \t]+)?(?:Failed to send request: [^\n]*\/v1\/cache\/|Misconfigured remote cache endpoint:|Failed to read remote cache response body:))` +
+    // A store refused with a plain-text 401 fails the task with `Unauthorized: <text>` as its output, without a banner.
+    // The lookahead comes first: tried at every line start, the lookbehind alone is quadratic in a run of blank lines.
+    String.raw`|^(?=[ \t]*Unauthorized:)(?<=${FAILED_TASK_HEADER})[ \t]*Unauthorized:`,
+  'm',
+);
 
 /** A download that broke while it was unpacked, which may leave a partly unpacked local entry. */
 const NX_REMOTE_DOWNLOAD_ERROR =
