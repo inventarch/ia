@@ -601,8 +601,13 @@ it('applies a rule or playbook by word only where its activation admits the coor
     /** The three subjects among the entries, in the section's order; the corpus's convention and principle aside. */
     three = (body: PositionBody) =>
       body.appliesByWord.map((e) => e.identity).filter((identity) => [onMove, procedure, planGuide].includes(identity));
-  const moveCell = { playbook: onMove, address: `${onMove}#plan/Inference`, text: 'on-move plan.' };
-  // Under sequence at plan, all three apply; the playbook waiting on move is marked, and both playbooks' cells come.
+  const moveCell = {
+    playbook: onMove,
+    address: `${onMove}#plan/Inference`,
+    text: 'on-move plan.',
+    activation: 'move is Execution',
+  };
+  // Under sequence at plan, all three apply; the playbook waiting on move is marked, its cell too, and both cells come.
   const sequence = bodyOf(db, { shape: 'sequence', phase: 'plan' });
   expect(three(sequence)).toEqual([onMove, procedure, planGuide]);
   expect(entry(sequence, procedure)).not.toHaveProperty('activation');
@@ -631,6 +636,66 @@ it('applies a rule or playbook by word only where its activation admits the coor
   ]);
   // A word never filters the section, so it hides no omission either.
   expect(bodyOf(db, { shape: 'governance', phase: 'act', word: 'contract' }).omittedRules).toEqual(act.omittedRules);
+});
+
+// #325: the first four playbooks that apply by word deliver their cells whether or not their entry is among the 48
+// listed, so a delivered cell carries its playbook's `activation` itself: past the listed entries, where only a tally
+// stands for the playbook, the cell still says it waits on move.
+it('marks a delivered cell whose playbook waits on an axis the key cannot bind, past the listed entries too', () => {
+  const moving = 'governance-system/definition/procedure/moving-steps';
+  const root = adoptedRoot((vendor) =>
+    put(
+      vendor,
+      `${records}/moving-steps.ia`,
+      `${procedureOf('moving-steps', { plan: 'Inference' })}  activation\n    activate when move is Execution\n`,
+    ),
+  );
+  // Forty-eight authored advisory laws apply to the workspace seat by its kind, and rank before the adopted playbook.
+  for (let i = 0; i < 48; i++) {
+    const name = `advice-${String(i).padStart(2, '0')}`;
+    put(root, `${records}/${name}.ia`, law(name, 'advisory', '  subject\n    subject-kind definition\n'));
+  }
+  const db = database(root);
+  expect(db.report.findings.filter((f) => f.severity === 'error')).toEqual([]);
+  const body = bodyOf(db, { seat: localWorkspace, shape: 'sequence', phase: 'plan', budget: 0 });
+  expect(body.appliesByWord).toHaveLength(48);
+  expect(body.appliesByWord.every((entry) => entry.band === 100 && entry.word === 'law')).toBe(true);
+  expect(body.appliesByWordTallies).toContainEqual(expect.objectContaining({ word: 'playbook', count: 1 }));
+  expect(body.cells).toEqual([
+    {
+      playbook: moving,
+      address: `${moving}#plan/Inference`,
+      text: 'moving-steps plan.',
+      activation: 'move is Execution',
+    },
+  ]);
+});
+
+// #325: the seat's loaded entry is never tested for activation, since the key names it. A seat that applies by word to
+// itself (R17) is a subject like any other there: where its activation is contradicted it stays loaded, yet
+// `omittedRules` names it and it delivers no cell, as `ia context` delivers none.
+it("tests a self-matching seat's applies-by-word entry and its cell, never its loaded entry", () => {
+  const root = workspace();
+  subject(root, methodPath, '    subject-kind definition\n');
+  const db = database(root);
+  expect(db.report.findings.filter((f) => f.severity === 'error')).toEqual([]);
+  const left = bodyOf(db, { seat: procedure, shape: 'governance', phase: 'plan' });
+  expect(left.loaded[0]).toMatchObject({ identity: procedure });
+  expect(left.loaded[0]).not.toHaveProperty('activation');
+  expect(ids(left.appliesByWord)).not.toContain(procedure);
+  expect(left.cells).toEqual([]);
+  expect(left.omittedRules).toEqual([
+    { identity: procedure, word: 'playbook', detail: 'category is process, request is rule' },
+  ]);
+  // Under sequence, the category its activation names, it applies to itself and its cell is delivered.
+  const held = bodyOf(db, { seat: procedure, shape: 'sequence', phase: 'plan' });
+  expect(held.appliesByWord.find((entry) => entry.identity === procedure)?.via.matches).toEqual([
+    { field: 'subject.subject-kind', value: 'definition', record: procedure },
+  ]);
+  expect(held.cells).toEqual([
+    { playbook: procedure, address: `${procedure}#plan/Inference`, text: 'Sample fixture statement 11.' },
+  ]);
+  expect(held.omittedRules).toEqual([]);
 });
 
 it("reads no subject or mandate of another workspace's root: none applies by word, is reserved by word or governs", () => {

@@ -131,12 +131,15 @@ const recordFacts = (record: PositionRecord & { readonly workspace?: string }): 
   ...(record.steward === undefined ? [] : [[atom('steward', 'dim', 0), atom(record.steward, 'cyan', 2)]]),
   ...(record.workspace === undefined ? [] : [[atom('in workspace', 'dim', 0), atom(record.workspace, 'cyan', 2)]]),
 ];
-/** A delivered record's entry, then the groups it waits on when its activation names an axis the key cannot bind. */
+/** The groups a delivered entry waits on, when its activation names an axis the key cannot bind; else nothing. */
+const conditionFacts = (delivered: { readonly activation?: string }): readonly (readonly Token[])[] =>
+  delivered.activation === undefined
+    ? []
+    : [[atom('applies only when', 'yellow', 0), ...words(delivered.activation, null, 2)]];
+/** A delivered record's entry, then the groups it waits on. */
 const deliveredFacts = (record: PositionRecord & { readonly activation?: string }): readonly (readonly Token[])[] => [
   ...recordFacts(record),
-  ...(record.activation === undefined
-    ? []
-    : [[atom('applies only when', 'yellow', 0), ...words(record.activation, null, 2)]]),
+  ...conditionFacts(record),
 ];
 const loadedFacts = (loaded: LoadedEntry): readonly (readonly Token[])[] =>
   'identity' in loaded
@@ -190,9 +193,9 @@ function keyText(key: ScopeKey): string {
  * that apply by word, with their tallies, and the playbook cells; the rules reserved outside the budget; the records
  * left out by activation, when there are any; the mandates; the frontier; the unknowns; then the two widening keys as
  * `ia position` commands, with the root this invocation gave: one hop deeper (absent at depth 2), and the re-seat at
- * any pointer or applies-by-word entry. A loaded record, applies-by-word entry or rule whose activation waits on an
- * axis the key cannot bind says so under its entry, `applies only when` and the groups it waits on. Every string of the
- * output, what a source authored (cell text, a finding's message, identities and paths) included, is escaped by
+ * any pointer or applies-by-word entry. A loaded record, applies-by-word entry, cell or rule whose activation waits on
+ * an axis the key cannot bind says so under its entry, `applies only when` and the groups it waits on. Every string of
+ * the output, what a source authored (cell text, a finding's message, identities and paths) included, is escaped by
  * `terminalSafe` before it is laid out, so no terminal control reaches the terminal; `--json` prints the output as is.
  */
 export function renderPosition(output: PositionOutput, caps: Capabilities, rooted = '', supplied?: string): string {
@@ -259,10 +262,12 @@ export function renderPosition(output: PositionOutput, caps: Capabilities, roote
       section(
         'Cells',
         body.cells,
-        (cell) =>
-          'address' in cell
+        (cell) => [
+          ...('address' in cell
             ? [[atom(cell.address, 'cyan', 0)], words(cell.text)]
-            : [[atom(cell.missing, 'cyan', 0)], words(cell.message, 'dim')],
+            : [[atom(cell.missing, 'cyan', 0)], words(cell.message, 'dim')]),
+          ...conditionFacts(cell),
+        ],
         'No playbook cell.',
         caps,
       ),
