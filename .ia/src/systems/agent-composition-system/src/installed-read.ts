@@ -5,10 +5,10 @@ import type { Json } from '@inventarch/session-system';
 import { installed } from './catalog.js';
 import type { CatalogAliases, CompositionCatalog } from './catalog.js';
 import type { CompiledHarness } from './compiled.js';
-import { compileHarness } from './compile.js';
+import { replayCompiledHarness } from './compile.js';
 import { Corpus, verifyCapture } from '@inventarch/workspace-runtime/corpus';
 import type { Capture } from '@inventarch/workspace-runtime/corpus';
-import { compiledAliases, compiledStamp, executionManifest } from './execution.js';
+import { compiledAliases, executionManifest } from './execution.js';
 import { installedImplementationDigest } from './installed-catalog.js';
 
 /** Fixed first-party identities. Native/model inputs never select a module or handler. */
@@ -128,14 +128,7 @@ export function installedReadAdapters(
   const expected = executionManifest(compiled, catalog);
   if (digest(expected) !== digest(manifest) || !manifest.operations[INSTALLED_READ.operation])
     denied('Manifest differs from the retained compiled closure');
-  const rebuilt = compileHarness(capture, {
-    harness: compiled.id,
-    entry: compiled.entry.binding,
-    catalog,
-    aliases: compiledAliases(compiled),
-    ...(compiledStamp(compiled) ? { stamp: compiledStamp(compiled)! } : {}),
-  });
-  if (!rebuilt.ok || rebuilt.manifest.digest !== compiled.digest)
+  if (!replayCompiledHarness(capture, compiled, catalog).ok)
     denied('Compiled closure differs from the retained native capture');
   const handlers: string[] = [INSTALLED_READ.handler, INSTALLED_READ_LEGACY.handler];
   if (

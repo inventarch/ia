@@ -8,7 +8,7 @@
     {
       "id": "inventarch/agent-composition-system",
       "bump": "patch",
-      "summary": "Rebuilt on agent-system's mandate authority.words and workspace-system's optional workspace composition fields; no change of its own."
+      "summary": "Document the released compiler writer output and the explicit retained-artifact replay boundary; rebuilt on agent-system's mandate authority.words and workspace-system's optional workspace composition fields."
     },
     {
       "id": "inventarch/agent-system",

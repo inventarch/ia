@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import * as installedSDK from '@inventarch/agent-composition-system';
+import { replayCompiledHarness } from '@inventarch/agent-composition-system/internal/compile';
 import { captureWorkspace } from '@inventarch/workspace-runtime';
 import { Engine } from '@inventarch/agent-system';
 import { copy, digest, memoryStore } from '@inventarch/session-system';
@@ -554,6 +555,27 @@ function mutateDisposableInstalledCode(root) {
   };
 }
 
+/** Exercise the published root and internal replay from the separately installed SDK. */
+function qualifyRetainedCompiledReplay(root) {
+  const f = readFixture(installedSDK, root);
+  assert(!Object.hasOwn(installedSDK, 'replayCompiledHarness'));
+  assert.equal(f.compiled.format, 'ia.compiled-harness.v1');
+  assert(!Object.hasOwn(f.compiled, 'formatVersion'));
+  const { digest: _releasedDigest, ...released } = f.compiled;
+  const plain = { ...released, format: 'compiled-harness', formatVersion: 1 };
+  const retainedPlain = { ...plain, digest: digest(plain) };
+  for (const retained of [f.compiled, retainedPlain]) {
+    assert.deepEqual(replayCompiledHarness(f.capture, retained, f.catalog), { ok: true, manifest: retained });
+    const bound = installedSDK.installedReadAdapters(f.capture, {
+      ...f.options,
+      compiled: retained,
+      manifest: installedSDK.executionManifest(retained, f.catalog),
+    });
+    bound.close();
+  }
+  return { legacy: f.compiled.digest, plain: retainedPlain.digest };
+}
+
 if (isEntry(process.argv[1], import.meta.url)) {
   assert(
     [4, 5].includes(process.argv.length),
@@ -568,6 +590,7 @@ if (isEntry(process.argv[1], import.meta.url)) {
       process.argv[4] === '--mutate-installed-code' ? () => mutateDisposableInstalledCode(root) : undefined;
     const result = {
       node: process.version,
+      retainedReplay: qualifyRetainedCompiledReplay(root),
       memory: await qualifyInstalledRead(installedSDK, root, memory, retryFault),
       sqlite: await qualifyInstalledRead(installedSDK, root, sqlite, retryFault),
       admission: await qualifyAdmission(installedSDK, root, resolve(process.argv[3], 'admission')),
