@@ -1,12 +1,30 @@
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import type { BaseCatalogue, CatalogueWord } from '../../packages/db/src/distribution/index.js';
-import { buildLanguageBase } from '../native/language-base.js';
+import { BASE_ID, buildLanguageBase } from '../native/language-base.js';
 import { ledgerArchive, readBaseLedger } from '../native/language-bases.js';
 import { baseCatalogue } from '../native/language-compat.js';
 import { checkLanguageCompat, classifyBaseChange, fixtureKits, minimumBump } from './language-compat-gate.js';
+import { nativeBaseline } from './native-version.js';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
+
+describe('published language bases', () => {
+  it('records the base the latest release published once the build moves past it', () => {
+    const { source, archives } = nativeBaseline(root);
+    const published = archives.find((row) => row.id === BASE_ID)!;
+    const built = buildLanguageBase(root).pin;
+    // While the tree builds the published base, the CLI carries it as its own. Once the build moves on, only a ledger
+    // row keeps it in the CLI, the MCP door and the compatibility index, so a workspace locked to it still restores.
+    if (built.archive === published.archive) return;
+    const row = readBaseLedger(root).bases.find((entry) => entry.version === published.version);
+    expect(
+      row && { archive: row.archive, manifest: row.manifest },
+      `${BASE_ID}@${published.version}, published by ${source.tag}, is not in the ledger: pnpm language-bases:fetch ` +
+        `--fetch ${published.version} --from @inventarch/cli@${source.tag.slice(1)}`,
+    ).toEqual({ archive: published.archive, manifest: published.manifest });
+  });
+});
 
 const word = (patch: Partial<CatalogueWord> = {}): CatalogueWord => ({
   closed: false,

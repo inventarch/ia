@@ -8,11 +8,23 @@ import type { CompiledStamp } from './compile.js';
 import { peekStamp } from './plain-format.js';
 import type { CompiledHarness } from './compiled.js';
 
-/** The stamp a compiled harness carries, to pass back to `compileHarness` when rebuilding it from its capture. */
+/** Inspect the format of a compiled harness; this does not verify the retained artifact. */
 export function compiledStamp(compiled: CompiledHarness): CompiledStamp | undefined {
   return peekStamp(compiled, 'compiled-harness', ['ia.compiled-harness.v1']);
 }
-/** The aliases a compilation used, as the table that reproduces it: recompile with these to rebuild the same harness. */
+function refuse(message: string): never {
+  throw new CompositionError({ code: 'IA-COMPOSITION-UNAVAILABLE', message });
+}
+
+/** Validate the retained stamp against the exact digested body before using it for execution or replay. */
+export function verifyCompiledStamp(compiled: CompiledHarness): CompiledStamp {
+  const stamp = compiledStamp(compiled);
+  const { digest: expected, ...body } = compiled;
+  if (stamp === undefined || digest(body) !== expected) return refuse('Compiled harness digest mismatch');
+  return stamp;
+}
+
+/** The table of aliases a compilation recorded. */
 export function compiledAliases(compiled: CompiledHarness): CatalogAliases {
   // Tables without prototypes: a recorded row's group or name is data, never an object's own machinery.
   const table: Record<string, Record<string, string>> = Object.create(null);
@@ -23,11 +35,7 @@ export function compiledAliases(compiled: CompiledHarness): CatalogAliases {
 
 /** Explicit P2 bridge. Hosts still verify current executable pins and issue current grants. */
 export function executionManifest(compiled: CompiledHarness, catalog: CompositionCatalog): Manifest {
-  const { digest: expected, ...body } = compiled;
-  const refuse = (message: string): never => {
-    throw new CompositionError({ code: 'IA-COMPOSITION-UNAVAILABLE', message });
-  };
-  if (compiledStamp(compiled) === undefined || digest(body) !== expected) refuse('Compiled harness digest mismatch');
+  verifyCompiledStamp(compiled);
   for (const pin of compiled.provenance.installed) {
     const entry = (
       catalog[pin.group as keyof CompositionCatalog] as

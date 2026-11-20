@@ -776,9 +776,10 @@ function previewRecord(
   };
 }
 /**
- * A new local system is `ia init --system`'s starter system, `@system <name>` and its steward `@agent <name>-steward`,
- * in `.ia/src/systems/<name>/system.ia`, a file no source may hold yet. Its words are the floor's `system` and `agent`,
- * both judged for exclusion.
+ * A new local system is `ia init --system`'s starter system, `@system <name>`, its steward `@agent <name>-steward` and
+ * the steward's `@mandate <name>-stewardship` covering the system folder alone, in `.ia/src/systems/<name>/system.ia`,
+ * a file no source may hold yet. Its words, the floor's `system` and agent-system's `agent` and `mandate`, are each
+ * judged for exclusion.
  */
 function previewSystem(run: Invocation, name: string, mode: EditMode): Candidate {
   const path = spelledPath(run, systemPath(name));
