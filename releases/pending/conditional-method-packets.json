@@ -1,0 +1,15 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "Negotiate conditional method packets",
+  "summary": "MCP and runtime callers can request packet contract 3 to retain unresolved rule activation from the position. Contract 1 now refuses unresolved rules; resolved packets and existing task pins keep their format.",
+  "packages": [
+    "@inventarch/mcp-door",
+    "@inventarch/runtime"
+  ],
+  "paths": [
+    "apps/mcp-door/",
+    "docs/",
+    "packages/runtime/"
+  ]
+}
