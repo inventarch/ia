@@ -12,12 +12,21 @@ import { openRunner, runnerAliases, runnerCatalog } from '../src/index.js';
 import { normalizeScopeKey } from '@inventarch/runtime';
 import { RunnerContext } from '../src/context.js';
 
-const compilerWriter = vi.hoisted(() => ({ plain: false }));
-vi.mock('../../../.ia/src/systems/agent-composition-system/src/written-names.js', () => ({
-  get WRITE_PLAIN_NAMES() {
-    return compilerWriter.plain;
-  },
-}));
+const suppliedCompiler = vi.hoisted(() => ({ retainPlainFixture: false }));
+vi.mock('@inventarch/agent-composition-system', async (importOriginal) => {
+  const sdk = await importOriginal<typeof import('@inventarch/agent-composition-system')>();
+  return {
+    ...sdk,
+    compileHarness(...args: Parameters<typeof sdk.compileHarness>) {
+      const result = sdk.compileHarness(...args);
+      if (!result.ok || !suppliedCompiler.retainPlainFixture) return result;
+      // Represent an already-retained plain harness without exposing a format option on the shipped writer.
+      const { digest: _releasedDigest, ...body } = result.manifest;
+      const plain = { ...body, format: 'compiled-harness', formatVersion: 1 };
+      return { ok: true, manifest: { ...plain, digest: digest(plain) } };
+    },
+  };
+});
 
 const repository = resolve(import.meta.dirname, '../../..');
 const cleanups: (() => Promise<void> | void)[] = [];
@@ -869,16 +878,16 @@ it('keeps a harness pinned to the original catalog valid and dispatching by the 
   expect(state.budget.operations).toBe(1);
 });
 
-it('verifies a retained plain harness after the ordinary writer returns to the released default', async () => {
+it('verifies a retained plain fixture in the same live runner with the released writer default', async () => {
   const options = fixture(),
     actions: ModelAction[] = [],
     seen: ModelRequest[] = [];
   let runner: ReturnType<typeof openRunner>;
-  compilerWriter.plain = true;
+  suppliedCompiler.retainPlainFixture = true;
   try {
     runner = openRunner({ ...options, model: scripted(actions, seen) });
   } finally {
-    compilerWriter.plain = false;
+    suppliedCompiler.retainPlainFixture = false;
   }
   cleanups.push(() => runner.close());
   const { compiled } = runner.manifest.provenance as unknown as { compiled: CompiledHarness };

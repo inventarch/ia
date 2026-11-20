@@ -1,4 +1,4 @@
-import { expect, expectTypeOf, it, vi } from 'vitest';
+import { expect, expectTypeOf, it } from 'vitest';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { digest } from '@inventarch/session-system';
@@ -10,21 +10,6 @@ import type { Capture } from '@inventarch/workspace-runtime';
 import { admitSourceCapture } from '@inventarch/workspace-runtime/sources';
 
 import { compilerCapture, compilerCatalog as catalogWithDigest } from './compiler-fixture.js';
-
-const flip = vi.hoisted(() => ({ plain: false }));
-vi.mock('../src/written-names.js', () => ({
-  get WRITE_PLAIN_NAMES() {
-    return flip.plain;
-  },
-}));
-function flipped<T>(body: () => T): T {
-  flip.plain = true;
-  try {
-    return body();
-  } finally {
-    flip.plain = false;
-  }
-}
 
 const root = fileURLToPath(new URL('../../../../..', import.meta.url));
 const captured = compilerCapture(root);
@@ -515,15 +500,21 @@ it('writes the plain completion evaluator and accepts the original independent r
 
 import './sdk-runtime/onboarding-case.js';
 
-it('stamps a compiled harness with the released literal by default, plainly when flipped, and executes both', () => {
-  const original = good(),
-    current = flipped(() => good()),
+it('writes the released format and replays exact retained artifacts in both formats', () => {
+  const emitted = compileHarness(captured, options());
+  if (!emitted.ok) throw new Error(JSON.stringify(emitted));
+  expectTypeOf(emitted.manifest.format).toEqualTypeOf<'ia.compiled-harness.v1'>();
+  expectTypeOf(emitted.manifest).not.toHaveProperty('formatVersion');
+  const original = emitted.manifest,
+    { digest: _originalDigest, ...releasedBody } = original,
+    plainBody = { ...releasedBody, format: 'compiled-harness' as const, formatVersion: 1 as const },
+    current = { ...plainBody, digest: digest(plainBody) },
     catalog = sampleCatalog('ide');
   expectTypeOf<CompileOptions>().not.toHaveProperty('stamp');
   const extraneousOptions = { ...options(), stamp: { format: 'compiled-harness', formatVersion: 1 } };
   expect(compileHarness(captured, extraneousOptions)).toEqual({ ok: true, manifest: original });
   expect(replayCompiledHarness(captured, current, catalog)).toEqual({ ok: true, manifest: current });
-  expect(flipped(() => replayCompiledHarness(captured, original, catalog))).toEqual({ ok: true, manifest: original });
+  expect(replayCompiledHarness(captured, original, catalog)).toEqual({ ok: true, manifest: original });
   expect(current).toMatchObject({ format: 'compiled-harness', formatVersion: 1 });
   expect(original.format).toBe('ia.compiled-harness.v1');
   expect(Object.hasOwn(original, 'formatVersion')).toBe(false);

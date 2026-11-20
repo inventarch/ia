@@ -31,8 +31,8 @@
     },
     {
       "path": ".ia/src/systems/agent-composition-system/SPEC.md",
-      "bytes": 4082,
-      "sha256": "748120475042f79f948d67f89a733af8c627441e691a9be18acec8a621711c9f",
+      "bytes": 4227,
+      "sha256": "0f88816a71697aa6049d93a7b43483bcfe5682e388cf2b515d9325c92ead20a2",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
