@@ -188,6 +188,108 @@ it('resolves the packet resolve.mjs prints, field for field, and writes the same
   expect(normalized(pin)).toEqual(golden('golden-pin.json'));
 }, 120_000);
 
+it('keeps pending rule activation in opted-in packets and refuses legacy delivery without writing a pin', () => {
+  const src = join(consumer, '.ia', 'src');
+  const workspacePath = join(src, 'packet-fixture-workspace.ia');
+  const lawsPath = join(src, 'packet-fixture-rules.ia');
+  const lawId = (suffix: string) => `governance-system/governance/law/packet-fixture-${suffix}`;
+  const law = (suffix: string, selector?: string) =>
+    `@law packet-fixture-${suffix}
+  meaning
+    says "Use a colour label for this synthetic note."
+    answers "What colour is this note?"
+  governance
+    severity blocking
+  subject
+    subject-word workspace
+${
+  selector === undefined
+    ? ''
+    : `  activation
+    activate when ${selector}
+`
+}`;
+  writeFileSync(
+    workspacePath,
+    `#! ia 1.0
+@workspace packet-fixture
+  meaning
+    says "A synthetic workspace for packet qualification."
+    answers "Which workspace contains the sample notes?"
+  composition
+    systems [@system governance-system]
+    sources [".ia/src @authored"]
+`,
+  );
+  const writeRules = (condition: string) =>
+    writeFileSync(
+      lawsPath,
+      `#! ia 1.0
+${[
+  law('unconditional'),
+  law('matched', 'phase is orient'),
+  law('contradicted', 'phase is act'),
+  law('pending', condition),
+].join('\n')}`,
+    );
+  try {
+    writeRules('move is Observation');
+    const call = (options: Record<string, unknown> = {}) =>
+      tools().call('method:method', { key: 'knowledge.find', ...options });
+    expect(call({ task: 'activation-legacy' })).toMatchObject({
+      ok: false,
+      value: { error: { code: 'IA-CORE-CONDITIONAL-PACKET-REQUIRED' } },
+    });
+    expect(call({ packetContract: 1 })).toMatchObject({
+      ok: false,
+      value: { error: { code: 'IA-CORE-CONDITIONAL-PACKET-REQUIRED' } },
+    });
+    expect(existsSync(join(root, 'home', 'work-v1', 'consumer', 'activation-legacy', 'binding.json'))).toBe(false);
+    expect(call({ packetContract: 2 })).toMatchObject({ ok: false, value: { error: { code: 'IA-CORE-USAGE' } } });
+    const answer = call({ packetContract: 3, task: 'activation-opt-in' });
+    expect(answer.ok, JSON.stringify(answer.value)).toBe(true);
+    const packet = answer.value as Record<string, unknown> & { references: Record<string, unknown>[] };
+    expect(packet['contract']).toBe(3);
+    expect(packet['digest']).toBe(packetDigest(packet));
+    for (const suffix of ['unconditional', 'matched'])
+      expect(packet.references.find((row) => row['identity'] === lawId(suffix))).toMatchObject({ when: 'always' });
+    expect(packet.references.some((row) => row['identity'] === lawId('contradicted'))).toBe(false);
+    const pending = packet.references.find((row) => row['identity'] === lawId('pending'))!;
+    expect(pending).toEqual({
+      identity: lawId('pending'),
+      digest: expect.stringMatching(/^[0-9a-f]{64}$/),
+      when: 'activation',
+      activation: 'move is Observation',
+    });
+    // Keep every other packet input fixed: the digest also pins the exact condition as delivered.
+    expect(
+      packetDigest({
+        ...packet,
+        references: packet.references.map((row) =>
+          row === pending ? { ...row, activation: 'move is Verification' } : row,
+        ),
+      }),
+    ).not.toBe(packet['digest']);
+    expect(packetDigest({ ...packet, contract: 1 })).not.toBe(packet['digest']);
+    const pin = join(root, 'home', 'work-v1', 'consumer', 'activation-opt-in', 'binding.json');
+    const priorPin = readFileSync(pin);
+    expect(call({ packetContract: 1, task: 'activation-opt-in' })).toMatchObject({
+      ok: false,
+      value: { error: { code: 'IA-CORE-CONDITIONAL-PACKET-REQUIRED' } },
+    });
+    expect(readFileSync(pin)).toEqual(priorPin);
+    expect(call({ packetContract: 3, task: 'activation-opt-in' })).toMatchObject({
+      ok: true,
+      value: { contract: 3, digest: packet['digest'], binding: { revision: 1 } },
+    });
+    expect(readFileSync(pin)).toEqual(priorPin);
+  } finally {
+    rmSync(lawsPath, { force: true });
+    rmSync(workspacePath, { force: true });
+    rmSync(join(root, 'home', 'work-v1', 'consumer', 'activation-opt-in'), { recursive: true, force: true });
+  }
+}, 120_000);
+
 it('refuses an unbound key with the resolver payload and the kits that recommend it', () => {
   const answer = tools().call('method:method', { key: 'knowledge.review' });
   expect(answer.ok).toBe(false);
@@ -270,13 +372,16 @@ it('serves the three method tools after the seventeen read tools', () => {
   });
   protocol.request({ jsonrpc: '2.0', method: 'notifications/initialized', params: {} });
   const listed = protocol.request({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} })?.result as {
-    tools: { name: string; annotations: { readOnlyHint: boolean } }[];
+    tools: { name: string; annotations: { readOnlyHint: boolean }; inputSchema: { properties: object } }[];
   };
   expect(listed.tools.slice(17).map((tool) => [tool.name, tool.annotations.readOnlyHint])).toEqual([
     ['ia_session', false],
     ['ia_catalogue', true],
     ['ia_method', false],
   ]);
+  expect(listed.tools.find((tool) => tool.name === 'ia_method')?.inputSchema.properties).toMatchObject({
+    packetContract: { type: 'integer', enum: [1, 3] },
+  });
   const called = protocol.request({
     jsonrpc: '2.0',
     id: 3,
