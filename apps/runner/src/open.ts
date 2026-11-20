@@ -5,8 +5,6 @@ import type { InputOptions } from '@inventarch/db';
 import { Engine } from '@inventarch/agent-system';
 import type { EngineHost, Grant, ModelAdapter, ModelResponse, Profile } from '@inventarch/agent-system';
 import {
-  compiledAliases,
-  compiledStamp,
   compileHarness,
   executionManifest,
   installedReadCatalog,
@@ -14,6 +12,7 @@ import {
   INSTALLED_READ_LEGACY,
 } from '@inventarch/agent-composition-system';
 import type { CatalogAliases, CompositionCatalog } from '@inventarch/agent-composition-system';
+import { replayCompiledHarness } from '@inventarch/agent-composition-system/internal/compile';
 import { captureWorkspace } from '@inventarch/workspace-runtime';
 import { canonical, copy, digest, SessionError, terminal } from '@inventarch/session-system';
 import type { Json, Limits, Mutation, Session } from '@inventarch/session-system';
@@ -295,13 +294,7 @@ export function openRunner(options: RunnerOptions) {
     };
     const verify = async () => {
       if (currentCapture().revision !== capture.revision) return false;
-      const fresh = compileHarness(capture, {
-        harness: compiled.id,
-        entry: compiled.entry.binding,
-        catalog,
-        aliases: compiledAliases(compiled),
-        ...(compiledStamp(compiled) ? { stamp: compiledStamp(compiled)! } : {}),
-      });
+      const fresh = replayCompiledHarness(capture, compiled, catalog);
       const readPin = compiled.provenance.installed.find(
         (pin) =>
           pin.group === 'operations' &&
@@ -309,7 +302,6 @@ export function openRunner(options: RunnerOptions) {
       );
       return (
         fresh.ok &&
-        fresh.manifest.digest === compiled.digest &&
         (!manifest.operations[INSTALLED_READ.operation] ||
           (readPin !== undefined &&
             canonical(installedReadCatalog().operations[readPin.id]) === canonical(catalog.operations[readPin.id])))
