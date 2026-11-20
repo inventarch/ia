@@ -1023,3 +1023,73 @@ it("delivers the occurrence ia context reads at the key's phase: an override tha
   expect(got.packet.omitted).toContainEqual({ address: category, reason: 'disqualified', detail: contradicted.detail });
   expect(ids(act.loaded)).not.toContain(category);
 });
+
+/** `ia context` at a governance coordinate through `within`, the packet or the refusal's message thrown. */
+const governanceContext = (db: Handle, within: string, phase: 'plan' | 'act') => {
+  const got = context(
+    db,
+    { within, text: '', coordinate: { shape: 'governance', phase, primitive: 'Inference' } },
+    { tokens: 1_000_000, records: 1_000 },
+  );
+  if (!got.ok) throw new Error(got.message);
+  return got.packet;
+};
+
+// #325: delivery reads the view `ia context` reads at the key's phase whatever the token's own phase. A token issued at
+// act holds the adopted law (band 90), which its plan-only blocking override cannot shadow there; a key at plan read
+// through that token delivers the override (band 100), reserved as blocking, as `ia context` does through it.
+it("delivers the key's phase occurrence through a token bound to another phase", () => {
+  const guard = 'governance-system/governance/law/phase-guard';
+  const root = freshInit(undefined, { [`${records}/phase-guard.ia`]: law('phase-guard', 'advisory') });
+  put(
+    root,
+    `${records}/phase-guard.ia`,
+    law('phase-guard', 'blocking', '  activation\n    activate when phase is plan\n'),
+  );
+  const db = database(root),
+    act = db.resolveScope({ phase: 'act' }).token;
+  expect(db.report.findings.filter((f) => f.severity === 'error')).toEqual([]);
+  // The token's own view holds the adopted occurrence.
+  expect(db.snapshot({ within: act }).records.find((r) => r.identity === guard)?.band).toBe(90);
+  const body = bodyOf(db, act, { seat: governanceSystem, shape: 'governance', phase: 'plan' });
+  expect(body.rules.find((rule) => rule.identity === guard)).toMatchObject({ band: 100 });
+  expect(ids(body.loaded)).not.toContain(guard);
+  expect(body.omittedRules).toEqual([]);
+  expect(governanceContext(db, act, 'plan').included.find((entry) => entry.identity === guard)).toMatchObject({
+    band: 100,
+    severity: 'blocking',
+  });
+});
+
+// #325: a delivered record passes admission in the view `ia context` reads at the key's phase. With governance-system's
+// steward activating at plan alone, that system's records are not admitted at act, where `ia context` delivers none of
+// them; so a body at act from the whole-workspace token delivers none either, and `omittedRules` says why. At plan they
+// are delivered as before.
+it("delivers only what the key's phase view admits: a system whose steward cannot hold there delivers nothing", () => {
+  const root = workspace(),
+    steward = '.ia/src/systems/governance-system/steward.ia',
+    convention = 'governance-system/governance/convention/sample-convention',
+    principle = 'governance-system/governance/principle/sample-principle';
+  put(root, steward, `${readFileSync(resolve(root, steward), 'utf8')}  activation\n    activate when phase is plan\n`);
+  const db = database(root),
+    within = db.resolveScope().token;
+  expect(db.report.findings.filter((f) => f.severity === 'error')).toEqual([]);
+  const at = (phase: 'plan' | 'act') => bodyOf(db, within, { seat: governanceSystem, shape: 'governance', phase });
+  const plan = at('plan');
+  expect(ids(plan.rules)).toEqual([lawId]);
+  expect(ids(plan.loaded)).toEqual(expect.arrayContaining([convention, principle]));
+  expect(plan.omittedRules).toEqual([]);
+  const act = at('act');
+  expect(act.rules).toEqual([]);
+  expect(act.loaded.some((entry) => 'identity' in entry && entry.identity.startsWith('governance-system/'))).toBe(
+    false,
+  );
+  expect(act.omittedRules).toEqual([
+    { identity: convention, word: 'convention', detail: 'not admitted at phase act' },
+    { identity: lawId, word: 'law', detail: 'not admitted at phase act' },
+    { identity: principle, word: 'principle', detail: 'not admitted at phase act' },
+  ]);
+  expect(
+    governanceContext(db, within, 'act').included.some((entry) => entry.identity.startsWith('governance-system/')),
+  ).toBe(false);
+});

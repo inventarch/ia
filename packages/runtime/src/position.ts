@@ -106,14 +106,18 @@ export interface LoadedRecord extends PositionRecord {
 /** A reserved rule: a loaded record, `activation` marking one whose selectors leave it undecided at the coordinate. */
 export interface RuleRecord extends LoadedRecord {}
 /**
- * A record left out because its activation contradicts the key's coordinate, as `ia context` omits it: a blocking rule
- * `rules` would reserve, a record `loaded` would hold, or a rule or playbook that would apply by word.
+ * A record left out because its activation contradicts the key's coordinate, or because the view at the key's phase
+ * does not admit it, as `ia context` leaves it out: a blocking rule `rules` would reserve, a record `loaded` would
+ * hold, or a rule or playbook that would apply by word.
  */
 export interface OmittedRule {
   readonly identity: string;
   /** The record's word, as the pointer tuple names it. */
   readonly word: string;
-  /** The contradictory terms, `axis is value, request is other`, joined by `; `. */
+  /**
+   * The contradictory terms, `axis is value, request is other`, joined by `; `; or, for a record whose own activation
+   * admits the coordinate but which the view at the key's phase does not admit, `not admitted at phase <phase>`.
+   */
   readonly detail: string;
 }
 /** The loaded entry of a seat that is no record: a location, or a workspace seat no record declares (`''`). */
@@ -243,9 +247,10 @@ export interface PositionBody {
    */
   readonly rules: readonly RuleRecord[];
   /**
-   * Every record the key's coordinate disqualifies by activation that the body would otherwise deliver, by identity:
-   * a reserved rule, a record that would load and a rule or playbook that would apply by word. A rule or record left
-   * out of `rules` or `loaded` is never entered, pointed to or on the frontier.
+   * Every record the body would otherwise deliver that the key's coordinate disqualifies by activation, or that the
+   * view at the key's phase does not admit, by identity: a reserved rule, a record that would load and a rule or
+   * playbook that would apply by word. A rule or record left out of `rules` or `loaded` is never entered, pointed to or
+   * on the frontier.
    */
   readonly omittedRules: readonly OmittedRule[];
   /** The first 48 pointers in the shape's order, of w only. */
@@ -556,38 +561,28 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
   const ruleReach = (identity: string): Reach =>
     unfiltered.reached.get(identity) ?? matched.get(identity) ?? { hop: 0, via: unfiltered.c0.get(identity)! };
 
-  // The occurrence a body delivers for an identity is the one `ia context` reads at the key's phase. Graph G04 selects
-  // by phase before band, so an occurrence whose activation cannot hold at the phase shadows nothing there, and a
-  // lower band's occurrence that can is the record at that phase: an authored override that activates at plan alone
-  // falls back, at act, to the adopted record it overrides. The whole-workspace winner is that occurrence whenever its
-  // own activation is not contradicted, since such an occurrence admits the phase. Otherwise the identity is read
-  // through a child scope of `within` bound to the phase (db D07), issued only then and once; with no occurrence there,
-  // the winner stays, to be left out by activation. What is delivered reads that occurrence: its activation, severity,
-  // subject, cells, band and digest. The walk, the closure, the pointers, the frontier, the mandates, the seat's own
-  // entry and the admission findings' scope stay the whole-workspace view's.
-  let phased: ReadonlyMap<string, Node> | undefined;
-  const occurrences = new Map<string, Node>();
-  const occurrence = (identity: string): Node => {
-    let found = occurrences.get(identity);
-    if (found !== undefined) return found;
-    const winner = nodes.get(identity)!;
-    if (activationAt(winner, values).status === 'omitted') {
-      phased ??= new Map(
-        handle
-          .snapshot({ within: handle.resolveScope({ within, phase: key.phase }).token })
-          .records.filter((node) => node.placement.kind !== 'runtime')
-          .map((node) => [node.identity, node]),
-      );
-      found = phased.get(identity) ?? winner;
-    } else found = winner;
-    occurrences.set(identity, found);
-    return found;
-  };
+  // Delivery reads one view, always: the one `ia context` reads at the key's phase, a child scope of `within` bound to
+  // that phase (db D07). Graph G04 selects there by phase before band and admission runs there, so it holds for each
+  // identity the occurrence in force at the phase, or nothing: an override that holds at plan alone falls back at act
+  // to the record it overrides, and a record whose system's steward cannot hold at the phase is not admitted there. A
+  // token bound to another phase changes nothing, since the child selects at the key's phase among every occurrence its
+  // parent's boundary keeps. A record the walk reaches is delivered only as this view holds it: its activation,
+  // severity, subject fields, cells, band, digest and order are that occurrence's, and one it does not hold is left
+  // out. The view `within` reads (`nodes`) keeps what `ia context` does not do: the walk, the closure, the pointers,
+  // the frontier, the mandates, the seat's own entry, the admission findings, and the reason a record is left out.
+  const delivery: ReadonlyMap<string, Node> = new Map(
+    handle
+      .snapshot({ within: handle.resolveScope({ within, phase: key.phase }).token })
+      .records.filter((node) => node.placement.kind !== 'runtime')
+      .map((node) => [node.identity, node]),
+  );
+  /** The record delivered for an identity, as the key's phase view holds it; else the walk's, to explain why not. */
+  const occurrence = (identity: string): Node => delivery.get(identity) ?? nodes.get(identity)!;
 
   // Applies by word (R17): the @law, @convention, @principle and @playbook records of
   // the closure whose `subject.subject-word` is the word, or `subject.subject-kind` the kind, of a record, of any word
   // whatever w is. A field match, not a row: it costs no hop and claims no relation or consent. The subject fields are
-  // read from the occurrence delivered at the key's phase.
+  // read from the record delivered at the key's phase.
   const subjects: readonly Subject[] = records.flatMap((node) => {
     if (!SUBJECT_WORDS.includes(node.discriminator) || !inside(node.identity)) return [];
     const at = occurrence(node.identity),
@@ -612,7 +607,7 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
         : [{ field: 'subject.subject-kind' as const, value: subject.kind!, record: byKind }]),
     ];
   };
-  /** Whether the occurrence delivered at the key's phase is blocking governance. */
+  /** Whether the record delivered at the key's phase (else the walk's, to explain its omission) is blocking. */
   const blocking = (identity: string): boolean => {
     const node = occurrence(identity);
     return node.kind === 'governance' && effectiveSeverity(node.dimensions, values) === 'blocking';
@@ -620,7 +615,7 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
 
   // The order keys, total: governance (prime, band ↓, hop, sev, id), every other shape (band ↓, hop,
   // lane, id). prime is the least priming index of a row incident to the record, sev its severity's rank. A delivered
-  // section ranks by the occurrence it delivers (`nodeOf`); the pointers, by the whole-workspace winner.
+  // section ranks by the record it delivers (`nodeOf`); the pointers, by the record the token's view holds.
   const sorted = (
     identities: Iterable<string>,
     hopOf: (identity: string) => number,
@@ -668,15 +663,25 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
       if (matches.length > 0)
         matched.set(subject.identity, { hop: 0, via: { by: 'subject', label: FIELD_MATCH, matches } });
     }
-  // Activation, read once per record at the key's coordinate, of the occurrence delivered there, with graph `selectors`
-  // as `ia context` reads it for every record before it delivers any (R04): a record the coordinate contradicts is
-  // delivered nowhere, neither reserved in `rules`, loaded nor applying by word with a cell, and `omittedRules` names
-  // it; one it leaves undecided is delivered with the groups it waits on. The seat's loaded entry, which the key names,
-  // is never tested; a seat that applies by word to itself is tested there as any subject is.
+  // The delivery decision, cached per record: the activation at the key's coordinate of the record the key's phase view
+  // holds, read with graph `selectors` as `ia context` reads it for every record before it delivers any (R04). A record
+  // the coordinate contradicts, or the view does not hold, is delivered nowhere, neither reserved in `rules`, loaded
+  // nor applying by word with a cell, and `omittedRules` names it: by its own contradictory terms, or, when its own
+  // activation admits the coordinate, as not admitted at the phase. One the coordinate leaves undecided is delivered
+  // with the groups it waits on. The seat's loaded entry, which the key names, is never tested; a seat that applies by
+  // word to itself is tested there as any subject is.
   const activations = new Map<string, Activation>();
   const activation = (identity: string): Activation => {
     let found = activations.get(identity);
-    if (found === undefined) activations.set(identity, (found = activationAt(occurrence(identity), values)));
+    if (found === undefined) {
+      const held = delivery.get(identity);
+      if (held !== undefined) found = activationAt(held, values);
+      else {
+        const own = activationAt(nodes.get(identity)!, values);
+        found = own.status === 'omitted' ? own : { status: 'omitted', detail: `not admitted at phase ${key.phase}` };
+      }
+      activations.set(identity, found);
+    }
     return found;
   };
   const active = (identity: string): boolean => activation(identity).status !== 'omitted';
@@ -838,7 +843,7 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
         )?.counterpart
       : undefined;
   };
-  /** The tuple of `node`: the whole-workspace winner, or for a delivered record the occurrence delivered. */
+  /** The tuple of `node`: the record the token's view holds, or for a delivered record the key's phase view's. */
   const record = (identity: string, reach: Reach, node = nodes.get(identity)!): PositionRecord => {
     const steward = stewardOf(node.system);
     return {
