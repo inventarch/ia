@@ -1,0 +1,199 @@
+name: Record published language base
+
+on:
+  workflow_run:
+    workflows: [Publish npm packages]
+    branches: [main]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      publish_run_id:
+        description: Successful canonical npm publication run to recheck
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: published-language-ledger
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: >-
+      github.repository == 'inventarch/ia' && github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_repository.full_name == github.repository))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      version: ${{ steps.generate.outputs.version }}
+      base: ${{ steps.generate.outputs.base }}
+      archive: ${{ steps.generate.outputs.archive }}
+      parent: ${{ steps.generate.outputs.parent }}
+      patch: ${{ steps.generate.outputs.patch }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify canonical publication and download its exact receipt
+        id: publication
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id || inputs.publish_run_id }}
+        run: |
+          set -euo pipefail
+          [[ "$RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          canonical=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/npm-publish.yml" --jq '.id')
+          run=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID")
+          sha=$(jq -er --arg repo "$GITHUB_REPOSITORY" --argjson workflow "$canonical" '
+            select(.workflow_id == $workflow and .head_repository.full_name == $repo and .head_branch == "main"
+              and .status == "completed" and .conclusion == "success") | .head_sha | select(test("^[a-f0-9]{40}$"))
+          ' <<< "$run")
+          attempt=$(jq -er '.run_attempt | select(type == "number" and . > 0)' <<< "$run")
+          jobs=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/attempts/$attempt/jobs?per_page=100")
+          # A dry run or version already tagged can finish without publication.
+          if ! jq -e 'any(.jobs[]; .conclusion == "success" and
+            any(.steps[]?; .name == "Tag the published commit and create the GitHub release" and .conclusion == "success"))' \
+            <<< "$jobs" > /dev/null; then
+            echo 'Canonical publication did not finalize in this attempt; no ledger change.'
+            exit 0
+          fi
+          git merge-base --is-ancestor "$sha" HEAD
+          version=$(git show "$sha:releases/current.json" | jq -er '.version | select(test("^3\\.[0-9]+\\.[0-9]+$"))')
+          [[ "$(git rev-parse "refs/tags/v$version^{commit}")" == "$sha" ]]
+          release=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/v$version")
+          jq -e --arg tag "v$version" '.tag_name == $tag and .draft == false and .prerelease == false and
+            ([.assets[] | select(.name == "npm-release.json" and .size > 0 and .size <= 1048576)] | length == 1)' \
+            <<< "$release" > /dev/null
+          # Read the same immutable, run-scoped artifact the publisher and verifier used, not a replaceable release asset.
+          gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name "npm-release-$sha" --dir "$RUNNER_TEMP/qualified-release"
+          test -f "$RUNNER_TEMP/qualified-release/npm-release.json"
+          cmp --silent "$RUNNER_TEMP/qualified-release/npm-release.json" <(gh release download "v$version" --repo "$GITHUB_REPOSITORY" --pattern npm-release.json --output -)
+          printf 'version=%s\nsha=%s\n' "$version" "$sha" >> "$GITHUB_OUTPUT"
+      - if: steps.publication.outputs.sha != ''
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115
+      - if: steps.publication.outputs.sha != ''
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22.22.2'
+          package-manager-cache: false
+      - if: steps.publication.outputs.sha != ''
+        name: Generate only the ledger and derived compatibility projections
+        id: generate
+        shell: bash
+        env:
+          VERSION: ${{ steps.publication.outputs.version }}
+          RELEASE_SHA: ${{ steps.publication.outputs.sha }}
+          NPM_CONFIG_REGISTRY: https://registry.npmjs.org
+          NPM_CONFIG_IGNORE_SCRIPTS: 'true'
+          NPM_CONFIG_USERCONFIG: ${{ runner.temp }}/ledger-npmrc
+          NPM_CONFIG_CACHE: ${{ runner.temp }}/ledger-npm-cache
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile --ignore-scripts
+          node --conditions=development --import tsx tools/native/published-language-ledger.ts \
+            "$RUNNER_TEMP/qualified-release/npm-release.json" "$VERSION" "$RELEASE_SHA" > "$RUNNER_TEMP/language-base.json"
+          if [[ "$(jq -er '.changed | tostring' "$RUNNER_TEMP/language-base.json")" == false ]]; then
+            test -z "$(git status --porcelain)"
+            echo 'Published base already recorded at the same archive and manifest; no change.'
+            exit 0
+          fi
+          base=$(jq -er '.base.version | select(test("^3\\.[0-9]+\\.[0-9]+$"))' "$RUNNER_TEMP/language-base.json")
+          archive=$(jq -er '.base.archive | select(test("^[a-f0-9]{64}$"))' "$RUNNER_TEMP/language-base.json")
+          git add -- "releases/native/bases/$archive.ia.tgz" releases/native/language-bases.json \
+            releases/native/language-compat.json apps/cli/assets/language-compat.json
+          git diff --quiet
+          test -z "$(git ls-files --others --exclude-standard)"
+          git diff --cached --binary > "$RUNNER_TEMP/ledger.patch"
+          test -s "$RUNNER_TEMP/ledger.patch"
+          printf 'version=%s\nbase=%s\narchive=%s\nparent=%s\npatch=%s\n' \
+            "$VERSION" "$base" "$archive" "$(git rev-parse HEAD)" "$(sha256sum "$RUNNER_TEMP/ledger.patch" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+      - if: steps.generate.outputs.patch != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: generated-language-ledger
+          path: ${{ runner.temp }}/ledger.patch
+          if-no-files-found: error
+          retention-days: 1
+
+  propose:
+    needs: prepare
+    if: needs.prepare.outputs.patch != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.parent }}
+      - uses: actions/download-artifact@v8
+        with:
+          name: generated-language-ledger
+          path: ${{ runner.temp }}/ledger
+      - name: Open one reviewable branch, never publish or merge
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          BASE: ${{ needs.prepare.outputs.base }}
+          ARCHIVE: ${{ needs.prepare.outputs.archive }}
+          PARENT: ${{ needs.prepare.outputs.parent }}
+          PATCH_SHA: ${{ needs.prepare.outputs.patch }}
+        run: |
+          set -euo pipefail
+          [[ "$VERSION" =~ ^3\.[0-9]+\.[0-9]+$ && "$BASE" =~ ^3\.[0-9]+\.[0-9]+$ ]]
+          [[ "$ARCHIVE" =~ ^[a-f0-9]{64}$ && "$PATCH_SHA" =~ ^[a-f0-9]{64}$ && "$PARENT" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$(git rev-parse HEAD)" == "$PARENT" ]]
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$PARENT" ]] || {
+            echo 'main advanced during preparation; rerun on the current default branch.' >&2
+            exit 1
+          }
+          patch="$RUNNER_TEMP/ledger/ledger.patch"
+          printf '%s  %s\n' "$PATCH_SHA" "$patch" | sha256sum --check --status
+          git apply --check --index --binary "$patch"
+          git apply --index --binary "$patch"
+          language_archive="releases/native/bases/$ARCHIVE.ia.tgz"
+          while IFS=$'\t' read -r status path; do
+            case "$status:$path" in
+              "A:$language_archive"|"M:releases/native/language-bases.json"|"M:releases/native/language-compat.json"|"M:apps/cli/assets/language-compat.json") ;;
+              *) echo 'Staged edit outside the permitted ledger paths.' >&2; exit 1 ;;
+            esac
+            [[ "$(git ls-files --stage -- "$path" | cut -d' ' -f1)" == 100644 ]]
+          done < <(git diff --cached --name-status --no-renames)
+          git diff --cached --check
+          [[ "$(git diff --cached --name-only -- "$language_archive")" == "$language_archive" ]]
+          [[ "$(git diff --cached --name-only -- releases/native/language-bases.json)" == releases/native/language-bases.json ]]
+          [[ "$(sha256sum "$language_archive" | cut -d' ' -f1)" == "$ARCHIVE" ]]
+          branch="automation/language-base-$BASE"
+          open=$(gh pr list --head "$branch" --base main --state open --json url --jq '.[0].url // empty')
+          if [[ -n "$open" ]]; then
+            printf 'Existing ledger review for %s: %s\n' "$BASE" "$open"
+            exit 0
+          fi
+          existing=$(git ls-remote origin "refs/heads/$branch" | cut -f1)
+          if [[ -n "$existing" ]]; then
+            git fetch --no-tags origin "refs/heads/$branch"
+            [[ "$(git rev-parse FETCH_HEAD^{tree})" == "$(git write-tree)" ]] || {
+              echo 'Existing ledger branch carries a different tree; manual reconciliation required.' >&2
+              exit 1
+            }
+          else
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              commit -m "chore(native): record published language base $BASE"
+            git push origin "HEAD:refs/heads/$branch"
+          fi
+          printf 'Records the exact language base shipped by @inventarch/cli@%s, verified against its publication receipt.\n\nArchive SHA-256: %s\n\nIndependent code-owner review and required checks must pass before merge. This PR does not publish anything.\n' \
+            "$VERSION" "$ARCHIVE" > "$RUNNER_TEMP/ledger-pr.md"
+          gh pr create --repo "$GITHUB_REPOSITORY" --head "$branch" --base main --draft \
+            --title "Record published language base $BASE" --body-file "$RUNNER_TEMP/ledger-pr.md"
