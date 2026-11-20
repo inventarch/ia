@@ -1,12 +1,14 @@
 {
   "format": "ia.npm-change-note.v1",
   "bump": "patch",
-  "title": "Keep `KB_FORMAT` declared as its 3.8.1 literal",
-  "summary": "`@inventarch/kb` declares `KB_FORMAT` as `\"ia.kb.package.v1\"`, exactly as 3.8.1 did, so code typed against that literal keeps compiling; before release, the plain format names change had widened the declaration to `string`. Its value is unchanged.",
+  "title": "Declare `KB_FORMAT` and the new workspace-runtime ids as the literals they hold",
+  "summary": "`@inventarch/kb` declares `KB_FORMAT` as `\"ia.kb.package.v1\"`, exactly as 3.8.1 did, so code typed against that literal keeps compiling. `@inventarch/workspace-runtime` declares the ids it exports publicly for the first time, `CORPUS_INSPECT_HANDLER`, `CANDIDATE_VALIDATE_HANDLER`, `DRAFT_PUBLISH_HANDLER`, `CLAUDE_PROSE_PROFILE` and `CODEX_PROSE_PROFILE`, as the literals they hold, such as `\"ia.host.claude-prose.v1\"`, rather than `string`. Before release, the plain format names change had widened all six declarations to `string`. No value changes.",
   "packages": [
-    "@inventarch/kb"
+    "@inventarch/kb",
+    "@inventarch/workspace-runtime"
   ],
   "paths": [
-    "packages/kb/"
+    "packages/kb/",
+    "packages/workspace-runtime/"
   ]
 }
