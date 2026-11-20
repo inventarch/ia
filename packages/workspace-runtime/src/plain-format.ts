@@ -17,8 +17,13 @@ export const currentStamp = <N extends string>(name: N): { readonly format: N; r
 /** The stamp a writer emits: the plain one once `WRITE_PLAIN_NAMES` is `true`, otherwise the released literal. */
 export const writeStamp = <N extends string, L extends string>(name: N, legacy: L): Stamp<N, L> =>
   WRITE_PLAIN_NAMES ? currentStamp(name) : { format: legacy };
-/** A scalar identifier a writer emits: `plain` once `WRITE_PLAIN_NAMES` is `true`, otherwise `legacy`. */
-export const written = <N, L>(plain: N, legacy: L): N | L => (WRITE_PLAIN_NAMES ? plain : legacy);
+/**
+ * A scalar identifier a writer emits: `plain` once `WRITE_PLAIN_NAMES` is `true`, otherwise `legacy`. It is typed as
+ * `legacy`, the released literal this release writes, so a constant built from it is declared as the value it holds
+ * (`CLAUDE_PROSE_PROFILE = "ia.host.claude-prose.v1"`), which an `N | L` result published as `string`. The release
+ * that flips the switch types it as `N`.
+ */
+export const written = <N, L>(plain: N, legacy: L): L => (WRITE_PLAIN_NAMES ? plain : legacy) as L;
 /** The stamp `value` already carries under its own recorded literal, or undefined when it is neither form. */
 export function peekStamp<N extends string, L extends string>(
   value: unknown,
