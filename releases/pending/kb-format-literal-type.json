@@ -1,0 +1,12 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "Keep `KB_FORMAT` declared as its 3.8.1 literal",
+  "summary": "`@inventarch/kb` declares `KB_FORMAT` as `\"ia.kb.package.v1\"`, exactly as 3.8.1 did, so code typed against that literal keeps compiling; before release, the plain format names change had widened the declaration to `string`. Its value is unchanged.",
+  "packages": [
+    "@inventarch/kb"
+  ],
+  "paths": [
+    "packages/kb/"
+  ]
+}
