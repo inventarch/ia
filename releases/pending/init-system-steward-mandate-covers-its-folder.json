@@ -1,0 +1,13 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "Bound the `ia init --system` stewardship mandate to its own system folder",
+  "summary": "`ia init --system` writes, and `ia preview system` shows, `@mandate <name>-stewardship` with `authority.covers [\".ia/src/systems/<name>/\"]`, the system folder alone, where an unreleased build wrote `[\".ia/src/\"]`. The mandate states no `authority.scope`, so under a source `@hook` the edit guard lets the steward's subagent author its own system's records and refuses it on sibling systems and on `.ia/src/workspace.ia`, which only the workspace's own mandate governs; the workspace participant keeps its workspace-wide mandate. A workspace that build initialized can be repaired by changing that one `covers` line in `.ia/src/systems/<name>/system.ia` and running `ia validate`. Limit: the mandate is still written inside the folder it covers, so the guard also lets the steward edit that record.",
+  "packages": [
+    "@inventarch/cli"
+  ],
+  "paths": [
+    "apps/cli/",
+    "docs/"
+  ]
+}
