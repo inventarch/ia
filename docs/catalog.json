@@ -36,7 +36,7 @@
       "genre": "spec",
       "title": "Kit runtime",
       "status": "implemented",
-      "sourceDigest": "42333d8eae65294d36cf77c5c7603fbb96dafec02471a854b18d78cf3d7667f5"
+      "sourceDigest": "ec7102822bbcf831fd69f1cdf2928d26b5a8752b07a8091b98ddff495a51aed0"
     },
     {
       "id": "spec-registry",
@@ -63,7 +63,7 @@
       "genre": "spec",
       "title": "Workspace initialization",
       "status": "implemented",
-      "sourceDigest": "b24f85bf618f1d272b9ae32a7f35ffceee735372886d36b24cafa05da709fc77"
+      "sourceDigest": "7c4bba762b36873813f6cbdc28533a5f81becc3bd136709c0e1f79494068fe00"
     }
   ]
 }
