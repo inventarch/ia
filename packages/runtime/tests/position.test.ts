@@ -1093,3 +1093,38 @@ it("delivers only what the key's phase view admits: a system whose steward canno
     governanceContext(db, within, 'act').included.some((entry) => entry.identity.startsWith('governance-system/')),
   ).toBe(false);
 });
+
+// #325: a delivered record also ranks as the key's phase view holds it. Its priming reads the rows of the occurrence
+// delivered at that phase, so an override that cannot hold there primes nothing: at act, a plan-only override's
+// `governs` row does not lift the adopted record it falls back to above a rival, whatever the token's own phase.
+it("ranks a delivered record by its rows at the key's phase, through any token", () => {
+  const rival = 'governance-system/governance/law/a-rival',
+    fallback = 'governance-system/governance/law/z-fallback';
+  const root = freshInit(undefined, {
+    [`${records}/a-rival.ia`]: law('a-rival', 'advisory'),
+    [`${records}/z-fallback.ia`]: law('z-fallback', 'advisory'),
+  });
+  put(
+    root,
+    `${records}/z-fallback.ia`,
+    law(
+      'z-fallback',
+      'advisory',
+      '  activation\n    activate when phase is plan\n  relationships\n    governs @law sample-rule\n',
+    ),
+  );
+  const db = database(root);
+  expect(db.report.findings.filter((f) => f.severity === 'error')).toEqual([]);
+  const key = { seat: governanceSystem, shape: 'governance', depth: 0, budget: 1, word: 'law' } as const;
+  // At act both laws are adopted, unconditional and unprimed, so the budget's one slot goes to the first by identity.
+  for (const within of [db.resolveScope().token, db.resolveScope({ phase: 'act' }).token]) {
+    const act = bodyOf(db, within, { ...key, phase: 'act' });
+    expect(ids(act.loaded)).toEqual([governanceSystem, rival]);
+    expect(act.pointers.find((pointer) => pointer.identity === fallback)).toBeDefined();
+  }
+  // At plan the override holds, and its `governs` row ranks it first.
+  expect(ids(bodyOf(db, db.resolveScope().token, { ...key, phase: 'plan' }).loaded)).toEqual([
+    governanceSystem,
+    fallback,
+  ]);
+});

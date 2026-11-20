@@ -411,11 +411,12 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
   // author graph G06 keeps as an edge's condition subject. A row that does not hold is never followed, primes nothing
   // and names no pointer or frontier record, so nothing is reached through it. A conditional row stated by a record the
   // body does not enter (a runtime-band @workspace's, read when one is the home) holds for nothing in it.
-  const live = (row: DirectedRow): boolean => {
+  const rowHolds = (row: DirectedRow, held: ReadonlyMap<string, Node>): boolean => {
     if (row.kind === 'field-ref' || row.condition === undefined) return true;
-    const subject = nodes.get(row.declaredOn);
+    const subject = held.get(row.declaredOn);
     return subject !== undefined && conditionHolds(row.condition, subject.dimensions, values);
   };
+  const live = (row: DirectedRow): boolean => rowHolds(row, nodes);
   const viewed = new Map<string, readonly DirectedRow[]>();
   const rowsOf = (identity: string): readonly DirectedRow[] => {
     let rows = viewed.get(identity);
@@ -567,17 +568,37 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
   // to the record it overrides, and a record whose system's steward cannot hold at the phase is not admitted there. A
   // token bound to another phase changes nothing, since the child selects at the key's phase among every occurrence its
   // parent's boundary keeps. A record the walk reaches is delivered only as this view holds it: its activation,
-  // severity, subject fields, cells, band, digest and order are that occurrence's, and one it does not hold is left
-  // out. The view `within` reads (`nodes`) keeps what `ia context` does not do: the walk, the closure, the pointers,
-  // the frontier, the mandates, the seat's own entry, the admission findings, and the reason a record is left out.
-  const delivery: ReadonlyMap<string, Node> = new Map(
-    handle
-      .snapshot({ within: handle.resolveScope({ within, phase: key.phase }).token })
-      .records.filter((node) => node.placement.kind !== 'runtime')
-      .map((node) => [node.identity, node]),
-  );
+  // severity, subject fields, cells, band, digest and order, the rows its priming reads included, are that
+  // occurrence's, and one it does not hold is left out. The view `within` reads (`nodes`) keeps what `ia context` does
+  // not do: the walk, the closure, the pointers and their order, the frontier, the mandates, the seat's own entry, the
+  // admission findings, and the reason a record is left out. The steward an entry names is read there too: it is the
+  // agent the phase view names, as a system has one @system record (a second is IA-COMP-SYSTEM-MALFORMED) naming it
+  // by identity.
+  const atPhase = { within: handle.resolveScope({ within, phase: key.phase }).token },
+    delivery: ReadonlyMap<string, Node> = new Map(
+      handle
+        .snapshot(atPhase)
+        .records.filter((node) => node.placement.kind !== 'runtime')
+        .map((node) => [node.identity, node]),
+    );
   /** The record delivered for an identity, as the key's phase view holds it; else the walk's, to explain why not. */
   const occurrence = (identity: string): Node => delivery.get(identity) ?? nodes.get(identity)!;
+  const deliveredViewed = new Map<string, readonly DirectedRow[]>();
+  /**
+   * A delivered record's rows as the key's phase view holds them, each condition decided on the record that states it
+   * there: what ranks the record, where `rowsOf`, the token view's, walks. Only a record that view holds is asked for.
+   */
+  const deliveredRowsOf = (identity: string): readonly DirectedRow[] => {
+    let rows = deliveredViewed.get(identity);
+    if (rows === undefined)
+      deliveredViewed.set(
+        identity,
+        (rows = handle
+          .directedView(identity, atPhase)
+          .filter((row) => delivery.has(row.counterpart) && rowHolds(row, delivery))),
+      );
+    return rows;
+  };
 
   // Applies by word (R17): the @law, @convention, @principle and @playbook records of
   // the closure whose `subject.subject-word` is the word, or `subject.subject-kind` the kind, of a record, of any word
@@ -615,16 +636,18 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
 
   // The order keys, total: governance (prime, band ↓, hop, sev, id), every other shape (band ↓, hop,
   // lane, id). prime is the least priming index of a row incident to the record, sev its severity's rank. A delivered
-  // section ranks by the record it delivers (`nodeOf`); the pointers, by the record the token's view holds.
+  // section (`asDelivered`) ranks each record as the key's phase view holds it, its band, severity and lane and the
+  // rows its prime reads; the pointers rank as the token's view holds them. hop is the walk's either way.
   const sorted = (
     identities: Iterable<string>,
     hopOf: (identity: string) => number,
     governance: boolean,
-    nodeOf: (identity: string) => Node = (identity) => nodes.get(identity)!,
+    asDelivered = false,
   ) =>
     [...identities]
       .map((identity) => {
-        const node = nodeOf(identity);
+        const node = asDelivered ? occurrence(identity) : nodes.get(identity)!,
+          rows = governance ? (asDelivered ? deliveredRowsOf(identity) : rowsOf(identity)) : [];
         return {
           identity,
           band: node.band,
@@ -632,7 +655,7 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
           prime: governance
             ? Math.min(
                 PRIMING.length,
-                ...rowsOf(identity).flatMap((row) => (row.kind === 'field-ref' ? [] : [rank(PRIMING, row.predicate)])),
+                ...rows.flatMap((row) => (row.kind === 'field-ref' ? [] : [rank(PRIMING, row.predicate)])),
               )
             : 0,
           sev: governance ? rank(SEVERITIES, effectiveSeverity(node.dimensions, values)) : 0,
@@ -693,13 +716,13 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
   // R is reserved whatever its activation; `rules` lists the members it admits, and a contradicted one stays out of L,
   // the pointers and the frontier.
   const reservable = [...[...candidates].filter(blocking), ...matched.keys()];
-  const rules = sorted(reservable.filter(active), (identity) => ruleReach(identity).hop, true, occurrence);
+  const rules = sorted(reservable.filter(active), (identity) => ruleReach(identity).hop, true, true);
   const reserved = new Set(reservable);
   // A record activation leaves out of L takes no slot of the budget and, like a reserved rule, is never pointed to or
   // on the frontier: `omittedRules` alone names it.
   const loadable = [...seeds, ...hopReached].filter((identity) => !reserved.has(identity)),
     withheld = new Set([...reserved, ...loadable.filter((identity) => !active(identity))]);
-  const pool = sorted(new Set(loadable.filter(active)), hopOfReach, governance, occurrence);
+  const pool = sorted(new Set(loadable.filter(active)), hopOfReach, governance, true);
   const chosen = pool.slice(0, key.budget),
     entered = [...(seatId === undefined ? [] : [seatId]), ...chosen],
     inLoaded = new Set(entered);
