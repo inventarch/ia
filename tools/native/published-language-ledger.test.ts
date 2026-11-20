@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { readBaseLedger } from './language-bases.js';
 import { buildLanguageBase } from './language-base.js';
 import { readPublicManifest } from './public-manifest.mjs';
+import { languageCompatOutputs, settleLanguageCompat } from './language-compat.js';
 import { publishedCli, retainPublishedBase } from './published-language-ledger.js';
 
 const root = resolve(import.meta.dirname, '../..');
@@ -90,6 +91,15 @@ describe('post-publication language-base recording', () => {
     expect(readBaseLedger(directory)).toEqual(before);
   });
 
+  it('does not change shipped index bytes when publication only records the current build', () => {
+    const directory = fixture();
+    const current = buildLanguageBase(root);
+    settleLanguageCompat(directory, languageCompatOutputs(directory), 'write');
+    const before = readFileSync(resolve(directory, 'apps/cli/assets/language-compat.json'));
+    const bytes = tarball(current);
+    expect(retainPublishedBase(directory, bytes, receipt(bytes).packages[0]!).changed).toBe(true);
+    expect(readFileSync(resolve(directory, 'apps/cli/assets/language-compat.json'))).toEqual(before);
+  }, 30_000);
   it('writes the four expected products and has no churn on identical replay', () => {
     const directory = fixture();
     const bytes = tarball();

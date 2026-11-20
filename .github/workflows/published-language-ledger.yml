@@ -137,6 +137,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ needs.prepare.outputs.parent }}
+          fetch-depth: 0
       - uses: actions/download-artifact@v8
         with:
           name: generated-language-ledger
@@ -176,18 +177,31 @@ jobs:
           [[ "$(git diff --cached --name-only -- releases/native/language-bases.json)" == releases/native/language-bases.json ]]
           [[ "$(sha256sum "$language_archive" | cut -d' ' -f1)" == "$ARCHIVE" ]]
           branch="automation/language-base-$BASE"
-          open=$(gh pr list --head "$branch" --base main --state open --json url --jq '.[0].url // empty')
-          if [[ -n "$open" ]]; then
-            printf 'Existing ledger review for %s: %s\n' "$BASE" "$open"
-            exit 0
-          fi
+          # Reuse only the expected PR diff and blob modes, even when unrelated files on main advance.
+          open=$(gh api -X GET "repos/$GITHUB_REPOSITORY/pulls" -f state=open -f base=main \
+            -f "head=${GITHUB_REPOSITORY%%/*}:$branch" --jq 'if length > 1 then error("duplicate ledger PRs") else .[0] // {} end')
           existing=$(git ls-remote origin "refs/heads/$branch" | cut -f1)
+          open_sha=$(jq -r '.head.sha // empty' <<< "$open")
+          if [[ -n "$open_sha" && "$open_sha" != "$existing" ]]; then
+            echo 'Existing pull request head moved during verification; retry without rewriting it.' >&2
+            exit 1
+          fi
           if [[ -n "$existing" ]]; then
             git fetch --no-tags origin "refs/heads/$branch"
-            [[ "$(git rev-parse FETCH_HEAD^{tree})" == "$(git write-tree)" ]] || {
-              echo 'Existing ledger branch carries a different tree; manual reconciliation required.' >&2
+            [[ "$(git rev-parse FETCH_HEAD)" == "$existing" ]]
+            tree=$(git write-tree)
+            expected=$(git diff --cached --name-status --no-renames | sort)
+            actual=$(git diff --name-status --no-renames "$PARENT...$existing" | sort)
+            if [[ "$actual" != "$expected" ]] ||
+               ! git diff --quiet "$existing" "$tree" -- "$language_archive" releases/native/language-bases.json \
+                 releases/native/language-compat.json apps/cli/assets/language-compat.json; then
+              echo 'Existing ledger branch carries different changes; reconcile manually without overwriting the draft.' >&2
               exit 1
-            }
+            fi
+            if [[ -n "$open_sha" ]]; then
+              printf 'Existing verified ledger review for %s: %s\n' "$BASE" "$(jq -r '.html_url' <<< "$open")"
+              exit 0
+            fi
           else
             git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
               commit -m "chore(native): record published language base $BASE"
