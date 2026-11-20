@@ -22,6 +22,7 @@ import type {
 import { CompositionError } from './compiled.js';
 import type { Compilation, CompiledCapability, CompiledHarness, CompiledProfile, ComponentPin } from './compiled.js';
 import { closedFields, fail, field, LIMIT_KEYS, limits, list, minimum, strings, unique, value } from './fields.js';
+import { compiledAliases, verifyCompiledStamp } from './execution.js';
 import { compatibleInputs } from './inputs.js';
 import { writeStamp } from './plain-format.js';
 import type { Stamp } from './plain-format.js';
@@ -50,8 +51,6 @@ export interface CompileOptions {
   aliases?: CatalogAliases;
   /** Service-owned executable definitions may differ from the captured task corpus. */
   definitions?: Capture;
-  /** The stamp a retained compilation carries, so rebuilding it reproduces its digest; new compilations omit it. */
-  stamp?: CompiledStamp;
 }
 export type CompiledStamp = Stamp<'compiled-harness', 'ia.compiled-harness.v1'>;
 
@@ -79,6 +78,7 @@ class Compiler {
     readonly task: Capture,
     readonly definitions: Capture,
     readonly options: CompileOptions,
+    private readonly stamp: CompiledStamp,
   ) {
     this.reader = new EditorSnapshot({
       root: process.cwd(),
@@ -906,7 +906,7 @@ class Compiler {
       ...(aliases.length ? { aliases } : {}),
     };
     const body = {
-      ...(this.options.stamp ?? writeStamp('compiled-harness', 'ia.compiled-harness.v1')),
+      ...this.stamp,
       id: this.harness.identity,
       workspace: workspace.identity,
       sourceDigest: this.task.revision,
@@ -925,11 +925,37 @@ class Compiler {
 
 /** Pure admission/compilation. No provider, implementation callback, installation or filesystem write. */
 export function compileHarness(capture: Capture, options: CompileOptions): Compilation {
+  return compileWithStamp(capture, options, writeStamp('compiled-harness', 'ia.compiled-harness.v1'));
+}
+
+/** First-party retained reader. The artifact supplies the verified stamp and all selection except the trusted catalog. */
+export function replayCompiledHarness(
+  capture: Capture,
+  retained: CompiledHarness,
+  catalog: CompositionCatalog,
+): Compilation {
+  try {
+    const stamp = verifyCompiledStamp(retained);
+    const result = compileWithStamp(
+      capture,
+      { harness: retained.id, entry: retained.entry.binding, aliases: compiledAliases(retained), catalog },
+      stamp,
+    );
+    if (result.ok && result.manifest.digest !== retained.digest)
+      fail('IA-COMPOSITION-UNAVAILABLE', 'Compiled closure differs from the retained native capture');
+    return result;
+  } catch (error) {
+    if (!(error instanceof CompositionError)) throw error;
+    return { ok: false, diagnostics: [error.diagnostic] };
+  }
+}
+
+function compileWithStamp(capture: Capture, options: CompileOptions, stamp: CompiledStamp): Compilation {
   let compiler: Compiler | undefined;
   try {
     const task = verifyCapture(capture),
       definitions = verifyCapture(options.definitions ?? capture);
-    compiler = new Compiler(task, definitions, options);
+    compiler = new Compiler(task, definitions, options, stamp);
     return { ok: true, manifest: compiler.compile() };
   } catch (error) {
     if (!(error instanceof CompositionError)) throw error;

@@ -1,7 +1,7 @@
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import { adoptWorkspace } from '@inventarch/workspace-runtime';
 import { executionManifest, INSTALLED_READ, installed } from '@inventarch/agent-composition-system';
 import type { CompiledHarness, CompositionCatalog } from '@inventarch/agent-composition-system';
@@ -11,6 +11,13 @@ import { digest, replay } from '@inventarch/session-system';
 import { openRunner, runnerAliases, runnerCatalog } from '../src/index.js';
 import { normalizeScopeKey } from '@inventarch/runtime';
 import { RunnerContext } from '../src/context.js';
+
+const compilerWriter = vi.hoisted(() => ({ plain: false }));
+vi.mock('../../../.ia/src/systems/agent-composition-system/src/written-names.js', () => ({
+  get WRITE_PLAIN_NAMES() {
+    return compilerWriter.plain;
+  },
+}));
 
 const repository = resolve(import.meta.dirname, '../../..');
 const cleanups: (() => Promise<void> | void)[] = [];
@@ -857,6 +864,27 @@ it('keeps a harness pinned to the original catalog valid and dispatching by the 
   expect(runner.manifest.digest).toBe(old.manifest.digest);
   actions.push(read(runner), done);
   await runner.start('Read through the original handler', 'original-read');
+  const state = await runner.run();
+  expect(state.runs['root']?.status).toBe('completed');
+  expect(state.budget.operations).toBe(1);
+});
+
+it('verifies a retained plain harness after the ordinary writer returns to the released default', async () => {
+  const options = fixture(),
+    actions: ModelAction[] = [],
+    seen: ModelRequest[] = [];
+  let runner: ReturnType<typeof openRunner>;
+  compilerWriter.plain = true;
+  try {
+    runner = openRunner({ ...options, model: scripted(actions, seen) });
+  } finally {
+    compilerWriter.plain = false;
+  }
+  cleanups.push(() => runner.close());
+  const { compiled } = runner.manifest.provenance as unknown as { compiled: CompiledHarness };
+  expect(compiled).toMatchObject({ format: 'compiled-harness', formatVersion: 1 });
+  actions.push(read(runner), done);
+  await runner.start('Verify the retained plain harness', 'retained-plain');
   const state = await runner.run();
   expect(state.runs['root']?.status).toBe('completed');
   expect(state.budget.operations).toBe(1);
