@@ -20924,8 +20924,8 @@
       }
     },
     {
-      "version": "3.3.1",
-      "archive": "969a1cf9091534f9194c8584c0e45c92449f2e24849db1431841ef73df52b888",
+      "version": "3.4.0",
+      "archive": "c7f34843359616b7e9c4677d773fea80c8d3fd22f3bb05e29b12a2d66a97e367",
       "engine": "^0.1.1",
       "language": [
         "1.0"
@@ -22665,6 +22665,11 @@
               "target": "workspace"
             },
             {
+              "path": "authority.words",
+              "type": "list of id",
+              "required": false
+            },
+            {
               "path": "authority.excluded-words",
               "type": "list of id",
               "required": false
@@ -23926,6 +23931,23 @@
               "type": "ref",
               "required": false,
               "target": "agent"
+            },
+            {
+              "path": "composition.public-agent",
+              "type": "ref",
+              "required": false,
+              "target": "agent"
+            },
+            {
+              "path": "composition.private-agent",
+              "type": "ref",
+              "required": false,
+              "target": "agent"
+            },
+            {
+              "path": "composition.decides",
+              "type": "list of text",
+              "required": false
             }
           ],
           "edges": []

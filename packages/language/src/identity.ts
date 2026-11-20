@@ -1,5 +1,5 @@
 import type { RecordNode } from './ast.js';
-import { diag } from './diagnostics.js';
+import { diag, summarizeOthers } from './diagnostics.js';
 import type { Diagnostic } from './diagnostics.js';
 import { fieldOf } from './registry/fields.js';
 import type { Registration } from './registry/types.js';
@@ -83,12 +83,11 @@ export function collisions(occurrences: readonly IdentityOccurrence[]): {
   const diagnostics: Diagnostic[] = [];
   for (const group of groups.values()) {
     if (group.length < 2) continue;
-    for (const occurrence of group) {
+    const labels = group.map((other) => `${other.path}:${other.line}`);
+    for (let i = 0; i < group.length; i++) {
+      const occurrence = group[i]!;
       refused.add(occurrence);
-      const others = group
-        .filter((other) => other !== occurrence)
-        .map((other) => `${other.path}:${other.line}`)
-        .join(', ');
+      const others = summarizeOthers(labels, i);
       diagnostics.push(
         diag(
           'IA-LANG-IDENTITY-COLLISION',

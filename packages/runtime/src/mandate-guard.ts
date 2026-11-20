@@ -62,6 +62,8 @@ export interface MandateGuardRequest {
    * `ia report`, the version 1 machine route, opens its `--root` or the working directory, never an ancestor.
    */
   readonly root?: string;
+  /** Optional IA words the edited `.ia` bytes declare (`@<word> <name>`), checked against `authority.words` and `excluded-words`. */
+  readonly words?: readonly string[];
 }
 export interface MandateGuardDecision {
   readonly allowed: boolean;
@@ -209,8 +211,8 @@ export function evaluateMandateGuard(
           `${actor.as}; ${named.identity} binds ${named.participant}`,
           governance(named.identity),
         );
-      verdict = profileRefusal(governing, 'author');
-    } else verdict = profileRefusal(locate(actor.agent), 'author');
+      verdict = profileRefusal(governing, 'author', request.words ?? []);
+    } else verdict = profileRefusal(locate(actor.agent), 'author', request.words ?? []);
     if (verdict.refusal !== undefined)
       return deny('IA-HOOK-NOT-MANDATED', `${actor.as}; ${verdict.refusal.message}`, verdict.refusal.next, actor.agent);
     return freeze({

@@ -160,7 +160,12 @@ export function kitRows(kits: ReturnType<typeof kitUnitKeys> | null, stored: Upd
         ? kitsRow('unknown', `Not checked; ${kits.problems.join('; ')}`)
         : kitsRow('info', 'no kits installed'),
     ];
-  const read = kits.units.map(({ unit, key, why }) => {
+  const hosted = kits.units.filter((row) => row.unit.source.kind === 'hosted'),
+    local = kits.units.filter((row) => row.unit.source.kind !== 'hosted');
+  const total = plural(kits.units.length, 'kit'),
+    hostedNote = hosted.length === 0 ? '' : ` (${hosted.length} hosted, managed remotely)`;
+  if (local.length === 0 && unknownIds.length === 0) return [kitsRow('info', `${total}${hostedNote}${problems}`)];
+  const read = local.map(({ unit, key, why }) => {
     const entry = key === null ? undefined : kitEntry(stored, key);
     const age = entry === undefined ? Number.NaN : now.getTime() - Date.parse(entry.checkedAt);
     const latest = entry?.latest ?? null;
@@ -176,10 +181,11 @@ export function kitRows(kits: ReturnType<typeof kitUnitKeys> | null, stored: Upd
     unread = read.filter((row) => row.state === 'unknown');
   const times = read.flatMap((row) => (row.entry === undefined ? [] : [row.entry.checkedAt])).sort();
   const checked = times.length === 0 ? '' : ` · checked ${utcMinute(times[0]!)}`;
-  const total = plural(read.length, 'kit');
   const reasons = unread.flatMap((row) => (row.why === null ? [] : [`${row.unit.id}: ${row.why}`]));
   const updates =
-    behind.length === 0 ? '' : `${behind.length} of ${total} ${behind.length === 1 ? 'has an update' : 'have updates'}`;
+    behind.length === 0
+      ? ''
+      : `${behind.length} of ${total} ${behind.length === 1 ? 'has an update' : 'have updates'}${hostedNote}`;
   const updateRows = behind.map(({ unit, latest }) =>
     row(
       `kit-update:${unit.id}`,
@@ -203,16 +209,20 @@ export function kitRows(kits: ReturnType<typeof kitUnitKeys> | null, stored: Upd
   if (unknownIds.length > 0)
     summary = kitsRow(
       'warn',
-      `collection identity unknown: ${unknownIds.join(', ')}${updates === '' ? '' : `; ${updates}`}${checked}${problems}`,
+      `collection identity unknown: ${unknownIds.join(', ')}${updates === '' ? hostedNote : `; ${updates}`}${checked}${problems}`,
       iaFix(['install', ...unknownIds], 'repo'),
     );
   else if (behind.length > 0) summary = kitsRow('warn', `${updates}${checked}${problems}`);
   else if (unread.length > 0)
     summary = kitsRow(
       'unknown',
-      `not checked: ${unread.length} of ${total}${times.length === 0 ? '' : ` (oldest check ${utcMinute(times[0]!)})`}${reasons.length === 0 ? '' : `; ${reasons.join('; ')}`}${problems}`,
+      `not checked: ${unread.length} of ${total}${hostedNote}${times.length === 0 ? '' : ` (oldest check ${utcMinute(times[0]!)})`}${reasons.length === 0 ? '' : `; ${reasons.join('; ')}`}${problems}`,
     );
-  else summary = kitsRow('ok', `${total}, all current${checked}${problems}`);
+  else
+    summary = kitsRow(
+      'ok',
+      `${total}, ${hosted.length > 0 ? `all local current${hostedNote}` : 'all current'}${checked}${problems}`,
+    );
   return [summary, ...updateRows];
 }
 /**

@@ -8,10 +8,15 @@ import {
   briefing,
   installedKit,
   installedPackageKits,
+  kitInstallMatches,
+  kitInstallation,
+  laneCatalogue,
   listKits,
+  lockedHostedKits,
   lockedPackageKits,
   methodRefusal,
   openSession,
+  requireKitInstalled,
   resolveMethod,
   workspaceKits,
 } from '../src/method/index.js';
@@ -167,4 +172,115 @@ it('says to run ia restore when the store lacks a kit the lock installs, and ref
   });
   // A kit the lock does not install is refused, whether or not anything bundles or carries it.
   expect(refused('check')).toMatchObject({ code: 'IA-CORE-KIT-NOT-INSTALLED' });
+});
+
+it('surfaces hosted kit pins with source hosted in sessions and refuses local resolveMethod with IA-CORE-KIT-HOSTED', () => {
+  folderKit(join(bundled, 'ia-studio-kit'), 'ia-studio', '0.4.0');
+  folderKit(join(bundled, 'ia-authoring'), 'ia-authoring', '0.4.0');
+  const studioArchive = '1'.repeat(64),
+    studioManifest = '2'.repeat(64);
+  write(join(root, '.ia', 'distributions.lock.json'), {
+    formatVersion: 1,
+    engine: '^0.1.3',
+    requests: [{ id: BASE.id, range: '^3.2.0' }],
+    packages: [{ ...BASE, location: `sha256:${BASE.archive}`, dependencies: [] }],
+    entries: [
+      {
+        kind: 'hosted',
+        id: 'inventarch/ia-studio-kit',
+        version: '0.5.1',
+        hosted: true,
+        archive: studioArchive,
+        manifest: studioManifest,
+      },
+    ],
+  });
+  expect(lockedHostedKits(root)).toEqual([
+    {
+      id: 'inventarch/ia-studio-kit',
+      version: '0.5.1',
+      hosted: true,
+      archive: studioArchive,
+      manifest: studioManifest,
+    },
+  ]);
+  expect(kitInstallation(root, 'inventarch/ia-studio-kit')).toEqual({
+    via: 'hosted',
+    version: '0.5.1',
+    archive: studioArchive,
+    manifest: studioManifest,
+  });
+  expect(kitInstallMatches(root, { id: 'inventarch/ia-studio-kit', version: '0.5.1', archive: studioArchive })).toBe(
+    true,
+  );
+  expect(kitInstallMatches(root, { id: 'inventarch/ia-studio-kit', version: '0.5.1', archive: '9'.repeat(64) })).toBe(
+    false,
+  );
+  expect(() => requireKitInstalled(root, { id: 'inventarch/ia-studio-kit' })).not.toThrow();
+  const listed = workspaceKits({ bundled, home: null }, root, env());
+  expect(listed.missing).toEqual([]);
+  expect(
+    listed.kits.map((kit) => [kit.id, kit.latest?.version ?? kit.version, kit.origin, kit.latest?.archive]),
+  ).toEqual([
+    ['inventarch/ia-authoring-kit', '0.4.0', 'bundled', 'a'.repeat(64)],
+    ['inventarch/ia-studio-kit', '0.5.1', 'hosted', studioArchive],
+  ]);
+  const session = openSession(home, { root, workspace: null, kits: listed.kits, missing: listed.missing });
+  expect(session.restore).toBeUndefined();
+  expect(session.kits).toContainEqual({ kit: 'inventarch/ia-studio-kit', version: '0.5.1', source: 'hosted' });
+  expect(session.briefing).toContain('inventarch/ia-studio-kit@0.5.1 (hosted)');
+  expect(session.briefing).not.toContain('Kits not restored');
+  write(join(root, '.ia', 'bindings.json'), {
+    format: 1,
+    bindings: {
+      'delivery.studio': { kit: 'inventarch/ia-studio-kit', capability: 'studio-design' },
+      'delivery.alias': { kit: 'ia-studio-kit', capability: 'studio-design' },
+    },
+  });
+  const catalogue = laneCatalogue({ lane: 'delivery' }, { root, kits: listed.kits });
+  expect(catalogue.items.find((item) => item.key === 'delivery.studio')).toMatchObject({
+    kit: 'inventarch/ia-studio-kit',
+    version: '0.5.1',
+    state: 'bound',
+  });
+  for (const activity of ['studio', 'alias']) {
+    let refusal: unknown;
+    try {
+      resolveMethod(
+        { entry: 'delivery', activity, root },
+        {
+          kits: { bundled, home: null },
+          restore: {
+            select: () => {
+              throw new Error('no read root for hosted kit');
+            },
+            apply: () => {
+              throw new Error('no read root for hosted kit');
+            },
+          },
+          env: env(),
+          store: join(dir, 'store'),
+        },
+      );
+    } catch (error) {
+      refusal = methodRefusal(error).error;
+    }
+    expect(refusal).toMatchObject({
+      code: 'IA-CORE-KIT-HOSTED',
+      kit: 'inventarch/ia-studio-kit',
+      message: expect.stringContaining('api.inventarch.dev'),
+    });
+  }
+
+  // Unqualified hosted entry missing valid archive/manifest digests is refused and not treated as installed.
+  write(join(root, '.ia', 'distributions.lock.json'), {
+    formatVersion: 1,
+    engine: '^0.1.3',
+    requests: [{ id: BASE.id, range: '^3.2.0' }],
+    packages: [{ ...BASE, location: `sha256:${BASE.archive}`, dependencies: [] }],
+    entries: [{ kind: 'hosted', id: 'inventarch/ia-studio-kit', version: '0.5.1', hosted: true }],
+  });
+  expect(() => lockedHostedKits(root)).toThrow(/archive and manifest digests/);
+  expect(kitInstallation(root, 'inventarch/ia-studio-kit')).toBeNull();
+  expect(() => requireKitInstalled(root, { id: 'inventarch/ia-studio-kit' })).toThrow(/lock does not install it/);
 });

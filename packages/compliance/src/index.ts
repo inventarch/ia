@@ -20,6 +20,7 @@ export {
   validateConsent,
   validateIdentity,
 } from './graph-checks.js';
+export { validateMandateWords } from './mandate-words.js';
 export { CANON_CODES, canonSeverity, lawStatuses, refusesInstallation } from './canon/laws.js';
 export {
   canonAssessment,

@@ -1,4 +1,4 @@
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, expect, expectTypeOf, it, vi } from 'vitest';
 
 /** The package's one switch, flipped here to prove the plain names come back exactly when the follow-up release flips it. */
 const flip = vi.hoisted(() => ({ plain: false }));
@@ -14,6 +14,7 @@ import { join } from 'node:path';
 import { createLegacyFoundation } from '../src/legacy.js';
 import { digest, hash, LIMITS } from '../src/format.js';
 import { committedReader } from '../src/git.js';
+import { KB_FORMAT, PLAIN_KB_FORMAT } from '../src/index.js';
 import { packageFromCommit, validatePackage, verifyPackage, verifySelection } from '../src/package.js';
 import { openKnowledgeView } from '../src/view.js';
 import type { KnowledgePackage } from '../src/package.js';
@@ -422,3 +423,12 @@ it('forward compatibility: by default nothing it writes carries a plain format n
   expect(text).toContain('"format":"ia.kb.selection.v1"');
   expect(text).not.toMatch(/formatVersion|"kb-(package|selection|portable|citation|snapshot|foundation)"/);
 }, 60_000);
+it('declares KB_FORMAT as 3.8.1 did: the released literal, which a mutable binding widens to string', () => {
+  // Checked when the package typecheck compiles this file: code typed against 3.8.1's
+  // `export declare const KB_FORMAT = "ia.kb.package.v1"` keeps compiling.
+  expectTypeOf<typeof KB_FORMAT>().toEqualTypeOf<'ia.kb.package.v1'>();
+  const released: 'ia.kb.package.v1' = KB_FORMAT;
+  let inferred = KB_FORMAT;
+  inferred = PLAIN_KB_FORMAT;
+  expect([released, inferred]).toEqual(['ia.kb.package.v1', 'kb-package']);
+});

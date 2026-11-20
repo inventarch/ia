@@ -13,6 +13,7 @@ import {
   metadataDigest,
   object,
   packageId,
+  HOSTED_ENTRY_ENGINE_VERSION,
   PACKAGE_ENTRY_ENGINE_VERSION,
   portablePath,
   range,
@@ -113,10 +114,27 @@ export interface PackageEntry {
   readonly integrity: string;
   readonly kits: readonly PackageKit[];
 }
+/**
+ * A lock entry of kind `hosted` (engine 0.1.3): a hosted kit pin recorded by `id`, exact `version`, `hosted: true`,
+ * and its `archive` and `manifest` SHA-256 digests, with no `location` field. Hosted kits execute remotely and carry
+ * no local archive bytes in `.ia/distributions/store/`, so offline restore and validation succeed without fetching or
+ * expanding a tarball for them.
+ */
+export interface HostedEntry {
+  readonly kind: 'hosted';
+  readonly id: string;
+  readonly version: string;
+  readonly hosted: true;
+  readonly archive: string;
+  readonly manifest: string;
+}
 /** A lock entry that is not a release: the kinds `LOCK_ENTRY_KINDS` names. */
-export type LockEntry = PackageEntry;
+export type LockEntry = PackageEntry | HostedEntry;
 /** The entry kinds this engine reads; any other kind is an engine this reader is not. */
-export const LOCK_ENTRY_KINDS: readonly LockEntry['kind'][] = Object.freeze(['package']);
+export const LOCK_ENTRY_KINDS: readonly LockEntry['kind'][] = Object.freeze(['package', 'hosted']);
+/** Canonical sort key across lock entry kinds; preserves `entry.name` order when every entry is `package`. */
+export const lockEntryKey = (entry: LockEntry): string =>
+  entry.kind === 'package' ? `package\u0000${entry.name}` : `hosted\u0000${entry.id}`;
 export interface DistributionLock {
   readonly formatVersion: 1;
   readonly engine: string;
@@ -340,28 +358,43 @@ function admitExtension(row: Record<string, unknown>, reader: string): void {
       incompatible(
         `Lock entry kind ${typeof kind === 'string' ? kind : '(none)'} is unknown to distribution engine ${reader}; it needs a newer IA. Use a compatible IA installation; preserve the lock.`,
       );
+    if (kind === 'hosted' && !supportsDistributionLockEngine(reader, `>=${HOSTED_ENTRY_ENGINE_VERSION}`))
+      incompatible(
+        `Lock entry kind hosted is unknown to distribution engine ${reader}; it needs ${requiredRelease(`^${HOSTED_ENTRY_ENGINE_VERSION}`) ?? 'a newer IA'}. Use a compatible IA installation; preserve the lock.`,
+      );
   }
 }
 /**
  * Every release the lock installs: its `packages` and each kit its package entries name, the latter as a release row
  * located by digest (`sha256:<archive>`), sorted by id. Membership, closures, the store, restore and collection read
- * this, so a packaged kit is an installed release like any other.
+ * this, so a packaged kit is an installed release like any other while `hosted` entries require no local archive bytes.
  */
 export function lockedReleases(lock: DistributionLock): readonly LockedPackage[] {
   if (lock.entries === undefined) return lock.packages;
   const kits = lock.entries.flatMap((entry) =>
-    entry.kits.map(
-      (kit): LockedPackage => ({
-        id: kit.id,
-        version: kit.version,
-        archive: kit.archive,
-        manifest: kit.manifest,
-        location: `sha256:${kit.archive}`,
-        dependencies: kit.dependencies,
-      }),
-    ),
+    entry.kind !== 'package'
+      ? []
+      : entry.kits.map(
+          (kit): LockedPackage => ({
+            id: kit.id,
+            version: kit.version,
+            archive: kit.archive,
+            manifest: kit.manifest,
+            location: `sha256:${kit.archive}`,
+            dependencies: kit.dependencies,
+          }),
+        ),
   );
   return [...lock.packages, ...kits].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+}
+/** Every hosted kit pin the lock records, sorted by id; none without `hosted` entries. */
+export function lockedHostedKits(lock: DistributionLock): readonly HostedEntry[] {
+  if (lock.entries === undefined) return frozen([]);
+  return frozen(
+    lock.entries
+      .filter((entry): entry is HostedEntry => entry.kind === 'hosted')
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
+  );
 }
 function lockEntries(value: unknown, engine: string, packages: readonly LockedPackage[]): readonly LockEntry[] {
   const rows = array(value, DISTRIBUTION_LIMITS.bundles);
@@ -371,7 +404,24 @@ function lockEntries(value: unknown, engine: string, packages: readonly LockedPa
       `A lock with entries declares distribution engine >=${PACKAGE_ENTRY_ENGINE_VERSION} (such as ^${PACKAGE_ENTRY_ENGINE_VERSION}), so no earlier engine reads it`,
     );
   const entries = sorted(
-    rows.map((v): PackageEntry => {
+    rows.map((v): LockEntry => {
+      if (
+        v !== null &&
+        typeof v === 'object' &&
+        !Array.isArray(v) &&
+        (v as Record<string, unknown>)['kind'] === 'hosted'
+      ) {
+        const r = object(v, ['kind', 'id', 'version', 'hosted', 'archive', 'manifest']);
+        if (r['hosted'] !== true) refuse('A hosted lock entry sets hosted to true');
+        return {
+          kind: 'hosted',
+          id: packageId(r['id']),
+          version: version(r['version']),
+          hosted: true,
+          archive: hash(r['archive']),
+          manifest: hash(r['manifest']),
+        };
+      }
       const r = object(v, ['kind', 'name', 'version', 'integrity', 'kits']);
       if (r['kind'] !== 'package') refuse('Unknown lock entry kind');
       const name = text(r['name'], 214),
@@ -394,18 +444,32 @@ function lockEntries(value: unknown, engine: string, packages: readonly LockedPa
       if (!kits.length) refuse('A package entry names at least one kit');
       return { kind: 'package', name, version: version(r['version']), integrity, kits };
     }),
-    (entry) => entry.name,
+    lockEntryKey,
   );
-  const named = new Set(packages.map((p) => p.id));
-  for (const entry of entries)
-    for (const kit of entry.kits) {
-      if (named.has(kit.id)) refuse(`Kit ${kit.id} is named twice: by package ${entry.name} and by another lock row`);
-      named.add(kit.id);
+  if (entries.some((entry) => entry.kind === 'hosted') && !semver.subset(engine, `>=${HOSTED_ENTRY_ENGINE_VERSION}`))
+    refuse(
+      `A lock with a hosted entry declares distribution engine >=${HOSTED_ENTRY_ENGINE_VERSION} (such as ^${HOSTED_ENTRY_ENGINE_VERSION}), so no earlier engine reads it`,
+    );
+  const installedIds = new Set(packages.map((p) => p.id));
+  const named = new Set(installedIds);
+  for (const entry of entries) {
+    if (entry.kind === 'package') {
+      for (const kit of entry.kits) {
+        if (named.has(kit.id)) refuse(`Kit ${kit.id} is named twice: by package ${entry.name} and by another lock row`);
+        named.add(kit.id);
+        installedIds.add(kit.id);
+      }
+    } else {
+      if (named.has(entry.id)) refuse(`Kit ${entry.id} is named twice: as a hosted kit and by another lock row`);
+      named.add(entry.id);
     }
+  }
   // A packaged kit's dependencies are installed releases too, as a release row's are.
   for (const entry of entries)
-    for (const kit of entry.kits)
-      if (kit.dependencies.some((id) => id === kit.id || !named.has(id))) refuse('Missing/self locked dependency');
+    if (entry.kind === 'package')
+      for (const kit of entry.kits)
+        if (kit.dependencies.some((id) => id === kit.id || !installedIds.has(id)))
+          refuse('Missing/self locked dependency');
   return entries;
 }
 /** The portable lock. `reader` is the engine judging it: this one, unless a test plays an older reader. */
@@ -456,7 +520,8 @@ export function decodeDistributionLock(input: unknown, reader: string = DISTRIBU
     byId.get(id)?.dependencies.forEach(visit);
   };
   requests.forEach((r) => visit(r.id));
-  for (const kit of (entries ?? []).flatMap((entry) => entry.kits)) kit.dependencies.forEach(visit);
+  for (const entry of entries ?? [])
+    if (entry.kind === 'package') for (const kit of entry.kits) kit.dependencies.forEach(visit);
   if ([...reached].filter((id) => byId.has(id)).length !== packages.length) refuse('Unreachable locked package');
   if (entries === undefined) return frozen({ formatVersion: 1, engine, requests, packages });
   return frozen({ formatVersion: 1, engine, requests, packages, entries });

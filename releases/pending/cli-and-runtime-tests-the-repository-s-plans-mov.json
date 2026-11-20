@@ -1,0 +1,20 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "none",
+  "title": "CLI and runtime tests: the repository's plans moved out",
+  "summary": "Tests and a review note only: the CLI's next test and the runtime's packet count no longer rely on plans authored in this repository, which are now kept with InventArch's work records outside it; no package behaviour changes.",
+  "packages": [
+    "@inventarch/cli",
+    "@inventarch/runtime"
+  ],
+  "paths": [
+    ".ia/src/records/npm-release.ia",
+    ".ia/src/records/repository-policy.ia",
+    ".ia/src/records/shared-root-authoring.ia",
+    "CLAUDE.md",
+    "apps/cli/",
+    "docs/",
+    "packages/runtime/",
+    "tools/"
+  ]
+}

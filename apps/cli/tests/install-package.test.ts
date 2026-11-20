@@ -154,3 +154,197 @@ it('refuses a package npm cannot describe, and one whose tarball lacks an archiv
     2,
   );
 }, 300_000);
+
+it('records hosted kit pins with archive and manifest digests via install --hosted, restores and validates offline, routes update refusals, and validates SemVer/digests at exit 2', async () => {
+  const { root, env, calls } = await workspace();
+  const before = lockOf(root);
+  const studioArchive = '1'.repeat(64),
+    studioManifest = '2'.repeat(64),
+    updatedArchive = '3'.repeat(64),
+    updatedManifest = '4'.repeat(64);
+
+  // Usage errors (exit 2, IA-CLI-USAGE): non-canonical SemVer, missing digests, mismatched counts, bad digests.
+  for (const badArgv of [
+    ['install', '--hosted', 'inventarch/x-kit@1.0.0-01', '--archive', studioArchive, '--manifest', studioManifest],
+    ['install', '--hosted', 'inventarch/x-kit@1.0.0'],
+    ['install', '--hosted', 'inventarch/x-kit@1.0.0', '--archive', studioArchive],
+    ['install', '--archive', studioArchive, '--manifest', studioManifest],
+    ['install', '--hosted', 'inventarch/x-kit@1.0.0', '--archive', 'not-hex', '--manifest', studioManifest],
+    ['install', '--hosted', 'inventarch/x-kit@1.0.0', '--archive', studioArchive, '--manifest', 'A'.repeat(64)],
+  ]) {
+    const res = await run([...badArgv, '--root', root, '--json'], { env });
+    expect(res.exitCode, `${badArgv.join(' ')}: ${res.stdout}`).toBe(2);
+    expect(JSON.parse(res.stdout).code).toBe('IA-CLI-USAGE');
+  }
+
+  const planned = await run(
+    [
+      'install',
+      '--hosted',
+      'inventarch/ia-studio-kit@0.5.1',
+      '--archive',
+      studioArchive,
+      '--manifest',
+      studioManifest,
+      '--root',
+      root,
+      '--json',
+    ],
+    { env },
+  );
+  expect(planned.exitCode, planned.stdout).toBe(0);
+  expect(JSON.parse(planned.stdout).plan.changes.added).toEqual(['inventarch/ia-studio-kit']);
+  expect(lockOf(root)).toEqual(before);
+  // Recording a hosted pin makes zero npm or registry calls.
+  expect(calls()).toEqual([]);
+
+  const applied = await run(
+    [
+      'install',
+      '--hosted',
+      'inventarch/ia-studio-kit@0.5.1',
+      '--archive',
+      studioArchive,
+      '--manifest',
+      studioManifest,
+      '--apply',
+      '--yes',
+      '--root',
+      root,
+      '--json',
+    ],
+    { env },
+  );
+  expect(applied.exitCode, applied.stdout).toBe(0);
+  expect(lockOf(root)).toEqual({
+    ...before,
+    engine: '^0.1.3',
+    entries: [
+      {
+        kind: 'hosted',
+        id: 'inventarch/ia-studio-kit',
+        version: '0.5.1',
+        hosted: true,
+        archive: studioArchive,
+        manifest: studioManifest,
+      },
+    ],
+  });
+
+  // Canonical SemVer with build metadata is accepted by --hosted.
+  const buildMeta = await run(
+    [
+      'install',
+      '--hosted',
+      'acme/design@1.2.3+build.1',
+      '--archive',
+      updatedArchive,
+      '--manifest',
+      updatedManifest,
+      '--apply',
+      '--yes',
+      '--root',
+      root,
+      '--json',
+    ],
+    { env },
+  );
+  expect(buildMeta.exitCode, buildMeta.stdout).toBe(0);
+  expect(lockOf(root).entries).toContainEqual({
+    kind: 'hosted',
+    id: 'acme/design',
+    version: '1.2.3+build.1',
+    hosted: true,
+    archive: updatedArchive,
+    manifest: updatedManifest,
+  });
+  expect((await run(['remove', 'acme/design', '--apply', '--yes', '--root', root, '--json'], { env })).exitCode).toBe(
+    0,
+  );
+
+  // `ia update <hosted-id>` refuses with IA-DIST-INPUT-INVALID naming `ia install --hosted ...` in `next`.
+  const updateHosted = await run(['update', 'inventarch/ia-studio-kit', '--root', root, '--json'], { env });
+  expect(updateHosted.exitCode).toBe(3);
+  const updateBody = JSON.parse(updateHosted.stdout) as { code: string; next: string };
+  expect(updateBody.code).toBe('IA-DIST-INPUT-INVALID');
+  expect(updateBody.next).toContain(
+    'ia install --hosted inventarch/ia-studio-kit@<version> --archive <sha256> --manifest <sha256>',
+  );
+  const updateHostedTo = await run(['update', 'inventarch/ia-studio-kit', '--to', '0.6.0', '--root', root, '--json'], {
+    env,
+  });
+  expect(updateHostedTo.exitCode).toBe(3);
+  expect(JSON.parse(updateHostedTo.stdout).next).toContain(
+    'ia install --hosted inventarch/ia-studio-kit@0.6.0 --archive <sha256> --manifest <sha256>',
+  );
+
+  // Fresh clone offline restore & validate succeed with zero npm cache and zero store archive for the hosted kit.
+  rmSync(resolve(root, '.ia/distributions'), { recursive: true, force: true });
+  const restored = await run(['restore', '--offline', '--apply', '--yes', '--root', root, '--json'], { env });
+  expect(restored.exitCode, restored.stdout).toBe(0);
+  const validated = await run(['validate', '--root', root, '--json'], { env });
+  expect(validated.exitCode, validated.stdout).toBe(0);
+  expect(JSON.parse(validated.stdout).status).toBe('admitted');
+
+  // Updating the hosted pin version/digests reports it under changes.updated, and removing it restores engine 0.1.1.
+  const updated = await run(
+    [
+      'install',
+      '--hosted',
+      'inventarch/ia-studio-kit@0.6.0',
+      '--archive',
+      updatedArchive,
+      '--manifest',
+      updatedManifest,
+      '--apply',
+      '--yes',
+      '--root',
+      root,
+      '--json',
+    ],
+    { env },
+  );
+  expect(updated.exitCode, updated.stdout).toBe(0);
+  expect(JSON.parse(updated.stdout).plan.changes.updated).toEqual(['inventarch/ia-studio-kit']);
+  expect(lockOf(root).entries).toEqual([
+    {
+      kind: 'hosted',
+      id: 'inventarch/ia-studio-kit',
+      version: '0.6.0',
+      hosted: true,
+      archive: updatedArchive,
+      manifest: updatedManifest,
+    },
+  ]);
+
+  const dup = await run(
+    [
+      'install',
+      '--hosted',
+      'inventarch/ia-studio-kit@0.5.0',
+      '--archive',
+      studioArchive,
+      '--manifest',
+      studioManifest,
+      '--hosted',
+      'inventarch/ia-studio-kit@0.6.0',
+      '--archive',
+      updatedArchive,
+      '--manifest',
+      updatedManifest,
+      '--root',
+      root,
+      '--json',
+    ],
+    { env },
+  );
+  expect(dup.exitCode).toBe(2);
+  expect(JSON.parse(dup.stdout).code).toBe('IA-CLI-USAGE');
+
+  const removed = await run(['remove', 'inventarch/ia-studio-kit', '--apply', '--yes', '--root', root, '--json'], {
+    env,
+  });
+  expect(removed.exitCode, removed.stdout).toBe(0);
+  expect(JSON.parse(removed.stdout).plan.changes.removed).toEqual(['inventarch/ia-studio-kit']);
+  expect(lockOf(root)).toEqual(before);
+}, 300_000);

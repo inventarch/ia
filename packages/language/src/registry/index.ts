@@ -1,4 +1,4 @@
-import { diag } from '../diagnostics.js';
+import { diag, pushAll } from '../diagnostics.js';
 import type { Diagnostic } from '../diagnostics.js';
 import { extractSystems } from './extract.js';
 import { BUILTIN_SYSTEMS, FLOOR_CONSENT, FLOOR_REGISTRATIONS, FLOOR_SYSTEM, RESERVED_KEYWORDS } from './floor.js';
@@ -57,26 +57,26 @@ export function buildRegistry(sources: readonly Source[]): RegistryResult {
   const refusedSchemas = new Set<string>();
   for (const source of sources) {
     const band = source.location.placement.band;
-    diagnostics.push(...source.diagnostics);
+    pushAll(diagnostics, source.diagnostics);
     const extracted = extractSystems(source.ast, band, source.diagnostics);
-    systems.push(...extracted.systems);
-    diagnostics.push(...extracted.diagnostics);
+    pushAll(systems, extracted.systems);
+    pushAll(diagnostics, extracted.diagnostics);
     const extractedSchemas = extractSchemas(source.ast, band, source.diagnostics);
-    schemas.push(...extractedSchemas.schemas);
-    diagnostics.push(...extractedSchemas.diagnostics);
+    pushAll(schemas, extractedSchemas.schemas);
+    pushAll(diagnostics, extractedSchemas.diagnostics);
     for (const name of extractedSchemas.refused) refusedSchemas.add(name);
   }
 
   const mergedSystems = mergeByName(systems, '@system');
-  diagnostics.push(...mergedSystems.diagnostics);
+  pushAll(diagnostics, mergedSystems.diagnostics);
   const ordered = orderSystems(mergedSystems.winners);
-  diagnostics.push(...ordered.diagnostics);
+  pushAll(diagnostics, ordered.diagnostics);
   const inForce = ordered.order.map((name) => mergedSystems.winners.get(name)!);
 
   const merged = mergeRegistrations(inForce, FLOOR_REGISTRATIONS);
-  diagnostics.push(...merged.diagnostics);
+  pushAll(diagnostics, merged.diagnostics);
   const mergedSchemas = mergeByName(schemas, '@schema');
-  diagnostics.push(...mergedSchemas.diagnostics);
+  pushAll(diagnostics, mergedSchemas.diagnostics);
   // A winning-band collision already diagnosed the schema; it is refused, not missing.
   for (const schema of schemas) if (!mergedSchemas.winners.has(schema.name)) refusedSchemas.add(schema.name);
 

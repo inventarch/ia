@@ -130,6 +130,7 @@ interface Context {
   readonly records: readonly CompiledRecord[];
   /** Every record the compile read, those of a file with a language error included (`records` leaves them out). */
   readonly compiled: readonly CompiledRecord[];
+  readonly compiledByPath: ReadonlyMap<string, readonly CompiledRecord[]>;
   readonly diagnostics: readonly Diagnostic[];
   readonly errorPaths: ReadonlySet<string>;
 }
@@ -189,25 +190,32 @@ const PRAGMA = new Set(['IA-LANG-PRAGMA-MISSING', 'IA-LANG-VERSION-UNSUPPORTED']
 function refusedWhole(
   source: Source,
   text: string,
-  compiled: readonly CompiledRecord[],
+  fileCompiled: readonly CompiledRecord[],
   registry: FrozenRegistry,
   errors: readonly Diagnostic[],
 ): readonly UnadmittedRecord[] {
   const path = source.ast.path,
     band = source.location.placement.band,
     nodes: RecordNode[] = [];
-  const walk = (records: readonly RecordNode[]): void => {
-    for (const record of records) {
-      nodes.push(record);
-      walk(record.nested);
+  const stack: RecordNode[] = [];
+  for (let i = source.ast.records.length - 1; i >= 0; i--) stack.push(source.ast.records[i]!);
+  while (stack.length > 0) {
+    const record = stack.pop()!;
+    nodes.push(record);
+    for (let i = record.nested.length - 1; i >= 0; i--) stack.push(record.nested[i]!);
+  }
+  const identities = new Map(fileCompiled.map((record) => [record.source.line, record.identity]));
+  const errorFindings = errors.map(findingOf);
+  const finding = (line: number, endLine: number): UnadmittedFinding => {
+    let low = 0;
+    let high = errors.length;
+    while (low < high) {
+      const mid = (low + high) >>> 1;
+      if (errors[mid]!.line >= line) high = mid;
+      else low = mid + 1;
     }
+    return low < errors.length && errors[low]!.line <= endLine ? errorFindings[low]! : errorFindings[0]!;
   };
-  walk(source.ast.records);
-  const identities = new Map(
-    compiled.filter((record) => record.source.path === path).map((record) => [record.source.line, record.identity]),
-  );
-  const finding = (line: number, endLine: number): UnadmittedFinding =>
-    findingOf(errors.find((error) => error.line >= line && error.line <= endLine) ?? errors[0]!);
   const occurrence = (
     word: string | undefined,
     name: string | undefined,
@@ -235,11 +243,29 @@ function refusedWhole(
   const headers = new Set(nodes.map((node) => node.span.line)),
     // A record's lines are those of a header the parse read, to the end of its structure (its syntax span, refused
     // trailing lines included); the span of a header the parse refused identifies no record, so it spans nothing.
-    spans = [
+    rawSpans = [
       ...nodes.map((node) => node.span),
       ...(source.ast.syntaxRecordSpans ?? []).filter((span) => headers.has(span.line)),
-    ];
-  const spanned = (line: number): boolean => spans.some((span) => line >= span.line && line <= span.endLine);
+    ].sort((a, b) => a.line - b.line || a.endLine - b.endLine);
+  const mergedSpans: { line: number; endLine: number }[] = [];
+  for (const span of rawSpans) {
+    const last = mergedSpans[mergedSpans.length - 1];
+    if (last !== undefined && span.line <= last.endLine + 1) {
+      if (span.endLine > last.endLine) last.endLine = span.endLine;
+    } else {
+      mergedSpans.push({ line: span.line, endLine: span.endLine });
+    }
+  }
+  const spanned = (line: number): boolean => {
+    let low = 0;
+    let high = mergedSpans.length;
+    while (low < high) {
+      const mid = (low + high) >>> 1;
+      if (mergedSpans[mid]!.endLine >= line) high = mid;
+      else low = mid + 1;
+    }
+    return low < mergedSpans.length && mergedSpans[low]!.line <= line;
+  };
   const lines = text.split(/\r\n|\r|\n/),
     // An attribution's references are not declarations. Require actual language trivia and the complete physical
     // line: a trailing comment, comment-like prose or malformed prefix must keep the conservative token scan.
@@ -275,9 +301,17 @@ function refusedWhole(
   // it stands, inside a parsed record's lines too. (3) In a file refused at its pragma, whose parse reports nothing
   // past it, every top-level line that is neither blank nor a comment.
   const declares = (spelled: string): boolean => !BLANK.test(spelled) && !COMMENT.test(spelled);
+  const nextDeclaring = new Int32Array(lines.length + 1);
+  let nextAt = 0;
+  for (let i = lines.length; i >= 1; i--) {
+    if (declares(lines[i - 1]!)) nextAt = i;
+    nextDeclaring[i] = nextAt;
+  }
   const declaring = (line: number): number | undefined => {
-    for (let at = Math.max(line, 1); at <= lines.length; at++) if (declares(lines[at - 1]!)) return at;
-    return undefined;
+    const start = Math.max(line, 1);
+    if (start > lines.length) return undefined;
+    const found = nextDeclaring[start]!;
+    return found === 0 ? undefined : found;
   };
   const atPragma = errors.some((error) => PRAGMA.has(error.code));
   const suspect = new Set<number>();
@@ -293,10 +327,15 @@ function refusedWhole(
     .map((line) => occurrence(undefined, undefined, line, line));
   return [...parsed, ...unread, ...unknown];
 }
+const STANDARD_DIAGNOSTIC_KEYS = new Set(['code', 'severity', 'path', 'line', 'endLine', 'message', 'identity']);
+function diagnosticDedupKey(d: Diagnostic): string {
+  for (const key in d) if (!STANDARD_DIAGNOSTIC_KEYS.has(key)) return stableSerialize(d);
+  return `${d.code}\0${d.severity}\0${d.path}\0${d.line}\0${d.endLine ?? ''}\0${d.identity ?? ''}\0${d.message}`;
+}
 function diagnosticsOf(values: readonly Diagnostic[]): readonly Diagnostic[] {
-  return [...new Map(values.map((d) => [stableSerialize(d), d])).values()].sort(
-    (a, b) => compare(a.path, b.path) || a.line - b.line || compare(a.code, b.code),
-  );
+  const unique = new Map<string, Diagnostic>();
+  for (const d of values) unique.set(diagnosticDedupKey(d), d);
+  return [...unique.values()].sort((a, b) => compare(a.path, b.path) || a.line - b.line || compare(a.code, b.code));
 }
 /** How a view admits: every existing reader takes the defaults. */
 export interface ViewOptions {
@@ -452,11 +491,18 @@ function views(
     const diagnostics = diagnosticsOf([...registered.diagnostics, ...results.flatMap((r) => r.diagnostics)]);
     const errorPaths = new Set(diagnostics.filter((d) => d.severity === 'error').map((d) => d.path));
     const compiled = results.flatMap((r) => r.records);
+    const compiledByPath = new Map<string, CompiledRecord[]>();
+    for (const r of compiled) {
+      const list = compiledByPath.get(r.source.path);
+      if (list === undefined) compiledByPath.set(r.source.path, [r]);
+      else list.push(r);
+    }
     const context = {
       sources,
       registry: registered.registry,
       records: compiled.filter((r) => !errorPaths.has(r.source.path)),
       compiled,
+      compiledByPath,
       diagnostics,
       errorPaths,
     };
@@ -507,10 +553,21 @@ function views(
         .map((s) => s.name),
     );
     /** Every error diagnostic of a source file, in line order: what refuses a file whole. */
-    const fileErrors = (path: string): readonly Diagnostic[] =>
-      [...context.diagnostics, ...duplicates.diagnostics]
-        .filter((d) => d.severity === 'error' && d.path === path)
-        .sort((a, b) => a.line - b.line || compare(a.code, b.code));
+    const fileErrorsByPath = new Map<string, Diagnostic[]>();
+    for (const d of context.diagnostics) {
+      if (d.severity !== 'error') continue;
+      const list = fileErrorsByPath.get(d.path);
+      if (list === undefined) fileErrorsByPath.set(d.path, [d]);
+      else list.push(d);
+    }
+    for (const d of duplicates.diagnostics) {
+      if (d.severity !== 'error') continue;
+      const list = fileErrorsByPath.get(d.path);
+      if (list === undefined) fileErrorsByPath.set(d.path, [d]);
+      else list.push(d);
+    }
+    for (const list of fileErrorsByPath.values()) list.sort((a, b) => a.line - b.line || compare(a.code, b.code));
+    const fileErrors = (path: string): readonly Diagnostic[] => fileErrorsByPath.get(path) ?? [];
     /** The finding that blocked each blocked system, the first one recorded, which its records carry. */
     const blockedBy = new Map<string, UnadmittedFinding>();
     for (const system of registry.systems.values()) {
@@ -769,7 +826,13 @@ function views(
       ...context.sources
         .filter((s) => context.errorPaths.has(s.ast.path) || duplicatePaths.has(s.ast.path))
         .flatMap((s) =>
-          refusedWhole(s, texts.get(s.ast.path) ?? '', context.compiled, registry, fileErrors(s.ast.path)),
+          refusedWhole(
+            s,
+            texts.get(s.ast.path) ?? '',
+            context.compiledByPath.get(s.ast.path) ?? [],
+            registry,
+            fileErrors(s.ast.path),
+          ),
         ),
     ];
     return Object.freeze({

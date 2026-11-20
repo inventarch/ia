@@ -51,6 +51,8 @@ export interface MandateAuthority {
   readonly participant?: string;
   /** The moves the mandate allows (`authority.moves`); absent, it allows every move. */
   readonly moves?: readonly Move[];
+  /** Words the participant may author (`authority.words`); absent, the mandate imposes no word allow-list. */
+  readonly words?: readonly string[];
   /** Words the participant may not author (`authority.excluded-words`). */
   readonly excludedWords?: readonly string[];
   /** The names of the `@workspace` records the mandate applies in (`authority.scope`). */
@@ -163,10 +165,13 @@ export function mandateAuthorityOf(record: CompiledRecord): MandateAuthority {
   const hasMoves = states(record, 'authority', 'moves');
   if (hasMoves && moves.length === 0)
     invalid(`${record.identity}: authority.moves must name at least one kernel move`, sourceOf(record));
+  const hasWords = states(record, 'authority', 'words');
+  const allowedWords = hasWords ? texts(record, 'words') : undefined;
   return Object.freeze({
     identity: record.identity,
     ...(participants.length === 1 ? { participant: participants[0]! } : {}),
     ...(hasMoves ? { moves: Object.freeze(moves) } : {}),
+    ...(allowedWords === undefined ? {} : { words: Object.freeze(allowedWords) }),
     ...(present('excluded-words') ? { excludedWords: Object.freeze(texts(record, 'excluded-words')) } : {}),
     ...(present('scope') ? { scope: Object.freeze(names(record, 'scope', 'workspace')) } : {}),
     ...(present('covers') ? { covers: Object.freeze(texts(record, 'covers')) } : {}),
@@ -176,8 +181,9 @@ export function mandateAuthorityOf(record: CompiledRecord): MandateAuthority {
 /**
  * Undefined when the mandate permits `mode` for `words`, else one refusal. The move is judged first: a declared move
  * list admits only the moves it lists and must name at least one (an empty list is IA-RUNTIME-REQUEST-INVALID); a
- * mandate without moves restricts no move. Then any word in `excluded-words` is refused, whatever the moves. `next`
- * names the one catalog command that shows the mandate.
+ * mandate without moves restricts no move. Then `authority.words` (an allow-list when present, an empty list allowing
+ * no word) and `authority.excluded-words` are checked: when both are present, a word must be in `words` and not in
+ * `excluded-words`. `next` names the one catalog command that shows the mandate.
  */
 export function mandateRefusal(
   mandate: MandateAuthority | CompiledRecord,
@@ -196,6 +202,18 @@ export function mandateRefusal(
       message: `${authority.identity} allows ${authority.moves.join(', ')}; ${mode} needs ${move}`,
       next,
     });
+  if (authority.words !== undefined) {
+    const unallowed = words.filter((word) => !authority.words!.includes(word));
+    if (unallowed.length > 0)
+      return Object.freeze({
+        code: 'IA-RUNTIME-MANDATE-WORD',
+        message:
+          authority.words.length === 0
+            ? `${authority.identity} allows no words; disallowed: ${unallowed.join(', ')}`
+            : `${authority.identity} allows words ${authority.words.join(', ')}; disallowed: ${unallowed.join(', ')}`,
+        next,
+      });
+  }
   const excluded = words.filter((word) => authority.excludedWords?.includes(word));
   if (excluded.length > 0)
     return Object.freeze({
@@ -478,6 +496,8 @@ export interface GoverningMandate {
   readonly scope: readonly string[];
   /** `authority.covers`, the path selections it claims. */
   readonly covers?: readonly string[];
+  /** `authority.words`. */
+  readonly words?: readonly string[];
   /** `authority.excluded-words`. */
   readonly excludedWords?: readonly string[];
 }
@@ -515,7 +535,10 @@ export interface DefaultActor {
  * names whom it binds. A named participant with no `binds` has no established actor and refuses every mode, even
  * when it is the only participant. `binds: true` records the resolver's established actor binding.
  */
-export type ProfileMandate = Pick<MandateAuthority, 'identity' | 'participant' | 'moves' | 'excludedWords'> & {
+export type ProfileMandate = Pick<
+  MandateAuthority,
+  'identity' | 'participant' | 'moves' | 'words' | 'excludedWords'
+> & {
   readonly binds?: boolean;
 };
 /** profileRefusal's verdict: the mode is allowed exactly when it holds no refusal. */
@@ -710,6 +733,7 @@ export function governingMandates(
           ...(authority.moves === undefined ? {} : { moves: authority.moves }),
           scope: [...new Set(scope)],
           ...(states(node, 'authority', 'covers') ? { covers: authority.covers ?? [] } : {}),
+          ...(states(node, 'authority', 'words') ? { words: authority.words ?? [] } : {}),
           ...(states(node, 'authority', 'excluded-words') ? { excludedWords: authority.excludedWords ?? [] } : {}),
         };
       }),
@@ -867,5 +891,38 @@ export function profileRefusal(
       excluding.map(({ identity, excluded }) => `${identity} excludes ${excluded.join(', ')}`).join('; '),
       excluding[0]!.identity,
     );
+  if (words.length > 0) {
+    // A participant-less mandate stating `authority.words` acts as a word ceiling at its covered path or scope.
+    const ceilings = binding.filter(
+      ({ authority }) => authority.participant === undefined && authority.words !== undefined,
+    );
+    for (const { authority } of ceilings) {
+      const unallowed = words.filter((word) => !authority.words!.includes(word));
+      if (unallowed.length > 0)
+        return refuse(
+          'IA-RUNTIME-MANDATE-WORD',
+          authority.words!.length === 0
+            ? `${authority.identity} allows no words; disallowed: ${unallowed.join(', ')}`
+            : `${authority.identity} allows words ${authority.words!.join(', ')}; disallowed: ${unallowed.join(', ')}`,
+          authority.identity,
+        );
+    }
+    const granting = binding.filter(({ refusal }) => refusal === undefined);
+    const disallowed = words.filter(
+      (word) => !granting.some(({ authority }) => authority.words === undefined || authority.words.includes(word)),
+    );
+    if (disallowed.length > 0)
+      return refuse(
+        'IA-RUNTIME-MANDATE-WORD',
+        `${granting
+          .map(({ authority }) =>
+            authority.words!.length === 0
+              ? `${authority.identity} allows no words`
+              : `${authority.identity} allows words ${authority.words!.join(', ')}`,
+          )
+          .join('; ')}; disallowed: ${disallowed.join(', ')}`,
+        granting[0]!.authority.identity,
+      );
+  }
   return freeze({});
 }

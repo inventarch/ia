@@ -255,15 +255,24 @@ it('renders every bound the named mandate states: participant, moves, scope, exc
     '    participant @agent reviewer',
     '    moves [Observation, Verification]',
     '    scope [@workspace demo]',
+    '    words [decision, task]',
     '    excluded-words [mandate, workspace]',
     '    covers ["docs/", "notes/**"]',
     '',
   ].join('\n');
-  const { db, within } = fixture({
-      '.ia/src/composition.ia': composition(
-        (text) => text.replace('@mandate demo-mandate', '@mandate reviewer-mandate') + mandate,
-      ),
-    }),
+  const { db, within } = fixture(
+      {
+        '.ia/src/composition.ia': composition(
+          (text) => text.replace('@mandate demo-mandate', '@mandate reviewer-mandate') + mandate,
+        ),
+      },
+      {
+        '.ia/src/systems/agent-system/schemas/mandate.schema.ia': readFileSync(
+          resolve(repository, '.ia/src/systems/agent-system/schemas/mandate.schema.ia'),
+          'utf8',
+        ),
+      },
+    ),
     [file] = claude(db, within);
   expect(file!.text).toContain(
     [
@@ -273,6 +282,7 @@ it('renders every bound the named mandate states: participant, moves, scope, exc
       '  - participant `agent-system/binding/agent/reviewer`',
       '  - moves Observation, Verification',
       '  - scope `workspace-system/definition/workspace/demo`',
+      '  - words decision, task',
       '  - excluded words mandate, workspace',
       '  - covers `docs/`, `notes/**`',
       '  - limit-steps 12',

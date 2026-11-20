@@ -27,13 +27,18 @@ import {
   decodeDistributionLock,
   DISTRIBUTION_ENGINE_VERSION,
   DISTRIBUTION_LIMITS,
+  hash as sha256Digest,
   lockEngineMarker,
+  lockEntryKey,
+  packageId,
+  version as exactSemver,
 } from '@inventarch/db/distribution';
-import type { DistributionLock, PackageEntry, PackageKit } from '@inventarch/db/distribution';
+import type { DistributionLock, HostedEntry, LockEntry, PackageEntry, PackageKit } from '@inventarch/db/distribution';
 import { inspectArchiveMetadata } from '@inventarch/distribution/archive';
 import { cacheArchive, cachePath } from '@inventarch/distribution/install';
 import { Refusal } from './consumer.js';
 import { findProgram, programEnv, programHome, windowsShell, windowsShellArgs } from './program.js';
+import { quote } from './render.js';
 
 type Env = Readonly<Record<string, string | undefined>>;
 /** `npm view`, `npm config get` and `npm cache add` each get two minutes. */
@@ -42,6 +47,7 @@ const NPM_TIMEOUT = 120_000;
 const FAKE_VARIABLE = /^(IA_NPM_|FAKE_NPM_)/;
 const EXACT = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/;
 const SPEC = /^((?:@[a-z0-9][a-z0-9._~-]*\/)?[a-z0-9][a-z0-9._~-]*)(?:@([0-9A-Za-z.+-]+))?$/;
+const HOSTED_SPEC = /^([a-z][a-z0-9.-]*\/[a-z][a-z0-9-]*)@(.+)$/;
 const INTEGRITY = /^sha512-([A-Za-z0-9+/]{86}==)$/;
 
 /** One npm command: its exit, stdout, and both streams for a refusal. */
@@ -323,13 +329,148 @@ export function packageEntry(
   };
 }
 
+export interface HostedPinInput {
+  readonly spec: string;
+  readonly archive: string;
+  readonly manifest: string;
+}
+
+function parseHostedIdVersion(input: string): { readonly id: string; readonly version: string } | null {
+  const match = HOSTED_SPEC.exec(input);
+  if (match === null) return null;
+  try {
+    return { id: packageId(match[1]!), version: exactSemver(match[2]!) };
+  } catch {
+    return null;
+  }
+}
+
+function validDigestOrPlaceholder(value: string | undefined): string {
+  if (value === undefined) return '<sha256>';
+  try {
+    return sha256Digest(value);
+  } catch {
+    return '<sha256>';
+  }
+}
+
+/** `<provider/name>@<exact-version>` with exact 64-hex `archive` and `manifest` digests for a hosted kit pin. */
+export function hostedSpec(input: HostedPinInput, root?: string | undefined): HostedEntry {
+  const parsed = parseHostedIdVersion(input.spec);
+  if (parsed === null) {
+    const archiveToken = validDigestOrPlaceholder(input.archive),
+      manifestToken = validDigestOrPlaceholder(input.manifest);
+    throw new Refusal(
+      'IA-CLI-USAGE',
+      `--hosted takes <provider/name>@<exact-version>: ${input.spec}`,
+      2,
+      null,
+      `Run "ia install --hosted <provider/name>@<version> --archive ${archiveToken} --manifest ${manifestToken}${root === undefined ? '' : ` --root ${quote(root)}`}".`,
+    );
+  }
+  const specToken = quote(`${parsed.id}@${parsed.version}`);
+  let archive: string;
+  try {
+    archive = sha256Digest(input.archive);
+  } catch {
+    const manifestToken = validDigestOrPlaceholder(input.manifest);
+    throw new Refusal(
+      'IA-CLI-USAGE',
+      `--archive takes a 64-character lowercase hex SHA-256 digest: ${input.archive}`,
+      2,
+      null,
+      `Run "ia install --hosted ${specToken} --archive <sha256> --manifest ${manifestToken}${root === undefined ? '' : ` --root ${quote(root)}`}".`,
+    );
+  }
+  let manifest: string;
+  try {
+    manifest = sha256Digest(input.manifest);
+  } catch {
+    throw new Refusal(
+      'IA-CLI-USAGE',
+      `--manifest takes a 64-character lowercase hex SHA-256 digest: ${input.manifest}`,
+      2,
+      null,
+      `Run "ia install --hosted ${specToken} --archive ${archive} --manifest <sha256>${root === undefined ? '' : ` --root ${quote(root)}`}".`,
+    );
+  }
+  return { kind: 'hosted', id: parsed.id, version: parsed.version, hosted: true, archive, manifest };
+}
+
+/** Validates `--hosted`, `--archive` and `--manifest` CLI lists at usage class (exit 2) before reading any workspace. */
+export function parseHostedArguments(
+  hosted: readonly string[],
+  archives: readonly string[],
+  manifests: readonly string[],
+  root?: string | undefined,
+): readonly HostedPinInput[] {
+  if (hosted.length === 0 && archives.length === 0 && manifests.length === 0) return [];
+  if (hosted.length === 0)
+    throw new Refusal(
+      'IA-CLI-USAGE',
+      'Archive and manifest digests require a hosted kit specification',
+      2,
+      null,
+      `Run "ia install --hosted <provider/name>@<version> --archive <sha256> --manifest <sha256>${root === undefined ? '' : ` --root ${quote(root)}`}".`,
+    );
+  if (archives.length !== hosted.length || manifests.length !== hosted.length) {
+    const single = hosted.length === 1 ? parseHostedIdVersion(hosted[0]!) : null;
+    const specToken = single === null ? '<provider/name>@<version>' : quote(`${single.id}@${single.version}`);
+    const archiveToken = hosted.length === 1 ? validDigestOrPlaceholder(archives[0]) : '<sha256>';
+    const manifestToken = hosted.length === 1 ? validDigestOrPlaceholder(manifests[0]) : '<sha256>';
+    throw new Refusal(
+      'IA-CLI-USAGE',
+      'Each hosted kit pin requires matching archive and manifest SHA-256 digests',
+      2,
+      null,
+      `Run "ia install --hosted ${specToken} --archive ${archiveToken} --manifest ${manifestToken}${root === undefined ? '' : ` --root ${quote(root)}`}".`,
+    );
+  }
+  const inputs: HostedPinInput[] = hosted.map((spec, index) => ({
+    spec,
+    archive: archives[index]!,
+    manifest: manifests[index]!,
+  }));
+  const seen = new Set<string>();
+  for (const item of inputs) {
+    const entry = hostedSpec(item, root);
+    if (seen.has(entry.id))
+      throw new Refusal(
+        'IA-CLI-USAGE',
+        `Duplicate --hosted kit id: ${entry.id}`,
+        2,
+        null,
+        `Run "ia install --hosted ${quote(`${entry.id}@${entry.version}`)} --archive ${entry.archive} --manifest ${entry.manifest}${root === undefined ? '' : ` --root ${quote(root)}`}" specifying each hosted kit id at most once.`,
+      );
+    seen.add(entry.id);
+  }
+  return inputs;
+}
+
 /** `lock` with `entry` in place of any entry of its name: the engine an entry needs, every other byte kept. */
 export function lockWithPackage(lock: DistributionLock | undefined, entry: PackageEntry): DistributionLock {
   const base = lock ?? { formatVersion: 1 as const, engine: DISTRIBUTION_ENGINE_VERSION, requests: [], packages: [] };
-  const entries = [...(base.entries ?? []).filter((row) => row.name !== entry.name), entry].sort((a, b) =>
-    a.name < b.name ? -1 : 1,
-  );
-  const engine = base.entries === undefined ? lockEngineMarker(DISTRIBUTION_ENGINE_VERSION, true) : base.engine;
+  const entries: LockEntry[] = [
+    ...(base.entries ?? []).filter((row) => !(row.kind === 'package' && row.name === entry.name)),
+    entry,
+  ].sort((a, b) => (lockEntryKey(a) < lockEntryKey(b) ? -1 : lockEntryKey(a) > lockEntryKey(b) ? 1 : 0));
+  const engine = lockEngineMarker(DISTRIBUTION_ENGINE_VERSION, entries);
+  return decodeDistributionLock({ ...base, engine, entries });
+}
+
+/** `lock` with `hosted` entries replacing any existing `hosted` entries of the same ids. */
+export function lockWithHosted(lock: DistributionLock | undefined, hosted: readonly HostedEntry[]): DistributionLock {
+  const base = lock ?? { formatVersion: 1 as const, engine: DISTRIBUTION_ENGINE_VERSION, requests: [], packages: [] };
+  const seen = new Set<string>();
+  for (const row of hosted) {
+    if (seen.has(row.id)) throw new Error(`Duplicate --hosted kit id: ${row.id}`);
+    seen.add(row.id);
+  }
+  const entries: LockEntry[] = [
+    ...(base.entries ?? []).filter((row) => !(row.kind === 'hosted' && seen.has(row.id))),
+    ...hosted,
+  ].sort((a, b) => (lockEntryKey(a) < lockEntryKey(b) ? -1 : lockEntryKey(a) > lockEntryKey(b) ? 1 : 0));
+  const engine = lockEngineMarker(DISTRIBUTION_ENGINE_VERSION, entries);
   return decodeDistributionLock({ ...base, engine, entries });
 }
 export const sameLock = (a: DistributionLock | undefined, b: DistributionLock): boolean =>
@@ -345,6 +486,7 @@ export function acquirePackageArchives(
   options: { readonly npm: Npm; readonly env: Env; readonly offline: boolean; readonly again: string },
 ): void {
   for (const entry of lock.entries ?? []) {
+    if (entry.kind !== 'package') continue;
     const missing = entry.kits.filter((kit) => !existsSync(join(root, cachePath(kit.archive))));
     if (missing.length === 0) continue;
     const files = tarballFiles(packageTarball(options.npm, options.env, entry, options));

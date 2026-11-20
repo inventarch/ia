@@ -117,6 +117,7 @@ export {
   MOVES,
   defaultActor,
   governingMandates,
+  governingWorkspace,
   isAdmissionRefusal,
   isMode,
   mandateAuthorityOf,

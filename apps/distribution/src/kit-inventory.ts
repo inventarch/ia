@@ -15,6 +15,8 @@ import type { CollectionReadHooks, CurrentCollections, UnknownCollection } from 
 export type KitSource =
   /** An npm package entry in the lock. */
   | { readonly kind: 'package'; readonly name: string; readonly version: string }
+  /** A hosted kit pin in the lock, managed remotely. */
+  | { readonly kind: 'hosted'; readonly archive: string; readonly manifest: string }
   /** A registry collection the record keeps intact. */
   | { readonly kind: 'collection'; readonly id: string; readonly version: string; readonly registry: string }
   /** A direct request that no collection or package owns. */
@@ -61,7 +63,7 @@ export function installedUnits(rootInput: string, hooks: CollectionReadHooks = {
     };
   }
   const units: InstalledUnit[] = [];
-  // 1. Each package entry is one unit; its kits are its members.
+  // 1. Each package entry is one unit (its kits are its members); each hosted entry is one remotely managed unit.
   for (const entry of lock.entries ?? [])
     if (entry.kind === 'package')
       units.push({
@@ -69,6 +71,13 @@ export function installedUnits(rootInput: string, hooks: CollectionReadHooks = {
         version: entry.version,
         source: { kind: 'package', name: entry.name, version: entry.version },
         members: entry.kits.map((kit) => kit.id),
+      });
+    else if (entry.kind === 'hosted')
+      units.push({
+        id: entry.id,
+        version: entry.version,
+        source: { kind: 'hosted', archive: entry.archive, manifest: entry.manifest },
+        members: [entry.id],
       });
   // 2. Each intact collection is one unit.
   for (const row of intact.collections)

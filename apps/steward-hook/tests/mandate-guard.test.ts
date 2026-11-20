@@ -1017,3 +1017,44 @@ it('names only the removal when the hook record is gone and the workspace does n
   expect(closed).toContain(`"${admissionReport(stray).command}"`);
   expect(closed).not.toContain('ia validate');
 });
+
+it('enforces authority.words and authority.excluded-words when an authored hook selects .ia/src/** (#286)', () => {
+  const root = workspace({
+    '.ia/src/systems/agent-system/schemas/mandate.schema.ia': readFileSync(
+      resolve(repository, '.ia/src/systems/agent-system/schemas/mandate.schema.ia'),
+      'utf8',
+    ),
+    '.ia/src/hooks.ia': hooks(['paths ["docs/**", "restricted/**"]', 'paths [".ia/src/**"]']),
+    '.ia/src/workspace.ia': starter([
+      'scope [@workspace demo]',
+      'scope [@workspace demo]\n    words [task, decision]\n    excluded-words [decision]',
+    ]),
+  });
+  const allowedPayload = {
+    tool_input: {
+      file_path: resolve(root, '.ia/src/tasks.ia'),
+      content: '#! ia 1.0\n\n@task t1\n  meaning\n    says "Allowed task."\n',
+    },
+  };
+  expect(evaluateMandateHook(root, HOOK, { ...event(root, '.ia/src/tasks.ia'), ...allowedPayload })).toEqual({});
+
+  const omittedPayload = {
+    tool_input: {
+      file_path: resolve(root, '.ia/src/plans.ia'),
+      content: '#! ia 1.0\n\n@plan p9\n  meaning\n    says "Omitted from words."\n',
+    },
+  };
+  const omitted = evaluateMandateHook(root, HOOK, { ...event(root, '.ia/src/plans.ia'), ...omittedPayload });
+  expect(code(omitted)).toBe('IA-HOOK-NOT-MANDATED');
+  expect(reason(omitted)).toContain('allows words task, decision; disallowed: plan');
+
+  const excludedPayload = {
+    tool_input: {
+      file_path: resolve(root, '.ia/src/decisions.ia'),
+      content: '#! ia 1.0\n\n@decision d9\n  meaning\n    says "In words but also excluded-words."\n',
+    },
+  };
+  const excluded = evaluateMandateHook(root, HOOK, { ...event(root, '.ia/src/decisions.ia'), ...excludedPayload });
+  expect(code(excluded)).toBe('IA-HOOK-NOT-MANDATED');
+  expect(reason(excluded)).toContain('excludes decision');
+});
