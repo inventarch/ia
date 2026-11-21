@@ -41,6 +41,7 @@ export type {
   PacketProvenance,
   PacketSeat,
   PacketSystem,
+  PacketLink,
   PacketTally,
   PositionPacket,
 } from './packet.js';

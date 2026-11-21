@@ -2290,7 +2290,8 @@
         "tests/host-plugin.test.ts",
         "tests/report.test.ts",
         "tests/schema.test.ts",
-        "tests/variants-adoption.test.ts"
+        "tests/variants-adoption.test.ts",
+        "tests/workspace-structure.test.ts"
       ],
       "profile": "corpus",
       "platforms": [

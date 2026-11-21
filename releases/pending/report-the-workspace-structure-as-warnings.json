@@ -1,0 +1,18 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "Report the workspace structure as warnings",
+  "summary": "ia validate and ia report warn when a workspace has two parents or a cycle, a parent's rules do not reach a child, a shared root has no common ancestor, a link is declared at one end only, a decides id has two listers, a source lies outside the repository, or the tree is deeper than 8. A parent or link outside the repository is reported as not checked here. The position packet shows the parent chain and the counted links. Nothing refuses yet.",
+  "packages": [
+    "@inventarch/cli",
+    "@inventarch/compliance",
+    "@inventarch/runtime"
+  ],
+  "paths": [
+    "apps/cli/",
+    "docs/",
+    "packages/compliance/",
+    "packages/runtime/",
+    "tools/"
+  ]
+}

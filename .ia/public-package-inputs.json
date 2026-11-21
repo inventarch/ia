@@ -2,9 +2,9 @@
   "format": "ia.public-package-inputs.v2",
   "source": {
     "repository": "https://github.com/inventarch/ia",
-    "commit": "2cde3d427b8bf3c089a4d02f07e8d306df67a0f9",
-    "tree": "86ce6b808b06d40b39051dd7aa36ccb99dead338",
-    "dirty": true
+    "commit": "9b19db83df612f733388e6294cec81b8389e8efc",
+    "tree": "1cfbb91450c05e8121a942021861cbf43797e06f",
+    "dirty": false
   },
   "membership": {
     "path": "tools/distribution/public-content-policy.json",
@@ -1368,7 +1368,7 @@
     },
     {
       "path": "CONTRIBUTING.md",
-      "sha256": "edd60c392192963d7885bc031f54851f9f6914256e3fa37162aaf1b6e4df4124"
+      "sha256": "b9de6be4a1a95e04c7035dbf53039b3a40b3cafb753b0d698262fdf9eedc8bd4"
     },
     {
       "path": "LICENSE",
@@ -1380,7 +1380,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "585a7c521e80d8a6522dee5633369ac99fc5a453ac95f14a9c799117b49d0d8b"
+      "sha256": "7e6a9a0e92f4b6d52ef1d2a07b6187b89823331c10753a2dac7ebff71a44b1d8"
     },
     {
       "path": "SECURITY.md",
@@ -1388,7 +1388,7 @@
     },
     {
       "path": "SPEC.md",
-      "sha256": "a75bb5a8f2bc5d3b0b9f6e42770dcb0a2c3e1f20cd789b4309230a46a07bc71c"
+      "sha256": "e23ab6b1230481af36e4fc2d3ecc0387c5629c868e06838c0610505d612fcbd8"
     },
     {
       "path": "SUPPORT.md",
@@ -1732,7 +1732,7 @@
     },
     {
       "path": "apps/cli/src/validate.ts",
-      "sha256": "5b4c7034122aa4ffd49176f5d4b938463aadd3215aebcdb1654e37f6cbf0bb8d"
+      "sha256": "667e16698bdccedb45977626d586b3f0f008c0f351e5cdf600b72e86adce2d34"
     },
     {
       "path": "apps/cli/src/vocabulary.ts",
@@ -3244,7 +3244,7 @@
     },
     {
       "path": "docs/reference/architecture/README.md",
-      "sha256": "68d4db1a4b5b58ba01cf1350f64f11ad3f816b75e9f022512732d2911e9a7aaf"
+      "sha256": "eaba8ca221df26b2d62b654ebf79647384fae8dc285cf814d45359a67d36504c"
     },
     {
       "path": "docs/reference/hosted-service/README.md",
@@ -3252,7 +3252,7 @@
     },
     {
       "path": "docs/reference/language/README.md",
-      "sha256": "454cea98b4802b2c4d04b9b420a7b500d794d12f2104031f41f49c049737b444"
+      "sha256": "014790833aa53ca9d08c93cbb86aa833bb714410fb3050cca8b25eb249ddf3b8"
     },
     {
       "path": "docs/reference/language/SPEC.md",
@@ -3916,7 +3916,7 @@
     },
     {
       "path": "packages/compliance/SPEC.md",
-      "sha256": "44acd556f910ff92fb8d7cd176463969aa62ce1f1f9801c7d6d4e92463030989"
+      "sha256": "b42d890b744b18cef26b2e286708f26ad6b265688de048bc7808538e6188a686"
     },
     {
       "path": "packages/compliance/fixtures/language/cases/fail/duplicate-given.diagnostics.json",
@@ -5628,7 +5628,7 @@
     },
     {
       "path": "packages/compliance/src/check-ids.ts",
-      "sha256": "6e1d3c264e9867222d9ee509c46622d24c1ca5cbb9840f30222b8709896db980"
+      "sha256": "8d59094b9038be06eba0662ed2c718ebc1706a6df61e29beec71efc94a6753ac"
     },
     {
       "path": "packages/compliance/src/conformance/bind.ts",
@@ -5648,7 +5648,7 @@
     },
     {
       "path": "packages/compliance/src/conformance/inventory.generated.ts",
-      "sha256": "4efc55317532332d8dad1c72e906500f5245e99bc913307e1b3abe6d5860fa58"
+      "sha256": "e7346eb766e8bf13bac642d2913c8c3947c4c041af8b1883734cb020d84b54c2"
     },
     {
       "path": "packages/compliance/src/conformance/inventory.ts",
@@ -5656,7 +5656,7 @@
     },
     {
       "path": "packages/compliance/src/conformance/refusals.ts",
-      "sha256": "4230e6d3268e9c21f14b3d227080587e3a354f20ab21c1cdf3aa1732dec9aca5"
+      "sha256": "bf828e880d1077eaada30133f3f0cf54813109d73a4430aad18902bdcb8b3899"
     },
     {
       "path": "packages/compliance/src/conformance/verify-kernel.ts",
@@ -5684,7 +5684,7 @@
     },
     {
       "path": "packages/compliance/src/index.ts",
-      "sha256": "76a0698ef01e9a6688e6a3082c9159b8a1362a5cc18a07a41063ebe21e2608dc"
+      "sha256": "b57a5c40eccf6696769bb00725ac7046e7cd784bca186f4651b217b9cfa19198"
     },
     {
       "path": "packages/compliance/src/kernel.ts",
@@ -5708,7 +5708,7 @@
     },
     {
       "path": "packages/compliance/src/report.ts",
-      "sha256": "81c1bac31370da53829d1511a52a0290ccdace8a8b84179c81738c44939b2306"
+      "sha256": "d3eaee747c17eed64893e6d7a39b4d53238ccd921d7d84d613672cf246ae6504"
     },
     {
       "path": "packages/compliance/src/schema.ts",
@@ -5728,7 +5728,7 @@
     },
     {
       "path": "packages/compliance/src/types.ts",
-      "sha256": "d4ebef8ff0e234ebf254c006441e02d57be9910b6c924f764bcaa77d8e7f2792"
+      "sha256": "4650ef6e38fd7bfd00543c3c99512817344d5eb81bc90deed37f1834d1a9bd9e"
     },
     {
       "path": "packages/compliance/src/values.ts",
@@ -5737,6 +5737,10 @@
     {
       "path": "packages/compliance/src/variants.ts",
       "sha256": "8634fd8d1c2a97f2b34d9a5c6b16e39b5d92174ede844306d715c292f4c920b7"
+    },
+    {
+      "path": "packages/compliance/src/workspace-structure.ts",
+      "sha256": "942a4e3bd853af797e79f097048851e6359e0cba1879a82b541988910b1f6a3f"
     },
     {
       "path": "packages/compliance/tests/canon-corpus.test.ts",
@@ -5752,7 +5756,7 @@
     },
     {
       "path": "packages/compliance/tests/catalog-codecs.test.ts",
-      "sha256": "9884e16886643781757c82bd82fe1c373278c9bbd357aadc6890a7430d7fe51e"
+      "sha256": "265003a4bed8d40b94357f14946d909eb2062d0c3813d98ccc56fb592432eeb1"
     },
     {
       "path": "packages/compliance/tests/evaluator-catalog.test.ts",
@@ -5789,6 +5793,10 @@
     {
       "path": "packages/compliance/tests/variants-adoption.test.ts",
       "sha256": "2f95ea7c5d0804da87b917624a7a27b705558ab91c4a84049bb9350b9af3ebb2"
+    },
+    {
+      "path": "packages/compliance/tests/workspace-structure.test.ts",
+      "sha256": "e507274618476a55457c1c3f3afd8ab189fd74a5d971eef8815b2b19539510b5"
     },
     {
       "path": "packages/compliance/tsconfig.json",
@@ -6908,7 +6916,7 @@
     },
     {
       "path": "packages/runtime/SPEC.md",
-      "sha256": "e233654206dad0c6b26d86e6d33e1153c97cc6ba7917d471ce1d3e37629f2e16"
+      "sha256": "6c608f2d1869f71690d945861f3d607bb85404dbb308c79bca2bfb7b95d74abd"
     },
     {
       "path": "packages/runtime/package.json",
@@ -6988,7 +6996,7 @@
     },
     {
       "path": "packages/runtime/src/index.ts",
-      "sha256": "47f388235d0e34340f0a1e84bfd3ceb64b8b95b1e43bb85ae99487fafc52dbea"
+      "sha256": "486fe89ca4cf8ea7f67c7591325d543a05af4613feebf51e0eaf7007551f41d4"
     },
     {
       "path": "packages/runtime/src/locator.ts",
@@ -7084,11 +7092,11 @@
     },
     {
       "path": "packages/runtime/src/packet-host.ts",
-      "sha256": "55168e612d79bca45328508599523c0de89283262d3af2a4e886255a0f49d5b4"
+      "sha256": "40e2bdecd7339ec487001d03e377a7396a126db7a7219c68191a37718606dce7"
     },
     {
       "path": "packages/runtime/src/packet.ts",
-      "sha256": "d4ef0654333fc94ccde1dd138ff52792a8dc3286a5531bceb9f1f9773a8e19be"
+      "sha256": "8922708614fdcf032861d30a3b4dacd3bc55a35c8daa796236dc366e37ba2943"
     },
     {
       "path": "packages/runtime/src/plain-format.ts",
@@ -7296,7 +7304,7 @@
     },
     {
       "path": "packages/runtime/tests/packet.test.ts",
-      "sha256": "603066ed4c52a1b40ce96bef18ca3e7a01a728cfd30aaa2c77a164ec79336137"
+      "sha256": "f0e0557e401663b10b8aeb6b57f347b851709da7ee232d0092e972ce53495af6"
     },
     {
       "path": "packages/runtime/tests/plain-formats.test.ts",
@@ -7963,6 +7971,10 @@
       "sha256": "b333c8c831adaaa7ccaacb026c730e1f812a3b9234faabc3829594dab6430f3e"
     },
     {
+      "path": "releases/pending/report-the-workspace-structure-as-warnings.json",
+      "sha256": "1678e3091d82df22ef281bc444aef0f5bae99cc9458e038c67bf809d901bd955"
+    },
+    {
       "path": "tools/compliance/SPEC.md",
       "sha256": "71e7a9766163f986048861fa7890cf757a8b479283bbe7e25885bd3da43d1d39"
     },
@@ -7972,7 +7984,7 @@
     },
     {
       "path": "tools/compliance/check.test.ts",
-      "sha256": "fe902e1d21f1718e6930f267e87b9f34f936f257219d32f1f609103b32a41069"
+      "sha256": "8824ba8801012eb1ad48c66e66b424b649a224086256b1aca804e1b1bed9d084"
     },
     {
       "path": "tools/compliance/check.ts",
@@ -9136,7 +9148,7 @@
     },
     {
       "path": "tools/testing/tasks.json",
-      "sha256": "bf39b1a126bd15de647f1fedeb4cb768d027e497804ad99ef76c0265542e49e2"
+      "sha256": "c8916a5cd15b2500b0bfd1bddd66d35d26c417d866cc0213e9e0b19c2d536635"
     },
     {
       "path": "tools/testing/timeouts.ts",
@@ -9195,5 +9207,5 @@
       "sha256": "b7a2070d0de01d78a2f8dbd4e8c646740a4b9f68810cfda96aafe69ffc7a47f4"
     }
   ],
-  "inputDigest": "4c2239aa25b87eda3b69b17b514c334d6619062c0013ec73175008b33e757018"
+  "inputDigest": "2815b3651d2d8bf4457e19bb42a4e8214c1af4f5d633370655199279d0e72e40"
 }
