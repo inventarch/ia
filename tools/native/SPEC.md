@@ -28,6 +28,8 @@ Compile and validate native corpora, repository architecture/work policy, public
 - [public-systems.mjs](public-systems.mjs).
 - [public-systems.test.ts](public-systems.test.ts) — behavior and refusal coverage.
 - [public-vocabulary.ts](public-vocabulary.ts).
+- [published-language-ledger.test.ts](published-language-ledger.test.ts) - exact release receipt and archive refusals, controlled first retention, and unchanged replay.
+- [published-language-ledger.ts](published-language-ledger.ts) - read-only publication preparation: match the npm CLI tarball to the verified release receipt, retain its native base, and regenerate both compatibility indexes in an isolated checkout; repository writes are a separate workflow job.
 - [release-roots.ts](release-roots.ts).
 - [release-work.test.ts](release-work.test.ts) — behavior and refusal coverage.
 - [release-work.ts](release-work.ts).

@@ -397,13 +397,23 @@ const RESULT_NEUTRAL_WORKFLOW_ENV: Readonly<Record<string, string>> = {
   HOMEBREW_NO_AUTO_UPDATE: 'Homebrew smoke step only, outside every Nx task',
   HOMEBREW_NO_INSTALL_CLEANUP: 'Homebrew smoke step only, outside every Nx task',
   GH_TOKEN:
-    "the Plan job's lookups of the last successful scheduled run and of a copied verdict, and the Dependabot note job's push and dispatch, GitHub API calls outside every Nx task",
+    "the Plan job's lookups of the last successful scheduled run and of a copied verdict, and the Dependabot note job's push and dispatch, and the ledger workflow's publication reads and draft proposal, outside every Nx task",
   HEAD_REPO:
     "the pull request's head repository, which the Plan job's verdict copy matches runs on, outside every Nx task",
   HEAD_BRANCH:
     "the pull request's head branch, which the Plan job's verdict copy matches runs on and the Dependabot note job pushes to, outside every Nx task",
   BASE_SHA:
     "the pull request's base commit, which the Dependabot note job diffs the branch against, outside every Nx task",
+  RUN_ID: 'canonical npm publication run selected by the uncached ledger preparation workflow',
+  VERSION: 'exact npm version bound to the uncached ledger preparation and draft proposal',
+  BASE: 'native version used to name one uncached ledger proposal branch',
+  ARCHIVE: 'native archive digest checked by the uncached ledger proposal writer',
+  PARENT: 'exact current-main commit checked by the uncached ledger proposal writer',
+  PATCH_SHA: 'same-run data patch digest checked by the uncached ledger proposal writer',
+  NPM_CONFIG_REGISTRY: 'explicit public registry in the uncached ledger preparation step, outside Nx',
+  NPM_CONFIG_IGNORE_SCRIPTS: 'disables npm lifecycle execution in the uncached ledger preparation step, outside Nx',
+  NPM_CONFIG_USERCONFIG: 'isolated npm configuration in the uncached ledger preparation step, outside Nx',
+  NPM_CONFIG_CACHE: 'isolated npm cache in the uncached ledger preparation step, outside Nx',
   IA_REVIEW_RUN_ID: 'selects an upstream run for the uncached advisory review caller, outside every Nx task',
   IA_REVIEW_API: 'API origin for the uncached advisory review caller, outside every Nx task',
   IA_REVIEW_BINDING: 'workload binding for the uncached advisory review caller, outside every Nx task',

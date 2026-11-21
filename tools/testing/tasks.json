@@ -3848,6 +3848,7 @@
         "tools/native/check.test.ts",
         "tools/native/language-base.test.ts",
         "tools/native/language-bases.test.ts",
+        "tools/native/published-language-ledger.test.ts",
         "tools/native/language-compat.test.ts",
         "tools/native/public-fixture.test.ts",
         "tools/native/public-language.test.ts",
