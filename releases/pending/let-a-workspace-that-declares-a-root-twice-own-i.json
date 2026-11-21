@@ -1,0 +1,12 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "Let a workspace that declares a root twice own it",
+  "summary": "ia preview and ia author judged an authored root one declaration row at a time, so a workspace that declares the same root both `@authored` and `@adopted` (the adopted twin a governing store keeps for adopters) was refused IA-CLI-EDIT-UNOWNED at its own root. Ownership is now judged per declaring workspace: every declarer must declare the root `@authored`, and a declarer that holds only the `@adopted` twin still withholds it.",
+  "packages": [
+    "@inventarch/cli"
+  ],
+  "paths": [
+    "apps/cli/"
+  ]
+}
