@@ -107,20 +107,78 @@ export function runManyArgs(targets: readonly string[], skipCache: boolean, para
   ];
 }
 
+/*
+ * The errors Nx 23.2.1's self-hosted remote cache client raises (nx/src/native/cache/errors.rs and
+ * http_remote_cache.rs). A failed restore aborts Nx's whole run with the error as its last `NX` banner; a failed store
+ * fails a task that passed, with the error as the task's output (nx/src/tasks-runner/task-orchestrator.js,
+ * handleDiscreteWorkerFailure). Nx prints both at the start of a line, while every line a task prints as it runs
+ * carries its project prefix under `--output-style stream`. A task restored from a cache replays its output without
+ * that prefix, so the two generic phrases are tied to the cache: a failed request names the cache's URL path, and
+ * a refused token counts as Nx's banner or as the first line under a failed task's header.
+ */
+
+/**
+ * The header Nx prints, unprefixed, above the error that failed a task: `> nx run <task>`, opening a log group with the
+ * failure icon under GitHub Actions (`::group::❌ > nx run <task>`, nx/src/utils/output.js logCommandOutput), then blank
+ * lines. In this repository's runs (`run-many --output-style stream`, `nx:run-commands` tasks, no batch mode, no
+ * `NX_CACHE_FAILURES`), none of the following is one:
+ * - a header that starts a task is followed by that task's prefixed output;
+ * - a task replayed from a cache names its source after the task (`> nx run <task>  [local cache]`);
+ * - under GitHub Actions, another status opens its group with another icon.
+ * The one task that drives Nx itself, `tools:test-cache`, is never cached, so no replay holds a nested failure.
+ */
+const FAILED_TASK_HEADER = String.raw`^[ \t]*(?:::group::❌[ \t]+)?>[ \t]*nx run[ \t]+[^\s[]+[ \t]*\r?\n(?:[ \t]*\r?\n)*`;
+
+/** Errors that write nothing locally: a request that never completed, a refused token, an unexpected status, or a
+ * response body that broke before anything was unpacked. */
+const NX_REMOTE_REQUEST_ERROR = new RegExp(
+  String.raw`^[ \t]*(?:NX[ \t]+Unauthorized:|(?:NX[ \t]+)?(?:Failed to send request: [^\n]*\/v1\/cache\/|Misconfigured remote cache endpoint:|Failed to read remote cache response body:))` +
+    // A store refused with a plain-text 401 fails the task with `Unauthorized: <text>` as its output, without a banner.
+    // The lookahead comes first: tried at every line start, the lookbehind alone is quadratic in a run of blank lines.
+    String.raw`|^(?=[ \t]*Unauthorized:)(?<=${FAILED_TASK_HEADER})[ \t]*Unauthorized:`,
+  'm',
+);
+
+/** A download that broke while it was unpacked, which may leave a partly unpacked local entry. */
+const NX_REMOTE_DOWNLOAD_ERROR =
+  /^[ \t]*(?:NX[ \t]+)?(?:(?:Failed to unpack entry|Invalid entry path in cache artifact|Refusing to extract cache entry with unsafe path):|(?:Failed to read entr(?:y|ies) from tarball|Invalid exit code in cache artifact|Exit code not found in cache artifact)[ \t]*$)/m;
+
+/** Older wording rule; it is not anchored to a line start. */
+const CACHE_FAILURE_WORDING =
+  /(?:failed|error|unable|cannot)[^\n]*(?:remote cache|cache server|NX_SELF_HOSTED_REMOTE_CACHE)|(?:remote cache|cache server|NX_SELF_HOSTED_REMOTE_CACHE)[^\n]*(?:failed|error|ECONNREFUSED|ENOTFOUND|ETIMEDOUT|401|403)/i;
+
 /**
  * A cache transport failure and a failing test are different events. Nx reports both through the
  * same exit code, so the transport signal is taken from its diagnostics, never from the test result.
+ * Returns the first line that names the failure, without Nx's banner, and whether the local cache is still sound:
+ * Nx keeps a finished task in the local cache before it uploads it, so only an unpacked download can spoil it.
  */
-export function looksLikeCacheTransportFailure(output: string): boolean {
+function cacheFailure(output: string): { readonly diagnostic: string; readonly keepLocal: boolean } | undefined {
   // A test can itself fail with ETIMEDOUT/ECONNREFUSED or HTTP 401. Only cache-specific
   // diagnostics justify retrying the entire requested task set without the transport.
   const plain = output.replace(/\x1b\[[0-9;]*m/g, '');
-  return (
-    /^\s*NX\s+Failed to unpack entry:/im.test(plain) ||
-    /(?:failed|error|unable|cannot)[^\n]*(?:remote cache|cache server|NX_SELF_HOSTED_REMOTE_CACHE)|(?:remote cache|cache server|NX_SELF_HOSTED_REMOTE_CACHE)[^\n]*(?:failed|error|ECONNREFUSED|ENOTFOUND|ETIMEDOUT|401|403)/i.test(
-      plain,
-    )
-  );
+  const matches = [NX_REMOTE_REQUEST_ERROR, NX_REMOTE_DOWNLOAD_ERROR, CACHE_FAILURE_WORDING]
+    .map((rule) => rule.exec(plain))
+    .filter((match) => match !== null);
+  if (!matches.length) return undefined;
+  const first = Math.min(...matches.map((match) => match.index));
+  const end = plain.indexOf('\n', first);
+  return {
+    diagnostic: plain
+      .slice(plain.lastIndexOf('\n', first) + 1, end === -1 ? undefined : end)
+      .trim()
+      .replace(/^NX\s+/, ''),
+    keepLocal: NX_REMOTE_REQUEST_ERROR.test(plain) && !NX_REMOTE_DOWNLOAD_ERROR.test(plain),
+  };
+}
+
+export function looksLikeCacheTransportFailure(output: string): boolean {
+  return cacheFailure(output) !== undefined;
+}
+
+/** A GitHub Actions workflow command's message, escaped as the runner reads it. */
+function workflowMessage(text: string): string {
+  return text.replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
 }
 
 export async function orchestrate(root: string, options: OrchestrationOptions): Promise<OrchestrationResult> {
@@ -167,14 +225,25 @@ export async function orchestrate(root: string, options: OrchestrationOptions): 
 
   let remote: OrchestrationResult['remote'] = remoteWanted ? 'enabled' : 'disabled';
   let result = await invoke(remoteWanted);
-  // Nx can print a successful summary after an unpack failure while skipping dependants.
-  // Retry once without either cache, including a partially unpacked local entry.
-  if (!options.full && looksLikeCacheTransportFailure(`${result.stdout}\n${result.stderr}`)) {
+  // Nx can print a successful summary after an unpack failure while skipping dependants, and one failed remote
+  // request aborts its whole run or fails a task that passed. Retry once without the remote cache. After a broken
+  // download, retry without the local cache too, which may hold a partially unpacked entry; otherwise keep it, so
+  // a long shard does not run its finished cacheable tasks twice.
+  const failure = options.full ? undefined : cacheFailure(`${result.stdout}\n${result.stderr}`);
+  if (failure !== undefined) {
     if (remoteWanted) remote = 'retired-after-transport-failure';
-    console.error(
-      'Cache restoration failed; retrying with all cache reuse disabled. The original diagnostics appear above.',
-    );
-    result = await invoke(false, true);
+    // A test that runs this orchestrator inside an outer run streams these lines into that run's output, so the retry
+    // line never pairs "remote cache" with a failure word, which the older wording rule would read as a diagnostic.
+    // The annotation quotes Nx, so it can, for example for a 500.
+    const retry = failure.keepLocal ? 'remote reuse disabled and the local cache kept' : 'all cache reuse disabled';
+    console.error(`A cache transfer failed; retrying with ${retry}. The original diagnostics appear above.`);
+    // A passing retry leaves the job green, so the reason goes to the run's annotations: a cache that keeps failing
+    // then shows on the run page instead of only making every run slower.
+    if (process.env['GITHUB_ACTIONS'] === 'true')
+      console.log(
+        `::warning title=Nx cache fallback::${workflowMessage(`Nx reported "${failure.diagnostic}"; running the requested tasks again with ${retry}.`)}`,
+      );
+    result = await invoke(false, !failure.keepLocal);
   }
 
   const after = cacheEntries(root);
