@@ -583,3 +583,65 @@ it('tables the five shapes and the four phases, each shape with the registered w
     "start each session with the IA door's ia_session; for a task, use the lane ia:work, ia:knowledge or ia:delivery: ia_catalogue names its keys and ia_method returns the method for one key",
   ]);
 });
+
+// REQ-WSSYS-12: the packet names the seat's whole parent chain, marks each link counted or not counted, and lists each
+// counted target's decides list. A packet for a workspace with neither is unchanged (the golden packets above).
+const workspaceRecord = (name: string, more: readonly string[], decides: readonly string[] = []): string =>
+  `\n@workspace ${name}\n  meaning\n    says "Fixture workspace ${name}."\n    answers "What does ${name} hold?"\n  composition\n    systems [@system workspace-system]\n${
+    decides.length === 0 ? '' : `    decides [${decides.map((entry) => JSON.stringify(entry)).join(', ')}]\n`
+  }  relationships\n${more.map((row) => `    ${row}\n`).join('')}`;
+/**
+ * The seat's record, and the other workspaces each in a file of their own (a file with several is no seat). The
+ * vendored conformance corpus predates composition.decides, so its workspace schema is this repository's own.
+ */
+const treeRoot = (): string => {
+  const schema = '.ia/src/systems/workspace-system/schemas/workspace.schema.ia';
+  const root = freshInit(
+    readFileSync(fixture, 'utf8').replace(
+      '    steward @agent demo\n',
+      '    steward @agent demo\n  relationships\n    governed-by @workspace engineering\n    implements @workspace design\n    implements @workspace product\n',
+    ),
+    { [schema]: readFileSync(resolve(repository, schema), 'utf8') },
+  );
+  const file = (name: string, text: string): void =>
+    put(root, `.ia/src/scopes/${name}/workspace.ia`, `#! ia 1.0\n${text}`);
+  file('engineering', workspaceRecord('engineering', ['governed-by @workspace organisation']));
+  file('organisation', workspaceRecord('organisation', []));
+  file(
+    'design',
+    workspaceRecord('design', ['implemented-by @workspace demo'], ['how-it-looks: Design decides how it looks.']),
+  );
+  file('product', workspaceRecord('product', [], ['what-is-built: Product decides what is built.']));
+  return root;
+};
+
+it('names the parent chain, marks each link counted or not counted and lists a counted target decides list', () => {
+  const db = database(treeRoot());
+  expect(errors(db)).toEqual([]);
+  const { packet } = render(db);
+  const id = (name: string) => `workspace-system/definition/workspace/${name}`;
+  expect(packet.parents).toEqual([id('engineering'), id('organisation')]);
+  expect(packet.links).toEqual([
+    {
+      workspace: id('design'),
+      seat: 'implements',
+      counted: true,
+      decides: ['how-it-looks: Design decides how it looks.'],
+    },
+    { workspace: id('product'), seat: 'implements', counted: false },
+  ]);
+  const output = render(db);
+  const text = renderHost('claude', output.packet, output.digest, output.hostNote, 'consumer')
+    .files.map((file) => file.text)
+    .join('\n');
+  expect(text).toContain('## Parent chain');
+  expect(text).toContain('- 2: `workspace-system/definition/workspace/organisation`');
+  expect(text).toMatch(/design`: implements; counted; decides/);
+  expect(text).toMatch(/product`: implements; not counted/);
+});
+
+it('adds nothing to the packet of a workspace with no parent and no link', () => {
+  const { packet } = render(database(freshInit()));
+  expect(packet).not.toHaveProperty('parents');
+  expect(packet).not.toHaveProperty('links');
+});

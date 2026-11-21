@@ -117,6 +117,20 @@ export interface PacketTally {
   readonly word: string;
   readonly count: number;
 }
+/**
+ * One link of the seat, `implements` or `implemented-by` another @workspace (workspace-system REQ-WSSYS-12): `counted`
+ * only when the taker wrote `implements` and the supplier wrote `implemented-by`, each naming the other; a link written
+ * at one end is listed not counted. A counted target's `decides` list is read from its record.
+ */
+export interface PacketLink {
+  /** The other @workspace's identity. */
+  readonly workspace: string;
+  /** What the seat does: it `implements` the other (it takes), or is `implemented-by` it (it supplies). */
+  readonly seat: 'implements' | 'implemented-by';
+  readonly counted: boolean;
+  /** The counterpart's `composition.decides` entries, as authored; present only on a counted link that states some. */
+  readonly decides?: readonly string[];
+}
 /** One row of the intent table: a SHAPE_ROWS shape, in table order. */
 export interface PacketIntent {
   readonly shape: Shape;
@@ -160,6 +174,13 @@ export interface PositionPacket {
   readonly participants: readonly PacketParticipant[];
   readonly mandates: readonly PacketMandate[];
   readonly systems: readonly PacketSystem[];
+  /**
+   * The seat's whole parent chain, nearest first: each @workspace it is `governed-by`, then that one's parent, and so on
+   * (REQ-WSSYS-12). Present only when the seat has a parent in the scope; a packet for a workspace with none is unchanged.
+   */
+  readonly parents?: readonly string[];
+  /** The seat's links, each marked counted or not counted; present only when the seat has any. */
+  readonly links?: readonly PacketLink[];
   readonly tallies: readonly PacketTally[];
   readonly intents: readonly PacketIntent[];
   readonly phases: readonly PacketPhase[];
@@ -327,6 +348,47 @@ export function renderPacket(handle: ReadHandle, within: string, catalog: readon
     .sort((a, b) => order(a.identity, b.identity));
   const steward = seat === undefined ? undefined : refsAt(seat, 'composition.steward')[0];
 
+  // The parent chain and the links (REQ-WSSYS-12). A parent is the other @workspace of a `govern` row the seat is the
+  // target of, whichever end wrote it; a link counts only when both ends wrote it, which the directed rows show as a
+  // declared row on one side and the counterpart's declaration read from this side as its inverse.
+  const isWorkspace = (identity: string): boolean => nodes.get(identity)?.discriminator === 'workspace';
+  const parentOf = (identity: string): string | undefined =>
+    rowsOf(identity)
+      .filter(
+        (row) =>
+          row.kind !== 'field-ref' &&
+          row.predicate === 'govern' &&
+          row.direction === 'in' &&
+          isWorkspace(row.counterpart),
+      )
+      .map((row) => row.counterpart)
+      .sort(order)[0];
+  const parents: string[] = [];
+  if (seatId !== undefined) {
+    for (let next = parentOf(seatId); next !== undefined && next !== seatId && !parents.includes(next); )
+      next = (parents.push(next), parentOf(next));
+  }
+  const links: PacketLink[] = [];
+  if (seatId !== undefined) {
+    const rows = rowsOf(seatId).filter(
+      (row): row is Extract<DirectedRow, { kind: 'edge' | 'inverse' }> =>
+        row.kind !== 'field-ref' && row.predicate === 'implement' && isWorkspace(row.counterpart),
+    );
+    for (const counterpart of [...new Set(rows.map((row) => row.counterpart))].sort(order))
+      for (const direction of ['out', 'in'] as const) {
+        const here = rows.filter((row) => row.counterpart === counterpart && row.direction === direction);
+        if (here.length === 0) continue;
+        const counted = here.some((row) => row.kind === 'edge') && here.some((row) => row.kind === 'inverse');
+        const decides = counted ? textsAt(nodes.get(counterpart)!, 'composition.decides') : [];
+        links.push({
+          workspace: counterpart,
+          seat: direction === 'out' ? 'implements' : 'implemented-by',
+          counted,
+          ...(decides.length === 0 ? {} : { decides }),
+        });
+      }
+  }
+
   // Captured-record tallies, per word: the band-100 capture members (db D02a) under the seat's own declared roots, as
   // position composes a workspace seat's (R15). A seat that declares no root has none, which body(K0)'s `sources`
   // unknown says; its fallback closure is what position may enter, not what the workspace captures.
@@ -395,6 +457,8 @@ export function renderPacket(handle: ReadHandle, within: string, catalog: readon
     participants,
     mandates,
     systems,
+    ...(parents.length === 0 ? {} : { parents }),
+    ...(links.length === 0 ? {} : { links }),
     tallies,
     intents,
     phases,
@@ -415,6 +479,8 @@ export function entryCount(packet: PositionPacket): number {
     packet.mandates.length +
     1 +
     packet.systems.length +
+    (packet.parents?.length ?? 0) +
+    (packet.links?.length ?? 0) +
     packet.tallies.length +
     packet.intents.length +
     packet.phases.length +

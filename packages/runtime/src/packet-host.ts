@@ -356,6 +356,21 @@ function sections(packet: PositionPacket): readonly string[] {
     ),
   );
   section(
+    'Parent chain',
+    (packet.parents ?? []).map((parent, level) => `- ${level + 1}: ${code(parent)}`),
+  );
+  section(
+    'Links',
+    (packet.links ?? []).map(
+      (link) =>
+        `- ${code(link.workspace)}: ${[
+          link.seat,
+          link.counted ? 'counted' : 'not counted',
+          ...(link.decides === undefined ? [] : [`decides ${list(link.decides)}`]),
+        ].join('; ')}`,
+    ),
+  );
+  section(
     'Captured records',
     packet.tallies.map(({ word, count }) => `- ${word} ${count}`),
   );
