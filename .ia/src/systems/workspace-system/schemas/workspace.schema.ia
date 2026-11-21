@@ -13,3 +13,6 @@
     must have composition.systems as list of ref to system
     may have composition.sources as list of text "A root and the placement it is captured at, spelled <root> @<placement> with the placement one of authored, adopted, open, floor or runtime; for example .ia/src @authored. Admission does not check this form; an entry spelled any other way declares no root."
     may have composition.steward as ref to agent
+    may have composition.public-agent as ref to agent "The intake participant that receives cross-workspace requests for this workspace."
+    may have composition.private-agent as ref to agent "The internal participant that carries out work inside this workspace."
+    may have composition.decides as list of text "What this workspace decides, each entry spelled <id>: <one plain sentence>; structural admission does not check this form."

@@ -8,6 +8,14 @@ Thank you for considering a contribution. This document explains how the reposit
 - For a security problem, follow [SECURITY.md](SECURITY.md) instead of opening an issue.
 - Everyone taking part is expected to follow the [code of conduct](CODE_OF_CONDUCT.md).
 
+## What belongs in this repository
+
+InventArch separates vocabulary, Engine lowering, public starter kits, and private service glue across distinct homes:
+
+- **Framework and Engine lowering (`inventarch/ia`, this repository).** Submit changes here when a word, schema, mandate, check, host projection or execution binding requires new deterministic behavior in the `.ia` compiler, graph, compliance engine, database or knowledge readers, CLI, MCP door or open execution Engine. Contributions here are about how declared words lower into validation, authority and code execution.
+- **Shared systems and public starter kits ([`inventarch/marketplace`](https://github.com/inventarch/marketplace)).** Systems (`@system` and `@schema` definitions) define vocabulary. Shared definitions are adopted and pinned locally; locally authored systems do not need an external pin. Kits package systems and methods, and workspaces compose systems and bind methods. Foundational language systems stay in this repository; shared domain systems and public starter kits belong in `inventarch/marketplace`, beside the `ia` host plugin. If your feature pairs an Engine adjustment with a proposed system and starter kit, submit the Engine adjustment here and the system and starter kit in `inventarch/marketplace`.
+- **Private APIs, custom MCP servers and authentication glue.** Code that wires IA words to your own backend API, organisation-specific MCP server or user authentication does not belong in `inventarch/ia` or `inventarch/marketplace`. Host those bindings in your own repository or private catalogue while keeping shared system definitions pinned locally under `.ia/`.
+
 ## Prerequisites
 
 The declared support target is Linux x64, Windows x64 and macOS arm64, on Node.js `>=22.22.0 <23`, with the pnpm version pinned in `packageManager` in [package.json](package.json) for contributors. `ia doctor` reports whether your machine matches that target.

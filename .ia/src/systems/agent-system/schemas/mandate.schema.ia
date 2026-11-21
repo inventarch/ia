@@ -24,5 +24,6 @@
     may have authority.participant as ref to agent "The agent this mandate binds."
     may have authority.moves as list of id in [Observation, Execution, Delegation, Synthesis, Verification]
     may have authority.scope as list of ref to workspace "The workspaces the mandate applies in."
+    may have authority.words as list of id "Words the participant may author under this mandate."
     may have authority.excluded-words as list of id "Words the participant may not author under this mandate."
     may have authority.covers as list of text "Path selections the mandate claims, matched by the location resolver."

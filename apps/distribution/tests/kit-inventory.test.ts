@@ -112,6 +112,56 @@ it('a direct request outside both is a release unit, and a dependency-only relea
 it('no lock gives no units', () => {
   expect(installedUnits(workspace())).toEqual({ units: [], unknownCollections: [], problems: [] });
 });
+it('a hosted lock entry is one remotely managed hosted unit, alone or beside package and release units', () => {
+  const root = workspace();
+  const hosted = {
+    kind: 'hosted' as const,
+    id: 'acme/studio-kit',
+    version: '1.2.3+build.1',
+    hosted: true as const,
+    archive: hex('1'),
+    manifest: hex('2'),
+  };
+  put(
+    root,
+    '.ia/distributions.lock.json',
+    canonicalDistributionJson({
+      formatVersion: 1,
+      engine: '^0.1.3',
+      requests: [],
+      packages: [],
+      entries: [hosted],
+    }),
+  );
+  expect(installedUnits(root)).toEqual({
+    units: [
+      {
+        id: 'acme/studio-kit',
+        version: '1.2.3+build.1',
+        source: { kind: 'hosted', archive: hex('1'), manifest: hex('2') },
+        members: ['acme/studio-kit'],
+      },
+    ],
+    unknownCollections: [],
+    problems: [],
+  });
+  put(
+    root,
+    '.ia/distributions.lock.json',
+    canonicalDistributionJson({
+      formatVersion: 1,
+      engine: '^0.1.3',
+      requests: [{ id: 'acme/app', range: '2.0.0' }],
+      packages: [APP, LIB],
+      entries: [hosted, PACKAGE_ENTRY],
+    }),
+  );
+  expect(installedUnits(root).units.map((unit) => [unit.id, unit.source.kind])).toEqual([
+    ['acme/studio-kit', 'hosted'],
+    ['@acme/kits', 'package'],
+    ['acme/app', 'release'],
+  ]);
+});
 it('a record describing another lock gives release units and one problem', () => {
   const root = workspace();
   const before = lock(root, [X, Y], ['acme/x', 'acme/y']);

@@ -34,6 +34,7 @@ Section relationships: optional.
 - authority.participant: ref to agent; optional. — The agent this mandate binds.
 - authority.moves: list of id in [Observation, Execution, Delegation, Synthesis, Verification]; optional.
 - authority.scope: list of ref to workspace; optional. — The workspaces the mandate applies in.
+- authority.words: list of id; optional. — Words the participant may author under this mandate.
 - authority.excluded-words: list of id; optional. — Words the participant may not author under this mandate.
 - authority.covers: list of text; optional. — Path selections the mandate claims, matched by the location resolver.
 

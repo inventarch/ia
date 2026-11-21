@@ -55,13 +55,16 @@ export {
   INSTALLED_KITS_DIRECTORY,
   RESTORE_NEEDED,
   STORE,
+  hostedKit,
+  hostedRefusal,
   installedPackageKits,
+  lockedHostedKits,
   lockedPackageKits,
   packagedKit,
   restoreRefusal,
   workspaceKits,
 } from './installed-kits.js';
-export type { InstalledKits, LockedKit } from './installed-kits.js';
+export type { HostedKit, InstalledKits, LockedKit } from './installed-kits.js';
 export {
   ENTRIES,
   PHASES,
@@ -78,8 +81,16 @@ export {
 export type { Binding, Bindings, Entry, SelectedBinding } from './bindings.js';
 export { PIN_FORMAT, kitUpdate, pinRootFor, projectOf, readPin, writePin } from './pin.js';
 export type { Pin, PinnedKey, PinnedKit } from './pin.js';
-export { DIGESTED, EVIDENCE_STATES, PACKET_CONTRACT, assemblePacket, canonical, packetDigest } from './packet.js';
-export type { MethodPacket } from './packet.js';
+export {
+  ACTIVATION_PACKET_CONTRACT,
+  DIGESTED,
+  EVIDENCE_STATES,
+  PACKET_CONTRACT,
+  assemblePacket,
+  canonical,
+  packetDigest,
+} from './packet.js';
+export type { MethodPacket, PacketContract } from './packet.js';
 export { closureStore, retainKit, retainedKit } from './retained.js';
 export { assertReadable, kitCache, kitReadRoot, userCache } from './kit-root.js';
 export type { KitRestore } from './kit-root.js';

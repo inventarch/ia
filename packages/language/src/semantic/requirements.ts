@@ -1,4 +1,4 @@
-import { diag } from '../diagnostics.js';
+import { diag, summarizeOthers } from '../diagnostics.js';
 import type { Diagnostic } from '../diagnostics.js';
 import { sortDiagnostics } from '../registry/index.js';
 
@@ -27,18 +27,19 @@ export function requirementCollisions<T extends RequirementOccurrence>(
   const diagnostics: Diagnostic[] = [];
   for (const group of groups.values()) {
     if (group.length < 2) continue;
-    for (const occurrence of group) {
+    const ordered = group
+      .map((occurrence) => ({ occurrence, label: `${occurrence.path}:${occurrence.line} (${occurrence.identity})` }))
+      .sort((a, b) => (a.label < b.label ? -1 : a.label > b.label ? 1 : 0));
+    const labels = ordered.map((entry) => entry.label);
+    for (let i = 0; i < ordered.length; i++) {
+      const { occurrence } = ordered[i]!;
       refused.add(occurrence);
-      const others = group
-        .filter((other) => other !== occurrence)
-        .map((other) => `${other.path}:${other.line} (${other.identity})`)
-        .sort();
       diagnostics.push(
         diag(
           'IA-LANG-REQUIREMENT-DUPLICATE',
           occurrence.path,
           occurrence.line,
-          `Requirement ${occurrence.id} is also declared at ${others.join(', ')}.`,
+          `Requirement ${occurrence.id} is also declared at ${summarizeOthers(labels, i)}.`,
           { identity: occurrence.identity },
         ),
       );

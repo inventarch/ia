@@ -96,7 +96,7 @@ Evidence: [compiled values and key rule](tests/compile/values.test.ts), [compile
 
 ## 7. Diagnostics and refusal
 
-L31. A diagnostic contains code, error/warning severity, path, line, message and optional endLine/identity. Kernel severity is a separate domain. Diagnostics are deterministic, ordered by path and source line when returned from registry/compile.
+L31. A diagnostic contains code, error/warning severity, path, line, message and optional endLine/identity. Kernel severity is a separate domain. Diagnostics are deterministic, ordered by path and source line when returned from registry/compile. Scanner, parser, registry and compiler loops accumulate diagnostics, spans and nested field blocks iteratively without spreading unbounded arrays onto the JavaScript call stack, and peer/visible list summaries inside diagnostic messages remain exact for ordinary corpora (up to 32 entries and 512 characters) while truncating pathological item lengths and counts (`... (N more)`) so high-multiplicity fault files stay bounded in memory (`#198`).
 
 L32. A primary fault is diagnosed by its owning stage. Later extraction suppresses dependent errors for parser-refused elements, and refused schemas do not also become missing schemas. Distinct faults can each be reported; collisions report once on every participant. A file with any error is not loadable, even if compile returns surviving preview records.
 

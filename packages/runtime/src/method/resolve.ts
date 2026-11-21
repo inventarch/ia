@@ -19,10 +19,17 @@ import {
   sourcesDigest,
 } from './kits.js';
 import type { Kit, KitSources } from './kits.js';
-import { lockedPackageKits, restoreRefusal, workspaceKits } from './installed-kits.js';
-import type { LockedKit } from './installed-kits.js';
-import { assemblePacket } from './packet.js';
-import type { MethodPacket } from './packet.js';
+import {
+  hostedKit,
+  hostedRefusal,
+  lockedHostedKits,
+  lockedPackageKits,
+  restoreRefusal,
+  workspaceKits,
+} from './installed-kits.js';
+import type { HostedKit, LockedKit } from './installed-kits.js';
+import { ACTIVATION_PACKET_CONTRACT, PACKET_CONTRACT, assemblePacket } from './packet.js';
+import type { MethodPacket, PacketContract } from './packet.js';
 import { kitUpdate, pinRootFor, readPin, writePin } from './pin.js';
 import type { Pin } from './pin.js';
 import { WorkspaceReader } from './reader.js';
@@ -43,6 +50,8 @@ const VERSION: string = (
 export interface MethodRequest {
   readonly entry: string;
   readonly activity: string;
+  /** Select the contract the caller can consume; absent means protocol 1. */
+  readonly packetContract?: PacketContract;
   readonly subject?: string;
   readonly seat?: string;
   readonly root?: string;
@@ -157,6 +166,9 @@ export function resolveMethod(request: MethodRequest, context: MethodContext): M
     throw new MethodError('resolve needs --entry <work|delivery|knowledge> and --activity <activity>', 'IA-CORE-USAGE');
   if (RENAMED[request.entry]) throw new MethodError(renamedMessage(request.entry), 'IA-CORE-USAGE');
   if (request.pin && request.noPin) throw new MethodError('--pin and --no-pin exclude each other', 'IA-CORE-USAGE');
+  const contract = request.packetContract === undefined ? PACKET_CONTRACT : request.packetContract;
+  if (contract !== PACKET_CONTRACT && contract !== ACTIVATION_PACKET_CONTRACT)
+    throw new MethodError('packetContract must be 1 or 3', 'IA-CORE-USAGE');
   const missing: Missing[] = [];
   const note = (message: string, extra: Record<string, unknown> = {}): void => {
     missing.push({ kind: 'note', message, ...extra } as Missing);
@@ -231,9 +243,9 @@ export function resolveMethod(request: MethodRequest, context: MethodContext): M
     } catch {
       carried = [];
     }
-    let locked: readonly LockedKit[] = [];
+    let locked: readonly (LockedKit | HostedKit)[] = [];
     try {
-      locked = lockedPackageKits(workspaceRoot!);
+      locked = [...lockedPackageKits(workspaceRoot!), ...lockedHostedKits(workspaceRoot!)];
     } catch {
       locked = [];
     }
@@ -247,7 +259,11 @@ export function resolveMethod(request: MethodRequest, context: MethodContext): M
     );
   };
   const kitId = unbound ? binding.kit : canonicalId(binding.kit);
-  if (!unbound) requireKitInstalled(workspaceRoot!, { id: kitId });
+  if (!unbound) {
+    requireKitInstalled(workspaceRoot!, { id: kitId });
+    const pinnedHosted = hostedKit(workspaceRoot!, kitId);
+    if (pinnedHosted !== undefined) throw hostedRefusal(pinnedHosted);
+  }
 
   const keyPin = pin?.keys?.[activityKey] ?? null;
   const savedKit = pin?.kits?.[kitId] ?? null;
@@ -462,7 +478,18 @@ export function resolveMethod(request: MethodRequest, context: MethodContext): M
       when,
     });
     const references = [
-      ...((governance['rules'] ?? []) as JsonRecord[]).map((r) => ref(r, 'always')),
+      ...((governance['rules'] ?? []) as JsonRecord[]).map((r) => {
+        const activation = r['activation'];
+        if (activation === undefined) return ref(r, 'always');
+        if (typeof activation !== 'string' || !activation.trim())
+          throw new MethodError('position returned an invalid rule activation', 'IA-CORE-POSITION-INVALID');
+        if (contract !== ACTIVATION_PACKET_CONTRACT)
+          throw new MethodError(
+            'A rule is conditional at this position. Retry only with a receiver that supports packet contract 3; no method packet was returned.',
+            'IA-CORE-CONDITIONAL-PACKET-REQUIRED',
+          );
+        return { ...ref(r, 'activation'), activation };
+      }),
       ...((governance['mandates'] ?? []) as JsonRecord[]).map((r) => ref(r, 'seat')),
       ...(mandate ? [ref(mandate, 'role')] : []),
       ...((body['loaded'] ?? []) as JsonRecord[])
@@ -535,6 +562,7 @@ export function resolveMethod(request: MethodRequest, context: MethodContext): M
       workspace: workspaceRoot ? { root: workspaceRoot, revision: subjectBody['revision'] } : null,
     };
     const packet = assemblePacket({
+      contract,
       resolver: RESOLVER,
       binding: null,
       closure: {

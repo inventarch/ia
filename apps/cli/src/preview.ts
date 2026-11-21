@@ -21,7 +21,7 @@ import { lstatSync, readdirSync, realpathSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { fieldTypeText } from '@inventarch/compliance';
 import { linked, pathKey, readWorkspaceBytes } from '@inventarch/db';
-import { mandateAuthorityOf, RuntimeError } from '@inventarch/runtime';
+import { mandateAuthorityOf, RuntimeError, seatedWorkspace } from '@inventarch/runtime';
 import type { MandateAuthority } from '@inventarch/runtime';
 import {
   addRelationship,
@@ -269,29 +269,44 @@ function rootsOf(snapshot: Snapshot, within: string, workspace: string | undefin
   return { workspace, authored, declared };
 }
 /**
- * Why `path` is not an owned authored path of the workspace, or undefined when it is: the workspace must declare, at
- * authored placement, the longest declared root that holds the path. Several workspaces may declare that root (a
- * shared root, db D02b); the workspace owns it as any one of its declarers, whatever its identity sorts after. Roots
- * are compared in their exact canonical spelling, as native membership compares them.
+ * Why `path` is not an owned authored path, or undefined when it is: the authored `@workspace` (band 100) that owns the
+ * longest declared root holding `path` must declare that root at `authored` placement (#285). When several authored
+ * workspaces declare that identical root (a shared root, db D02b, #194), every authored declarer must declare it at
+ * `authored` placement, so an `@adopted` declaration never borrows another declarer's `@authored`. Roots are compared
+ * in their exact canonical spelling, as native membership compares them.
  */
-function unowned(roots: Roots, path: string): string | undefined {
+function unowned(snapshot: Snapshot, within: string, roots: Roots, path: string): string | undefined {
   if (!pathKey(path).startsWith('.ia/src/') || !path.endsWith('.ia')) return `${path} is no .ia file inside .ia/src`;
   if (pathKey(path).startsWith('.ia/src/floor/')) return `${path} is floor source`;
   // Native membership compares canonical root spellings exactly, even on a case-insensitive volume.
   const holder = roots.declared.find(
     (root) => root.root === '' || path === root.root || path.startsWith(`${root.root}/`),
   );
-  // Membership is shared by every declarer of the winning root; an ancestor is not an owner of it.
-  const owned =
-    holder !== undefined &&
-    roots.declared.some(
-      (root) => root.root === holder.root && root.workspace === roots.workspace && root.placement === 'authored',
+  if (holder !== undefined) {
+    const declarers = roots.declared.filter(
+      (root) => root.root === holder.root && snapshot.get(root.workspace, { within })?.band === 100,
     );
-  if (!owned)
-    return roots.workspace === undefined
-      ? `${path} lies under no authored root: this repository authors no @workspace`
-      : `${path} lies under no authored root ${roots.workspace} declares in composition.sources`;
-  return undefined;
+    const seated = seatedWorkspace(snapshot, within, path);
+    const owned =
+      declarers.length === 1
+        ? declarers[0]!.placement === 'authored'
+        : declarers.length > 1 &&
+          declarers.every((declarer) => declarer.placement === 'authored') &&
+          (seated === undefined || declarers.some((declarer) => declarer.workspace === seated));
+    if (owned) return undefined;
+    if (declarers.length > 0) {
+      const nonAuthored = declarers.find((declarer) => declarer.placement !== 'authored') ?? declarers[0]!;
+      return `${path} lies under ${holder.root || '.'} (@${nonAuthored.placement} of ${nonAuthored.workspace}), not an @authored root`;
+    }
+  }
+  const authoredWorkspaces = snapshot
+    .records({ within })
+    .filter((node) => node.discriminator === 'workspace' && node.band === 100);
+  if (authoredWorkspaces.length === 0)
+    return `${path} lies under no authored root: this repository authors no @workspace`;
+  return roots.workspace === undefined
+    ? `${path} lies under no authored root any @workspace declares in composition.sources`
+    : `${path} lies under no authored root ${roots.workspace} or any other authored @workspace declares in composition.sources`;
 }
 /** The default file for a new `@<word>` record: `<first authored root inside .ia/src>/<word>.ia`. */
 const defaultFile = (roots: Roots, word: string): string | undefined => {
@@ -503,7 +518,7 @@ function ownedRecord(run: Invocation, node: Node): void {
   const reason =
     node.band !== 100 || node.placement.kind !== 'authored'
       ? `${node.identity} is at ${node.placement.kind} placement (band ${node.band}), not authored by this workspace`
-      : unowned(run.roots, node.source.path);
+      : unowned(run.snapshot, run.within, run.roots, node.source.path);
   if (reason !== undefined) {
     const steward = run.snapshot
       .records({ within: run.within })
@@ -551,11 +566,17 @@ function bindsActor(run: Invocation, node: Node, profile: Profile): boolean {
     );
     return resolved.ok && resolved.identity === profile.actor;
   }
-  const workspace =
-    profile.workspace === undefined ? undefined : run.snapshot.get(profile.workspace, { within: run.within })?.name;
+  const workspaceNames =
+    profile.workspace !== undefined
+      ? [run.snapshot.get(profile.workspace, { within: run.within })?.name].filter(
+          (name): name is string => name !== undefined,
+        )
+      : (run.snapshot.resolveSeat(node.source.path, { within: run.within }).declarers ?? [])
+          .map((id) => run.snapshot.get(id, { within: run.within })?.name)
+          .filter((name): name is string => name !== undefined);
   return (
     (authority.covers?.length ?? 0) > 0 ||
-    (workspace !== undefined && (authority.scope ?? []).some((name) => name.toLowerCase() === workspace))
+    (workspaceNames.length > 0 && (authority.scope ?? []).some((name) => workspaceNames.includes(name.toLowerCase())))
   );
 }
 /** IA-CLI-EDIT-MANDATE when `node`, before or after the edit, is a `@mandate` that binds the acting participant. */
@@ -755,9 +776,10 @@ function previewRecord(
   };
 }
 /**
- * A new local system is `ia init --system`'s starter system, `@system <name>` and its steward `@agent <name>-steward`,
- * in `.ia/src/systems/<name>/system.ia`, a file no source may hold yet. Its words are the floor's `system` and `agent`,
- * both judged for exclusion.
+ * A new local system is `ia init --system`'s starter system, `@system <name>`, its steward `@agent <name>-steward` and
+ * the steward's `@mandate <name>-stewardship` covering the system folder alone, in `.ia/src/systems/<name>/system.ia`,
+ * a file no source may hold yet. Its words, the floor's `system` and agent-system's `agent` and `mandate`, are each
+ * judged for exclusion.
  */
 function previewSystem(run: Invocation, name: string, mode: EditMode): Candidate {
   const path = spelledPath(run, systemPath(name));
@@ -766,7 +788,7 @@ function previewSystem(run: Invocation, name: string, mode: EditMode): Candidate
     within: run.within,
     context: run.context,
     mode,
-    words: ['system', 'agent'],
+    words: ['system', 'agent', 'mandate'],
     path,
   });
   if (run.registry.systems.has(name))
@@ -988,14 +1010,24 @@ function ownedTarget(run: Invocation, word: string, path: string | undefined): T
         ? `Run "ia position${run.rooted}" for the repository's position.`
         : `Run "ia position --seat ${run.roots.workspace}${run.rooted}" for the roots the workspace declares.`,
     );
+  const seatWs =
+    path !== undefined && portable(path) ? seatedWorkspace(run.snapshot, run.within, path) : run.roots.workspace;
+  const seatFallback =
+    seatWs === run.roots.workspace
+      ? fallback
+      : seatWs === undefined
+        ? undefined
+        : defaultFile(rootsOf(run.snapshot, run.within, seatWs), word);
   const elsewhere =
-    fallback !== undefined && fallback !== path
+    seatWs === run.roots.workspace && fallback !== undefined && fallback !== path
       ? `Run "${previewAgain(run, { options: { at: [] } })}" to preview the default file ${fallback} instead.`
-      : run.roots.workspace === undefined
-        ? `Run "ia position${run.rooted}" for the repository's position; it authors no @workspace to declare roots.`
-        : `Run "ia position --seat ${run.roots.workspace}${run.rooted}" for the roots the workspace declares.`;
+      : seatFallback !== undefined && seatFallback !== path
+        ? `Run "${previewAgain(run, { options: { at: [seatFallback] } })}" to preview ${seatFallback} instead.`
+        : (seatWs ?? run.roots.workspace) === undefined
+          ? `Run "ia position${run.rooted}" for the repository's position; it authors no @workspace to declare roots.`
+          : `Run "ia position --seat ${(seatWs ?? run.roots.workspace)!}${run.rooted}" for the roots the workspace declares.`;
   if (!portable(path)) throw new Refusal('IA-DB-PATH-UNSAFE', `Unsafe workspace path: ${path}`, 3, { path }, elsewhere);
-  const reason = unowned(run.roots, path);
+  const reason = unowned(run.snapshot, run.within, run.roots, path);
   if (reason !== undefined) throw new Refusal('IA-CLI-EDIT-UNOWNED', reason, 1, { path }, elsewhere);
   return targetFile(run.root, run.snapshot, path, previewAgain(run), (spelled) =>
     previewAgain(run, { options: { at: [spelled] } }),

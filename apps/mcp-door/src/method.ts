@@ -111,6 +111,12 @@ export const METHOD_TOOLS = [
           description: 'What the task is about; stored and returned only as its sha256.',
         },
         task: { ...text, maxLength: 128, description: 'A task slug: pins the resolution under that task.' },
+        packetContract: {
+          type: 'integer',
+          enum: [1, 3],
+          description:
+            'Defaults to 1, which refuses unresolved rule activation. Request 3 only if this receiver understands conditional references.',
+        },
       },
       ['key'],
     ),
@@ -295,18 +301,22 @@ export class MethodTools {
     );
   }
   #method(args: Record<string, unknown>): unknown {
-    only(args, ['key', 'root', 'subject', 'task']);
+    only(args, ['key', 'root', 'subject', 'task', 'packetContract']);
     const key = optional(args, 'key', 96) ?? usage('key is required');
     const matched = KEY.exec(key) ?? usage(`key must be <lane>.<activity>: ${key}`);
     const task = optional(args, 'task', 128);
     if (task !== undefined && !SLUG.test(task)) usage(`task must be a slug: ${task}`);
     const subject = optional(args, 'subject', 4096);
+    const packetContract = args['packetContract'];
+    if (packetContract !== undefined && packetContract !== 1 && packetContract !== 3)
+      return usage('packetContract must be 1 or 3');
     const { root } = this.#root(optional(args, 'root', 4096));
     const project = projectOf(root);
     return resolveMethod(
       {
         entry: matched[1]!,
         activity: matched[2]!,
+        ...(packetContract === undefined ? {} : { packetContract }),
         root,
         host: 'mcp-door',
         ...(subject === undefined

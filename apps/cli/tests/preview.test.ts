@@ -436,9 +436,25 @@ describe('a root the workspace shares with another', () => {
       declarers: [alpha, demo],
     });
     expect(positioned.body.mandates.map((entry) => entry.identity)).toEqual([mandate('shared-mandate')]);
-    // A root only the other workspace declares stays unowned.
-    const theirs = await refused(root, ['task', 't2', '--at', '.ia/src/alpha/task.ia'], 'IA-CLI-EDIT-UNOWNED');
-    expect(theirs['message']).toContain(`${demo} declares in composition.sources`);
+    // Under #285, a root only the department workspace declares seats at that department workspace (`alpha`), where
+    // `shared-mandate` in `alpha`'s closure grants `@agent demo` Verification and Synthesis.
+    const deptCreated = await preview(root, [
+      'task',
+      't2',
+      'meaning.says=Department task',
+      'work.title=Department',
+      'work.status=open',
+      'milestone=@milestone m5',
+      '--at',
+      '.ia/src/alpha/task.ia',
+    ]);
+    expect(deptCreated.exitCode, deptCreated.stdout).toBe(0);
+    expect(body(deptCreated)).toMatchObject({
+      path: '.ia/src/alpha/task.ia',
+      exists: false,
+      clean: true,
+      profile: { actor: participant, mandates: [mandate('shared-mandate')] },
+    });
   });
 });
 
@@ -508,7 +524,7 @@ describe('shared authored-root ownership', () => {
       );
       writeFileSync(
         resolve(at, '.ia/src/other.ia'),
-        `#! ia 1.0\n\n@workspace ${other}\n  meaning\n    says "Another declarer."\n    answers "Who also declares the shared root?"\n  composition\n    systems [@system work-system, @system workspace-system]\n    sources [".ia/src/shared @authored", ".ia/src/shared/foreign @authored"]\n`,
+        `#! ia 1.0\n\n@workspace ${other}\n  meaning\n    says "Another declarer."\n    answers "Who also declares the shared root?"\n  composition\n    systems [@system work-system, @system workspace-system]\n    sources [".ia/src/shared @authored", ".ia/src/shared/foreign @adopted"]\n`,
       );
       mkdirSync(resolve(at, '.ia/src/shared'), { recursive: true });
       writeFileSync(
@@ -551,7 +567,11 @@ describe('shared authored-root ownership', () => {
   );
   it.each(['alpha', 'zeta'])('does not borrow a differently cased root from %s', async (other) => {
     const root = shared(other);
-    rewrite(root, '.ia/src/other.ia', (text) => text.replaceAll('.ia/src/shared', '.ia/src/Shared'));
+    rewrite(root, '.ia/src/other.ia', (text) =>
+      text
+        .replace('.ia/src/shared @authored', '.ia/src/Shared @adopted')
+        .replace('.ia/src/shared/foreign', '.ia/src/Shared/foreign'),
+    );
     // Two renames establish the exact disk spelling on case-sensitive and case-insensitive volumes alike.
     renameSync(resolve(root, '.ia/src/shared'), resolve(root, '.ia/src/moving-shared'));
     renameSync(resolve(root, '.ia/src/moving-shared'), resolve(root, '.ia/src/Shared'));
@@ -1169,5 +1189,278 @@ describe('the portable path rule', () => {
     const human = await run(['preview', 'task', 't9', '--at', path, '--root', root]);
     expect(human.exitCode).toBe(3);
     expect(human.stderr).not.toContain(String.fromCharCode(0x202e));
+  });
+});
+
+describe('department workspace path ownership (#285)', () => {
+  function orgWorkspace(): string {
+    return workspace((at) => {
+      // Root org workspace owns `.ia/src/org` only, NOT `.ia/src/scopes/*`, so departments stay isolated from org composition.
+      mkdirSync(resolve(at, '.ia/src/org'), { recursive: true });
+      renameSync(resolve(at, '.ia/src/work.ia'), resolve(at, '.ia/src/org/work.ia'));
+      rewrite(at, '.ia/src/workspace.ia', (text) =>
+        text.replace('sources [".ia/src @authored"]', 'sources [".ia/src/org @authored"]'),
+      );
+      mkdirSync(resolve(at, '.ia/src/scopes/engineering/public'), { recursive: true });
+      mkdirSync(resolve(at, '.ia/src/scopes/engineering/private'), { recursive: true });
+      writeFileSync(
+        resolve(at, '.ia/src/scopes/engineering/workspace.ia'),
+        [
+          '#! ia 1.0',
+          '',
+          '@workspace engineering',
+          '  meaning',
+          '    says "Engineering department workspace."',
+          '    answers "Which sources belong to engineering?"',
+          '  composition',
+          '    systems [@system agent-system, @system work-system, @system workspace-system]',
+          '    sources [".ia/src/scopes/engineering @authored"]',
+          '',
+          '@agent eng-author',
+          '  meaning',
+          '    says "Engineering author."',
+          '    answers "Who authors engineering records?"',
+          '  governance',
+          '    applies []',
+          '',
+          '@mandate eng-mandate',
+          '  meaning',
+          '    says "Engineering authoring mandate."',
+          '    answers "Where may eng-author write?"',
+          '  governance',
+          '    requires "Claim no host permission or execution from this mandate."',
+          '  authority',
+          '    participant @agent eng-author',
+          '    moves [Observation, Verification, Synthesis]',
+          '    scope [@workspace engineering]',
+          '',
+          '@agent eng-public-only',
+          '  meaning',
+          '    says "Scoped public-only engineering contributor."',
+          '    answers "Who authors public engineering records?"',
+          '  governance',
+          '    applies []',
+          '',
+          '@mandate eng-public-mandate',
+          '  meaning',
+          '    says "Allows authoring only under engineering/public."',
+          '    answers "Which paths may eng-public-only write?"',
+          '  governance',
+          '    requires "Claim no host permission or execution from this mandate."',
+          '  authority',
+          '    participant @agent eng-public-only',
+          '    moves [Observation, Verification, Synthesis]',
+          '    covers [".ia/src/scopes/engineering/public/**"]',
+          '',
+        ].join('\n'),
+      );
+      mkdirSync(resolve(at, '.ia/src/scopes/design'), { recursive: true });
+      writeFileSync(
+        resolve(at, '.ia/src/scopes/design/workspace.ia'),
+        [
+          '#! ia 1.0',
+          '',
+          '@workspace design',
+          '  meaning',
+          '    says "Design department workspace."',
+          '    answers "Which sources belong to design?"',
+          '  composition',
+          '    systems [@system agent-system, @system work-system, @system workspace-system]',
+          '    sources [".ia/src/scopes/design @authored"]',
+          '    steward @agent design-author',
+          '',
+          '@agent design-author',
+          '  meaning',
+          '    says "Design author."',
+          '    answers "Who authors design records?"',
+          '  governance',
+          '    applies []',
+          '',
+          '@mandate design-mandate',
+          '  meaning',
+          '    says "Design authoring mandate."',
+          '    answers "Where may design-author write?"',
+          '  governance',
+          '    requires "Claim no host permission or execution from this mandate."',
+          '  authority',
+          '    participant @agent design-author',
+          '    moves [Observation, Verification, Synthesis]',
+          '    scope [@workspace design]',
+          '',
+        ].join('\n'),
+      );
+    });
+  }
+
+  it('previews and authors records inside a nested department workspace without root composition redundancy', async () => {
+    const root = orgWorkspace();
+    const decisionArgs = [
+      'decision',
+      'eng-dec-1',
+      'meaning.says=Use isolated department workspace roots',
+      'work.title=Department workspace roots',
+      'work.status=made',
+      'decision.question=How should departments isolate authored sources?',
+      'decision.rationale=Keeps root workspace composition clean',
+      '--at',
+      '.ia/src/scopes/engineering/decisions.ia',
+    ];
+    // `eng-author` is the sole `scope [@workspace engineering]` participant, so defaultActor resolves it automatically.
+    const candidate = await preview(root, decisionArgs);
+    expect(candidate.exitCode, candidate.stdout).toBe(0);
+    const candidateBody = body(candidate);
+    expect(candidateBody).toMatchObject({
+      path: '.ia/src/scopes/engineering/decisions.ia',
+      exists: false,
+      clean: true,
+      profile: {
+        actor: 'agent-system/binding/agent/eng-author',
+        by: 'participant',
+        mandates: ['agent-system/policy/mandate/eng-mandate'],
+      },
+    });
+
+    const authored = await run(
+      [
+        'author',
+        ...decisionArgs,
+        '--actor',
+        'eng-author',
+        '--digest',
+        candidateBody['digest'] as string,
+        '--root',
+        root,
+        '--json',
+      ],
+      { env: HOMES },
+    );
+    expect(authored.exitCode, authored.stdout).toBe(0);
+    const authoredBody = JSON.parse(authored.stdout) as { next: string; attribution: string };
+    expect(authoredBody.attribution).toContain('# authored-by @agent eng-author under @mandate eng-mandate');
+    // Follow-up `ia validate` runs at the repository root workspace (`demo`), so it does not carry `--actor eng-author`.
+    expect(authoredBody.next).not.toContain('--actor eng-author');
+
+    // Editing (`--set`) an existing record inside the department workspace seats at `engineering` automatically.
+    const edited = await preview(root, ['--set', '@decision eng-dec-1', 'work.owner=Platform']);
+    expect(edited.exitCode, edited.stdout).toBe(0);
+    expect(body(edited)).toMatchObject({
+      path: '.ia/src/scopes/engineering/decisions.ia',
+      clean: true,
+      profile: { actor: 'agent-system/binding/agent/eng-author' },
+    });
+
+    const validated = await run(['validate', '--root', root, '--json']);
+    expect(validated.exitCode, validated.stdout).toBe(0);
+  });
+
+  it('enforces actor boundaries, covers selections and unowned path refusals across departments', async () => {
+    const root = orgWorkspace();
+    // Design's actor cannot author in engineering's root.
+    await refused(
+      root,
+      [
+        'decision',
+        'cross-dept',
+        'meaning.says=Nope',
+        'work.title=Nope',
+        'work.status=open',
+        'decision.question=May design write in engineering?',
+        '--at',
+        '.ia/src/scopes/engineering/decisions.ia',
+        '--actor',
+        'design-author',
+      ],
+      'IA-RUNTIME-MANDATE-ACTOR',
+    );
+    // Root org actor (`demo`) cannot author in engineering's private root either.
+    await refused(
+      root,
+      [
+        'decision',
+        'root-into-dept',
+        'meaning.says=Nope',
+        'work.title=Nope',
+        'work.status=open',
+        'decision.question=May root write in engineering?',
+        '--at',
+        '.ia/src/scopes/engineering/decisions.ia',
+        '--actor',
+        'demo',
+      ],
+      'IA-RUNTIME-MANDATE-ACTOR',
+    );
+    // A path no workspace declares in `composition.sources` remains unowned (`IA-CLI-EDIT-UNOWNED`).
+    await refused(
+      root,
+      [
+        'decision',
+        'orphan-dec',
+        'meaning.says=Orphan',
+        'work.title=Orphan',
+        'work.status=open',
+        'decision.question=Who owns unclaimed?',
+        '--at',
+        '.ia/src/scopes/unclaimed/decisions.ia',
+      ],
+      'IA-CLI-EDIT-UNOWNED',
+    );
+    // Give `eng-public-only` a scope-wide Observation mandate plus a Synthesis mandate on `public/**` and verify `covers` fencing.
+    rewrite(root, '.ia/src/scopes/engineering/workspace.ia', (text) =>
+      text.replace(
+        '@mandate eng-public-mandate\n  meaning\n    says "Allows authoring only under engineering/public."\n    answers "Which paths may eng-public-only write?"\n  governance\n    requires "Claim no host permission or execution from this mandate."\n  authority\n    participant @agent eng-public-only\n    moves [Observation, Verification, Synthesis]\n    covers [".ia/src/scopes/engineering/public/**"]',
+        [
+          '@mandate eng-public-seat',
+          '  meaning',
+          '    says "Establishes eng-public-only as a read-only participant of engineering."',
+          '    answers "Who observes engineering?"',
+          '  governance',
+          '    requires "Claim no host permission or execution from this mandate."',
+          '  authority',
+          '    participant @agent eng-public-only',
+          '    moves [Observation]',
+          '    scope [@workspace engineering]',
+          '',
+          '@mandate eng-public-write',
+          '  meaning',
+          '    says "Grants Verification and Synthesis only under engineering/public."',
+          '    answers "Where may eng-public-only write?"',
+          '  governance',
+          '    requires "Claim no host permission or execution from this mandate."',
+          '  authority',
+          '    participant @agent eng-public-only',
+          '    moves [Observation, Verification, Synthesis]',
+          '    covers [".ia/src/scopes/engineering/public/**"]',
+        ].join('\n'),
+      ),
+    );
+    const allowedPublic = await preview(root, [
+      'decision',
+      'pub-dec',
+      'meaning.says=Public',
+      'work.title=Public',
+      'work.status=made',
+      'decision.question=Public decision?',
+      '--at',
+      '.ia/src/scopes/engineering/public/decisions.ia',
+      '--actor',
+      'eng-public-only',
+    ]);
+    expect(allowedPublic.exitCode, allowedPublic.stdout).toBe(0);
+    await refused(
+      root,
+      [
+        'decision',
+        'priv-dec',
+        'meaning.says=Private',
+        'work.title=Private',
+        'work.status=made',
+        'decision.question=Private decision?',
+        '--at',
+        '.ia/src/scopes/engineering/private/decisions.ia',
+        '--actor',
+        'eng-public-only',
+      ],
+      'IA-RUNTIME-MANDATE-MOVE',
+    );
   });
 });

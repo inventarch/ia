@@ -1,12 +1,19 @@
 import type { ChildNode, RecordNode } from '../ast.js';
-import { diag } from '../diagnostics.js';
+import { diag, pushAll } from '../diagnostics.js';
 import type { Diagnostic } from '../diagnostics.js';
 import { REQUIREMENT_KINDS } from './types.js';
 
 /** Forbidden positions only. Specialized semantic readers own their complete carriers. */
 export function misplacedIn(children: readonly ChildNode[], path: string): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
-  for (const child of children) {
+  const stack: { readonly nodes: readonly ChildNode[]; index: number }[] = [{ nodes: children, index: 0 }];
+  while (stack.length > 0) {
+    const top = stack[stack.length - 1]!;
+    if (top.index >= top.nodes.length) {
+      stack.pop();
+      continue;
+    }
+    const child = top.nodes[top.index++]!;
     if (child.kind !== 'field') continue;
     if (child.when !== undefined || child.words[0] === 'when') {
       diagnostics.push(
@@ -14,7 +21,9 @@ export function misplacedIn(children: readonly ChildNode[], path: string): Diagn
           endLine: child.span.endLine,
         }),
       );
-    } else diagnostics.push(...misplacedIn(child.children, path));
+    } else if (child.children.length > 0) {
+      stack.push({ nodes: child.children, index: 0 });
+    }
   }
   return diagnostics;
 }
@@ -42,7 +51,7 @@ export function misplacedConditions(record: RecordNode, path: string): readonly 
           endLine: section.span.endLine,
         }),
       );
-    else diagnostics.push(...misplacedIn(section.children, path));
+    else pushAll(diagnostics, misplacedIn(section.children, path));
   }
   return diagnostics;
 }

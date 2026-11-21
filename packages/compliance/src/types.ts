@@ -41,6 +41,7 @@ export const COMP_CODES = [
   'IA-COMP-CANON-KIT-SCRIPTS',
   'IA-COMP-CANON-MANDATE-WIDEN',
   'IA-COMP-CANON-LOCAL-TIGHTEN',
+  'IA-COMP-MANDATE-WORD',
 ] as const;
 export type CompCode = (typeof COMP_CODES)[number];
 /** Evaluator-catalog, obligation and receipt codes (C25-C29). A separate inventory: the repository

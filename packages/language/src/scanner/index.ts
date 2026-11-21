@@ -1,3 +1,4 @@
+import { pushAll } from '../diagnostics.js';
 import type { Diagnostic } from '../diagnostics.js';
 import { logicalLines } from './lines.js';
 import type { Trivia } from './lines.js';
@@ -65,13 +66,13 @@ export function scan(source: string, path: string): ScanResult {
       // A refused line produces nothing: no tokens and no newline, so the parser never sees
       // a partial line and one mistake yields one diagnostic. Its comment is still trivia,
       // and the block beneath it is dropped unjudged.
-      diagnostics.push(...result.diagnostics);
+      pushAll(diagnostics, result.diagnostics);
       if (logical.trailingComment !== undefined)
         tokens.push({ kind: 'comment', line: logical.endLine, text: logical.trailingComment, trailing: true });
       dropDeeperThan = logical.depth;
       continue;
     }
-    tokens.push(...result.tokens);
+    pushAll(tokens, result.tokens);
     if (logical.trailingComment !== undefined)
       tokens.push({ kind: 'comment', line: logical.endLine, text: logical.trailingComment, trailing: true });
     tokens.push({ kind: 'newline', line: logical.line, endLine: logical.endLine, depth: logical.depth });

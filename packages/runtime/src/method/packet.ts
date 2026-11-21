@@ -8,6 +8,9 @@ import type { KitBaseUse } from './kit-base.js';
  * excluded, so one resolution digests the same everywhere.
  */
 export const PACKET_CONTRACT = 1;
+/** Lossless rule activation is opt-in. The qualified retained method packet/2 is a different contract. */
+export const ACTIVATION_PACKET_CONTRACT = 3;
+export type PacketContract = typeof PACKET_CONTRACT | typeof ACTIVATION_PACKET_CONTRACT;
 export const EVIDENCE_STATES = ['proposed', 'attempted', 'executed', 'verified', 'accepted'] as const;
 export const DIGESTED = [
   'closure',
@@ -40,6 +43,7 @@ export function canonical(value: unknown): string {
 
 export function packetDigest(packet: Readonly<Record<string, unknown>>): string {
   const subject: Record<string, unknown> = {};
+  if (packet['contract'] === ACTIVATION_PACKET_CONTRACT) subject['contract'] = ACTIVATION_PACKET_CONTRACT;
   for (const key of DIGESTED) subject[key] = packet[key] ?? null;
   return createHash('sha256').update(canonical(subject)).digest('hex');
 }
@@ -65,6 +69,7 @@ export interface MethodPacket {
 
 /** Assembles a packet and stamps its digest; `required` is the capability's checks, the runner's by default. */
 export function assemblePacket(parts: {
+  readonly contract?: PacketContract;
   readonly resolver: string;
   readonly binding: unknown;
   readonly closure: unknown;
@@ -80,7 +85,7 @@ export function assemblePacket(parts: {
   readonly kitUpdateAvailable?: unknown;
 }): MethodPacket {
   const packet: MethodPacket = {
-    contract: PACKET_CONTRACT,
+    contract: parts.contract ?? PACKET_CONTRACT,
     resolver: parts.resolver,
     binding: parts.binding,
     closure: parts.closure,

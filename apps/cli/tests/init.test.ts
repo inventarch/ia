@@ -316,7 +316,9 @@ it('creates a target that did not exist yet, and renders what it applied', async
   expect(planned).not.toContain('Local system');
   const other = target('demo', false),
     system = (await run(['init', other, '--system'])).stdout.replace(/\s+/g, ' ');
-  expect(system).toContain('Local system @system demo and its steward; @distribution demo-distribution rooted at it');
+  expect(system).toContain(
+    'Local system @system demo, its steward @agent demo-steward and @mandate demo-stewardship; @distribution demo-distribution rooted at it',
+  );
   expect(system).toContain('@workspace demo composing 11 systems and @system demo; its participant @agent demo');
   expect(system).not.toContain('no distribution');
   expect(system).toContain(`Apply with "ia init ${quote(other)} --system --apply --yes".`);
@@ -362,17 +364,39 @@ it('init --system authors the local system, its steward and a @distribution root
     ],
     descriptor: { distribution: null },
   });
-  // The three records, then the 1.x local system and its steward, then the release root, read from the compiled graph.
+  // The three records, then the local system, its steward and stewardship mandate, then the release root.
   expect(envelope.applied).toMatchObject({
     distribution: 'workspace-system/definition/distribution/demo-distribution',
     authored: [
       ...AUTHORED,
       'floor/definition/system/demo',
       'agent-system/binding/agent/demo-steward',
+      'agent-system/policy/mandate/demo-stewardship',
       'workspace-system/definition/distribution/demo-distribution',
     ],
     effects: { project: 'skipped' },
   });
+  const systemSource = readFileSync(resolve(root, '.ia/src/systems/demo/system.ia'), 'utf8');
+  // The stewardship mandate, the file's last record, covers the system folder alone and states no scope, either of
+  // which would widen it to every source of the workspace.
+  const stewardship = systemSource.slice(systemSource.indexOf('@mandate demo-stewardship\n'));
+  expect(stewardship).toMatch(/^@mandate demo-stewardship\n/);
+  expect(stewardship).toContain('    participant @agent demo-steward\n');
+  expect(stewardship).toContain('  authority\n');
+  expect(stewardship.slice(stewardship.indexOf('  authority\n'))).toBe(
+    [
+      '  authority',
+      '    participant @agent demo-steward',
+      '    moves [Observation, Verification, Synthesis, Delegation, Execution]',
+      '    covers [".ia/src/systems/demo/"]',
+      '',
+    ].join('\n'),
+  );
+  const validatedSystem = await run(['validate', '--root', root, '--json']);
+  expect(validatedSystem.exitCode, validatedSystem.stdout).toBe(0);
+  expect(
+    json(validatedSystem).findings.filter((finding: { severity: string }) => finding.severity === 'error'),
+  ).toEqual([]);
   expect(readFileSync(resolve(root, '.ia/src/systems/demo/records/distribution.ia'), 'utf8')).toContain(
     '  distribution\n    records [@system demo]\n',
   );
@@ -401,6 +425,99 @@ it('init --system authors the local system, its steward and a @distribution root
     '.ia/src/systems/demo/records/distribution.ia',
     '.ia/src/systems/demo/system.ia',
   ]);
+});
+
+/**
+ * What an owner adds to protect the sources, as `ia doctor`'s `source-protection` row asks: a `@hook` over `.ia/src/**`
+ * for every edit tool, and a subagent for the steward, whose capability renders it as a host agent.
+ */
+const SOURCE_HOOK = 'hook-authoring-system/binding/hook/source-edits';
+const SOURCE_GUARD = `#! ia 1.0
+
+@hook source-edits
+  meaning
+    says "Require a mandate for every source edit."
+    answers "Who may change a source?"
+  hook
+    event PreToolUse
+    tools [Write, Edit, MultiEdit]
+    paths [".ia/src/**"]
+    message "Use your mandate."
+
+@capability system-stewardship
+  meaning
+    says "Reads and edits the demo system's records."
+    answers "Which records may the steward change?"
+  execution
+    effects [read, local-write]
+
+@agent-profile steward
+  meaning
+    says "The demo system's steward as a subagent."
+    answers "Which profile acts as the demo steward?"
+  composition
+    agent @agent demo-steward
+    mandate @mandate demo-stewardship
+    capabilities [@capability system-stewardship]
+  execution
+    role steward
+    outcomes steward-findings-v1
+    mandate-contract steward-v1
+`;
+
+it('bounds the init --system steward to its system folder under a registered source guard', async () => {
+  // The edit guard (runtime R22) as Claude Code runs it: the group `ia host claude --apply` registers for the owner's
+  // `@hook`, its handler given the event on stdin. The steward's subagent may author its own system's records only;
+  // a sibling system and `.ia/src/workspace.ia` are governed by demo-mandate alone, which binds @agent demo.
+  const root = realpathSync(target()),
+    env = { IA_HOST_HOME: scratch('init-host-home') };
+  expect((await apply(root, ['--system'])).exitCode).toBe(0);
+  writeFileSync(resolve(root, '.ia/src/guard.ia'), SOURCE_GUARD);
+  const validated = await run(['validate', '--root', root, '--json']);
+  expect(validated.exitCode, validated.stdout).toBe(0);
+  const hosted = await run(['host', 'claude', '--root', root, '--apply', '--yes', '--json'], { env });
+  expect(hosted.exitCode, hosted.stdout).toBe(0);
+  // The profile renders a subagent, so `agent_type: steward` is what the host sends for its edits.
+  expect(existsSync(resolve(root, '.claude/agents/steward.md'))).toBe(true);
+  const groups: readonly { hooks: readonly { command: string; args: readonly string[] }[] }[] = JSON.parse(
+    readFileSync(resolve(root, '.claude/settings.local.json'), 'utf8'),
+  ).hooks.PreToolUse;
+  const [handler] = groups.find((group) => group.hooks[0]!.args.at(-1) === SOURCE_HOOK)!.hooks;
+  /** The handler's decision on one Write: undefined when it allows the edit, else its refusal reason. */
+  const guarded = async (path: string, actor: Readonly<Record<string, string>> = {}): Promise<string | undefined> => {
+    const result = await runBounded(handler!.command, [...handler!.args], {
+      input: JSON.stringify({
+        hook_event_name: 'PreToolUse',
+        tool_name: 'Write',
+        tool_input: { file_path: resolve(root, path), content: 'x' },
+        ...actor,
+      }),
+      timeoutMs: 60_000,
+      env: { ...process.env, NODE_OPTIONS: '' },
+    });
+    expect(result.status, result.stderr).toBe(0);
+    return (JSON.parse(result.stdout) as { hookSpecificOutput?: { permissionDecisionReason?: string } })
+      .hookSpecificOutput?.permissionDecisionReason;
+  };
+  const steward = { agent_id: 'subagent-1', agent_type: 'steward' };
+  expect(await guarded('.ia/src/systems/demo/records/task.ia', steward)).toBeUndefined();
+  for (const path of ['.ia/src/systems/other/records/task.ia', '.ia/src/workspace.ia']) {
+    const refused = await guarded(path, steward);
+    expect(refused?.split(':')[0], path).toBe('IA-HOOK-NOT-MANDATED');
+    expect(refused, path).toContain(
+      'subagent steward acts as agent-system/binding/agent/demo-steward (agent-composition-system/binding/agent-profile/steward)',
+    );
+    expect(refused, path).toContain(
+      'no mandate that governs here binds the acting @agent: agent-system/policy/mandate/demo-mandate binds agent-system/binding/agent/demo',
+    );
+  }
+  // The main session acts as the workspace's participant, whose workspace-wide mandate is unchanged.
+  for (const path of [
+    '.ia/src/systems/demo/records/task.ia',
+    '.ia/src/systems/other/records/task.ia',
+    '.ia/src/workspace.ia',
+  ])
+    expect(await guarded(path), path).toBeUndefined();
 });
 
 it('refuses to pack a default initialization, which names no distribution, before reading anything else', async () => {
@@ -691,10 +808,13 @@ it('keeps the verified starter shape and its minimum refusals', async () => {
     // `ia validate` closed at that record; the admission report its refusal names, which runs in that state, lists the
     // findings.
     if (result.ok === false) {
-      expect(result).toMatchObject({ code: 'IA-RUNTIME-REQUEST-INVALID', where: { path: '.ia/src/workspace.ia' } });
-      expect(['agent-system/policy/mandate/demo-mandate', 'agent-system/binding/agent/demo']).toContain(
-        result.where.identity,
-      );
+      expect(result).toMatchObject({ code: 'IA-RUNTIME-REQUEST-INVALID', where: { path } });
+      expect([
+        'agent-system/policy/mandate/demo-mandate',
+        'agent-system/binding/agent/demo',
+        'agent-system/policy/mandate/demo-stewardship',
+        'agent-system/binding/agent/demo-steward',
+      ]).toContain(result.where.identity);
       result = json(await run(nextArgv(result.next))).result;
     }
     return result.findings

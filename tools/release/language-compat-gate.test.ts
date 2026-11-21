@@ -1,12 +1,30 @@
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import type { BaseCatalogue, CatalogueWord } from '../../packages/db/src/distribution/index.js';
-import { buildLanguageBase } from '../native/language-base.js';
+import { BASE_ID, buildLanguageBase } from '../native/language-base.js';
 import { ledgerArchive, readBaseLedger } from '../native/language-bases.js';
 import { baseCatalogue } from '../native/language-compat.js';
 import { checkLanguageCompat, classifyBaseChange, fixtureKits, minimumBump } from './language-compat-gate.js';
+import { nativeBaseline } from './native-version.js';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
+
+describe('published language bases', () => {
+  it('records the base the latest release published once the build moves past it', () => {
+    const { source, archives } = nativeBaseline(root);
+    const published = archives.find((row) => row.id === BASE_ID)!;
+    const built = buildLanguageBase(root).pin;
+    // While the tree builds the published base, the CLI carries it as its own. Once the build moves on, only a ledger
+    // row keeps it in the CLI, the MCP door and the compatibility index, so a workspace locked to it still restores.
+    if (built.archive === published.archive) return;
+    const row = readBaseLedger(root).bases.find((entry) => entry.version === published.version);
+    expect(
+      row && { archive: row.archive, manifest: row.manifest },
+      `${BASE_ID}@${published.version}, published by ${source.tag}, is not in the ledger: pnpm language-bases:fetch ` +
+        `--fetch ${published.version} --from @inventarch/cli@${source.tag.slice(1)}`,
+    ).toEqual({ archive: published.archive, manifest: published.manifest });
+  });
+});
 
 const word = (patch: Partial<CatalogueWord> = {}): CatalogueWord => ({
   closed: false,
@@ -144,13 +162,34 @@ describe('classifyBaseChange', () => {
   it('lets breaking outrank unclassified and additive', () => {
     expect(kindOf(base({ other: word() }, { languageRecord: 'x'.repeat(64) }))).toBe('breaking');
   });
-  it('classifies the published 3.2.0 to the built 3.2.1 as a label', () => {
-    const published = readBaseLedger(root).bases.find((entry) => entry.version === '3.2.0')!;
-    const previous = baseCatalogue(ledgerArchive(root, published), published.archive);
-    const built = buildLanguageBase(root);
-    expect(classifyBaseChange(previous, baseCatalogue(built.bytes, built.pin.archive))).toEqual({
+  it('classifies the published 3.2.0 to the published 3.2.1 as a label, and 3.3.0 to built 3.4.0 as additive', () => {
+    const bases = readBaseLedger(root).bases;
+    const published320 = bases.find((entry) => entry.version === '3.2.0')!;
+    const published321 = bases.find((entry) => entry.version === '3.2.1')!;
+    const published330 = bases.find((entry) => entry.version === '3.3.0')!;
+    expect(
+      classifyBaseChange(
+        baseCatalogue(ledgerArchive(root, published320), published320.archive),
+        baseCatalogue(ledgerArchive(root, published321), published321.archive),
+      ),
+    ).toEqual({
       kind: 'label',
       changes: [],
+    });
+    const built = buildLanguageBase(root);
+    expect(
+      classifyBaseChange(
+        baseCatalogue(ledgerArchive(root, published330), published330.archive),
+        baseCatalogue(built.bytes, built.pin.archive),
+      ),
+    ).toEqual({
+      kind: 'additive',
+      changes: [
+        { kind: 'field-added', key: 'mandate.authority.words' },
+        { kind: 'field-added', key: 'workspace.composition.public-agent' },
+        { kind: 'field-added', key: 'workspace.composition.private-agent' },
+        { kind: 'field-added', key: 'workspace.composition.decides' },
+      ],
     });
   });
 });

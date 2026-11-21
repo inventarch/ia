@@ -7,7 +7,8 @@ import { committedReader } from '../src/git.js';
 import { createLegacyFoundation } from '../src/legacy.js';
 import { packageFromCommit } from '../src/package.js';
 
-// Every git process the reader starts goes through execFileSync; the wrapper counts them and changes nothing.
+// Every git process the reader starts goes through execFileSync; the wrapper counts them, and changes nothing unless a
+// case makes a call fail.
 vi.mock('node:child_process', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:child_process')>();
   return { ...actual, execFileSync: vi.fn(actual.execFileSync) };
@@ -171,4 +172,49 @@ describe('kb pack keeps its refusals and their order when it reads in batches', 
     dropObject(repo, '.ia/src/more/z-gone.ia');
     expect(pack(repo.root, revision).outcome).toMatchObject({ message: 'Selected blob is not UTF-8' });
   });
+});
+
+describe('kb pack gives a git call that timed out one more try', () => {
+  // How Node reports a git process that ran past its bound: it kills the process, and the call throws ETIMEDOUT.
+  const timedOut = () => {
+    throw Object.assign(new Error('spawnSync git ETIMEDOUT'), { code: 'ETIMEDOUT' });
+  };
+  const answer = spawned.getMockImplementation()!;
+  afterEach(() => {
+    spawned.mockImplementation(answer);
+  });
+  it('packs as before when each git call times out once, retrying it under the same bound', () => {
+    const repo = repository(2),
+      revision = repo.commit(),
+      before = pack(repo.root, revision);
+    let calls = 0;
+    // Each call's first try times out, and its retry answers.
+    spawned.mockImplementation((...args) => (++calls % 2 === 1 ? timedOut() : answer(...args)));
+    const after = pack(repo.root, revision);
+    expect(after.outcome).toEqual(before.outcome);
+    expect(after.git).toBe(2 * before.git);
+    for (const call of spawned.mock.calls) expect(call[2]).toMatchObject({ timeout: 10_000 });
+  });
+  it.each(['timeout', 'exit', 'spawn-error'] as const)(
+    'refuses as unavailable when every git call fails with %s, retrying only a timeout',
+    (failure) => {
+      const repo = repository(0),
+        revision = repo.commit();
+      // exit is git failing, as it does in a damaged repository; spawn-error fails to start git at all.
+      spawned.mockImplementation(() => {
+        if (failure === 'timeout') return timedOut();
+        throw failure === 'exit'
+          ? Object.assign(new Error('Command failed: git rev-parse --is-bare-repository'), { status: 128 })
+          : Object.assign(new Error('spawnSync git ENOENT'), { code: 'ENOENT' });
+      });
+      const { outcome, git } = pack(repo.root, revision);
+      expect(outcome).toMatchObject({
+        code: 'IA-KB-SOURCE-UNAVAILABLE',
+        message: 'Selected committed data unavailable or repository command timed out',
+      });
+      // A call that times out twice refuses; any other failure refuses at once.
+      expect(git).toBe(failure === 'timeout' ? 2 : 1);
+      for (const call of spawned.mock.calls) expect(call[2]).toMatchObject({ timeout: 10_000 });
+    },
+  );
 });
