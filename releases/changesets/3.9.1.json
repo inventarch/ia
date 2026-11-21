@@ -1,0 +1,437 @@
+{
+  "format": "ia.npm-changeset.v1",
+  "version": "3.9.1",
+  "state": "consumed",
+  "baseline": {
+    "commit": "c74a9b6ac16b513ceaba7230008f97de920ce349",
+    "version": "3.9.0"
+  },
+  "bump": "patch",
+  "summary": "Coordinated 3.9.1 release of the 24 public npm packages: Committed kb reads retry a timed-out git call once.",
+  "packages": {
+    "@inventarch/agent-composition-system": {
+      "previous": "3.9.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/agent-system": {
+      "previous": "3.9.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/authoring-system": {
+      "previous": "3.9.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/cli": {
+      "previous": "3.9.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/compliance": {
+      "previous": "3.9.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/compliance-system": {
+      "previous": "3.9.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/db": {
+      "previous": "3.9.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/distribution": {
+      "previous": "3.9.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/governance-system": {
+      "previous": "3.9.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/graph": {
+      "previous": "3.9.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/hook-authoring-system": {
+      "previous": "3.9.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/kb": {
+      "previous": "3.9.0",
+      "kind": "changed",
+      "summary": "Committed kb reads retry a timed-out git call once."
+    },
+    "@inventarch/language": {
+      "previous": "3.9.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/learning-system": {
+      "previous": "3.9.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/mcp-door": {
+      "previous": "3.9.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/runner": {
+      "previous": "3.9.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/runtime": {
+      "previous": "3.9.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/service-contracts": {
+      "previous": "3.9.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/session-system": {
+      "previous": "3.9.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/steward-hook": {
+      "previous": "3.9.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/template-system": {
+      "previous": "3.9.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/work-system": {
+      "previous": "3.9.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/workspace-runtime": {
+      "previous": "3.9.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/workspace-system": {
+      "previous": "3.9.0",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    }
+  },
+  "changes": [
+    {
+      "id": "kb-committed-git-retry",
+      "title": "Committed kb reads retry a timed-out git call once",
+      "summary": "Committed reads in `@inventarch/kb`, which `kb pack` and the legacy committed writer use, now give a git call that timed out, such as one a stalled process held past its 10-second bound, one more try under the same bound before refusing with `IA-KB-SOURCE-UNAVAILABLE`. Any other git failure still refuses at once. The 10-second default and the 30-second cap on `gitTimeoutMs` stay as they are. A git call that times out on both tries refuses after its second try, about 20 seconds at the default.",
+      "packages": [
+        "@inventarch/kb"
+      ],
+      "paths": [
+        "packages/kb/"
+      ]
+    },
+    {
+      "id": "cohort-alignment",
+      "title": "Coordinated version alignment",
+      "summary": "Package version metadata follows the coordinated 3.9.1 release; each native artifact version follows its own archive content.",
+      "packages": [
+        "@inventarch/agent-composition-system",
+        "@inventarch/agent-system",
+        "@inventarch/authoring-system",
+        "@inventarch/cli",
+        "@inventarch/compliance",
+        "@inventarch/compliance-system",
+        "@inventarch/db",
+        "@inventarch/distribution",
+        "@inventarch/governance-system",
+        "@inventarch/graph",
+        "@inventarch/hook-authoring-system",
+        "@inventarch/language",
+        "@inventarch/learning-system",
+        "@inventarch/mcp-door",
+        "@inventarch/runner",
+        "@inventarch/runtime",
+        "@inventarch/service-contracts",
+        "@inventarch/session-system",
+        "@inventarch/steward-hook",
+        "@inventarch/template-system",
+        "@inventarch/work-system",
+        "@inventarch/workspace-runtime",
+        "@inventarch/workspace-system"
+      ],
+      "paths": [
+        ".ia/src/systems/agent-composition-system/package.json",
+        ".ia/src/systems/agent-system/package.json",
+        ".ia/src/systems/authoring-system/package.json",
+        ".ia/src/systems/compliance-system/package.json",
+        ".ia/src/systems/governance-system/package.json",
+        ".ia/src/systems/hook-authoring-system/package.json",
+        ".ia/src/systems/learning-system/package.json",
+        ".ia/src/systems/session-system/package.json",
+        ".ia/src/systems/template-system/package.json",
+        ".ia/src/systems/work-system/package.json",
+        ".ia/src/systems/workspace-system/package.json",
+        "apps/cli/package.json",
+        "apps/distribution/package.json",
+        "apps/mcp-door/package.json",
+        "apps/runner/package.json",
+        "apps/steward-hook/package.json",
+        "packages/compliance/package.json",
+        "packages/db/package.json",
+        "packages/graph/package.json",
+        "packages/language/package.json",
+        "packages/runtime/package.json",
+        "packages/service-contracts/package.json",
+        "packages/workspace-runtime/package.json"
+      ]
+    },
+    {
+      "id": "repository-maintenance",
+      "title": "Repository maintenance",
+      "summary": "Tooling, workflow, documentation and release bookkeeping outside the published package contents.",
+      "packages": [],
+      "internal": true,
+      "paths": [
+        "CONTRIBUTING.md",
+        "README.md",
+        "SPEC.md",
+        "apps/vscode/THIRD_PARTY_NOTICES.txt",
+        "apps/vscode/package.json",
+        "docs/",
+        "pnpm-workspace.yaml",
+        "releases/",
+        "tools/"
+      ]
+    }
+  ],
+  "coverage": [
+    {
+      "path": ".ia/src/systems/agent-composition-system/package.json",
+      "sha256": "489c5a4eb995ba9c1b416358d6f54516ff4744f08a2018048183ef4dfc5549aa",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/package.json",
+      "sha256": "2db2f759c0f28e2f8e2ef5f49ae20e3b76d303fa116e41a0c207c722c9aba24a",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/package.json",
+      "sha256": "4350d1eabb3b8e0bece28aae08a05a401327da10a062f49433ef7a606d867600",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/compliance-system/package.json",
+      "sha256": "fb896f2ab22e85c083a43ffa2a3c3dcaa97cee359f6b3dd97184607d3a7ec8c2",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/package.json",
+      "sha256": "642266089eee77f7465fd06377d3abc0a1ba812cd0bb3545ccc70e9407c47c4c",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/hook-authoring-system/package.json",
+      "sha256": "6eb5cd85f15b9f7fbf3ed8c64a202738221500429978fa179115e907a635eaaa",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/learning-system/package.json",
+      "sha256": "66901c8db553190e69722910d5d3db3d04005e2e8a86b6b865f4bb4f31a900da",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/session-system/package.json",
+      "sha256": "7c73c4573ee02b2ced06bd4aed46c646626976aa8166fd00c37aecd345a589cd",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/template-system/package.json",
+      "sha256": "420c2487bd3343eb652e60068ab8765d9fb43bd53501ee9a293f09cf816f92e3",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/work-system/package.json",
+      "sha256": "dbe5af5c24556309a69ec01e69e83819d956d29381e89bf8dbee14d541da4422",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/workspace-system/package.json",
+      "sha256": "a4f32bf3e2f8501bc470fab93e0d8917a58789eaa0f116bc75b3f3df6f91bca3",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "sha256": "b9de6be4a1a95e04c7035dbf53039b3a40b3cafb753b0d698262fdf9eedc8bd4",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "README.md",
+      "sha256": "7e6a9a0e92f4b6d52ef1d2a07b6187b89823331c10753a2dac7ebff71a44b1d8",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "SPEC.md",
+      "sha256": "e23ab6b1230481af36e4fc2d3ecc0387c5629c868e06838c0610505d612fcbd8",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "apps/cli/package.json",
+      "sha256": "c01d0baf5d663f2911ef858105811a1d1dfe7d40a4c0d442161a311f911114e0",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "apps/distribution/package.json",
+      "sha256": "d265708cfcef6337f6f2b25d453d2944d2b538776a149c9c53134f869a25d76c",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "apps/mcp-door/package.json",
+      "sha256": "03fb948d28edd1059e87c98e3ea99668c06da50a8f1a196b62ebe385fe223930",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "apps/runner/package.json",
+      "sha256": "75167fd2c5db6c15318c252b3c7913be810ec95a718c9a2c00f9184b5343cf0e",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "apps/steward-hook/package.json",
+      "sha256": "1f92ce48edc3278fa934367a7b38f3556926a3d2f4538c19dd8bd34b116f07a4",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "apps/vscode/THIRD_PARTY_NOTICES.txt",
+      "sha256": "24a2f6677f2809f10ded4f2c433adc96a2a770d77817f96e96d2b23235259976",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "apps/vscode/package.json",
+      "sha256": "7b9632dd879c3718c740b362e6f82c2ac590a283ee25ad4363c0c4cf847adda7",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "docs/reference/architecture/README.md",
+      "sha256": "eaba8ca221df26b2d62b654ebf79647384fae8dc285cf814d45359a67d36504c",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "packages/compliance/package.json",
+      "sha256": "d96fb52c10a35673bfe9da0091ca65ad4d8dc851b627b6bff1389e2d1b7ead2d",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/db/package.json",
+      "sha256": "6010e128dcc7ce1898d60c8accf5554d0c3c06452a9aff70762e1cc425337a92",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/graph/package.json",
+      "sha256": "5866225579422b3a28466ee7b6d015acf9ce205247e9ae1ff64f7199f1d1cbf5",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/kb/SPEC.md",
+      "sha256": "6b9c3f15ed06e1fcf7c32eca105f3172fb0751e88e2cad1cb0dd73daf946c9c5",
+      "change": "kb-committed-git-retry"
+    },
+    {
+      "path": "packages/kb/package.json",
+      "sha256": "f72f7afe728ccb11eae99a4927b61f6b9fbdbe7190c052a78583a51f57b5f367",
+      "cohortOnly": true,
+      "change": "kb-committed-git-retry"
+    },
+    {
+      "path": "packages/kb/src/git.ts",
+      "sha256": "78a26c95ee551f77988976bc49668cecfd37a33f59cc09399548073a6cb0ee17",
+      "change": "kb-committed-git-retry"
+    },
+    {
+      "path": "packages/kb/tests/batch-reads.test.ts",
+      "sha256": "4dc78c75b7a6723cc98d3e54d42b0666b56a8296b0389d99aa861d777acddc18",
+      "change": "kb-committed-git-retry"
+    },
+    {
+      "path": "packages/language/package.json",
+      "sha256": "633638e01ffd98c998e5a906ad4b89352f216209f7cbfc94dace5c7f38858c88",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/runtime/package.json",
+      "sha256": "029b56928eaf261ff75adbfcc0b62fef0ee0c8c4568a02110828f7fdff30591a",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/service-contracts/package.json",
+      "sha256": "4bb773b47e6516c2dcc7aca307c6e6d30679ac9e9fff2da865b5734d9ad43c73",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/workspace-runtime/package.json",
+      "sha256": "76b2bc660251a0f1eae41a97d15cac5a4df649f8ab0b8273eb3b9031284a0ea0",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "pnpm-workspace.yaml",
+      "sha256": "3219126e2657f703e50f594f6545599397336c16fc20b4790a30cc087bbbed24",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "releases/current.json",
+      "sha256": "74aea79ada3aff261cae5744289432423c013b6fc334ddff56cc03c826105eb7",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "releases/native/current.json",
+      "sha256": "b4d9e38ed0ba82eeb4657d3ea6dbb35ade1bf6e806e995d30d50dc2eff72f4df",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "releases/native/notes.json",
+      "sha256": "95d98218c6fcc50c494c4411790de804d6205ed9945ba3f1ac9d5623b4a0fdf3",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "tools/distribution/system-package-policy.json",
+      "sha256": "fea263e934d89401446962a359f1710c8373fdd54ae77d8f6fbbc215fbde1291",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    }
+  ]
+}
