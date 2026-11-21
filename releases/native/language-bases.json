@@ -50,6 +50,12 @@
       "archive": "969a1cf9091534f9194c8584c0e45c92449f2e24849db1431841ef73df52b888",
       "manifest": "396de8862c6620d1e93f090917ea60bf3a8f0dfcb0dd3f943fe7df619c1eec6f",
       "source": "@inventarch/cli@3.8.1"
+    },
+    {
+      "version": "3.4.0",
+      "archive": "c7f34843359616b7e9c4677d773fea80c8d3fd22f3bb05e29b12a2d66a97e367",
+      "manifest": "8e90731ed1d7a5e11fede4a0de97a8ba649f34a5c8c57b7fa1c673a10ca1602f",
+      "source": "@inventarch/cli@3.9.0"
     }
   ]
 }
