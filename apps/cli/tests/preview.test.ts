@@ -600,6 +600,38 @@ describe('shared authored-root ownership', () => {
     const result = await preview(root, ['task', 'adopted-task', ...fields, '--at', '.ia/src/shared/new.ia']);
     expect(body(result)).toMatchObject({ ok: false, code: 'IA-CLI-EDIT-UNOWNED' });
   });
+  it.each(['alpha', 'zeta'])(
+    'owns a shared root that every declarer also declares @adopted beside @authored (the adopted twin, %s)',
+    async (other) => {
+      const root = shared(other);
+      rewrite(root, '.ia/src/workspace.ia', (text) =>
+        text.replace('".ia/src/shared @authored"', '".ia/src/shared @authored", ".ia/src/shared @adopted"'),
+      );
+      rewrite(root, '.ia/src/other.ia', (text) =>
+        text.replace('".ia/src/shared @authored"', '".ia/src/shared @authored", ".ia/src/shared @adopted"'),
+      );
+      for (const argv of [
+        ['task', 'twin-task', ...fields, '--at', '.ia/src/shared/new.ia'],
+        ['--set', '@plan shared-plan', 'work.title=Updated shared plan'],
+      ]) {
+        const result = await preview(root, argv);
+        expect(result.exitCode, result.stdout).toBe(0);
+        expect(body(result)).toMatchObject({ clean: true });
+      }
+    },
+  );
+  it('still refuses when the other declarer holds only the adopted twin of the root', async () => {
+    const root = shared('alpha');
+    rewrite(root, '.ia/src/workspace.ia', (text) =>
+      text.replace('".ia/src/shared @authored"', '".ia/src/shared @authored", ".ia/src/shared @adopted"'),
+    );
+    rewrite(root, '.ia/src/other.ia', (text) =>
+      text.replace('".ia/src/shared @authored"', '".ia/src/shared @adopted"'),
+    );
+    const result = await preview(root, ['task', 'twin-task', ...fields, '--at', '.ia/src/shared/new.ia']);
+    expect(body(result)).toMatchObject({ ok: false, code: 'IA-CLI-EDIT-UNOWNED' });
+    expect(body(result)['message']).toContain('@adopted of workspace-system/definition/workspace/alpha');
+  });
   it('does not apply a repository-only mandate restriction on a shared target (db D02b, runtime R21)', async () => {
     const root = shared('alpha');
     rewrite(root, '.ia/src/workspace.ia', (text) =>

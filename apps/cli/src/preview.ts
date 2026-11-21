@@ -287,15 +287,21 @@ function unowned(snapshot: Snapshot, within: string, roots: Roots, path: string)
       (root) => root.root === holder.root && snapshot.get(root.workspace, { within })?.band === 100,
     );
     const seated = seatedWorkspace(snapshot, within, path);
+    // Ownership is judged per declaring workspace, not per declaration row: a workspace that declares the root at
+    // `authored` placement and also at `adopted` (the adopted twin a governing store keeps for adopters) still declares
+    // it `@authored`; only a workspace that declares it at no `authored` placement withholds ownership.
+    const workspaces = [...new Set(declarers.map((declarer) => declarer.workspace))];
+    const authoredBy = (workspace: string): boolean =>
+      declarers.some((declarer) => declarer.workspace === workspace && declarer.placement === 'authored');
     const owned =
-      declarers.length === 1
-        ? declarers[0]!.placement === 'authored'
-        : declarers.length > 1 &&
-          declarers.every((declarer) => declarer.placement === 'authored') &&
-          (seated === undefined || declarers.some((declarer) => declarer.workspace === seated));
+      workspaces.length === 1
+        ? authoredBy(workspaces[0]!)
+        : workspaces.length > 1 &&
+          workspaces.every(authoredBy) &&
+          (seated === undefined || workspaces.includes(seated));
     if (owned) return undefined;
     if (declarers.length > 0) {
-      const nonAuthored = declarers.find((declarer) => declarer.placement !== 'authored') ?? declarers[0]!;
+      const nonAuthored = declarers.find((declarer) => !authoredBy(declarer.workspace)) ?? declarers[0]!;
       return `${path} lies under ${holder.root || '.'} (@${nonAuthored.placement} of ${nonAuthored.workspace}), not an @authored root`;
     }
   }

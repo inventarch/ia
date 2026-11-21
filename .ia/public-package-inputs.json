@@ -2,8 +2,8 @@
   "format": "ia.public-package-inputs.v2",
   "source": {
     "repository": "https://github.com/inventarch/ia",
-    "commit": "2cde3d427b8bf3c089a4d02f07e8d306df67a0f9",
-    "tree": "86ce6b808b06d40b39051dd7aa36ccb99dead338",
+    "commit": "f491e405037d75fba22809f010d09a3273394903",
+    "tree": "4f3931f3dc75b06c0e1d01b6ad4ef04f7119879e",
     "dirty": true
   },
   "membership": {
@@ -1368,7 +1368,7 @@
     },
     {
       "path": "CONTRIBUTING.md",
-      "sha256": "edd60c392192963d7885bc031f54851f9f6914256e3fa37162aaf1b6e4df4124"
+      "sha256": "b9de6be4a1a95e04c7035dbf53039b3a40b3cafb753b0d698262fdf9eedc8bd4"
     },
     {
       "path": "LICENSE",
@@ -1380,7 +1380,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "585a7c521e80d8a6522dee5633369ac99fc5a453ac95f14a9c799117b49d0d8b"
+      "sha256": "7e6a9a0e92f4b6d52ef1d2a07b6187b89823331c10753a2dac7ebff71a44b1d8"
     },
     {
       "path": "SECURITY.md",
@@ -1388,7 +1388,7 @@
     },
     {
       "path": "SPEC.md",
-      "sha256": "a75bb5a8f2bc5d3b0b9f6e42770dcb0a2c3e1f20cd789b4309230a46a07bc71c"
+      "sha256": "e23ab6b1230481af36e4fc2d3ecc0387c5629c868e06838c0610505d612fcbd8"
     },
     {
       "path": "SUPPORT.md",
@@ -1684,7 +1684,7 @@
     },
     {
       "path": "apps/cli/src/preview.ts",
-      "sha256": "06a977006fe04d2ff54f1de743f5f936e879375027d36db5d9e3cd656d3c9702"
+      "sha256": "17f1ca0b431a701c296ca94fcc37dc406db139d46e9e24082c2d08982995eb17"
     },
     {
       "path": "apps/cli/src/profile.ts",
@@ -2212,7 +2212,7 @@
     },
     {
       "path": "apps/cli/tests/preview.test.ts",
-      "sha256": "b9e3ab60766d9e1036f851290f840186baf9252e8cfe39635a11d5ac7c312a97"
+      "sha256": "fd89c5fa4f8cb73fdc9c9216194a6af2662ad695718de23095ac2fd656567e3e"
     },
     {
       "path": "apps/cli/tests/program.test.ts",
@@ -3244,7 +3244,7 @@
     },
     {
       "path": "docs/reference/architecture/README.md",
-      "sha256": "68d4db1a4b5b58ba01cf1350f64f11ad3f816b75e9f022512732d2911e9a7aaf"
+      "sha256": "eaba8ca221df26b2d62b654ebf79647384fae8dc285cf814d45359a67d36504c"
     },
     {
       "path": "docs/reference/hosted-service/README.md",
@@ -6380,7 +6380,7 @@
     },
     {
       "path": "packages/kb/SPEC.md",
-      "sha256": "0321bd5f59d2092834f4041eb92b60200a2ad0313771ed5404faf91e9654d6ef"
+      "sha256": "6b9c3f15ed06e1fcf7c32eca105f3172fb0751e88e2cad1cb0dd73daf946c9c5"
     },
     {
       "path": "packages/kb/package.json",
@@ -6400,7 +6400,7 @@
     },
     {
       "path": "packages/kb/src/git.ts",
-      "sha256": "2daa1e32c4d08d5f5b0408726b05c8d267199e8a8a2654a1ae560f23cb5ded37"
+      "sha256": "78a26c95ee551f77988976bc49668cecfd37a33f59cc09399548073a6cb0ee17"
     },
     {
       "path": "packages/kb/src/index.ts",
@@ -6444,7 +6444,7 @@
     },
     {
       "path": "packages/kb/tests/batch-reads.test.ts",
-      "sha256": "84e930aae3dd7262b47dee5ea75cedc63d679de42ecf0303bac832a6a0aa325c"
+      "sha256": "4dc78c75b7a6723cc98d3e54d42b0666b56a8296b0389d99aa861d777acddc18"
     },
     {
       "path": "packages/kb/tests/fixtures/legacy-foundation.json",
@@ -7820,7 +7820,7 @@
     },
     {
       "path": "pnpm-workspace.yaml",
-      "sha256": "1cb0c1df206ffe23643dfb6926a23a2812846759b30dbde76c638ce0c8721d0d"
+      "sha256": "3219126e2657f703e50f594f6545599397336c16fc20b4790a30cc087bbbed24"
     },
     {
       "path": "releases/README.md",
@@ -7961,6 +7961,10 @@
     {
       "path": "releases/native/notes.json",
       "sha256": "b333c8c831adaaa7ccaacb026c730e1f812a3b9234faabc3829594dab6430f3e"
+    },
+    {
+      "path": "releases/pending/kb-committed-git-retry.json",
+      "sha256": "85bc4cfaee1d82fe833e7d7ad0790155c23c53acce548f8ecc4a894c50b58050"
     },
     {
       "path": "tools/compliance/SPEC.md",
@@ -9195,5 +9199,5 @@
       "sha256": "b7a2070d0de01d78a2f8dbd4e8c646740a4b9f68810cfda96aafe69ffc7a47f4"
     }
   ],
-  "inputDigest": "4c2239aa25b87eda3b69b17b514c334d6619062c0013ec73175008b33e757018"
+  "inputDigest": "d123dca1947c2222219c36077dc78a97a4dd7ecd28cc474add303a127dc0e25f"
 }
