@@ -298,26 +298,47 @@ function checkParents(tree: WorkspaceTree, report: Report): void {
   }
 }
 
+/** A rule a workspace authors itself: not a vocabulary system's payload, nor the floor's. */
+const authoredRule = (node: Node): boolean => {
+  const path = posix(node.source.path);
+  return (
+    node.placement.kind === 'authored' && !path.startsWith('.ia/src/systems/') && !path.startsWith('.ia/src/floor/')
+  );
+};
+
 /**
- * The rule roots of a workspace (the architect's definition in the contract): an `@authored` root it declares that is
- * the longest root it declares for at least one of its authored `@law`, `@principle` or `@convention` records.
+ * The rule roots of every workspace (the architect's definition in the contract): an `@authored` root a workspace
+ * declares that is the longest declared root of at least one authored `@law`, `@principle` or `@convention`. A record
+ * belongs to the longest authored root any workspace declares (D02a), so a root that holds only mandates, or laws that
+ * another workspace's deeper root holds, is not a rule root of the workspace that declares the shorter one.
  */
-function ruleRoots(node: Node, nodes: readonly Node[]): readonly string[] {
-  const roots = declaredRoots(node).filter((root) => root.placement === 'authored');
-  const found = new Set<string>();
+function ruleRootsOf(tree: WorkspaceTree, nodes: readonly Node[]): ReadonlyMap<string, readonly string[]> {
+  const declared = new Map(
+    [...tree.workspaces].map(([id, node]) => [
+      id,
+      new Set(
+        declaredRoots(node)
+          .filter((r) => r.placement === 'authored')
+          .map((r) => r.root),
+      ),
+    ]),
+  );
+  const all = [...new Set([...declared.values()].flatMap((roots) => [...roots]))];
+  const held = new Set<string>();
   for (const record of nodes) {
-    if (!RULE_WORDS.has(record.discriminator) || record.placement.kind !== 'authored') continue;
-    const holding = roots.filter((root) => reaches(root.root, posix(record.source.path)));
-    if (holding.length === 0) continue;
-    found.add(holding.reduce((best, root) => (root.root.length > best.root.length ? root : best)).root);
+    if (!RULE_WORDS.has(record.discriminator) || !authoredRule(record)) continue;
+    const reaching = all.filter((root) => reaches(root, posix(record.source.path)));
+    if (reaching.length > 0) held.add(reaching.reduce((best, root) => (root.length > best.length ? root : best)));
   }
-  return [...found].sort(compare);
+  return new Map(
+    [...declared].map(([id, roots]) => [id, [...roots].filter((root) => held.has(root)).sort(compare)] as const),
+  );
 }
 
 /** REQ-WSSYS-02. */
 function checkRuleRoots(tree: WorkspaceTree, nodes: readonly Node[], report: Report): void {
   const adoptedRules = nodes.filter((n) => RULE_WORDS.has(n.discriminator) && n.placement.kind === 'adopted').length;
-  const roots = new Map([...tree.workspaces].map(([id, node]) => [id, ruleRoots(node, nodes)] as const));
+  const roots = ruleRootsOf(tree, nodes);
   for (const [id, node] of [...tree.workspaces].sort(([a], [b]) => compare(a, b))) {
     const declared = new Set(
       declaredRoots(node)

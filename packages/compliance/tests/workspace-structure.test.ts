@@ -533,3 +533,28 @@ describe('REQ-WSSYS-13 a new structure check warns first', () => {
     expect(evaluate(graphOf()).verdicts.filter((v) => v.check.startsWith('WORKSPACE-'))).toEqual([]);
   });
 });
+
+describe('REQ-WSSYS-02 on the ia-kb layout, once its three governed-by rows exist', () => {
+  it('a rule root is read from the longest root any workspace declares, so the organisation repository root is none', () => {
+    const org = '.ia/src/scopes/org';
+    const department = (name: string, own: readonly string[]) =>
+      ws({
+        name,
+        path: at(name),
+        sources: [`${org} @authored`, `${org} @adopted`, ...own.map((root) => `${root} @authored`)],
+        relationships: ['governed-by @workspace organisation'],
+      });
+    const graph = graphOf(
+      ws({ name: 'organisation', path: OWN, sources: ['. @authored', `${org} @authored`, `${org} @adopted`] }),
+      department('engineering', ['.ia/src/scopes/engineering']),
+      department('product', ['.ia/src/scopes/product']),
+      department('upkeep', ['.ia/src/scopes/upkeep']),
+      rule('law', 'org-law', `${org}/rules/org-law.ia`),
+      rule('convention', 'product-convention', '.ia/src/scopes/product/rules/convention.ia'),
+      mandate('org-mandate', '.ia/src/org-mandate.ia'),
+    );
+    expect(found(graph, WORKSPACE_STRUCTURE_CHECKS.ruleRoots)).toEqual([]);
+    expect(found(graph, WORKSPACE_STRUCTURE_CHECKS.parent)).toEqual([]);
+    expect(found(graph, WORKSPACE_STRUCTURE_CHECKS.sharedRoot)).toEqual([]);
+  });
+});
