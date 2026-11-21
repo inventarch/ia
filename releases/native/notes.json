@@ -1,69 +1,8 @@
 {
   "format": "ia.native-release-notes.v1",
   "baseline": {
-    "tag": "v3.8.1",
-    "commit": "d3071c3ecc7c278101231ecc6f2628d28250eeee"
+    "tag": "v3.9.0",
+    "commit": "c74a9b6ac16b513ceaba7230008f97de920ce349"
   },
-  "changes": [
-    {
-      "id": "inventarch/agent-composition-system",
-      "bump": "patch",
-      "summary": "Document the released compiler writer output and the explicit retained-artifact replay boundary; rebuilt on agent-system's mandate authority.words and workspace-system's optional workspace composition fields."
-    },
-    {
-      "id": "inventarch/agent-system",
-      "bump": "minor",
-      "summary": "@schema mandate adds optional authority.words allow-list alongside authority.excluded-words; rebuilt on workspace-system's optional workspace composition fields."
-    },
-    {
-      "id": "inventarch/authoring-system",
-      "bump": "patch",
-      "summary": "The @workspace and @mandate authoring references document composition.public-agent, composition.private-agent, composition.decides and authority.words, and are rebuilt on agent-system and workspace-system."
-    },
-    {
-      "id": "inventarch/compliance-system",
-      "bump": "patch",
-      "summary": "Rebuilt on agent-system's mandate authority.words and workspace-system's optional workspace composition fields; no change of its own."
-    },
-    {
-      "id": "inventarch/governance-system",
-      "bump": "patch",
-      "summary": "Rebuilt on agent-system's mandate authority.words and workspace-system's optional workspace composition fields; no change of its own."
-    },
-    {
-      "id": "inventarch/hook-authoring-system",
-      "bump": "patch",
-      "summary": "Rebuilt on agent-system's mandate authority.words and workspace-system's optional workspace composition fields; no change of its own."
-    },
-    {
-      "id": "inventarch/language",
-      "bump": "minor",
-      "summary": "IA syntax remains 1.0. @schema workspace adds optional composition.public-agent, composition.private-agent and composition.decides fields, and @schema mandate adds optional authority.words."
-    },
-    {
-      "id": "inventarch/learning-system",
-      "bump": "patch",
-      "summary": "Rebuilt on agent-system's mandate authority.words and workspace-system's optional workspace composition fields; no change of its own."
-    },
-    {
-      "id": "inventarch/session-system",
-      "bump": "patch",
-      "summary": "Rebuilt on agent-system's mandate authority.words and workspace-system's optional workspace composition fields; no change of its own."
-    },
-    {
-      "id": "inventarch/template-system",
-      "bump": "patch",
-      "summary": "Rebuilt on agent-system's mandate authority.words and workspace-system's optional workspace composition fields; no change of its own."
-    },
-    {
-      "id": "inventarch/work-system",
-      "bump": "patch",
-      "summary": "Rebuilt on agent-system's mandate authority.words and workspace-system's optional workspace composition fields; no change of its own."
-    },
-    {
-      "id": "inventarch/workspace-system",
-      "bump": "minor",
-      "summary": "@schema workspace adds optional composition.public-agent, composition.private-agent and composition.decides fields; rebuilt on agent-system's mandate authority.words."
-    }
-  ]
+  "changes": []
 }

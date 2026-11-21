@@ -2,6 +2,28 @@
 
 Generated from reviewed release changesets. Entries describe intended releases; publication is a separate action.
 
+## 3.9.1
+
+Coordinated 3.9.1 release of the 24 public npm packages: Committed kb reads retry a timed-out git call once; Let a workspace that declares a root twice own it.
+
+### Committed kb reads retry a timed-out git call once
+
+Committed reads in `@inventarch/kb`, which `kb pack` and the legacy committed writer use, now give a git call that timed out, such as one a stalled process held past its 10-second bound, one more try under the same bound before refusing with `IA-KB-SOURCE-UNAVAILABLE`. Any other git failure still refuses at once. The 10-second default and the 30-second cap on `gitTimeoutMs` stay as they are. A git call that times out on both tries refuses after its second try, about 20 seconds at the default.
+
+Packages: `@inventarch/kb`.
+
+### Let a workspace that declares a root twice own it
+
+ia preview and ia author judged an authored root one declaration row at a time, so a workspace that declares the same root both `@authored` and `@adopted` (the adopted twin a governing store keeps for adopters) was refused IA-CLI-EDIT-UNOWNED at its own root. Ownership is now judged per declaring workspace: every declarer must declare the root `@authored`, and a declarer that holds only the `@adopted` twin still withholds it.
+
+Packages: `@inventarch/cli`.
+
+### Coordinated version alignment
+
+Package version metadata follows the coordinated 3.9.1 release; each native artifact version follows its own archive content.
+
+Packages: `@inventarch/agent-composition-system`, `@inventarch/agent-system`, `@inventarch/authoring-system`, `@inventarch/compliance`, `@inventarch/compliance-system`, `@inventarch/db`, `@inventarch/distribution`, `@inventarch/governance-system`, `@inventarch/graph`, `@inventarch/hook-authoring-system`, `@inventarch/language`, `@inventarch/learning-system`, `@inventarch/mcp-door`, `@inventarch/runner`, `@inventarch/runtime`, `@inventarch/service-contracts`, `@inventarch/session-system`, `@inventarch/steward-hook`, `@inventarch/template-system`, `@inventarch/work-system`, `@inventarch/workspace-runtime`, `@inventarch/workspace-system`.
+
 ## 3.9.0
 
 Coordinated 3.9.0 release of the 24 public npm packages: CLI and runtime tests: the repository's plans moved out; Negotiate conditional method packets; Gemini CLI and Google Antigravity hosts and standalone plugin projection; Bound the `ia init --system` stewardship mandate to its own system folder; Declare `KB_FORMAT` and the new workspace-runtime ids as the literals they hold; Plain format readers and adapter maps across compiler, runtime, kb and workspace-runtime; Plain format readers for the structured template and the runner recompile; Plain lifecycle context segment and profile readers for the steward hook; Retained method bytes carry the carrier's trusted publishers, as the ia plugin's do; Seat `ia preview` and `ia author` at target-owning `@workspace`, add `@mandate` `authority.words` allow-lists, and isolate oversized and high-error `.ia` sources; Add optional `@workspace` agent and decision fields, hosted kit lock pins, and uniform `ia init --system` stewardship mandates.
