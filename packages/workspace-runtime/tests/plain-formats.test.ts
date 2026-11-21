@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 
 /** The package's one switch, flipped here to prove the plain names come back exactly when the follow-up release flips it. */
 const flip = vi.hoisted(() => ({ plain: false }));
@@ -414,6 +414,32 @@ describe('projection descriptors and catalogs', () => {
 
 describe('handler ids', () => {
   const repository = fileURLToPath(new URL('../../..', import.meta.url));
+  it('declares each public id as the released literal it holds, which a mutable copy widens to string', () => {
+    // Checked when the package typecheck compiles this file: each published declaration names the value written,
+    // as `export const ID = '…'` would, rather than `string`.
+    expectTypeOf<typeof CORPUS_INSPECT_HANDLER>().toEqualTypeOf<'ia.corpus.inspect.v1'>();
+    expectTypeOf<typeof CANDIDATE_VALIDATE_HANDLER>().toEqualTypeOf<'ia.candidate.validate.v1'>();
+    expectTypeOf<typeof DRAFT_PUBLISH_HANDLER>().toEqualTypeOf<'ia.draft.publish.v1'>();
+    expectTypeOf<typeof CLAUDE_PROSE_PROFILE>().toEqualTypeOf<'ia.host.claude-prose.v1'>();
+    expectTypeOf<typeof CODEX_PROSE_PROFILE>().toEqualTypeOf<'ia.host.codex-prose.v1'>();
+    let corpus = CORPUS_INSPECT_HANDLER,
+      candidate = CANDIDATE_VALIDATE_HANDLER,
+      draft = DRAFT_PUBLISH_HANDLER,
+      claude = CLAUDE_PROSE_PROFILE,
+      codex = CODEX_PROSE_PROFILE;
+    corpus = PLAIN_CORPUS_INSPECT_HANDLER;
+    candidate = PLAIN_CANDIDATE_VALIDATE_HANDLER;
+    draft = PLAIN_DRAFT_PUBLISH_HANDLER;
+    claude = PLAIN_CLAUDE_PROSE_PROFILE;
+    codex = PLAIN_CODEX_PROSE_PROFILE;
+    expect([corpus, candidate, draft, claude, codex]).toEqual([
+      PLAIN_CORPUS_INSPECT_HANDLER,
+      PLAIN_CANDIDATE_VALIDATE_HANDLER,
+      PLAIN_DRAFT_PUBLISH_HANDLER,
+      PLAIN_CLAUDE_PROSE_PROFILE,
+      PLAIN_CODEX_PROSE_PROFILE,
+    ]);
+  });
   it('answers both the plain and the original handler, and names the released one until the switch flips', () => {
     expect(CLAUDE_PROSE_PROFILE).toBe(LEGACY_CLAUDE_PROSE_PROFILE);
     expect(CODEX_PROSE_PROFILE).toBe(LEGACY_CODEX_PROSE_PROFILE);

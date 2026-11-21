@@ -22,8 +22,8 @@ import type {
 import { CompositionError } from './compiled.js';
 import type { Compilation, CompiledCapability, CompiledHarness, CompiledProfile, ComponentPin } from './compiled.js';
 import { closedFields, fail, field, LIMIT_KEYS, limits, list, minimum, strings, unique, value } from './fields.js';
+import { compiledAliases, verifyCompiledStamp } from './execution.js';
 import { compatibleInputs } from './inputs.js';
-import { writeStamp } from './plain-format.js';
 import type { Stamp } from './plain-format.js';
 
 const sha = (text: string): string => createHash('sha256').update(text).digest('hex');
@@ -50,12 +50,17 @@ export interface CompileOptions {
   aliases?: CatalogAliases;
   /** Service-owned executable definitions may differ from the captured task corpus. */
   definitions?: Capture;
-  /** The stamp a retained compilation carries, so rebuilding it reproduces its digest; new compilations omit it. */
-  stamp?: CompiledStamp;
 }
 export type CompiledStamp = Stamp<'compiled-harness', 'ia.compiled-harness.v1'>;
 
-class Compiler {
+// The released writer and its declared output change together. Retained readers remain compatible with both formats.
+const writerStamp: { format: 'ia.compiled-harness.v1' } = { format: 'ia.compiled-harness.v1' };
+type StampedHarness<S extends CompiledStamp> = Omit<CompiledHarness, 'format' | 'formatVersion'> & S;
+type StampedCompilation<S extends CompiledStamp> =
+  | { ok: true; manifest: StampedHarness<S> }
+  | Extract<Compilation, { ok: false }>;
+
+class Compiler<S extends CompiledStamp> {
   readonly reader: EditorSnapshot;
   readonly scope: string;
   readonly records: readonly CompiledRecord[];
@@ -79,6 +84,7 @@ class Compiler {
     readonly task: Capture,
     readonly definitions: Capture,
     readonly options: CompileOptions,
+    private readonly stamp: S,
   ) {
     this.reader = new EditorSnapshot({
       root: process.cwd(),
@@ -782,7 +788,7 @@ class Compiler {
       .slice(node.source.line - 1, node.source.endLine)
       .join('\n');
   }
-  compile(): CompiledHarness {
+  compile(): StampedHarness<S> {
     this.harness = this.select(this.options.harness, 'harness');
     closedFields(this.harness);
     const workspace = this.reference(
@@ -906,7 +912,7 @@ class Compiler {
       ...(aliases.length ? { aliases } : {}),
     };
     const body = {
-      ...(this.options.stamp ?? writeStamp('compiled-harness', 'ia.compiled-harness.v1')),
+      ...this.stamp,
       id: this.harness.identity,
       workspace: workspace.identity,
       sourceDigest: this.task.revision,
@@ -924,12 +930,42 @@ class Compiler {
 }
 
 /** Pure admission/compilation. No provider, implementation callback, installation or filesystem write. */
-export function compileHarness(capture: Capture, options: CompileOptions): Compilation {
-  let compiler: Compiler | undefined;
+export function compileHarness(capture: Capture, options: CompileOptions): StampedCompilation<typeof writerStamp> {
+  return compileWithStamp(capture, options, writerStamp);
+}
+
+/** First-party retained reader. The artifact supplies the verified stamp and all selection except the trusted catalog. */
+export function replayCompiledHarness(
+  capture: Capture,
+  retained: CompiledHarness,
+  catalog: CompositionCatalog,
+): Compilation {
+  try {
+    const stamp = verifyCompiledStamp(retained);
+    const result = compileWithStamp(
+      capture,
+      { harness: retained.id, entry: retained.entry.binding, aliases: compiledAliases(retained), catalog },
+      stamp,
+    );
+    if (result.ok && result.manifest.digest !== retained.digest)
+      fail('IA-COMPOSITION-UNAVAILABLE', 'Compiled closure differs from the retained native capture');
+    return result;
+  } catch (error) {
+    if (!(error instanceof CompositionError)) throw error;
+    return { ok: false, diagnostics: [error.diagnostic] };
+  }
+}
+
+function compileWithStamp<S extends CompiledStamp>(
+  capture: Capture,
+  options: CompileOptions,
+  stamp: S,
+): StampedCompilation<S> {
+  let compiler: Compiler<S> | undefined;
   try {
     const task = verifyCapture(capture),
       definitions = verifyCapture(options.definitions ?? capture);
-    compiler = new Compiler(task, definitions, options);
+    compiler = new Compiler(task, definitions, options, stamp);
     return { ok: true, manifest: compiler.compile() };
   } catch (error) {
     if (!(error instanceof CompositionError)) throw error;

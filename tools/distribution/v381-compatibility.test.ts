@@ -15,6 +15,8 @@ import { relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import { compileHarness, compiledStamp, executionManifest } from '@inventarch/agent-composition-system';
+import { replayCompiledHarness } from '@inventarch/agent-composition-system/internal/compile';
+import { digest } from '@inventarch/session-system';
 import { open } from '@inventarch/db';
 import {
   applyHookRegistration,
@@ -747,21 +749,17 @@ console.log('V381_JSON:' + JSON.stringify({
   });
 
   // Verify 3.9.0 permissive readers accept BOTH 3.8.1 shapes AND plain (formatVersion: 1) shapes with original digests.
-  const plainHarnessRes = compileHarness(compCapture, {
-    harness: 'native-sample',
-    entry: 'sample-entry',
-    catalog: compCatalog,
-    stamp: { format: 'compiled-harness', formatVersion: 1 },
-  });
-  if (!plainHarnessRes.ok) throw new Error(JSON.stringify(plainHarnessRes));
+  const { digest: _releasedDigest, ...harnessBody } = compiledHarness,
+    retainedPlainBody = { ...harnessBody, format: 'compiled-harness' as const, formatVersion: 1 as const },
+    retainedPlain = { ...retainedPlainBody, digest: digest(retainedPlainBody) };
   expect(compiledStamp(compiledHarness)).toEqual({ format: 'ia.compiled-harness.v1' });
-  expect(compiledStamp(plainHarnessRes.manifest)).toEqual({ format: 'compiled-harness', formatVersion: 1 });
-  expect(executionManifest(compiledHarness, compCatalog).provenance).toMatchObject({
-    compiled: { digest: compiledHarness.digest },
-  });
-  expect(executionManifest(plainHarnessRes.manifest, compCatalog).provenance).toMatchObject({
-    compiled: { digest: plainHarnessRes.manifest.digest },
-  });
+  expect(compiledStamp(retainedPlain)).toEqual({ format: 'compiled-harness', formatVersion: 1 });
+  for (const retained of [compiledHarness, retainedPlain]) {
+    expect(replayCompiledHarness(compCapture, retained, compCatalog)).toEqual({ ok: true, manifest: retained });
+    expect(executionManifest(retained, compCatalog).provenance).toMatchObject({
+      compiled: { digest: retained.digest },
+    });
+  }
 
   const { digest: _pkgDigest, selection: oldSel, ...pkgRest } = kbPkg,
     plainSelection = {

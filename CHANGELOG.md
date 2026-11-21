@@ -2,6 +2,82 @@
 
 Generated from reviewed release changesets. Entries describe intended releases; publication is a separate action.
 
+## 3.9.0
+
+Coordinated 3.9.0 release of the 24 public npm packages: CLI and runtime tests: the repository's plans moved out; Negotiate conditional method packets; Gemini CLI and Google Antigravity hosts and standalone plugin projection; Bound the `ia init --system` stewardship mandate to its own system folder; Declare `KB_FORMAT` and the new workspace-runtime ids as the literals they hold; Plain format readers and adapter maps across compiler, runtime, kb and workspace-runtime; Plain format readers for the structured template and the runner recompile; Plain lifecycle context segment and profile readers for the steward hook; Retained method bytes carry the carrier's trusted publishers, as the ia plugin's do; Seat `ia preview` and `ia author` at target-owning `@workspace`, add `@mandate` `authority.words` allow-lists, and isolate oversized and high-error `.ia` sources; Add optional `@workspace` agent and decision fields, hosted kit lock pins, and uniform `ia init --system` stewardship mandates.
+
+### CLI and runtime tests: the repository's plans moved out
+
+Tests and a review note only: the CLI's next test and the runtime's packet count no longer rely on plans authored in this repository, which are now kept with InventArch's work records outside it; no package behaviour changes.
+
+Packages: `@inventarch/cli`, `@inventarch/runtime`.
+
+### Negotiate conditional method packets
+
+MCP and runtime callers can request packet contract 3 to retain unresolved rule activation from the position. Contract 1 now refuses unresolved rules; resolved packets and existing task pins keep their format.
+
+Packages: `@inventarch/mcp-door`, `@inventarch/runtime`.
+
+### Gemini CLI and Google Antigravity hosts and standalone plugin projection
+
+Adds `gemini` and `antigravity` as supported workspace and plugin hosts across `@inventarch/cli`, `@inventarch/distribution`, `@inventarch/runtime`, `@inventarch/steward-hook`, and `@inventarch/workspace-runtime`; compiles standalone zero-IA-dependency plugins via `ia project <host> --product plugin` with progressive-disclosure router skills, static OPAL packets, and standalone `@hook` guards; and reuses opened workspace snapshots across `ia_kb_*` queries in `@inventarch/kb` and `@inventarch/mcp-door`.
+
+Packages: `@inventarch/cli`, `@inventarch/distribution`, `@inventarch/kb`, `@inventarch/mcp-door`, `@inventarch/runtime`, `@inventarch/steward-hook`, `@inventarch/workspace-runtime`.
+
+### Bound the `ia init --system` stewardship mandate to its own system folder
+
+`ia init --system` writes, and `ia preview system` shows, `@mandate <name>-stewardship` with `authority.covers [".ia/src/systems/<name>/"]`, the system folder alone, where an unreleased build wrote `[".ia/src/"]`. The mandate states no `authority.scope`, so under a source `@hook` the edit guard lets the steward's subagent author its own system's records and refuses it on sibling systems and on `.ia/src/workspace.ia`, which only the workspace's own mandate governs; the workspace participant keeps its workspace-wide mandate. A workspace that build initialized can be repaired by changing that one `covers` line in `.ia/src/systems/<name>/system.ia` and running `ia validate`. Limit: the mandate is still written inside the folder it covers, so the guard also lets the steward edit that record.
+
+Packages: `@inventarch/cli`.
+
+### Declare `KB_FORMAT` and the new workspace-runtime ids as the literals they hold
+
+`@inventarch/kb` declares `KB_FORMAT` as `"ia.kb.package.v1"`, exactly as 3.8.1 did, so code typed against that literal keeps compiling. `@inventarch/workspace-runtime` declares the ids it exports publicly for the first time, `CORPUS_INSPECT_HANDLER`, `CANDIDATE_VALIDATE_HANDLER`, `DRAFT_PUBLISH_HANDLER`, `CLAUDE_PROSE_PROFILE` and `CODEX_PROSE_PROFILE`, as the literals they hold, such as `"ia.host.claude-prose.v1"`, rather than `string`. Before release, the plain format names change had widened all six declarations to `string`. No value changes.
+
+Packages: `@inventarch/kb`, `@inventarch/workspace-runtime`.
+
+### Plain format readers and adapter maps across compiler, runtime, kb and workspace-runtime
+
+Readers across @inventarch/agent-composition-system, @inventarch/cli, @inventarch/kb, @inventarch/runtime and @inventarch/workspace-runtime accept plain format names beside formatVersion 1 (compiled-harness, task-context-declaration, task-capture-selection, position-body, position-packet, delivery-view, packet-receipt, method-bytes, kb-package, kb-selection, kb-portable, kb-citation, kb-snapshot, kb-foundation, captured-resources, authoring-resources, authoring-index, authoring-view, installed-adapter, retained-store, lifecycle-profile, lifecycle-event, lifecycle-context, lifecycle-context-segment, prepared-lifecycle-context, native-context, projection-descriptor, projection-manifest, projection-result, projection-catalog, lowering-map and managed-draft) as well as the plain prose profile ids (claude-prose, codex-prose) and handler ids (corpus-inspect, candidate-validate, draft-publish), verifying retained documents against the exact stamp and digest they were written with. Corpus, candidateValidation and managedPublication expose adapters maps answering both plain and released handler ids, and the first-party retained-harness replay path verifies the existing artifact and reproduces its original digest. The public compileHarness options do not accept an output format override and its ordinary result preserves the released literal type. Default writers, public constants (KB_FORMAT, KB_OPERATIONS, MACHINE_PROTOCOL, CODEX_PROSE_PROFILE, CLAUDE_PROSE_PROFILE, CORPUS_INSPECT_HANDLER, CANDIDATE_VALIDATE_HANDLER, DRAFT_PUBLISH_HANDLER), host bindings and lifecycle retry keys continue to emit exact 3.8.1 shapes and digests while WRITE_PLAIN_NAMES is false.
+
+Packages: `@inventarch/agent-composition-system`, `@inventarch/cli`, `@inventarch/kb`, `@inventarch/runtime`, `@inventarch/workspace-runtime`.
+
+### Plain format readers for the structured template and the runner recompile
+
+verifyStructuredTemplate reads a template under the plain structured-template name with formatVersion 1 as well as under the original ia.structured-template.v1 literal, preserving the stamp it was written with. The runner validates the retained compiled harness and rebuilds it from its capture under its original stamp, requiring the original digest for both released and plain formats.
+
+Packages: `@inventarch/runner`, `@inventarch/template-system`.
+
+### Plain lifecycle context segment and profile readers for the steward hook
+
+The steward context hook and @inventarch/workspace-runtime accept lifecycle context segments, events and profiles written under the plain format names (lifecycle-context-segment, lifecycle-context, lifecycle-event, lifecycle-profile with formatVersion 1) alongside the 3.8.1 ia.* literals, while default hook emissions, registered lifecycle profile digests and bound lifecycle retry keys keep exact 3.8.1 shapes and digests while WRITE_PLAIN_NAMES is false.
+
+Packages: `@inventarch/steward-hook`.
+
+### Retained method bytes carry the carrier's trusted publishers, as the ia plugin's do
+
+@inventarch/runtime now retains a carrier plugin's `config/trusted-publishers.json` with a kit's method bytes, beside `.claude-plugin/plugin.json` and `config/qualified-process-tools.json`, as the `ia` plugin's own resolver does; every released `ia` plugin, 1.2.0 and later, ships that file and retains it. For the same kit and carrier, the closure that `ia_method` in @inventarch/mcp-door retains, and its digest, now equal the plugin's. So `closure.retained`, the packet digest and the retained digest a new task pin records change for every carrier that ships the file. The plugin's check runner can now run a kit's checks for a task the door pinned: before, the retained copy carried no trusted list, so those checks refused `IA-CORE-KIT-UNTRUSTED`. A task pinned through an earlier door keeps the closure it recorded, and its checks refuse the same way until the plugin's resolver rebinds it (`resolve.mjs --rebind`) or a new task starts. A carrier without the file now refuses to retain, as one without either other support file already did and as the plugin's resolver does.
+
+Packages: `@inventarch/mcp-door`, `@inventarch/runtime`.
+
+### Seat `ia preview` and `ia author` at target-owning `@workspace`, add `@mandate` `authority.words` allow-lists, and isolate oversized and high-error `.ia` sources
+
+Seat `ia preview` and `ia author` at the `@workspace` owning the target path via longest-root resolution (#285). Add optional `authority.words` allow-lists on `@schema mandate`, judged beside `authority.excluded-words` (#286): `ia preview` and `ia author` refuse a record whose word the governing mandates disallow (`IA-RUNTIME-MANDATE-WORD`), and `ia validate` reports one (`COMP-MANDATE` / `IA-COMP-MANDATE-WORD`). `COMP-MANDATE` does not judge administrative records such as a `@mandate` itself, so it does not report a widened `authority.words` on a mandate. When an authored `@hook` selects an edit to a `.ia` file under `.ia/src/`, the `steward-hook` edit guard also judges the words of the record headers (`@<word> <name>` lines) in the text the `Write`, `Edit` or `MultiEdit` writes: a new or wholly rewritten file, or an edit that adds a whole record, is checked, but an edit that changes an existing record's fields without rewriting its header line is not yet judged on words. Replace unbounded array spreads, the parser's recursive field nesting and quadratic diagnostic paths in `@inventarch/language` and `@inventarch/db`, so the oversized and high-error `.ia` sources reported in #198 now fail cleanly, naming their file, without call-stack overflow or heap exhaustion. Some recursion remains: a `requires` chain of thousands of `@system` records can still overflow the call stack and leave the workspace unreadable, as in 3.8.1.
+
+Packages: `@inventarch/agent-system`, `@inventarch/authoring-system`, `@inventarch/cli`, `@inventarch/compliance`, `@inventarch/db`, `@inventarch/graph`, `@inventarch/language`, `@inventarch/mcp-door`, `@inventarch/runtime`, `@inventarch/steward-hook`, `@inventarch/workspace-runtime`.
+
+### Add optional `@workspace` agent and decision fields, hosted kit lock pins, and uniform `ia init --system` stewardship mandates
+
+Extend `@schema workspace` with optional `composition.public-agent`, `composition.private-agent` and `composition.decides` fields; advance distribution lock engine to `0.1.3` for offline-safe `hosted` kit pins with `archive` and `manifest` SHA-256 digests (`ia install --hosted`, `readHostedPins`, `source: hosted` in `ia_session` and `IA-CORE-KIT-HOSTED` in `ia_method`); and pair `@agent <id>-steward` uniformly with `@mandate <id>-stewardship` in `ia init --system`. Exported `LockEntry`, `KitOrigin`, `KitInstallation['via']` and `KitSource` unions widen to include `'hosted'`. A lock without a hosted pin keeps the engine marker 3.8.x reads, but every installation plan 3.9.0 saves (`ia-distribution plan install|update|remove|rollback … --out`, or `--plan-out` on `ia install`, `ia update` or `ia remove`) records engine `0.1.3`, whatever lock it plans: `ia-distribution apply --plan` of 3.8.x refuses such a plan, and 3.9.0 refuses one 3.8.x saved, both with `IA-DIST-INPUT-INVALID` ("Invalid installation plan"). `ia` itself plans and applies in one run, so only a saved plan is affected; make a fresh plan with the CLI that will apply it.
+
+Packages: `@inventarch/agent-composition-system`, `@inventarch/agent-system`, `@inventarch/authoring-system`, `@inventarch/cli`, `@inventarch/compliance-system`, `@inventarch/db`, `@inventarch/distribution`, `@inventarch/governance-system`, `@inventarch/hook-authoring-system`, `@inventarch/learning-system`, `@inventarch/mcp-door`, `@inventarch/runtime`, `@inventarch/session-system`, `@inventarch/template-system`, `@inventarch/work-system`, `@inventarch/workspace-system`.
+
+### Coordinated version alignment
+
+Package version metadata follows the coordinated 3.9.0 release; each native artifact version follows its own archive content.
+
+Packages: `@inventarch/service-contracts`.
+
 ## 3.8.1
 
 Coordinated 3.8.1 release of the 24 public npm packages: Catalogs that rename only an operation's validators or an entry's mapping compile; ia workspaces runs in the running copy; Regenerated vocabulary and language compatibility assets; Workspace runtime docs: the agent-composition aliases are gone.
