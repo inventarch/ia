@@ -12,7 +12,7 @@ vi.mock('../src/written-names.js', () => ({
 import { readInputs } from '@inventarch/db';
 import type { Handle } from '@inventarch/db';
 import { stableSerialize } from '@inventarch/graph';
-import { K0, normalizeScopeKey, positionBody, resolveScopeKey } from '../src/index.js';
+import { K0, context, normalizeScopeKey, positionBody, resolveScopeKey } from '../src/index.js';
 import type { LoadedRecord, PositionBody, ScopeKey } from '../src/index.js';
 import {
   database,
@@ -23,6 +23,7 @@ import {
   lawPath,
   methodPath,
   packetFixture,
+  playbook,
   put,
   workspace,
   workspacePath,
@@ -888,13 +889,242 @@ it('reserves a blocking rule only where its activation admits the coordinate, an
   const plan = bodyOf(db, within, { seat: governanceSystem, shape: 'governance', phase: 'plan' });
   expect(ids(plan.rules)).toContain(planOnly);
   expect(plan.rules.find((r) => r.identity === planOnly)?.activation).toBeUndefined();
-  expect(plan.omittedRules).toEqual([{ identity: onMove, detail: 'phase is act, request is plan' }]);
+  expect(plan.omittedRules).toEqual([{ identity: onMove, word: 'law', detail: 'phase is act, request is plan' }]);
   const act = bodyOf(db, within, { seat: governanceSystem, shape: 'governance', phase: 'act' });
   expect(ids(act.rules)).not.toContain(planOnly);
-  expect(act.omittedRules).toEqual([{ identity: planOnly, detail: 'phase is plan, request is act' }]);
+  expect(act.omittedRules).toEqual([{ identity: planOnly, word: 'law', detail: 'phase is plan, request is act' }]);
   expect(act.rules.find((r) => r.identity === onMove)?.activation).toBe('phase is act and move is Execution');
   // Left out by activation, a rule is neither loaded, pointed to nor on the frontier.
   expect(ids(act.loaded)).not.toContain(planOnly);
   expect(act.pointers.some((p) => p.identity === planOnly)).toBe(false);
   expect(act.counts.rules).toBe(act.rules.length);
+});
+
+// #325: a record the walk would load is delivered only where its activation admits the coordinate too, as `ia context`
+// delivers it (R04). An advisory law that activates on a phase alone loads at that phase only; elsewhere `omittedRules`
+// names it with the contradictory term, and it is neither loaded, pointed to nor counted against the budget. One that
+// names an axis the key cannot bind (move) loads, marked with the group it waits on.
+it('loads a record only where its activation admits the coordinate, and names the rest', () => {
+  const root = workspace(),
+    planOnly = 'governance-system/governance/law/advisory-plan',
+    onMove = 'governance-system/governance/law/advisory-move';
+  put(
+    root,
+    `${records}/advisory-plan.ia`,
+    law('advisory-plan', 'advisory', '  activation\n    activate when phase is plan\n'),
+  );
+  put(
+    root,
+    `${records}/advisory-move.ia`,
+    law('advisory-move', 'advisory', '  activation\n    activate when move is Execution\n'),
+  );
+  const db = database(root),
+    within = db.resolveScope().token;
+  expect(db.report.findings.filter((f) => f.severity === 'error')).toEqual([]);
+  const key = { seat: governanceSystem, shape: 'governance' } as const,
+    loadedAs = (body: PositionBody, identity: string) =>
+      body.loaded.find((entry): entry is LoadedRecord => 'identity' in entry && entry.identity === identity);
+  // Both advisory laws are word members of the @system seat, so the walk seeds them at every phase.
+  const plan = bodyOf(db, within, { ...key, phase: 'plan' });
+  expect(loadedAs(plan, planOnly)).toBeDefined();
+  expect(loadedAs(plan, planOnly)?.activation).toBeUndefined();
+  expect(plan.omittedRules).toEqual([]);
+  const act = bodyOf(db, within, { ...key, phase: 'act' });
+  expect(ids(act.loaded)).not.toContain(planOnly);
+  expect(act.omittedRules).toEqual([{ identity: planOnly, word: 'law', detail: 'phase is plan, request is act' }]);
+  expect(act.pointers.some((p) => p.identity === planOnly)).toBe(false);
+  expect(loadedAs(act, onMove)?.activation).toBe('move is Execution');
+  expect(loadedAs(plan, onMove)?.activation).toBe('move is Execution');
+  // Left out, it takes no slot: a budget of exactly the records delivered loads them all and truncates none.
+  const tight = bodyOf(db, within, { ...key, phase: 'act', budget: act.loaded.length - 1 });
+  expect(ids(tight.loaded)).toEqual(ids(act.loaded));
+  expect(tight.counts.truncatedLoaded).toBe(0);
+  // The seat is what the key names: its loaded entry is there whatever its own activation, which is never tested.
+  const seated = bodyOf(db, within, { seat: planOnly, shape: 'governance', phase: 'act' });
+  expect(seated.loaded[0]).toMatchObject({ identity: planOnly });
+  expect(seated.loaded[0]).not.toHaveProperty('activation');
+  expect(seated.omittedRules).toEqual([]);
+});
+
+// #325: the record a body delivers for an identity at the key's phase is the occurrence `ia context` reads there. Graph
+// G04 selects by phase before band, so an authored override (band 100) that activates at plan alone shadows the
+// adopted record it overrides (band 90) at plan only; at act the adopted occurrence is the record, as `ia context`
+// delivers it: loaded at its own band and digest, reserved or not by its own severity, applying by word with its own
+// cell. None of the three is left out.
+it("delivers the occurrence ia context reads at the key's phase: an override that cannot hold falls back", () => {
+  const advice = 'governance-system/governance/law/fallback-advice',
+    block = 'governance-system/governance/law/fallback-block',
+    steps = 'governance-system/definition/procedure/fallback-steps',
+    category = 'governance-system/governance/law/category-override',
+    planOnly = '  activation\n    activate when phase is plan\n',
+    applying = '  subject\n    subject-kind definition\n',
+    cell = (phase: string, text: string) => `    ${phase}\n      primary Inference\n      Inference means "${text}"\n`;
+  // The adopted records are unconditional and advisory; the authored overrides hold at plan, one of them blocking. A
+  // fourth override activates on a category instead, which G04 does not select by: it is the record at every phase.
+  const root = freshInit(undefined, {
+    [`${records}/fallback-advice.ia`]: law('fallback-advice', 'advisory'),
+    [`${records}/fallback-block.ia`]: law('fallback-block', 'advisory'),
+    [`${records}/fallback-steps.ia`]: playbook('fallback-steps', applying, cell('act', 'adopted act.')),
+    [`${records}/category-override.ia`]: law('category-override', 'advisory'),
+  });
+  put(root, `${records}/fallback-advice.ia`, law('fallback-advice', 'advisory', planOnly));
+  put(root, `${records}/fallback-block.ia`, law('fallback-block', 'blocking', planOnly));
+  put(
+    root,
+    `${records}/fallback-steps.ia`,
+    playbook('fallback-steps', `${applying}${planOnly}`, cell('plan', 'authored plan.')),
+  );
+  put(
+    root,
+    `${records}/category-override.ia`,
+    law('category-override', 'advisory', '  activation\n    activate when category is process\n'),
+  );
+  const contradicted = { identity: category, word: 'law', detail: 'category is process, request is rule' };
+  const db = database(root),
+    within = db.resolveScope().token;
+  expect(db.report.findings.filter((f) => f.severity === 'error')).toEqual([]);
+  /** Each identity's occurrence at a phase, as the scope bound to that phase admits it (db D07, graph G04). */
+  const atPhase = (phase: 'plan' | 'act', identity: string) =>
+    db.snapshot({ within: db.resolveScope({ within, phase }).token }).records.find((r) => r.identity === identity)!;
+  expect([advice, block, steps].map((identity) => atPhase('act', identity).band)).toEqual([90, 90, 90]);
+  expect([advice, block, steps].map((identity) => atPhase('plan', identity).band)).toEqual([100, 100, 100]);
+  const loadedAs = (body: PositionBody, identity: string) =>
+    body.loaded.find((entry): entry is LoadedRecord => 'identity' in entry && entry.identity === identity);
+  const key = { shape: 'governance', depth: 1, budget: 16 } as const;
+  // At plan the overrides hold: the advisory one loads, the blocking one is reserved, and the plan cell is delivered.
+  const plan = bodyOf(db, within, { ...key, phase: 'plan' });
+  expect(loadedAs(plan, advice)).toMatchObject({ band: 100, digest: atPhase('plan', advice).digest });
+  expect(plan.rules.find((rule) => rule.identity === block)).toMatchObject({ band: 100 });
+  expect(plan.appliesByWord.find((entry) => entry.identity === steps)).toMatchObject({ band: 100 });
+  expect(plan.cells).toContainEqual({ playbook: steps, address: `${steps}#plan/Inference`, text: 'authored plan.' });
+  expect(plan.omittedRules).toEqual([contradicted]);
+  // At act they do not, and the adopted occurrences are delivered: the law the override made blocking is advisory
+  // there, so it loads rather than being reserved.
+  const act = bodyOf(db, within, { ...key, phase: 'act' });
+  expect(act.omittedRules).toEqual([contradicted]);
+  expect(loadedAs(act, advice)).toMatchObject({ band: 90, digest: atPhase('act', advice).digest });
+  expect(loadedAs(act, block)).toMatchObject({ band: 90, digest: atPhase('act', block).digest });
+  expect(ids(act.rules)).not.toContain(block);
+  expect(act.appliesByWord.find((entry) => entry.identity === steps)).toMatchObject({ band: 90 });
+  expect(act.cells).toContainEqual({ playbook: steps, address: `${steps}#act/Inference`, text: 'adopted act.' });
+  // `ia context` at the same coordinate delivers those same occurrences.
+  const got = context(
+    db,
+    { within, text: '', coordinate: { shape: 'governance', phase: 'act', primitive: 'Inference' } },
+    { tokens: 1_000_000, records: 1_000 },
+  );
+  if (!got.ok) throw new Error(got.message);
+  const included = got.packet.included;
+  expect(included.find((entry) => entry.identity === advice)).toMatchObject({ band: 90, severity: 'advisory' });
+  expect(included.find((entry) => entry.identity === block)).toMatchObject({ band: 90, severity: 'advisory' });
+  expect(included.find((entry) => entry.identity === steps)).toMatchObject({ band: 90, text: 'adopted act.' });
+  // The category override is the record there too, so neither falls back to the record it overrides: both leave it out.
+  expect(included.some((entry) => entry.identity === category)).toBe(false);
+  expect(got.packet.omitted).toContainEqual({ address: category, reason: 'disqualified', detail: contradicted.detail });
+  expect(ids(act.loaded)).not.toContain(category);
+});
+
+/** `ia context` at a governance coordinate through `within`, the packet or the refusal's message thrown. */
+const governanceContext = (db: Handle, within: string, phase: 'plan' | 'act') => {
+  const got = context(
+    db,
+    { within, text: '', coordinate: { shape: 'governance', phase, primitive: 'Inference' } },
+    { tokens: 1_000_000, records: 1_000 },
+  );
+  if (!got.ok) throw new Error(got.message);
+  return got.packet;
+};
+
+// #325: delivery reads the view `ia context` reads at the key's phase whatever the token's own phase. A token issued at
+// act holds the adopted law (band 90), which its plan-only blocking override cannot shadow there; a key at plan read
+// through that token delivers the override (band 100), reserved as blocking, as `ia context` does through it.
+it("delivers the key's phase occurrence through a token bound to another phase", () => {
+  const guard = 'governance-system/governance/law/phase-guard';
+  const root = freshInit(undefined, { [`${records}/phase-guard.ia`]: law('phase-guard', 'advisory') });
+  put(
+    root,
+    `${records}/phase-guard.ia`,
+    law('phase-guard', 'blocking', '  activation\n    activate when phase is plan\n'),
+  );
+  const db = database(root),
+    act = db.resolveScope({ phase: 'act' }).token;
+  expect(db.report.findings.filter((f) => f.severity === 'error')).toEqual([]);
+  // The token's own view holds the adopted occurrence.
+  expect(db.snapshot({ within: act }).records.find((r) => r.identity === guard)?.band).toBe(90);
+  const body = bodyOf(db, act, { seat: governanceSystem, shape: 'governance', phase: 'plan' });
+  expect(body.rules.find((rule) => rule.identity === guard)).toMatchObject({ band: 100 });
+  expect(ids(body.loaded)).not.toContain(guard);
+  expect(body.omittedRules).toEqual([]);
+  expect(governanceContext(db, act, 'plan').included.find((entry) => entry.identity === guard)).toMatchObject({
+    band: 100,
+    severity: 'blocking',
+  });
+});
+
+// #325: a delivered record passes admission in the view `ia context` reads at the key's phase. With governance-system's
+// steward activating at plan alone, that system's records are not admitted at act, where `ia context` delivers none of
+// them; so a body at act from the whole-workspace token delivers none either, and `omittedRules` says why. At plan they
+// are delivered as before.
+it("delivers only what the key's phase view admits: a system whose steward cannot hold there delivers nothing", () => {
+  const root = workspace(),
+    steward = '.ia/src/systems/governance-system/steward.ia',
+    convention = 'governance-system/governance/convention/sample-convention',
+    principle = 'governance-system/governance/principle/sample-principle';
+  put(root, steward, `${readFileSync(resolve(root, steward), 'utf8')}  activation\n    activate when phase is plan\n`);
+  const db = database(root),
+    within = db.resolveScope().token;
+  expect(db.report.findings.filter((f) => f.severity === 'error')).toEqual([]);
+  const at = (phase: 'plan' | 'act') => bodyOf(db, within, { seat: governanceSystem, shape: 'governance', phase });
+  const plan = at('plan');
+  expect(ids(plan.rules)).toEqual([lawId]);
+  expect(ids(plan.loaded)).toEqual(expect.arrayContaining([convention, principle]));
+  expect(plan.omittedRules).toEqual([]);
+  const act = at('act');
+  expect(act.rules).toEqual([]);
+  expect(act.loaded.some((entry) => 'identity' in entry && entry.identity.startsWith('governance-system/'))).toBe(
+    false,
+  );
+  expect(act.omittedRules).toEqual([
+    { identity: convention, word: 'convention', detail: 'not admitted at phase act' },
+    { identity: lawId, word: 'law', detail: 'not admitted at phase act' },
+    { identity: principle, word: 'principle', detail: 'not admitted at phase act' },
+  ]);
+  expect(
+    governanceContext(db, within, 'act').included.some((entry) => entry.identity.startsWith('governance-system/')),
+  ).toBe(false);
+});
+
+// #325: a delivered record also ranks as the key's phase view holds it. Its priming reads the rows of the occurrence
+// delivered at that phase, so an override that cannot hold there primes nothing: at act, a plan-only override's
+// `governs` row does not lift the adopted record it falls back to above a rival, whatever the token's own phase.
+it("ranks a delivered record by its rows at the key's phase, through any token", () => {
+  const rival = 'governance-system/governance/law/a-rival',
+    fallback = 'governance-system/governance/law/z-fallback';
+  const root = freshInit(undefined, {
+    [`${records}/a-rival.ia`]: law('a-rival', 'advisory'),
+    [`${records}/z-fallback.ia`]: law('z-fallback', 'advisory'),
+  });
+  put(
+    root,
+    `${records}/z-fallback.ia`,
+    law(
+      'z-fallback',
+      'advisory',
+      '  activation\n    activate when phase is plan\n  relationships\n    governs @law sample-rule\n',
+    ),
+  );
+  const db = database(root);
+  expect(db.report.findings.filter((f) => f.severity === 'error')).toEqual([]);
+  const key = { seat: governanceSystem, shape: 'governance', depth: 0, budget: 1, word: 'law' } as const;
+  // At act both laws are adopted, unconditional and unprimed, so the budget's one slot goes to the first by identity.
+  for (const within of [db.resolveScope().token, db.resolveScope({ phase: 'act' }).token]) {
+    const act = bodyOf(db, within, { ...key, phase: 'act' });
+    expect(ids(act.loaded)).toEqual([governanceSystem, rival]);
+    expect(act.pointers.find((pointer) => pointer.identity === fallback)).toBeDefined();
+  }
+  // At plan the override holds, and its `governs` row ranks it first.
+  expect(ids(bodyOf(db, db.resolveScope().token, { ...key, phase: 'plan' }).loaded)).toEqual([
+    governanceSystem,
+    fallback,
+  ]);
 });

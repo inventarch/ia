@@ -41,6 +41,13 @@ function subject(root: string, path: string, fields: string): void {
       : `${text}${section}`,
   );
 }
+/** The fixture playbook at `path` without its activation (`category is process`), so it applies at every shape. */
+function universal(root: string, path: string): void {
+  const text = readFileSync(resolve(root, path), 'utf8'),
+    activation = '  activation\n    activate when category is process\n';
+  if (!text.includes(activation)) throw new Error(`${path} states no category activation`);
+  put(root, path, text.replace(activation, ''));
+}
 /** A fixture playbook applying by word to definitions, its cognition one `primary` cell per listed phase. */
 function procedureOf(name: string, cells: Readonly<Record<string, string>>): string {
   const cognition = Object.entries(cells)
@@ -150,10 +157,11 @@ it("delivers the fixture playbook's plan cell at phase plan, as ia read reads it
   const db = database(root);
   expect(db.report.findings.filter((f) => f.severity === 'error')).toEqual([]);
   // At the workspace seat, the playbook applies by its subject-kind, the workspace's kind, as a field match: no row
-  // reaches it, so it is neither loaded nor a pointer. Governance's primitive is Inference.
-  const plan = bodyOf(db, { shape: 'governance', phase: 'plan' });
-  expect(ids(plan.loaded)).toEqual([foundation]);
-  expect([...ids(plan.pointers), ...ids(plan.rules)]).not.toContain(procedure);
+  // reaches it, so it is neither loaded nor a pointer. It activates on `category is process`, the sequence shape's
+  // category, whose primitive is Inference.
+  const plan = bodyOf(db, { shape: 'sequence', phase: 'plan' });
+  expect(ids(plan.loaded)[0]).toBe(foundation);
+  expect([...ids(plan.loaded), ...ids(plan.pointers), ...ids(plan.rules)]).not.toContain(procedure);
   expect(plan.appliesByWord).toContainEqual(
     expect.objectContaining({
       identity: procedure,
@@ -176,21 +184,44 @@ it("delivers the fixture playbook's plan cell at phase plan, as ia read reads it
     },
   });
   expect(read).toMatchObject({ ok: true, body: { kind: 'record', body: 'Sample fixture statement 11.' } });
-  // Context's primitive is Attention: the same phase delivers the plan's Attention cell.
-  expect(bodyOf(db, { shape: 'context', phase: 'plan' }).cells).toEqual([
+  // An explicit Attention primitive picks the plan's Attention cell at the same phase.
+  expect(bodyOf(db, { shape: 'sequence', phase: 'plan', primitive: 'Attention' }).cells).toEqual([
     { playbook: procedure, address: `${procedure}#plan/Attention`, text: 'Sample fixture statement 10.' },
   ]);
+  // Governance and context bind the categories rule and relation, which its activation contradicts: as `ia context`
+  // leaves it out there (R04), it applies to nothing and delivers no cell, and `omittedRules` names it (#325).
+  for (const [shape, category] of [
+    ['governance', 'rule'],
+    ['context', 'relation'],
+  ] as const) {
+    const left = bodyOf(db, { shape, phase: 'plan' });
+    expect(ids(left.appliesByWord), shape).not.toContain(procedure);
+    expect(left.cells, shape).toEqual([]);
+    expect(left.omittedRules, shape).toEqual([
+      { identity: procedure, word: 'playbook', detail: `category is process, request is ${category}` },
+    ]);
+  }
   // Here the phase changes only the cell delivered and the keys it is spelled in: no conditional row bears on this
   // body. A row whose condition holds at one phase only moves the loaded set (R15; tests/position.test.ts).
-  const orient = bodyOf(db, { shape: 'governance', phase: 'orient' });
+  const orient = bodyOf(db, { shape: 'sequence', phase: 'orient' });
   expect(orient.cells).toEqual([
     { playbook: procedure, address: `${procedure}#orient/Inference`, text: 'Sample fixture statement 5.' },
   ]);
-  for (const part of ['loaded', 'rules', 'pointers', 'pointerTallies', 'mandates', 'frontier', 'unknowns', 'counts'])
+  for (const part of [
+    'loaded',
+    'rules',
+    'omittedRules',
+    'pointers',
+    'pointerTallies',
+    'mandates',
+    'frontier',
+    'unknowns',
+    'counts',
+  ])
     expect(orient[part as keyof PositionBody], part).toEqual(plan[part as keyof PositionBody]);
   expect(ids(orient.appliesByWord)).toEqual(ids(plan.appliesByWord));
   // Without its subject, the playbook applies to nothing, and no cell is delivered.
-  expect(bodyOf(plain, { shape: 'governance', phase: 'plan' }).cells).toEqual([]);
+  expect(bodyOf(plain, { shape: 'sequence', phase: 'plan' }).cells).toEqual([]);
 });
 
 it('names the nearest phase with a cell of the primitive, a tie to the earlier phase, and delivers four cells', () => {
@@ -207,7 +238,9 @@ it('names the nearest phase with a cell of the primitive, a tie to the earlier p
   const db = database(root),
     id = (name: string) => `governance-system/definition/procedure/${name}`;
   expect(db.report.findings.filter((f) => f.severity === 'error')).toEqual([]);
-  const learn = bodyOf(db, { shape: 'governance', phase: 'learn' });
+  // Sequence, whose category the sample procedure's activation names (category is process), and whose primitive is
+  // Inference.
+  const learn = bodyOf(db, { shape: 'sequence', phase: 'learn' });
   expect(learn.cells).toEqual([
     // From learn, act is one phase away and plan two: the distance decides before the order.
     {
@@ -240,7 +273,7 @@ it('names the nearest phase with a cell of the primitive, a tie to the earlier p
   // c = 4: the fifth playbook applies by word, and delivers no cell.
   expect(ids(learn.appliesByWord)).toContain(procedure);
   expect(learn.cells.map((cell) => cell.playbook)).not.toContain(procedure);
-  const orient = bodyOf(db, { shape: 'governance', phase: 'orient' });
+  const orient = bodyOf(db, { shape: 'sequence', phase: 'orient' });
   expect(orient.cells.slice(0, 2)).toEqual([
     {
       playbook: id('a-plan-act'),
@@ -259,7 +292,8 @@ it('orders the section and its cells by band, then identity: a local playbook be
     local = 'governance-system/definition/procedure/z-local';
   expect(db.report.findings.filter((f) => f.severity === 'error')).toEqual([]);
   expect(db.get(procedure)?.band).toBe(90);
-  const body = bodyOf(db, { seat: localWorkspace, shape: 'governance' });
+  // Sequence: the adopted sample procedure activates on its category, process.
+  const body = bodyOf(db, { seat: localWorkspace, shape: 'sequence' });
   // The local playbook (band 100) ranks before the adopted one (band 90), though its identity sorts after.
   expect(body.appliesByWord.filter((entry) => entry.word === 'playbook').map((e) => [e.identity, e.band])).toEqual([
     [local, 100],
@@ -491,7 +525,7 @@ it('matches blocking subjects against every candidate, activation-omitted ones i
   // omitted law is still a candidate of its word, and skipping it would let a filter hide a blocker (R15).
   const guarded = corpus({ 'law-guard': law('law-guard', 'blocking', '  subject\n    subject-word law\n') }),
     act = at(guarded, 'act');
-  expect(act.omittedRules).toEqual([{ identity: claimed, detail: 'phase is plan, request is act' }]);
+  expect(act.omittedRules).toEqual([{ identity: claimed, word: 'law', detail: 'phase is plan, request is act' }]);
   expect(act.rules.map((rule) => [rule.identity, rule.via])).toEqual([
     [guard, { by: 'subject', label: field, matches: onClaimed }],
   ]);
@@ -505,7 +539,9 @@ it('matches blocking subjects against every candidate, activation-omitted ones i
     });
   const contradicted = at(gated('activate when phase is learn'), 'plan');
   expect(ids(contradicted.rules)).toEqual([claimed]);
-  expect(contradicted.omittedRules).toEqual([{ identity: guard, detail: 'phase is learn, request is plan' }]);
+  expect(contradicted.omittedRules).toEqual([
+    { identity: guard, word: 'law', detail: 'phase is learn, request is plan' },
+  ]);
   const undecided = at(gated('activate when move is Execution'), 'plan');
   expect(ids(undecided.rules)).toEqual([claimed, guard]);
   expect(undecided.rules.find((rule) => rule.identity === guard)?.activation).toBe('move is Execution');
@@ -532,6 +568,134 @@ it('matches blocking subjects against every candidate, activation-omitted ones i
     address: `${lawBook}#plan/Inference`,
     text: 'law-book plan.',
   });
+});
+
+// #325: a rule or playbook applies by word only where its own activation admits the coordinate, as `ia context`
+// delivers it (R04). Elsewhere `omittedRules` names it with the contradictory term, and a playbook delivers no cell;
+// one whose activation names an axis the key cannot bind (move) applies, marked with the group it waits on, its cell
+// delivered.
+it('applies a rule or playbook by word only where its activation admits the coordinate, and names the rest', () => {
+  const root = workspace(),
+    onMove = 'governance-system/definition/procedure/on-move',
+    planGuide = 'governance-system/governance/law/plan-guide';
+  // Three subjects that apply by subject-kind to the workspace seat: the fixture playbook, which activates on
+  // `category is process`, a playbook waiting on move and an advisory law that activates at plan.
+  subject(root, methodPath, '    subject-kind definition\n');
+  put(
+    root,
+    `${records}/on-move.ia`,
+    `${procedureOf('on-move', { plan: 'Inference' })}  activation\n    activate when move is Execution\n`,
+  );
+  put(
+    root,
+    `${records}/plan-guide.ia`,
+    law(
+      'plan-guide',
+      'advisory',
+      '  subject\n    subject-kind definition\n  activation\n    activate when phase is plan\n',
+    ),
+  );
+  const db = database(root);
+  expect(db.report.findings.filter((f) => f.severity === 'error')).toEqual([]);
+  const entry = (body: PositionBody, identity: string) => body.appliesByWord.find((e) => e.identity === identity),
+    /** The three subjects among the entries, in the section's order; the corpus's convention and principle aside. */
+    three = (body: PositionBody) =>
+      body.appliesByWord.map((e) => e.identity).filter((identity) => [onMove, procedure, planGuide].includes(identity));
+  const moveCell = {
+    playbook: onMove,
+    address: `${onMove}#plan/Inference`,
+    text: 'on-move plan.',
+    activation: 'move is Execution',
+  };
+  // Under sequence at plan, all three apply; the playbook waiting on move is marked, its cell too, and both cells come.
+  const sequence = bodyOf(db, { shape: 'sequence', phase: 'plan' });
+  expect(three(sequence)).toEqual([onMove, procedure, planGuide]);
+  expect(entry(sequence, procedure)).not.toHaveProperty('activation');
+  expect(entry(sequence, onMove)?.activation).toBe('move is Execution');
+  expect(entry(sequence, planGuide)).not.toHaveProperty('activation');
+  expect(sequence.cells).toEqual([
+    moveCell,
+    { playbook: procedure, address: `${procedure}#plan/Inference`, text: 'Sample fixture statement 11.' },
+  ]);
+  expect(sequence.omittedRules).toEqual([]);
+  // Under governance at plan, the category is rule: the fixture playbook is left out, and its cell with it.
+  const plan = bodyOf(db, { shape: 'governance', phase: 'plan' });
+  expect(three(plan)).toEqual([onMove, planGuide]);
+  expect(plan.cells).toEqual([moveCell]);
+  expect(plan.omittedRules).toEqual([
+    { identity: procedure, word: 'playbook', detail: 'category is process, request is rule' },
+  ]);
+  // At act, the advisory law is left out too; the playbook waiting on move still applies, marked.
+  const act = bodyOf(db, { shape: 'governance', phase: 'act' });
+  expect(three(act)).toEqual([onMove]);
+  expect(entry(act, onMove)?.activation).toBe('move is Execution');
+  expect(act.counts.appliesByWord).toBe(act.appliesByWord.length);
+  expect(act.omittedRules).toEqual([
+    { identity: procedure, word: 'playbook', detail: 'category is process, request is rule' },
+    { identity: planGuide, word: 'law', detail: 'phase is plan, request is act' },
+  ]);
+  // A word never filters the section, so it hides no omission either.
+  expect(bodyOf(db, { shape: 'governance', phase: 'act', word: 'contract' }).omittedRules).toEqual(act.omittedRules);
+});
+
+// #325: the first four playbooks that apply by word deliver their cells whether or not their entry is among the 48
+// listed, so a delivered cell carries its playbook's `activation` itself: past the listed entries, where only a tally
+// stands for the playbook, the cell still says it waits on move.
+it('marks a delivered cell whose playbook waits on an axis the key cannot bind, past the listed entries too', () => {
+  const moving = 'governance-system/definition/procedure/moving-steps';
+  const root = adoptedRoot((vendor) =>
+    put(
+      vendor,
+      `${records}/moving-steps.ia`,
+      `${procedureOf('moving-steps', { plan: 'Inference' })}  activation\n    activate when move is Execution\n`,
+    ),
+  );
+  // Forty-eight authored advisory laws apply to the workspace seat by its kind, and rank before the adopted playbook.
+  for (let i = 0; i < 48; i++) {
+    const name = `advice-${String(i).padStart(2, '0')}`;
+    put(root, `${records}/${name}.ia`, law(name, 'advisory', '  subject\n    subject-kind definition\n'));
+  }
+  const db = database(root);
+  expect(db.report.findings.filter((f) => f.severity === 'error')).toEqual([]);
+  const body = bodyOf(db, { seat: localWorkspace, shape: 'sequence', phase: 'plan', budget: 0 });
+  expect(body.appliesByWord).toHaveLength(48);
+  expect(body.appliesByWord.every((entry) => entry.band === 100 && entry.word === 'law')).toBe(true);
+  expect(body.appliesByWordTallies).toContainEqual(expect.objectContaining({ word: 'playbook', count: 1 }));
+  expect(body.cells).toEqual([
+    {
+      playbook: moving,
+      address: `${moving}#plan/Inference`,
+      text: 'moving-steps plan.',
+      activation: 'move is Execution',
+    },
+  ]);
+});
+
+// #325: the seat's loaded entry is never tested for activation, since the key names it. A seat that applies by word to
+// itself (R17) is a subject like any other there: where its activation is contradicted it stays loaded, yet
+// `omittedRules` names it and it delivers no cell, as `ia context` delivers none.
+it("tests a self-matching seat's applies-by-word entry and its cell, never its loaded entry", () => {
+  const root = workspace();
+  subject(root, methodPath, '    subject-kind definition\n');
+  const db = database(root);
+  expect(db.report.findings.filter((f) => f.severity === 'error')).toEqual([]);
+  const left = bodyOf(db, { seat: procedure, shape: 'governance', phase: 'plan' });
+  expect(left.loaded[0]).toMatchObject({ identity: procedure });
+  expect(left.loaded[0]).not.toHaveProperty('activation');
+  expect(ids(left.appliesByWord)).not.toContain(procedure);
+  expect(left.cells).toEqual([]);
+  expect(left.omittedRules).toEqual([
+    { identity: procedure, word: 'playbook', detail: 'category is process, request is rule' },
+  ]);
+  // Under sequence, the category its activation names, it applies to itself and its cell is delivered.
+  const held = bodyOf(db, { seat: procedure, shape: 'sequence', phase: 'plan' });
+  expect(held.appliesByWord.find((entry) => entry.identity === procedure)?.via.matches).toEqual([
+    { field: 'subject.subject-kind', value: 'definition', record: procedure },
+  ]);
+  expect(held.cells).toEqual([
+    { playbook: procedure, address: `${procedure}#plan/Inference`, text: 'Sample fixture statement 11.' },
+  ]);
+  expect(held.omittedRules).toEqual([]);
 });
 
 it("reads no subject or mandate of another workspace's root: none applies by word, is reserved by word or governs", () => {
@@ -737,6 +901,8 @@ it('filters only what loads, lists and tallies by the word: rules, applies by wo
     `${records}/block-convention.ia`,
     conventionOf('block-convention', 'blocking', '  subject\n    subject-kind definition\n'),
   );
+  // The word, not activation, is under test: the playbook applies at the governance shape without its activation.
+  universal(root, methodPath);
   subject(root, methodPath, '    subject-kind definition\n');
   put(root, '.ia/src/systems/agent-system/records/scoped-mandate.ia', SCOPED);
   const db = database(root),
