@@ -135,11 +135,11 @@
     "@inventarch/compliance": "workspace:*",
     "@inventarch/graph": "workspace:*",
     "@inventarch/language": "workspace:*",
-    "semver": "7.8.5"
+    "semver": "7.8.6"
   },
   "devDependencies": {
     "@types/node": "catalog:",
-    "@types/semver": "7.7.1",
+    "@types/semver": "7.8.0",
     "typescript": "catalog:",
     "vitest": "catalog:"
   },
