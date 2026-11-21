@@ -4,33 +4,26 @@
  *
  *   node apps/mcp-door/tests/fixtures/method/generate.mjs <marketplace checkout> <ia CLI dist/main.js>
  *
- * It writes `plugin.json.gz` (the `ia` plugin's scripts and support files and the `ia-kb` kit, each path to its UTF-8 text),
- * then runs that plugin's own `resolve.mjs` for `knowledge.find` and `knowledge.check` in one task over a consumer whose
- * `.ia/bindings.json` is `bindings.json` and whose lock installs the ia-kb kit and the language base it depends on
- * (the kit's published archive and the bundled base archive, through this checkout's own `planInstallation` and
- * `applyInstallation`, so the lock and its active generation agree), and writes each packet as `golden-<activity>.json` and the task pin as
- * `golden-pin.json`. The temporary root is written `<ROOT>` with forward slashes, the envelope is removed, and each
- * packet's digest is recomputed over that content with the plugin's own `packetDigest`. Record the marketplace commit
- * in `PROVENANCE.json` after a run.
+ * It writes `plugin.json.gz`, the bytes the `ia` plugin's own resolver retains for the `ia-kb` kit (`retainKit` in
+ * its `scripts/lib/retained.mjs`: the kit, the plugin's scripts and the support files the plugin names beside them),
+ * each path to its UTF-8 text. No list of those support files is kept here: the plugin's retention chooses them
+ * (inventarch/ia#356). It then runs that plugin's own `resolve.mjs` for `knowledge.find` and `knowledge.check` in one
+ * task over a consumer whose `.ia/bindings.json` is `bindings.json` and whose lock installs the ia-kb kit and the
+ * language base it depends on (the kit's published archive and the bundled base archive, through this checkout's own
+ * `planInstallation` and `applyInstallation`, so the lock and its active generation agree), and writes each packet as
+ * `golden-<activity>.json` and the task pin as `golden-pin.json`. The temporary root is written `<ROOT>` with forward
+ * slashes, the envelope is removed, and each packet's digest is recomputed over that content with the plugin's own
+ * `packetDigest`. The pin must name the closure `plugin.json.gz` was taken from, or nothing is kept. Record the
+ * marketplace commits in `PROVENANCE.json` after a run.
  *
  * The plugin is written exactly as published: the kit's lock pins the language base its release was packed on, and the
  * CLI's `ia restore` that `resolve.mjs` runs carries every published base, so it restores the kit on that base exactly.
  */
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import {
-  cpSync,
-  mkdirSync,
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  realpathSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, relative, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { gzipSync } from 'node:zlib';
 
@@ -86,22 +79,31 @@ async function install(consumer) {
   );
 }
 
-const files = {};
-const add = (root, prefix, dir = root) => {
-  for (const name of readdirSync(dir).sort()) {
-    const path = join(dir, name);
-    if (statSync(path).isDirectory()) add(root, prefix, path);
-    else files[prefix + relative(root, path).split('\\').join('/')] = readFileSync(path, 'utf8');
+/**
+ * The plugin's own retention of the checkout's `kits/ia-kb`, into a closure store of its own: the retained digest and
+ * the payload it wrote, each path to its UTF-8 text. That payload is laid out as the plugin is, so it is the plugin the
+ * goldens run on.
+ */
+async function retainedPayload(store) {
+  const { findKit } = await import(pathToFileURL(join(plugin, 'scripts', 'lib', 'kit.mjs')).href);
+  const { retainKit } = await import(pathToFileURL(join(plugin, 'scripts', 'lib', 'retained.mjs')).href);
+  const saved = process.env.IA_CORE_CLOSURES_DIR;
+  process.env.IA_CORE_CLOSURES_DIR = store;
+  try {
+    const { id, retained } = retainKit(findKit('ia-kb', join(marketplace, 'kits')));
+    const manifest = JSON.parse(readFileSync(join(store, retained, 'manifest.json'), 'utf8'));
+    const files = {};
+    for (const { path } of manifest.files) files[path] = readFileSync(join(store, retained, 'payload', path), 'utf8');
+    return { id, retained, files };
+  } finally {
+    if (saved === undefined) delete process.env.IA_CORE_CLOSURES_DIR;
+    else process.env.IA_CORE_CLOSURES_DIR = saved;
   }
-};
-add(join(plugin, 'scripts'), 'scripts/');
-for (const path of ['.claude-plugin/plugin.json', 'config/qualified-process-tools.json'])
-  files[path] = readFileSync(join(plugin, path), 'utf8');
-add(join(marketplace, 'kits', 'ia-kb'), 'config/kits/ia-kb/');
-writeFileSync(join(out, 'plugin.json.gz'), gzipSync(Buffer.from(JSON.stringify(files)), { level: 9 }));
+}
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), 'ia-method-golden-')));
 try {
+  const { id, retained, files } = await retainedPayload(join(root, 'reference'));
   for (const [path, text] of Object.entries(files)) {
     mkdirSync(dirname(join(root, 'plugin', path)), { recursive: true });
     writeFileSync(join(root, 'plugin', path), text);
@@ -120,6 +122,9 @@ try {
     TEMP: join(root, 'tmp'),
     TMPDIR: join(root, 'tmp'),
   };
+  // The runs retain into this root's IA home, never a closure store the caller names.
+  delete env.IA_CORE_CLOSURES_DIR;
+  const written = { 'plugin.json.gz': gzipSync(Buffer.from(JSON.stringify(files)), { level: 9 }) };
   const swap = (value) => {
     if (typeof value === 'string')
       return value.includes(root) ? value.split(root).join('<ROOT>').split('\\').join('/') : value;
@@ -145,12 +150,16 @@ try {
       throw new Error(`resolve.mjs ${activity} printed a digest that drifted`);
     const golden = swap(packet);
     golden.digest = packetDigest(golden);
-    writeFileSync(join(out, `golden-${activity}.json`), `${JSON.stringify(golden, null, 2)}\n`);
+    written[`golden-${activity}.json`] = `${JSON.stringify(golden, null, 2)}\n`;
   }
   const { createdAt, ...pin } = JSON.parse(
     readFileSync(join(root, 'home', 'work-v1', 'consumer', 'golden', 'binding.json'), 'utf8'),
   );
-  writeFileSync(join(out, 'golden-pin.json'), `${JSON.stringify(swap(pin), null, 2)}\n`);
+  // The plugin the goldens ran on retained the same bytes, so `plugin.json.gz` is exactly the closure the pin names.
+  if (pin.kits?.[id]?.retained !== retained)
+    throw new Error(`the pin retains ${pin.kits?.[id]?.retained} for ${id}, not ${retained}, plugin.json.gz's`);
+  written['golden-pin.json'] = `${JSON.stringify(swap(pin), null, 2)}\n`;
+  for (const [name, content] of Object.entries(written)) writeFileSync(join(out, name), content);
 } finally {
   rmSync(root, { recursive: true, force: true });
 }

@@ -25,6 +25,7 @@ import {
   kitCache,
   listKits,
   methodRefusal,
+  packetDigest,
   readRegistry,
   projectOf,
   readBindings,
@@ -79,6 +80,22 @@ function kit(path: string, version: string, format: 1 | 2, folder: string = path
   }
   return at;
 }
+
+it('matches the Marketplace packet digest vector and separates the contracts for identical resolved fields', () => {
+  // Also pinned in marketplace's plugins/ia/tests/packet.test.mjs; no live carrier is implied.
+  const reference = { identity: 'example-law', digest: 'b'.repeat(64), when: 'always' };
+  const resolved = { closure: { kit: 'inventarch/synthetic-kit' }, references: [reference] };
+  const pending = [{ ...reference, when: 'activation', activation: 'move is Observation' }];
+  expect(packetDigest({ ...resolved, contract: 1 })).toBe(
+    '4d05f14d938d2c38d570082cfb30afe69c79b29f3e72bd090ae90436375a5410',
+  );
+  expect(packetDigest({ ...resolved, contract: 3 })).toBe(
+    '26379653f4a1c9cbcac1c67ddcee1ce0197430a43bf302165258e30ddff45cb7',
+  );
+  expect(packetDigest({ ...resolved, contract: 3, references: pending })).toBe(
+    '43d91aebf79ca302ce1af4ccbfe2b508fd45f9a9ddb2241ad25d3c7c5a3353b3',
+  );
+});
 
 describe('kit releases', () => {
   it('reads format 1 and format 2 to the same history, and checks a per-version file against its row', () => {

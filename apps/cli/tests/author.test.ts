@@ -303,6 +303,12 @@ describe('ia author', () => {
       path: '.ia/src/systems/notes/system.ia',
       identity: 'floor/definition/system/notes',
     });
+    // It is init's starter system, so its stewardship mandate covers the new system's folder alone, with no scope.
+    const after = view['after'] as string;
+    expect(after).toContain('@mandate notes-stewardship\n');
+    expect(after).toContain('    participant @agent notes-steward\n    moves [');
+    expect(after.match(/^ {4}covers .*$/gm)).toEqual(['    covers [".ia/src/systems/notes/"]']);
+    expect(after).not.toMatch(/^ {4}scope /m);
     await refused(root, ['author', 'system', 'notes'], 'IA-CLI-EDIT-AUTHORITY');
   });
 });

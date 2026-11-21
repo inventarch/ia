@@ -1,29 +1,15 @@
-import { expect, it, vi } from 'vitest';
+import { expect, expectTypeOf, it } from 'vitest';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { digest } from '@inventarch/session-system';
 import { EditorSnapshot } from '@inventarch/db/editor';
 import { compileHarness, compiledStamp, installed, executionManifest } from '../src/index.js';
-import type { CompiledHarness } from '../src/index.js';
+import type { CompiledHarness, CompileOptions } from '../src/index.js';
+import { replayCompiledHarness } from '../src/compile.js';
 import type { Capture } from '@inventarch/workspace-runtime';
 import { admitSourceCapture } from '@inventarch/workspace-runtime/sources';
 
 import { compilerCapture, compilerCatalog as catalogWithDigest } from './compiler-fixture.js';
-
-const flip = vi.hoisted(() => ({ plain: false }));
-vi.mock('../src/written-names.js', () => ({
-  get WRITE_PLAIN_NAMES() {
-    return flip.plain;
-  },
-}));
-function flipped<T>(body: () => T): T {
-  flip.plain = true;
-  try {
-    return body();
-  } finally {
-    flip.plain = false;
-  }
-}
 
 const root = fileURLToPath(new URL('../../../../..', import.meta.url));
 const captured = compilerCapture(root);
@@ -514,16 +500,21 @@ it('writes the plain completion evaluator and accepts the original independent r
 
 import './sdk-runtime/onboarding-case.js';
 
-it('stamps a compiled harness with the released literal by default, plainly when flipped, and executes both', () => {
-  const original = good(),
-    current = flipped(() => good()),
-    catalog = sampleCatalog('ide'),
-    rebuiltPlain = compileHarness(captured, {
-      ...options(),
-      stamp: { format: 'compiled-harness', formatVersion: 1 },
-    });
-  if (!rebuiltPlain.ok) throw new Error(JSON.stringify(rebuiltPlain));
-  expect(rebuiltPlain.manifest).toEqual(current);
+it('writes the released format and replays exact retained artifacts in both formats', () => {
+  const emitted = compileHarness(captured, options());
+  if (!emitted.ok) throw new Error(JSON.stringify(emitted));
+  expectTypeOf(emitted.manifest.format).toEqualTypeOf<'ia.compiled-harness.v1'>();
+  expectTypeOf(emitted.manifest).not.toHaveProperty('formatVersion');
+  const original = emitted.manifest,
+    { digest: _originalDigest, ...releasedBody } = original,
+    plainBody = { ...releasedBody, format: 'compiled-harness' as const, formatVersion: 1 as const },
+    current = { ...plainBody, digest: digest(plainBody) },
+    catalog = sampleCatalog('ide');
+  expectTypeOf<CompileOptions>().not.toHaveProperty('stamp');
+  const extraneousOptions = { ...options(), stamp: { format: 'compiled-harness', formatVersion: 1 } };
+  expect(compileHarness(captured, extraneousOptions)).toEqual({ ok: true, manifest: original });
+  expect(replayCompiledHarness(captured, current, catalog)).toEqual({ ok: true, manifest: current });
+  expect(replayCompiledHarness(captured, original, catalog)).toEqual({ ok: true, manifest: original });
   expect(current).toMatchObject({ format: 'compiled-harness', formatVersion: 1 });
   expect(original.format).toBe('ia.compiled-harness.v1');
   expect(Object.hasOwn(original, 'formatVersion')).toBe(false);
@@ -547,6 +538,19 @@ it('stamps a compiled harness with the released literal by default, plainly when
     forged({ format: 'ia.compiled-harness.v2' }),
     { ...current, formatVersion: 2 as never },
     { ...original, format: 'compiled-harness' as const },
-  ])
+    { ...current, digest: original.digest },
+  ]) {
     expect(() => executionManifest(bad, catalog)).toThrow('Compiled harness digest mismatch');
+    expect(replayCompiledHarness(captured, bad, catalog)).toMatchObject({
+      ok: false,
+      diagnostics: [{ code: 'IA-COMPOSITION-UNAVAILABLE', message: 'Compiled harness digest mismatch' }],
+    });
+  }
+  // A valid format and self-consistent document digest are insufficient: replay must match the source compilation.
+  expect(replayCompiledHarness(captured, forged({ workspace: 'different-workspace' }), catalog)).toMatchObject({
+    ok: false,
+    diagnostics: [
+      { code: 'IA-COMPOSITION-UNAVAILABLE', message: 'Compiled closure differs from the retained native capture' },
+    ],
+  });
 });
