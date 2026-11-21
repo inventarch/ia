@@ -13,10 +13,15 @@ export function committedReader(repository: string, commit: string, timeout = 10
     GIT_NO_LAZY_FETCH: '1',
     GIT_TERMINAL_PROMPT: '0',
   });
-  /** Repository failures and discovery overflow are operational; selected blob limits are request refusals. */
+  /**
+   * Repository failures and discovery overflow are operational; selected blob limits are request refusals. On Windows
+   * CI a runner stall has held a git process past a 10 s bound (the KB qualification's own, #321), and the job passed
+   * when re-run. Keep each call bounded and fail closed, but give a call that timed out one more try under the same
+   * bound, since every call here only reads; a second timeout refuses, and any other failure refuses at once.
+   */
   const git = (args: string[], blob = false, input?: string, maxBuffer = OUTPUT_LIMIT): Buffer => {
-    try {
-      return execFileSync('git', ['--no-replace-objects', '--literal-pathspecs', '-C', repository, ...args], {
+    const run = () =>
+      execFileSync('git', ['--no-replace-objects', '--literal-pathspecs', '-C', repository, ...args], {
         maxBuffer,
         timeout,
         stdio: [input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'],
@@ -24,13 +29,19 @@ export function committedReader(repository: string, commit: string, timeout = 10
         windowsHide: true,
         env,
       });
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException | null)?.code === 'ENOBUFS')
-        return fail(
-          blob ? 'Selected file byte limit exceeded' : 'Repository output byte limit exceeded',
-          blob ? 'IA-KB-INVALID' : 'IA-KB-SOURCE-UNAVAILABLE',
-        );
-      return fail('Selected committed data unavailable or repository command timed out', 'IA-KB-SOURCE-UNAVAILABLE');
+    for (let tries = 1; ; tries++) {
+      try {
+        return run();
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException | null)?.code;
+        if (code === 'ETIMEDOUT' && tries === 1) continue;
+        if (code === 'ENOBUFS')
+          return fail(
+            blob ? 'Selected file byte limit exceeded' : 'Repository output byte limit exceeded',
+            blob ? 'IA-KB-INVALID' : 'IA-KB-SOURCE-UNAVAILABLE',
+          );
+        return fail('Selected committed data unavailable or repository command timed out', 'IA-KB-SOURCE-UNAVAILABLE');
+      }
     }
   };
   const fold = (path: string) => (process.platform === 'win32' ? path.toLowerCase() : path);

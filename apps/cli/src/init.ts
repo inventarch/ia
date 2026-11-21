@@ -530,10 +530,13 @@ export function starterIdentity(
 }
 
 /**
- * `--system`'s local system, paired uniformly with `@agent <name>-steward` and `@mandate <name>-stewardship` covering
- * `.ia/src/`: both words belong to `agent-system`, and `work-system` is required so the system folder can hold `@plan`,
- * `@milestone`, `@task` and `@decision` records with no edit (a system may use only words owned by systems it directly
- * requires).
+ * `--system`'s local system, paired uniformly with `@agent <name>-steward` and `@mandate <name>-stewardship`: both words
+ * belong to `agent-system`, and `work-system` is required so the system folder can hold `@plan`, `@milestone`, `@task`
+ * and `@decision` records with no edit (a system may use only words owned by systems it directly requires). The mandate
+ * covers the system folder alone, `.ia/src/systems/<name>/`, and states no `authority.scope`: a mandate governs wherever
+ * its scope or its covers reaches, either one sufficing (runtime `governingMandates`), so a scope would let the steward
+ * author every source of the workspace, and a wider selection every source it selects, such as a sibling system's
+ * records or `.ia/src/workspace.ia`.
  */
 export function starterSystem(name: string): string {
   return [
@@ -565,7 +568,7 @@ export function starterSystem(name: string): string {
     '  authority',
     `    participant @agent ${name}-steward`,
     '    moves [Observation, Verification, Synthesis, Delegation, Execution]',
-    '    covers [".ia/src/"]',
+    `    covers [${JSON.stringify(`${systemFolder(name)}/`)}]`,
     '',
   ].join('\n');
 }

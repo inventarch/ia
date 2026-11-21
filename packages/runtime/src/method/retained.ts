@@ -24,12 +24,24 @@ import { peekStamp, writeStamp } from '../plain-format.js';
 /**
  * Retained method bytes: an exact copy of a kit and of its carrier's scripts and support files, stored by the digest of
  * its manifest under the closure store, so a pin keeps reading the bytes it resolved. The layout is the `ia` plugin's:
- * `config/kits/<folder>/...`, `scripts/...`, `.claude-plugin/plugin.json` and `config/qualified-process-tools.json`.
+ * `config/kits/<folder>/...`, `scripts/...` and the support files `SUPPORT` names.
  */
 /** A retained manifest names its format plainly beside `formatVersion` 1; ones retained earlier carry the original literal. */
 const FORMAT = 'method-bytes';
 const LEGACY_FORMATS = ['inventarch.method-bytes/1'] as const;
-const SUPPORT = ['.claude-plugin/plugin.json', 'config/qualified-process-tools.json'] as const;
+/**
+ * The carrier's support files: the ones the reference resolver retains beside the kit and the scripts (`supportFiles`
+ * in the `ia` plugin's `scripts/lib/retained.mjs`). They are the plugin's identity, the process helper's qualified
+ * Windows supervisor data and the publishers whose kits may run code (`lib/trust.mjs`), which the scripts read from the
+ * retained copy, never from a current installation. A carrier without one refuses, as the reference does. The door's
+ * method fixture is the closure the reference retained at the commit its `PROVENANCE.json` names, so the door's tests
+ * fail while this list and that reference's differ.
+ */
+const SUPPORT = [
+  '.claude-plugin/plugin.json',
+  'config/qualified-process-tools.json',
+  'config/trusted-publishers.json',
+] as const;
 const sha = (bytes: string | Buffer): string => createHash('sha256').update(bytes).digest('hex');
 const fail = (message: string): never => {
   throw new MethodError(message, 'IA-CORE-CLOSURE-INTEGRITY');
