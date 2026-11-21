@@ -31,6 +31,7 @@ import type { SystemFolder } from '../systems.js';
 import { assess } from '../types.js';
 import type { Finding } from '../types.js';
 import { validateVariants } from '../variants.js';
+import { workspaceStructureAssessments } from '../workspace-structure.js';
 
 export function runRefusalFixtures(
   graph: Graph,
@@ -773,6 +774,52 @@ export function runRefusalFixtures(
           location: '',
         });
         return validateMandateWords(candidateGraph).findings;
+      },
+    ],
+    [
+      'IA-COMP-WORKSPACE-STRUCTURE',
+      () => {
+        // The repository's own workspace, and a department with no governed-by row: a dangling-parent (REQ-WSSYS-01).
+        const authoredLoc = {
+          placement: { kind: 'authored' as const, band: 100 as const, reach: '' },
+          provenance: 'workspace' as const,
+        };
+        const workspace = (name: string, path: string): CompiledRecord => ({
+          ...agent,
+          identity: `workspace-system/definition/workspace/${name}`,
+          system: 'workspace-system',
+          kind: 'definition',
+          facet: 'workspace',
+          name,
+          displayName: name,
+          discriminator: 'workspace',
+          source: { path, line: 2, endLine: 6 },
+          placement: authoredLoc.placement,
+          provenance: authoredLoc.provenance,
+          edges: [],
+          sections: [],
+        });
+        const candidateGraph = load(
+          [
+            ...records,
+            workspace('fixture-organisation', '.ia/src/workspace.ia'),
+            workspace('fixture-department', '.ia/src/scopes/department/workspace.ia'),
+          ],
+          registry,
+          {
+            sources: [
+              ...inputs,
+              { path: '.ia/src/workspace.ia', text: '#! ia 1.0\n', location: authoredLoc },
+              { path: '.ia/src/scopes/department/workspace.ia', text: '#! ia 1.0\n', location: authoredLoc },
+            ],
+            languageVersion: LANGUAGE_VERSION,
+            kernelDigest: KERNEL_DIGEST,
+            location: '',
+          },
+        );
+        return workspaceStructureAssessments([...candidateGraph.nodes.values()], candidateGraph).flatMap(
+          (a) => a.findings,
+        );
       },
     ],
     [

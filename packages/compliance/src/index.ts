@@ -34,6 +34,17 @@ export {
   isKitWorkspace,
 } from './canon/rules.js';
 export type { LawState, LawStatus } from './canon/laws.js';
+export {
+  DEFAULT_DEPTH_GUARD,
+  WORKSPACE_STRUCTURE_CHECKS,
+  WORKSPACE_STRUCTURE_CODE,
+  ancestorsOf,
+  countedLinks,
+  parentChain,
+  workspaceStructureAssessments,
+  workspaceTree,
+} from './workspace-structure.js';
+export type { CountedLink, WorkspaceStructureOptions, WorkspaceTree } from './workspace-structure.js';
 export { validateVariants } from './variants.js';
 export { validateAdoption } from './adoption.js';
 export type { AdoptionEvaluators, ClauseContext, ClauseEvaluator, ClauseResult } from './adoption.js';

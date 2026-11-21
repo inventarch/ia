@@ -22,6 +22,7 @@ import {
 import { validateMandateWords } from './mandate-words.js';
 import { canonAssessments } from './canon/rules.js';
 import { validateSystems } from './systems.js';
+import { workspaceStructureAssessments } from './workspace-structure.js';
 import type { SystemFolder } from './systems.js';
 import { validateVariants } from './variants.js';
 import { assess, verdict } from './types.js';
@@ -50,6 +51,11 @@ export interface ReportOptions {
    * validateCheckStructure, for the admitted graph of a structural admission, whose checks are bound separately.
    */
   readonly checks?: 'strict' | 'structural';
+  /**
+   * The deepest level a workspace tree may reach before WORKSPACE-DEPTH reports it (REQ-WSSYS-11); `null` turns the
+   * guard off. Absent: the default of 8.
+   */
+  readonly workspaceDepthGuard?: number | null;
 }
 export interface Report {
   readonly revision: string;
@@ -97,6 +103,11 @@ export function evaluate(graph: Graph, options: ReportOptions = {}): Report {
     ),
     ...validateAdoption(graph, options.adoptionEvaluators, options.coordinate),
     ...canonAssessments(nodes, options.folders, graph),
+    ...workspaceStructureAssessments(
+      nodes,
+      graph,
+      options.workspaceDepthGuard === undefined ? {} : { depthGuard: options.workspaceDepthGuard },
+    ),
   ];
   const mandateWords = validateMandateWords(graph);
   if (
