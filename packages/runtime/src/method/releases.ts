@@ -15,7 +15,10 @@ export const RELEASES_FORMAT = 2;
 export interface ReleaseRow {
   readonly version: string;
   readonly archive?: string;
+  /** The `@inventarch/cli` release that packed it, as `@inventarch/cli <version>`: provenance. */
   readonly cli?: string;
+  /** The range of IA versions (`@inventarch/cli`) the release works with, such as `>=3.9.0 <4`. */
+  readonly works?: string;
   readonly file?: string;
   readonly records?: readonly unknown[];
   readonly [field: string]: unknown;

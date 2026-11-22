@@ -15,6 +15,7 @@ import {
 } from 'node:fs';
 import { userInfo } from 'node:os';
 import { basename, dirname, join, relative, resolve } from 'node:path';
+import { compareVersions, rangeFloor, satisfies } from '@inventarch/db/distribution';
 import { MethodError } from './errors.js';
 import { lockOnBase } from './kit-base.js';
 import type { BasePin, KitBaseUse } from './kit-base.js';
@@ -108,20 +109,55 @@ function canonicalLock(root: string, transform: (lock: unknown) => unknown = (lo
 const complete = (dir: string): boolean => existsSync(join(dir, '.ia', 'distributions', 'active.json'));
 
 /**
- * A kit can be read only by a reader of the major its latest release was packed with, or a later one: a 3.x release
- * locks a 3.x language base. A reader of unknown version is let through.
+ * Whether a reader may read a kit's latest release.
+ *
+ * A release row that names `works`, the range of IA versions (`@inventarch/cli`) the release works with, is read by
+ * every reader the range admits and by no other; its `cli`, the version it was packed with, is then provenance only
+ * (ia-kb design/kit-lifecycle dec-002). A prerelease reader counts as the release it leads to. A `works` that is not a
+ * SemVer range refuses `IA-CORE-KIT`: a kit whose claim cannot be read is not taken as claiming nothing.
+ *
+ * A row without `works` keeps the earlier rule: only a reader of the major the release was packed with, or a later one,
+ * since a 3.x release locks a 3.x language base. A reader of unknown version is let through either way.
  */
 export function assertReadable(
   kit: Kit,
   reader: { readonly version?: string | undefined; readonly source: string },
 ): void {
+  const label = `kit ${kit.id} ${kit.latest?.version}`;
+  const works = kit.latest?.works;
+  const release = /^(\d+\.\d+\.\d+)(?:[-+].*)?$/.exec(reader.version ?? '')?.[1];
+  if (works !== undefined) {
+    let admitted: boolean;
+    try {
+      admitted = satisfies(release ?? rangeFloor(works as string), works as string);
+    } catch {
+      throw new MethodError(
+        `${label} names works ${JSON.stringify(works)}, which is not a SemVer range of IA versions`,
+        'IA-CORE-KIT',
+      );
+    }
+    if (!admitted)
+      throw new MethodError(
+        `${label} works with IA ${String(works)}; this reader is ${reader.version} (${reader.source}): ${
+          atLeast(release!, works as string)
+            ? 'the kit needs a release whose range admits it'
+            : 'upgrade the reader to a version in that range'
+        }`,
+        'IA-CORE-CLI-UNSUPPORTED',
+      );
+    return;
+  }
   const packed = /^@inventarch\/cli ((\d+)\.\S*)$/.exec(String(kit.latest?.cli ?? ''));
   const major = Number(/^(\d+)\./.exec(reader.version ?? '')?.[1]);
   if (packed && Number.isInteger(major) && major < Number(packed[2]))
     throw new MethodError(
-      `kit ${kit.id} ${kit.latest?.version} was packed with @inventarch/cli ${packed[1]}, whose language base this reader cannot restore: it resolves ${reader.version} (${reader.source})`,
+      `${label} was packed with @inventarch/cli ${packed[1]}, whose language base this reader cannot restore: it resolves ${reader.version} (${reader.source})`,
       'IA-CORE-CLI-UNSUPPORTED',
     );
+}
+/** Whether `version` is at or above the lowest version `range` admits. */
+function atLeast(version: string, range: string): boolean {
+  return compareVersions(version, rangeFloor(range)) <= 0;
 }
 
 /**

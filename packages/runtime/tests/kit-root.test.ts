@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { lockOnBase, selectKitBase } from '../src/method/kit-base.js';
 import type { BasePin } from '../src/method/kit-base.js';
-import { kitReadRoot } from '../src/method/kit-root.js';
+import { assertReadable, kitReadRoot } from '../src/method/kit-root.js';
 import type { KitRestore } from '../src/method/kit-root.js';
 import { folderKits } from '../src/method/kits.js';
 import type { Kit } from '../src/method/kits.js';
@@ -174,4 +174,72 @@ it('any other change to a read-root lock is detected as altered', () => {
       expect.objectContaining({ code: 'IA-CORE-CLOSURE-INTEGRITY' }),
     );
   }
+});
+
+/**
+ * A release that names `works` is read by the readers its range admits; one that does not keeps the packed-major rule.
+ */
+const released = (row: Record<string, unknown>): Kit => ({
+  ...kit,
+  id: 'inventarch/x-kit',
+  latest: { version: '1.0.0', ...row },
+});
+const refusalOf = (run: () => void): { code: string | undefined; message: string } | null => {
+  try {
+    run();
+    return null;
+  } catch (error) {
+    return { code: (error as { code?: string }).code, message: (error as Error).message };
+  }
+};
+const reader = (version?: string) => ({ version, source: 'in-process' });
+
+it('a works range admits a newer reader the packing version says nothing about', () => {
+  const row = { cli: '@inventarch/cli 3.9.1', works: '>=3.9.0 <4' };
+  for (const version of ['3.9.0', '3.9.1', '3.10.0', '3.99.4', '3.10.0-next.2'])
+    expect(refusalOf(() => assertReadable(released(row), reader(version)))).toBeNull();
+  expect(refusalOf(() => assertReadable(released(row), reader(undefined)))).toBeNull();
+});
+
+it('a works range refuses a reader below it and names the upgrade', () => {
+  const refused = refusalOf(() =>
+    assertReadable(released({ cli: '@inventarch/cli 3.9.1', works: '>=3.9.0 <4' }), reader('3.8.0')),
+  );
+  expect(refused).toEqual({
+    code: 'IA-CORE-CLI-UNSUPPORTED',
+    message:
+      'kit inventarch/x-kit 1.0.0 works with IA >=3.9.0 <4; this reader is 3.8.0 (in-process): upgrade the reader to a version in that range',
+  });
+});
+
+it('a works range refuses a reader above it and names the kit release', () => {
+  const refused = refusalOf(() =>
+    assertReadable(released({ cli: '@inventarch/cli 3.9.1', works: '>=3.9.0 <4' }), reader('4.0.0')),
+  );
+  expect(refused?.code).toBe('IA-CORE-CLI-UNSUPPORTED');
+  expect(refused?.message).toContain('the kit needs a release whose range admits it');
+});
+
+it('a works range decides alone: the packing version is provenance', () => {
+  // Packed by a later major than the reader, yet the range admits the reader.
+  expect(
+    refusalOf(() => assertReadable(released({ cli: '@inventarch/cli 4.0.0', works: '>=3.9.0 <5' }), reader('3.9.1'))),
+  ).toBeNull();
+});
+
+it('a works value that is not a range is refused, never read as no claim', () => {
+  for (const works of ['soon', '', 3, null]) {
+    const refused = refusalOf(() => assertReadable(released({ cli: '@inventarch/cli 3.9.1', works }), reader('3.9.1')));
+    expect(refused?.code).toBe('IA-CORE-KIT');
+    expect(refused?.message).toContain('is not a SemVer range of IA versions');
+  }
+});
+
+it('a release without works keeps the packed-major rule', () => {
+  expect(refusalOf(() => assertReadable(released({ cli: '@inventarch/cli 3.8.0' }), reader('3.9.1')))).toBeNull();
+  expect(refusalOf(() => assertReadable(released({ cli: '@inventarch/cli 3.8.0' }), reader('4.0.0')))).toBeNull();
+  expect(refusalOf(() => assertReadable(released({ cli: '@inventarch/cli 4.0.0' }), reader('3.9.1')))?.code).toBe(
+    'IA-CORE-CLI-UNSUPPORTED',
+  );
+  expect(refusalOf(() => assertReadable(released({}), reader('3.9.1')))).toBeNull();
 });
