@@ -95,6 +95,8 @@ export { closureStore, retainKit, retainedKit } from './retained.js';
 export { assertReadable, kitCache, kitReadRoot, userCache } from './kit-root.js';
 export type { KitRestore } from './kit-root.js';
 export { lockOnBase, selectKitBase } from './kit-base.js';
+export { checkKit, checkKits, isKitFolder, kitFolders, LANGUAGE_ID } from './kit-check.js';
+export type { KitClass, KitFinding, KitFindingLevel, KitReport } from './kit-check.js';
 export type { BasePin, KitBaseLock, KitBaseUse } from './kit-base.js';
 export { WorkspaceReader } from './reader.js';
 export type { JsonRecord, PositionAnswer } from './reader.js';

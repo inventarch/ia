@@ -123,8 +123,11 @@ export function declaredAssets(kitDir: string): readonly { readonly rel: string;
     });
 }
 
-/** One digest over a kit's sources (paths and LF-normalized bytes): `.ia/`, the declared assets, then each sidecar present. */
-export function sourcesDigest(kitDir: string): string {
+/**
+ * One digest over a kit's sources (paths and LF-normalized bytes): `.ia/`, the declared assets, then each sidecar present.
+ * `sidecars` is the list read; the default keys this package's read roots.
+ */
+export function sourcesDigest(kitDir: string, sidecars: readonly string[] = SIDECARS): string {
   if (!kitDir) throw new MethodError('hosted kit carries no local source bytes', 'IA-CORE-KIT-HOSTED');
   const hash = createHash('sha256');
   const ia = join(kitDir, '.ia');
@@ -139,7 +142,7 @@ export function sourcesDigest(kitDir: string): string {
   ))
     feed(relative(kitDir, path).replace(/\\/g, '/'), path);
   for (const { rel, abs } of declaredAssets(kitDir)) feed(rel, abs);
-  for (const name of SIDECARS) if (existsSync(join(kitDir, name))) feed(name, join(kitDir, name));
+  for (const name of sidecars) if (existsSync(join(kitDir, name))) feed(name, join(kitDir, name));
   return hash.digest('hex');
 }
 

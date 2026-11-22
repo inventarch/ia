@@ -891,6 +891,22 @@ export const COMMANDS: readonly CommandSpec[] = [
     },
   },
   {
+    // The one checker for kit folders (ia-kb design/kit-lifecycle dec-006). It reads the folders it is given and opens
+    // no workspace, so `--root` is refused as `workspaces` refuses it; not an agent command, so no catalog row.
+    name: 'kit',
+    group: 'distribution',
+    summary: 'Check kit folders against the kit spec',
+    syntax: ['ia kit check [<folder>...] [--json]'],
+    actions: { check: {} },
+    grammar: {
+      options: [
+        ...COMMON_OPTIONS.filter((entry) => entry.name !== 'root'),
+        { ...ROOT, refuse: 'ia kit reads the folders it is given; --root is not accepted for this verb' },
+      ],
+      positionals: { ...positionals('action', 1, 65), path: { from: 1 } },
+    },
+  },
+  {
     name: 'doctor',
     group: 'distribution',
     summary: 'Report runtime, workspace and installation state',

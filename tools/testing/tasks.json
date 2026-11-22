@@ -1393,7 +1393,8 @@
         "tests/floor.test.ts",
         "tests/host-plugin.test.ts",
         "tests/host-projection.test.ts",
-        "tests/install-package.test.ts"
+        "tests/install-package.test.ts",
+        "tests/kit.test.ts"
       ],
       "profile": "installed",
       "platforms": [
@@ -2915,6 +2916,7 @@
         "tests/home-folders.test.ts",
         "tests/install-guard.test.ts",
         "tests/kit-base.test.ts",
+        "tests/kit-check.test.ts",
         "tests/kit-root.test.ts",
         "tests/kits-package.test.ts",
         "tests/locator.test.ts",
