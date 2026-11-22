@@ -196,7 +196,7 @@ const reader = (version?: string) => ({ version, source: 'in-process' });
 
 it('a works range admits a newer reader the packing version says nothing about', () => {
   const row = { cli: '@inventarch/cli 3.9.1', works: '>=3.9.0 <4' };
-  for (const version of ['3.9.0', '3.9.1', '3.10.0', '3.99.4', '3.10.0-next.2'])
+  for (const version of ['3.9.0', '3.9.1', '3.10.0', '3.99.4', '3.10.0-next.2', '3.9.1+build.1'])
     expect(refusalOf(() => assertReadable(released(row), reader(version)))).toBeNull();
   expect(refusalOf(() => assertReadable(released(row), reader(undefined)))).toBeNull();
 });
@@ -228,10 +228,10 @@ it('a works range decides alone: the packing version is provenance', () => {
 });
 
 it('a works value that is not a range is refused, never read as no claim', () => {
-  for (const works of ['soon', '', 3, null]) {
+  for (const works of ['soon', '', 3, null, '>4 <3']) {
     const refused = refusalOf(() => assertReadable(released({ cli: '@inventarch/cli 3.9.1', works }), reader('3.9.1')));
     expect(refused?.code).toBe('IA-CORE-KIT');
-    expect(refused?.message).toContain('is not a SemVer range of IA versions');
+    expect(refused?.message).toContain('is not a SemVer range that admits an IA version');
   }
 });
 
@@ -242,4 +242,19 @@ it('a release without works keeps the packed-major rule', () => {
     'IA-CORE-CLI-UNSUPPORTED',
   );
   expect(refusalOf(() => assertReadable(released({}), reader('3.9.1')))).toBeNull();
+});
+
+it('open and gapped works ranges are read as written', () => {
+  const admits = (works: string, version: string): boolean =>
+    refusalOf(() => assertReadable(released({ works }), reader(version))) === null;
+  expect(admits('*', '3.9.1')).toBe(true);
+  expect(admits('<4', '3.9.1')).toBe(true);
+  expect(admits('<4', '4.0.0-next.1')).toBe(false);
+  expect(admits('>=3.9.0 <4 || >=5', '5.1.0')).toBe(true);
+  expect(admits('>=3.9.0 <4 || >=5', '4.5.0')).toBe(false);
+});
+
+it('a reader version that is not canonical SemVer is unknown, and the kit is not blamed for it', () => {
+  for (const version of ['03.9.1', 'dev', '3.9', 'v3.9.1'])
+    expect(refusalOf(() => assertReadable(released({ works: '>=3.9.0 <4' }), reader(version)))).toBeNull();
 });

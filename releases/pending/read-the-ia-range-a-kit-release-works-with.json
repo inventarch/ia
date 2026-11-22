@@ -2,7 +2,7 @@
   "format": "ia.npm-change-note.v1",
   "bump": "minor",
   "title": "Read the IA range a kit release works with",
-  "summary": "A kit's release row may now name `works`, the range of IA versions (`@inventarch/cli`) the release works with, beside `cli`, the version that packed it. The method resolver reads a kit whose latest release names `works` with every reader the range admits and refuses any other with IA-CORE-CLI-UNSUPPORTED, so a new IA release inside the range needs no new kit release. A `works` that is not a SemVer range refuses IA-CORE-KIT. A release without `works` keeps the earlier packed-major rule.",
+  "summary": "A kit's release row may now name `works`, the range of IA versions (`@inventarch/cli`) the release works with, beside `cli`, the version that packed it. The method resolver reads a kit whose latest release names `works` with every reader the range admits and refuses any other with IA-CORE-CLI-UNSUPPORTED, so a new IA release inside the range needs no new kit release. A `works` that is not a SemVer range admitting some version refuses IA-CORE-KIT. A release without `works` keeps the earlier packed-major rule.",
   "packages": [
     "@inventarch/runtime"
   ],

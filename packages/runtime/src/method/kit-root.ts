@@ -114,7 +114,7 @@ const complete = (dir: string): boolean => existsSync(join(dir, '.ia', 'distribu
  * A release row that names `works`, the range of IA versions (`@inventarch/cli`) the release works with, is read by
  * every reader the range admits and by no other; its `cli`, the version it was packed with, is then provenance only
  * (ia-kb design/kit-lifecycle dec-002). A prerelease reader counts as the release it leads to. A `works` that is not a
- * SemVer range refuses `IA-CORE-KIT`: a kit whose claim cannot be read is not taken as claiming nothing.
+ * SemVer range admitting some version refuses `IA-CORE-KIT`: a kit whose claim cannot be read is not taken as claiming nothing.
  *
  * A row without `works` keeps the earlier rule: only a reader of the major the release was packed with, or a later one,
  * since a 3.x release locks a 3.x language base. A reader of unknown version is let through either way.
@@ -125,21 +125,24 @@ export function assertReadable(
 ): void {
   const label = `kit ${kit.id} ${kit.latest?.version}`;
   const works = kit.latest?.works;
-  const release = /^(\d+\.\d+\.\d+)(?:[-+].*)?$/.exec(reader.version ?? '')?.[1];
+  // An uncanonical reader version (a leading zero, a missing part) is an unknown one.
+  const release = /^((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))(?:[-+].*)?$/.exec(reader.version ?? '')?.[1];
   if (works !== undefined) {
-    let admitted: boolean;
+    let floor: string, admitted: boolean;
     try {
-      admitted = satisfies(release ?? rangeFloor(works as string), works as string);
+      floor = rangeFloor(works as string);
+      admitted = satisfies(release ?? floor, works as string);
     } catch {
       throw new MethodError(
-        `${label} names works ${JSON.stringify(works)}, which is not a SemVer range of IA versions`,
+        `${label} names works ${JSON.stringify(works)}, which is not a SemVer range that admits an IA version`,
         'IA-CORE-KIT',
       );
     }
     if (!admitted)
       throw new MethodError(
         `${label} works with IA ${String(works)}; this reader is ${reader.version} (${reader.source}): ${
-          atLeast(release!, works as string)
+          // compareVersions orders the highest first: at or above the range's lowest version, the reader is too new.
+          compareVersions(release!, floor) <= 0
             ? 'the kit needs a release whose range admits it'
             : 'upgrade the reader to a version in that range'
         }`,
@@ -155,11 +158,6 @@ export function assertReadable(
       'IA-CORE-CLI-UNSUPPORTED',
     );
 }
-/** Whether `version` is at or above the lowest version `range` admits. */
-function atLeast(version: string, range: string): boolean {
-  return compareVersions(version, rangeFloor(range)) <= 0;
-}
-
 /**
  * The restored read root of a kit and the base it was restored with, restoring a fresh copy when the cache holds no
  * complete one. The key covers the kit's sources, its lock and the chosen base's archive, so roots restored on
