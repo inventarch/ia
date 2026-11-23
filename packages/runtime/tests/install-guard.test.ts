@@ -290,6 +290,32 @@ describe('resolveMethod with a bound kit', () => {
     expect(resolve()).toMatchObject({ code: REACHED });
     expect(restored).toBe(1);
   });
+  it('the works range of the latest release decides before any restore', () => {
+    writeLock(lockWith({ packages: [{ id: KIT, version: '0.9.0', archive: ARCHIVE }] }));
+    // Packed by a major no reader has: without `works` the packed-major rule would refuse it.
+    const release = (works?: unknown): void => {
+      rmSync(store, { recursive: true, force: true });
+      write(join(bundled, 'ia-kb', 'releases.json'), {
+        kit: KIT,
+        releases: [{ version: '0.9.0', archive: ARCHIVE, cli: '@inventarch/cli 999.0.0', works, records: [] }],
+      });
+    };
+    release();
+    expect(resolve()).toMatchObject({ code: 'IA-CORE-CLI-UNSUPPORTED' });
+    expect(restored).toBe(0);
+    release('*');
+    expect(resolve()).toMatchObject({ code: REACHED });
+    expect(restored).toBe(1);
+    release('>=999.0.0');
+    expect(resolve()).toMatchObject({
+      code: 'IA-CORE-CLI-UNSUPPORTED',
+      message: expect.stringContaining('upgrade the reader to a version in that range'),
+    });
+    expect(restored).toBe(0);
+    release('soon');
+    expect(resolve()).toMatchObject({ code: 'IA-CORE-KIT' });
+    expect(restored).toBe(0);
+  });
   it('a carrier entries row installs: the kit is read from the store and the restore is reached with it', () => {
     // An entries row names a kit the lock installs from the workspace store, so the store must hold it.
     const record = '#! ia 1.0\n\n@workspace kb\n';
