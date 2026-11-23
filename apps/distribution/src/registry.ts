@@ -9,9 +9,16 @@ export {
   CollectionConflictError,
   registryWithdrawals,
   resolveFromRegistries,
+  restoreWithdrawals,
   unpublishedPins,
 } from './registry-resolve.js';
-export type { Acquirer, CandidateRelease, RegistryResolution, RegistryResolveRequest } from './registry-resolve.js';
+export type {
+  Acquirer,
+  CandidateRelease,
+  RegistryResolution,
+  RegistryResolveRequest,
+  RestoreWithdrawals,
+} from './registry-resolve.js';
 export {
   collectionIndexPath,
   decodeCollectionIndex,

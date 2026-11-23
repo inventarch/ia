@@ -1,0 +1,15 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "Restore cached releases while the default registry is not provisioned",
+  "summary": "`ia restore` no longer refuses with IA-DIST-ARTIFACT-UNAVAILABLE when a locked kit's only registry is the built-in default and that default serves no registry (it answers without `ia-registry.json`). Such a kit, installed from a catalog or a directory, is restored from the verified archive in the workspace cache; the result warns that no registry was asked whether it was withdrawn and names it, and `--json` lists it in `unchecked`. This is what stopped the console's upgrade recipe at its restore step. A kit that is not cached, a default registry that is failing instead of absent, and every configured registry refuse as before. `@inventarch/distribution/registry` adds `restoreWithdrawals`; `registryWithdrawals` is unchanged.",
+  "packages": [
+    "@inventarch/cli",
+    "@inventarch/distribution"
+  ],
+  "paths": [
+    "apps/cli/",
+    "apps/distribution/",
+    "docs/specs/registry/"
+  ]
+}

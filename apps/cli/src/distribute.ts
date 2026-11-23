@@ -77,8 +77,8 @@ import {
   registryChooser,
   registryLocation,
   CollectionConflictError,
-  registryWithdrawals,
   resolveFromRegistries,
+  restoreWithdrawals,
   unpublishedPins,
 } from '@inventarch/distribution/registry';
 import type { RegistryChoice, RegistryLevel } from '@inventarch/distribution/registry';
@@ -182,6 +182,11 @@ export interface PlanView {
   readonly applied: Applied | null;
   /** Accepted withdrawn releases: bare ids from a catalog restore, `id@version` pins from a registry restore. */
   readonly withdrawn: readonly string[];
+  /**
+   * Registry spec §6.3: the cached `id@version` pins a restore reinstalled without asking a registry whether they were
+   * withdrawn, because the built-in default registry is not provisioned.
+   */
+  readonly unchecked: readonly string[];
   /** The registries this command read, one per provider, sorted; empty when a catalog or the cache was the source. */
   readonly registries: readonly RegistrySource[];
   /** The exact command that would apply this plan; its `\` breaks are chosen here, not by the wrapper. */
@@ -1105,6 +1110,7 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
   );
   let plan: InstallationPlan;
   let withdrawn: readonly string[] = [];
+  let unchecked: readonly string[] = [];
   let registries: readonly RegistrySource[] = [];
   let collections: readonly ExpandedCollection[] = [];
   // The lock requests the apply records as named by the user (kit-collections.ts `named`).
@@ -1147,7 +1153,8 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
         const choose = chooserOf(request);
         const restored = await acquiring(
           async () => {
-            const pins = await registryWithdrawals(root, lock, choose, request.signal);
+            const asked = await restoreWithdrawals(root, lock, choose, request.signal);
+            unchecked = asked.unchecked;
             return planRestore({
               root,
               signal: request.signal,
@@ -1155,7 +1162,7 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
               offline: false,
               allowWithdrawn: request.allowWithdrawn,
               withdrawnRefusalPrefix,
-              withdrawn: pins,
+              withdrawn: asked.withdrawn,
             });
           },
           null,
@@ -1164,10 +1171,14 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
         );
         plan = restored.plan;
         withdrawn = restored.withdrawn;
-        // The registries asked: every locked package's except an unpublished cached pin, which no registry lists (§6.3).
-        const unpublished = unpublishedPins(root, lock);
+        // The registries asked: every locked package's except an unpublished cached pin, which no registry lists, and a
+        // cached pin whose registry is the unprovisioned default, which was not asked (§6.3).
+        const unpublished = unpublishedPins(root, lock),
+          unasked = new Set(unchecked);
         registries = registrySources(
-          lock.packages.filter((pkg) => !unpublished.has(pkg.id)).map((pkg) => choose(pkg.id)),
+          lock.packages
+            .filter((pkg) => !unpublished.has(pkg.id) && !unasked.has(`${pkg.id}@${pkg.version}`))
+            .map((pkg) => choose(pkg.id)),
         );
       } else {
         const entries = request.offline ? undefined : supplied(request.catalog!, 'catalog');
@@ -1368,6 +1379,7 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
     rows: changeRows(plan, previous),
     applied: null,
     withdrawn,
+    unchecked,
     registries,
     invocation: request.invocation,
     planOut,
@@ -1410,7 +1422,7 @@ export function applyPlan(view: PlanView): PlanView {
 
 /**
  * The `--json` envelope: `{version: 1, command, plan, applied?, refresh?, retire?, retired?, registries?,
- * withdrawn?, planOut?}`.
+ * withdrawn?, unchecked?, planOut?}`.
  *
  * - `plan` is the planner's own value, unchanged.
  * - `registries` (registry spec §6.1) is present only when registries were the source: one `{provider, base, level}`
@@ -1419,6 +1431,8 @@ export function applyPlan(view: PlanView): PlanView {
  *   whether a locked release was withdrawn. A package's registry is the entry for its provider.
  * - `withdrawn` lists the withdrawn releases `--allow-withdrawn` accepted, and its entries differ by source: a catalog
  *   restore names bare package ids, as it always has; a registry restore names `id@version` pins (§6.3).
+ * - `unchecked` lists the cached `id@version` pins a restore reinstalled without asking whether they were withdrawn,
+ *   because their registry is the built-in default and it is not provisioned (§6.3). `registries` leaves it out.
  */
 export function planEnvelope(view: PlanView): unknown {
   return {
@@ -1434,6 +1448,7 @@ export function planEnvelope(view: PlanView): unknown {
     ...(view.retired.length === 0 ? {} : { retired: view.retired }),
     ...(view.registries.length === 0 ? {} : { registries: view.registries }),
     ...(view.withdrawn.length === 0 ? {} : { withdrawn: view.withdrawn }),
+    ...(view.unchecked.length === 0 ? {} : { unchecked: view.unchecked }),
     ...(view.planOut === null ? {} : { planOut: view.planOut }),
   };
 }
@@ -1499,8 +1514,8 @@ const changesBlock = (view: PlanView, caps: Capabilities): readonly string[] => 
   ];
 };
 /** The warning prints the accepted releases as the source named them: bare ids from a catalog, `id@version` from a registry. */
-const withdrawnBlocks = (view: PlanView, caps: Capabilities): readonly (readonly string[])[] =>
-  view.withdrawn.length === 0
+const withdrawnBlocks = (view: PlanView, caps: Capabilities): readonly (readonly string[])[] => [
+  ...(view.withdrawn.length === 0
     ? []
     : [
         entry(
@@ -1508,7 +1523,21 @@ const withdrawnBlocks = (view: PlanView, caps: Capabilities): readonly (readonly
           { depth: 1, symbol: 'warning' },
           caps,
         ),
-      ];
+      ]),
+  ...(view.unchecked.length === 0
+    ? []
+    : [
+        entry(
+          [
+            words(
+              `The default registry is not available, so no registry was asked whether these cached releases were withdrawn: ${view.unchecked.join(', ')}.`,
+            ),
+          ],
+          { depth: 1, symbol: 'warning' },
+          caps,
+        ),
+      ]),
+];
 /** The closed path set, which is what makes "only install state" a checkable claim rather than a promise. */
 const wouldWriteBlocks = (view: PlanView, caps: Capabilities): readonly (readonly string[])[] => {
   const { plan } = view;
