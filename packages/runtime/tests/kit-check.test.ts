@@ -138,6 +138,7 @@ it('a works value that is not a range is an integrity finding', () => {
   for (const [name, works] of [
     ['a', 'soon'],
     ['b', '>4 <3'],
+    ['d', '>=4.0.0-alpha <4.0.0'],
     ['c', 3],
   ] as const) {
     const report = checkKit(kit({ name, releases: [{ version: '0.1.0', works }] }));

@@ -1,7 +1,8 @@
 import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 // `byRelease` is the codec's SemVer order, highest first; `compareVersions` below is the release history's, lowest first.
-import { compareVersions as byRelease, rangeFloor } from '@inventarch/db/distribution';
+import { compareVersions as byRelease } from '@inventarch/db/distribution';
+import { worksFloor } from './kit-root.js';
 import { kitBindings, kitChecks, kitDelivery, readDescriptor, SIDECARS, sourcesDigest } from './kits.js';
 import { checkFile, compareVersions, readReleases, releaseFile, RELEASES_FORMAT } from './releases.js';
 import type { ReleaseIndex, ReleaseRow } from './releases.js';
@@ -165,7 +166,7 @@ function versionRule(dir: string, index: ReleaseIndex, find: (rule: string, mess
     if (keys.length) added.push(`adds the key ${keys[0]}${keys.length > 1 ? ` and ${keys.length - 1} more` : ''}`);
   }
   const floors = [previous.works, latest.works].map((works) =>
-    typeof works === 'string' ? attempt(() => rangeFloor(works)) : undefined,
+    typeof works === 'string' ? attempt(() => worksFloor(works)) : undefined,
   );
   const [was, now] = floors.map((floor) => (floor && 'value' in floor ? floor.value : undefined));
   // The codec's comparison orders the highest first.
@@ -289,10 +290,10 @@ function inspect(dir: string, publicIds: ReadonlySet<string>): KitReport {
   if (latest) {
     if (latest.works === undefined)
       spec('works', `release ${latest.version} does not say which IA versions it works with (works)`);
-    else if ('error' in attempt(() => rangeFloor(latest.works as string)))
+    else if ('error' in attempt(() => worksFloor(latest.works)))
       integrity(
         'works',
-        `release ${latest.version} names works ${JSON.stringify(latest.works)}, which is not a SemVer range that admits an IA version`,
+        `release ${latest.version} names works ${JSON.stringify(latest.works)}, which is not a SemVer range that admits an IA release`,
       );
     if (text(latest.cli) === undefined)
       spec('works', `release ${latest.version} does not record the IA version that packed it (cli)`);
