@@ -138,11 +138,14 @@ export function worksFloor(works: unknown): string {
  * A release row that names `works`, the range of IA versions (`@inventarch/cli`) the release works with, is read by
  * every reader the range admits and by no other; its `cli`, the version it was packed with, is then provenance only
  * (ia-kb design/kit-lifecycle dec-002). A prerelease reader counts as the release it leads to, so a range is read over
- * releases only: one that admits nothing but prereleases admits no reader and is refused as no range at all. A `works` that is not a
- * SemVer range admitting some version refuses `IA-CORE-KIT`: a kit whose claim cannot be read is not taken as claiming nothing.
+ * releases only: one that admits nothing but prereleases admits no reader and is refused as no range at all. A `works`
+ * that is not a SemVer range admitting some release refuses `IA-CORE-KIT`: a kit whose claim cannot be read is not
+ * taken as claiming nothing.
  *
  * A row without `works` keeps the earlier rule: only a reader of the major the release was packed with, or a later one,
- * since a 3.x release locks a 3.x language base. A reader of unknown version is let through either way.
+ * since a 3.x release locks a 3.x language base. A reader of unknown version is let through either way. Readers
+ * released before this rule (`@inventarch/cli` 3.9.1 and earlier) do not read `works` and apply the earlier rule to
+ * every row.
  */
 export function assertReadable(
   kit: Kit,
@@ -183,6 +186,7 @@ export function assertReadable(
       'IA-CORE-CLI-UNSUPPORTED',
     );
 }
+
 /**
  * The restored read root of a kit and the base it was restored with, restoring a fresh copy when the cache holds no
  * complete one. The key covers the kit's sources, its lock and the chosen base's archive, so roots restored on
