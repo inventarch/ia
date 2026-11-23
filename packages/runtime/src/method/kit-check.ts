@@ -184,8 +184,15 @@ function versionRule(dir: string, index: ReleaseIndex, find: (rule: string, mess
 /** The record words a file's `@word name` headers name. */
 const headers = (path: string): Map<string, string[]> => {
   const found = new Map<string, string[]>();
-  if (!statSync(path, { throwIfNoEntry: false })?.isFile()) return found;
-  for (const match of readFileSync(path, 'utf8').matchAll(/^@([a-z][a-z-]*) ([a-z0-9][a-z0-9-]*)/gm))
+  // Read without checking first: a file that is absent, or a folder in its place, names no records.
+  let source: string;
+  try {
+    source = readFileSync(path, 'utf8');
+  } catch (error) {
+    if (['ENOENT', 'ENOTDIR', 'EISDIR'].includes((error as NodeJS.ErrnoException).code ?? '')) return found;
+    throw error;
+  }
+  for (const match of source.matchAll(/^@([a-z][a-z-]*) ([a-z0-9][a-z0-9-]*)/gm))
     found.set(match[1]!, [...(found.get(match[1]!) ?? []), match[2]!]);
   return found;
 };
