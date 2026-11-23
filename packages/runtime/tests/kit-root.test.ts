@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { lockOnBase, selectKitBase } from '../src/method/kit-base.js';
 import type { BasePin } from '../src/method/kit-base.js';
-import { assertReadable, kitReadRoot } from '../src/method/kit-root.js';
+import { assertReadable, kitReadRoot, worksFloor } from '../src/method/kit-root.js';
 import type { KitRestore } from '../src/method/kit-root.js';
 import { folderKits } from '../src/method/kits.js';
 import type { Kit } from '../src/method/kits.js';
@@ -231,7 +231,7 @@ it('a works value that is not a range is refused, never read as no claim', () =>
   for (const works of ['soon', '', 3, null, '>4 <3']) {
     const refused = refusalOf(() => assertReadable(released({ cli: '@inventarch/cli 3.9.1', works }), reader('3.9.1')));
     expect(refused?.code).toBe('IA-CORE-KIT');
-    expect(refused?.message).toContain('is not a SemVer range that admits an IA version');
+    expect(refused?.message).toContain('is not a SemVer range that admits an IA release');
   }
 });
 
@@ -257,4 +257,29 @@ it('open and gapped works ranges are read as written', () => {
 it('a reader version that is not canonical SemVer is unknown, and the kit is not blamed for it', () => {
   for (const version of ['03.9.1', 'dev', '3.9', 'v3.9.1'])
     expect(refusalOf(() => assertReadable(released({ works: '>=3.9.0 <4' }), reader(version)))).toBeNull();
+});
+
+it('a works range that only a prerelease satisfies admits no reader, versioned or not', () => {
+  // Readers are compared as the release they lead to, so nothing satisfies these; an unknown reader is not let through
+  // on the range's own prerelease floor either.
+  for (const works of ['>=4.0.0-alpha <4.0.0', '4.0.0-rc.1', '>=4.0.0-alpha <4.0.0 || 3.9.0-next.1'])
+    for (const version of ['4.0.0-alpha.1', '4.0.0', '3.9.1', undefined]) {
+      const refused = refusalOf(() => assertReadable(released({ works }), reader(version)));
+      expect(refused?.code).toBe('IA-CORE-KIT');
+      expect(refused?.message).toContain('is not a SemVer range that admits an IA release');
+    }
+});
+
+it('a works range that starts at a prerelease is read from the release it leads to', () => {
+  const works = '>=4.0.0-alpha <5';
+  expect(worksFloor(works)).toBe('4.0.0');
+  for (const version of ['4.0.0-alpha.1', '4.0.0', '4.2.0', undefined])
+    expect(refusalOf(() => assertReadable(released({ works }), reader(version)))).toBeNull();
+  expect(refusalOf(() => assertReadable(released({ works }), reader('3.9.1')))?.message).toContain(
+    'upgrade the reader to a version in that range',
+  );
+  // The lowest release across alternatives, whichever is written first.
+  expect(worksFloor('>=5 || >=3.9.0 <4')).toBe('3.9.0');
+  expect(worksFloor('4.0.0-rc.1 || >=4.1.0')).toBe('4.1.0');
+  expect(worksFloor('*')).toBe('0.0.0');
 });

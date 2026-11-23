@@ -92,7 +92,7 @@ export {
 } from './packet.js';
 export type { MethodPacket, PacketContract } from './packet.js';
 export { closureStore, retainKit, retainedKit } from './retained.js';
-export { assertReadable, kitCache, kitReadRoot, userCache } from './kit-root.js';
+export { assertReadable, kitCache, kitReadRoot, userCache, worksFloor } from './kit-root.js';
 export type { KitRestore } from './kit-root.js';
 export { lockOnBase, selectKitBase } from './kit-base.js';
 export type { BasePin, KitBaseLock, KitBaseUse } from './kit-base.js';

@@ -109,11 +109,36 @@ function canonicalLock(root: string, transform: (lock: unknown) => unknown = (lo
 const complete = (dir: string): boolean => existsSync(join(dir, '.ia', 'distributions', 'active.json'));
 
 /**
+ * The lowest IA release (`x.y.z`, no prerelease) a `works` range admits. Readers are compared as the release they lead
+ * to, so this, never the range's own lowest version, is the least reader the range admits. Throws when `works` is not a
+ * SemVer range or admits no release: `>4 <3`, and also `>=4.0.0-alpha <4.0.0`, which only a prerelease satisfies.
+ */
+export function worksFloor(works: unknown): string {
+  if (typeof works !== 'string') throw new MethodError('works is not a SemVer range', 'IA-CORE-KIT');
+  // Each `||` alternative is one interval: its lowest release is its lowest version without the prerelease tag.
+  const floors = works.split('||').flatMap((part) => {
+    try {
+      const lowest = /^\d+\.\d+\.\d+/.exec(rangeFloor(part))![0];
+      return satisfies(lowest, part) ? [lowest] : [];
+    } catch {
+      return [];
+    }
+  });
+  // Refuses the whole range when it is malformed, whatever its parts gave.
+  rangeFloor(works);
+  // compareVersions orders the highest first.
+  const lowest = floors.sort((a, b) => compareVersions(b, a))[0];
+  if (lowest === undefined) throw new MethodError('works admits no IA release', 'IA-CORE-KIT');
+  return lowest;
+}
+
+/**
  * Whether a reader may read a kit's latest release.
  *
  * A release row that names `works`, the range of IA versions (`@inventarch/cli`) the release works with, is read by
  * every reader the range admits and by no other; its `cli`, the version it was packed with, is then provenance only
- * (ia-kb design/kit-lifecycle dec-002). A prerelease reader counts as the release it leads to. A `works` that is not a
+ * (ia-kb design/kit-lifecycle dec-002). A prerelease reader counts as the release it leads to, so a range is read over
+ * releases only: one that admits nothing but prereleases admits no reader and is refused as no range at all. A `works` that is not a
  * SemVer range admitting some version refuses `IA-CORE-KIT`: a kit whose claim cannot be read is not taken as claiming nothing.
  *
  * A row without `works` keeps the earlier rule: only a reader of the major the release was packed with, or a later one,
@@ -130,11 +155,11 @@ export function assertReadable(
   if (works !== undefined) {
     let floor: string, admitted: boolean;
     try {
-      floor = rangeFloor(works as string);
+      floor = worksFloor(works);
       admitted = satisfies(release ?? floor, works as string);
     } catch {
       throw new MethodError(
-        `${label} names works ${JSON.stringify(works)}, which is not a SemVer range that admits an IA version`,
+        `${label} names works ${JSON.stringify(works)}, which is not a SemVer range that admits an IA release`,
         'IA-CORE-KIT',
       );
     }
