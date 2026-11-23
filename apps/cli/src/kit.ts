@@ -96,7 +96,7 @@ export function runKit(context: Context): Result {
     if (kitFolders(path).length === 0)
       throw new Refusal(
         'IA-CLI-KIT-NOT-FOUND',
-        `${path} is not a kit folder and holds none: a kit folder has a releases.json or a .ia/release.json`,
+        `${path} is not a kit folder and none of its immediate subfolders is: a kit folder has a releases.json or a .ia/release.json`,
         3,
         { path },
         'Run "ia kit check <folder>" naming a kit folder or the folder that holds your kits.',

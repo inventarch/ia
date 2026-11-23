@@ -264,3 +264,72 @@ it('a path names its kit folder, or the kit folders directly under it', () => {
   expect(kitFolders(join(base, 'notes'))).toEqual([]);
   expect(kitFolders(join(base, 'absent'))).toEqual([]);
 });
+
+it('a release file that is missing, unreadable or of another release is a finding, never a silent pass', () => {
+  const two: readonly Release[] = [{ version: '0.1.0' }, { version: '0.1.1' }];
+  const broken = (name: string, after: (dir: string) => void): KitReport =>
+    checkKit(kit({ name, releases: two, after }));
+  const missing = broken('a', (dir) => rmSync(join(dir, 'releases', '0.1.1.json')));
+  expect(missing.findings.map((finding) => finding.message)).toEqual(['releases/0.1.1.json is missing']);
+  expect(missing.ok).toBe(false);
+  expect(rules(broken('b', (dir) => put(join(dir, 'releases', '0.1.1.json'), '{not json')))).toEqual([
+    'integrity:releases',
+  ]);
+  expect(
+    rules(
+      broken('c', (dir) =>
+        put(join(dir, 'releases', '0.1.0.json'), { format: 2, kit: 'inventarch/x-kit', records: [] }),
+      ),
+    ),
+  ).toEqual(['integrity:releases']);
+});
+
+it('a folder the checker cannot make sense of is reported, not thrown', () => {
+  const nullRow = checkKit(
+    kit({
+      after: (dir) =>
+        put(join(dir, 'releases.json'), { kit: 'inventarch/note-kit', releases: [{ version: '0.1.0' }, null] }),
+    }),
+  );
+  expect(rules(nullRow)).toContain('integrity:releases');
+  expect(nullRow.ok).toBe(false);
+  const nullDescriptor = checkKit(kit({ name: 'b', after: (dir) => put(join(dir, '.ia', 'release.json'), 'null') }));
+  expect(rules(nullDescriptor)).toContain('integrity:descriptor');
+  expect(nullDescriptor.ok).toBe(false);
+  const seatFolder = checkKit(
+    kit({
+      name: 'c',
+      after: (dir) => {
+        rmSync(join(dir, '.ia', 'src', 'workspace.ia'));
+        mkdirSync(join(dir, '.ia', 'src', 'workspace.ia'));
+      },
+    }),
+  );
+  expect(rules(seatFolder)).toContain('spec:seat');
+  expect(rules(seatFolder)).not.toContain('integrity:unreadable');
+  // A version that is a path names no file.
+  const path = '../../outside';
+  const traversal = checkKit(
+    kit({
+      name: 'd',
+      after: (dir) =>
+        put(join(dir, 'releases.json'), {
+          format: 2,
+          kit: 'inventarch/d-kit',
+          latest: path,
+          releases: [
+            { version: '0.1.0', file: 'releases/0.1.0.json' },
+            { version: path, file: `releases/${path}.json` },
+          ],
+        }),
+    }),
+  );
+  expect(rules(traversal)).toContain('integrity:releases');
+  expect(traversal.ok).toBe(false);
+});
+
+it('one folder named twice is one kit', () => {
+  const dir = kit();
+  expect(checkKits([dir, dir, base]).map(rules)).toEqual([[]]);
+  if (process.platform === 'win32') expect(checkKits([dir, dir.toUpperCase()]).map(rules)).toEqual([[]]);
+});

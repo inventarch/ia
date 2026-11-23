@@ -1,8 +1,9 @@
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
+// `byRelease` is the codec's SemVer order, highest first; `compareVersions` below is the release history's, lowest first.
 import { compareVersions as byRelease, rangeFloor } from '@inventarch/db/distribution';
 import { kitBindings, kitChecks, kitDelivery, readDescriptor, SIDECARS, sourcesDigest } from './kits.js';
-import { compareVersions, readReleases, releaseFile, RELEASES_FORMAT } from './releases.js';
+import { checkFile, compareVersions, readReleases, releaseFile, RELEASES_FORMAT } from './releases.js';
 import type { ReleaseIndex, ReleaseRow } from './releases.js';
 
 /**
@@ -91,15 +92,26 @@ const recordKey = (row: unknown): string | undefined => {
     ? `${String(value.system ?? '')}/${value.word}/${value.name}`
     : undefined;
 };
-/** One release's record names and offered keys: embedded in a format 1 row, or read from its per-version file. */
-function releaseNames(dir: string, index: ReleaseIndex, row: ReleaseRow): Names | undefined {
+/**
+ * One release's record names and offered keys: embedded in a format 1 row, or read from its per-version file, which
+ * must be the file of that row (`checkFile`). Undefined when a format 1 row embeds none; an error when a format 2 file is
+ * missing, unreadable or another release's.
+ */
+function releaseNames(dir: string, index: ReleaseIndex, row: ReleaseRow): Names | { error: string } | undefined {
   let records: readonly unknown[] | undefined = Array.isArray(row.records) ? row.records : undefined;
   let offers: unknown = (row as { offers?: unknown }).offers;
   if (records === undefined && index.format === RELEASES_FORMAT) {
-    const path = join(dir, releaseFile(row.version));
-    if (!existsSync(path)) return undefined;
-    const file = attempt(() => readJson(path) as { records?: unknown; offers?: unknown });
-    if ('error' in file || !Array.isArray(file.value.records)) return undefined;
+    // The file name is built from the version, so only a release version names one.
+    if (!SEMVER.test(String(row.version))) return { error: `release ${String(row.version)} is not a release version` };
+    const name = releaseFile(row.version);
+    const path = join(dir, name);
+    if (!existsSync(path)) return { error: `${name} is missing` };
+    const file = attempt(() => {
+      const value = readJson(path);
+      checkFile(index, row, value);
+      return value as { records: readonly unknown[]; offers?: unknown };
+    });
+    if ('error' in file) return { error: `${name} is not the file of release ${row.version}: ${file.error}` };
     records = file.value.records;
     offers = file.value.offers;
   }
@@ -133,7 +145,11 @@ function versionRule(dir: string, index: ReleaseIndex, find: (rule: string, mess
     find('version', `release ${latest.version} does not follow ${previous.version}`);
     return;
   }
-  const [before, after] = [releaseNames(dir, index, previous), releaseNames(dir, index, latest)];
+  const [before, after] = [previous, latest].map((row) => {
+    const names = releaseNames(dir, index, row);
+    if (names && 'error' in names) find('releases', names.error);
+    return names && 'error' in names ? undefined : names;
+  });
   const breaking: string[] = [];
   const added: string[] = [];
   if (before && after) {
@@ -167,14 +183,35 @@ function versionRule(dir: string, index: ReleaseIndex, find: (rule: string, mess
 /** The record words a file's `@word name` headers name. */
 const headers = (path: string): Map<string, string[]> => {
   const found = new Map<string, string[]>();
-  if (!existsSync(path)) return found;
+  if (!statSync(path, { throwIfNoEntry: false })?.isFile()) return found;
   for (const match of readFileSync(path, 'utf8').matchAll(/^@([a-z][a-z-]*) ([a-z0-9][a-z0-9-]*)/gm))
     found.set(match[1]!, [...(found.get(match[1]!) ?? []), match[2]!]);
   return found;
 };
 
-/** One kit folder, checked. `publicIds` are the public kits a private kit may depend on. */
+/**
+ * One kit folder, checked. `publicIds` are the public kits a private kit may depend on. A folder the checker cannot
+ * read at all is reported as one failing finding, never thrown: one broken kit does not hide the others' reports.
+ */
 export function checkKit(dir: string, publicIds: ReadonlySet<string> = new Set()): KitReport {
+  try {
+    return inspect(dir, publicIds);
+  } catch (error) {
+    const message = `the kit folder could not be read: ${(error as Error).message}`;
+    return {
+      dir,
+      folder: basename(dir),
+      id: null,
+      version: null,
+      class: null,
+      offers: [],
+      findings: [{ rule: 'unreadable', level: 'integrity', message, fails: true }],
+      ok: false,
+      ready: false,
+    };
+  }
+}
+function inspect(dir: string, publicIds: ReadonlySet<string>): KitReport {
   const found: Omit<KitFinding, 'fails'>[] = [];
   const find = (level: KitFindingLevel) => (rule: string, message: string) => {
     found.push({ rule, level, message });
@@ -183,14 +220,24 @@ export function checkKit(dir: string, publicIds: ReadonlySet<string> = new Set()
   const folder = basename(dir);
 
   const releases = existsSync(join(dir, 'releases.json')) ? attempt(() => readReleases(dir)) : undefined;
-  const index = releases && 'value' in releases ? releases.value : undefined;
+  const rowsRead =
+    releases && 'value' in releases
+      ? releases.value.releases.every(
+          (row) => row !== null && typeof row === 'object' && typeof row.version === 'string',
+        )
+      : false;
+  const index = releases && 'value' in releases && rowsRead ? releases.value : undefined;
   if (releases === undefined) spec('releases', 'no releases.json: the kit has no recorded release');
   else if ('error' in releases) integrity('releases', releases.error);
+  else if (!rowsRead) integrity('releases', 'releases.json holds a release row that is not an object with a version');
 
   const read = existsSync(join(dir, '.ia', 'release.json')) ? attempt(() => readDescriptor(dir)) : undefined;
-  const descriptor = read && 'value' in read ? read.value : undefined;
+  const plain =
+    read && 'value' in read && read.value !== null && typeof read.value === 'object' && !Array.isArray(read.value);
+  const descriptor = read && 'value' in read && plain ? read.value : undefined;
   if (read === undefined) integrity('descriptor', 'no .ia/release.json');
   else if ('error' in read) integrity('descriptor', `.ia/release.json is unreadable: ${read.error}`);
+  else if (!plain) integrity('descriptor', '.ia/release.json is not a JSON object');
 
   const id = text(descriptor?.['id']) ?? index?.kit ?? null;
   const version = text(descriptor?.['version']) ?? null;
@@ -317,7 +364,14 @@ export function checkKit(dir: string, publicIds: ReadonlySet<string> = new Set()
 
 /** Every kit folder under the given paths, checked together: ids are unique, and private kits see the public ones. */
 export function checkKits(paths: readonly string[]): KitReport[] {
-  const dirs = [...new Set(paths.flatMap(kitFolders))];
+  // One folder spelled two ways (case, a link) is one kit.
+  const seen = new Set<string>();
+  const dirs = paths.flatMap(kitFolders).filter((dir) => {
+    const real = realpathSync.native(dir);
+    if (seen.has(real)) return false;
+    seen.add(real);
+    return true;
+  });
   const first = dirs.map((dir) => checkKit(dir));
   const publicIds = new Set(
     first.filter((report) => report.class === 'public' && report.id).map((report) => report.id!),
