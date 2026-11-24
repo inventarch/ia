@@ -177,6 +177,8 @@ interface Indexed {
   readonly registry: Registry;
   readonly index: PackageIndex;
 }
+/** The built-in default answered without `ia-registry.json`: it serves no registry, so it lists and withdraws nothing. */
+class DefaultUnprovisioned extends DistributionError {}
 /**
  * Registry spec §6.4 and §3: a configured base without `ia-registry.json` stays "Not a registry" (INPUT-INVALID), but
  * the built-in default that has not been provisioned is an unavailable resource, not a wrong URL.
@@ -184,11 +186,12 @@ interface Indexed {
 function open(choice: RegistryChoice, budget: RegistryBudget, signal: AbortSignal | undefined): Promise<Registry> {
   const missing =
     choice.level === 'default'
-      ? (where: string): never =>
-          fail(
-            'ARTIFACT-UNAVAILABLE',
+      ? (where: string): never => {
+          throw new DefaultUnprovisioned(
+            'IA-DIST-ARTIFACT-UNAVAILABLE',
             `The default registry ${where} is not available; pass --registry, map the provider in .ia/registries.json, or use --catalog`,
-          )
+          );
+        }
       : undefined;
   return openRegistry(choice.base, { budget, signal, missing });
 }
@@ -727,11 +730,56 @@ async function resolveWithPins(
     ...expandedResult(),
   };
 }
+/** Registry spec §6.3: what restore's question to the registries found. */
+export interface RestoreWithdrawals {
+  /** The locked `id@version` pins their registry marks withdrawn. */
+  readonly withdrawn: readonly string[];
+  /** The cached `id@version` pins no registry was asked about, because the built-in default serves none. */
+  readonly unchecked: readonly string[];
+}
+async function withdrawals(
+  root: string,
+  lock: DistributionLock,
+  choose: (id: string) => RegistryChoice,
+  signal: AbortSignal | undefined,
+  cachedAnswers: boolean,
+): Promise<RestoreWithdrawals> {
+  signal?.throwIfAborted();
+  const at = workspace(root);
+  const read = registries(choose, signal),
+    absent = new Map<string, DefaultUnprovisioned>(),
+    withdrawn: string[] = [],
+    unchecked: string[] = [];
+  for (const locked of lock.packages) {
+    const state = inspectPin(at, locked);
+    if (isPin(state) && state.unpublished) continue;
+    let source: Indexed;
+    try {
+      // One read of the missing info file answers for every package that registry would have.
+      const known = absent.get(registryLocation(choose(locked.id).base));
+      if (known !== undefined) throw known;
+      source = await read(locked.id);
+    } catch (error) {
+      if (!(error instanceof DefaultUnprovisioned)) throw error;
+      absent.set(registryLocation(choose(locked.id).base), error);
+      if (!cachedAnswers || !isPin(state)) throw error;
+      unchecked.push(pin(locked.id, locked.version));
+      continue;
+    }
+    const release = source.index.releases.find((r) => r.version === locked.version);
+    if (release === undefined)
+      fail('CONFLICT', `Registry no longer lists the locked release: ${pin(locked.id, locked.version)}`);
+    unchanged(locked.id, release, locked);
+    if (release.withdrawn) withdrawn.push(pin(locked.id, locked.version));
+  }
+  return { withdrawn, unchecked };
+}
 /**
  * Registry spec §6.3: reads each locked package's index and returns the `id@version` pins it marks withdrawn. A locked
  * version the index no longer lists, or lists with different digests, is a conflict. A locked package whose cached
  * archive is unpublished (null provenance) is skipped: no registry lists it, so none can withdraw it. A package that is
- * not cached (a fresh clone) is read like any other.
+ * not cached (a fresh clone) is read like any other. An unprovisioned built-in default refuses here;
+ * `restoreWithdrawals` is the reading `ia restore` uses.
  */
 export async function registryWithdrawals(
   root: string,
@@ -739,18 +787,20 @@ export async function registryWithdrawals(
   choose: (id: string) => RegistryChoice,
   signal?: AbortSignal,
 ): Promise<readonly string[]> {
-  signal?.throwIfAborted();
-  const at = workspace(root);
-  const read = registries(choose, signal),
-    withdrawn: string[] = [];
-  for (const locked of lock.packages) {
-    const state = inspectPin(at, locked);
-    if (isPin(state) && state.unpublished) continue;
-    const release = (await read(locked.id)).index.releases.find((r) => r.version === locked.version);
-    if (release === undefined)
-      fail('CONFLICT', `Registry no longer lists the locked release: ${pin(locked.id, locked.version)}`);
-    unchanged(locked.id, release, locked);
-    if (release.withdrawn) withdrawn.push(pin(locked.id, locked.version));
-  }
-  return withdrawn;
+  return (await withdrawals(root, lock, choose, signal, false)).withdrawn;
+}
+/**
+ * Registry spec §6.3, as `ia restore` asks it: `registryWithdrawals`, except that a built-in default registry that is
+ * not provisioned (it answers without `ia-registry.json`) withdraws nothing. A locked package it would have answered
+ * for, whose verified archive is in the workspace cache, is returned in `unchecked` and restored from the cache; one
+ * that is not cached still refuses as unavailable, because only a source can supply it. A default that fails any other
+ * way (an outage, a malformed document), and every configured registry, refuses as before.
+ */
+export async function restoreWithdrawals(
+  root: string,
+  lock: DistributionLock,
+  choose: (id: string) => RegistryChoice,
+  signal?: AbortSignal,
+): Promise<RestoreWithdrawals> {
+  return withdrawals(root, lock, choose, signal, true);
 }

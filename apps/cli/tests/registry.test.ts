@@ -75,6 +75,7 @@ interface Envelope {
   readonly applied?: { readonly status: string };
   readonly registries?: readonly { readonly provider: string; readonly base: string; readonly level: string }[];
   readonly withdrawn?: readonly string[];
+  readonly unchecked?: readonly string[];
 }
 interface Failure {
   readonly code: string;
@@ -460,6 +461,59 @@ it('reports an unavailable default registry at class 4, naming every other sourc
     expect(human.stderr).toContain('IA-DIST-ARTIFACT-UNAVAILABLE');
     expect(existsSync(join(root, '.ia'))).toBe(false);
   }
+});
+
+it('restores cached releases while the default registry is not provisioned, naming the ones no registry was asked about', async () => {
+  // The kit was installed from a directory, as a catalog or a mirror supplies it, so its registry is the built-in
+  // default only because nothing maps the provider (registry spec §4 level 5, §6.3).
+  const id = `${DEFAULT_PROVIDER}/kit`,
+    dir = registry([{ id, version: '1.0.0' }]),
+    root = target();
+  expect((await run(['install', id, '--root', root, '--registry', dir, '--apply', '--yes'])).exitCode).toBe(0);
+  const before = installedState(root);
+  const requested: string[] = [];
+  const answer = (status: number): void => {
+    requested.length = 0;
+    vi.stubGlobal('fetch', async (input: string | URL) => {
+      requested.push(String(input));
+      return new Response('unavailable', { status });
+    });
+  };
+  answer(404);
+  const restored = await run(['restore', '--root', root, '--apply', '--yes', '--json']);
+  expect(restored.exitCode, restored.stdout).toBe(0);
+  const machine = json<Envelope>(restored.stdout);
+  expect(machine.applied?.status).toBe('installed');
+  expect(machine.unchecked).toEqual([`${id}@1.0.0`]);
+  expect(machine.registries).toBeUndefined();
+  expect(machine.plan.lock.packages.map((pkg) => [pkg.id, pkg.location])).toEqual(
+    (
+      JSON.parse(readFileSync(join(root, '.ia/distributions.lock.json'), 'utf8')) as { packages: Locked[] }
+    ).packages.map((pkg) => [pkg.id, pkg.location]),
+  );
+  // The info file is read once, and nothing else is asked of a registry that serves none.
+  expect(requested).toEqual([DEFAULT_INFO]);
+  expect(installedState(root)['.ia/distributions.lock.json']).toBe(before['.ia/distributions.lock.json']);
+  const human = await run(['restore', '--root', root, '--apply', '--yes']);
+  expect(human.exitCode, human.stderr).toBe(0);
+  expect(flat(human.stdout)).toContain(
+    `The default registry is not available, so no registry was asked whether these cached releases were withdrawn: ${id}@1.0.0.`,
+  );
+
+  // An outage is not an absent registry: the default is there and could not answer, so restore still refuses.
+  answer(503);
+  const down = await run(['restore', '--root', root, '--apply', '--yes', '--json']);
+  expect(down.exitCode, down.stdout).toBe(4);
+  expect(json<Failure>(down.stdout).code).toBe('IA-DIST-ARTIFACT-UNAVAILABLE');
+
+  // A clone without the archive has nothing to restore from, so the absent default is still the refusal.
+  answer(404);
+  rmSync(join(root, '.ia/distributions/cache'), { recursive: true, force: true });
+  const cold = await run(['restore', '--root', root, '--apply', '--yes', '--json']);
+  expect(cold.exitCode, cold.stdout).toBe(4);
+  const failure = json<Failure>(cold.stdout);
+  expect(failure.code).toBe('IA-DIST-ARTIFACT-UNAVAILABLE');
+  expect(failure.message).toContain('--catalog');
 });
 
 it('gives an unreachable registry index a registry remedy, not a catalog one', async () => {

@@ -75,6 +75,8 @@ Only the selected archives are fetched and verified, in id order: by artifact UR
 
 Online, `ia restore` asks each locked package's registry whether its release was withdrawn before it reacquires anything, and refuses a withdrawn release with `IA-DIST-RELEASE-WITHDRAWN` unless `--allow-withdrawn`. A locked release the registry no longer lists, or lists with other digests, is a conflict. Unpublished archives are skipped, because no registry lists them; a clone whose cache is empty restores the bundled base from the CLI's own archive.
 
+The built-in default (§4 level 5) that is not provisioned, which is one that answers without `ia-registry.json`, serves no registry, so it lists no release and withdraws none. A locked package that only this default would answer for, and whose verified archive is in the workspace cache, is restored from the cache without that question: the result names it in a warning, and with `--json` in `unchecked`, as `id@version`, and `registries` leaves the default out. A package that is not cached still refuses with `IA-DIST-ARTIFACT-UNAVAILABLE`, because only a source can supply it. A default that fails any other way, an outage or a malformed document, and every configured registry (§4 levels 1 to 4), refuses as §6.4 says.
+
 Restore reacquires only artifact URLs. A package locked from a directory registry has a `sha256:` location, and restore reads its bytes from the workspace cache, never from the registry. A clone whose cache lacks them refuses with `IA-DIST-RESTORE-REQUIRED` until `ia restore --catalog <file>` names every locked archive.
 
 ### 6.4 Transport refusals

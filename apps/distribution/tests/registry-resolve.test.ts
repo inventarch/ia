@@ -16,7 +16,7 @@ import type { Dependency, DistributionLock } from '@inventarch/db/distribution';
 import { applyInstallation, cacheArchive, planInstallation } from '../src/install.js';
 import { registryAddCollection } from '../src/registry-build.js';
 import { registryChooser } from '../src/registry-config.js';
-import { registryWithdrawals, resolveFromRegistries } from '../src/registry-resolve.js';
+import { registryWithdrawals, resolveFromRegistries, restoreWithdrawals } from '../src/registry-resolve.js';
 import type { Acquirer, RegistryResolveRequest } from '../src/registry-resolve.js';
 import { resolveReleases } from '../src/resolve.js';
 import { buildFixtureRegistry, fixtureArchive, serveDirectory } from './registry-fixture.js';
@@ -650,6 +650,58 @@ it('reports an unprovisioned default registry as unavailable, and a configured b
     notRegistry,
   );
   await expect(registryWithdrawals(root, lock, flagged())).rejects.toMatchObject(notRegistry);
+  // Restore's reading agrees for a package that is not cached: only a source can supply it.
+  await expect(restoreWithdrawals(root, lock, defaults())).rejects.toMatchObject(unavailable);
+  await expect(restoreWithdrawals(root, lock, flagged())).rejects.toMatchObject(notRegistry);
+});
+
+it('lets a restore keep cached published pins when the default registry is not provisioned, and only then', async () => {
+  const root = workspaceRoot(),
+    config = mkdtempSync(join(tmpdir(), 'ia-registry-config-'));
+  made.push(config);
+  const defaults = () => registryChooser({ root, env: { IA_CONFIG_HOME: config }, cwd: root });
+  const locked = (id: string) => {
+    const archive = fixtureArchive({ id, version: '1.0.0' });
+    cacheArchive(root, archive.bytes, archive.archive);
+    return {
+      id,
+      version: '1.0.0',
+      archive: archive.archive,
+      manifest: archive.manifest,
+      location: `sha256:${archive.archive}`,
+      dependencies: [] as string[],
+    };
+  };
+  const { locked: base } = unpublishedBase(root);
+  const lock = withLocked(withLocked(withLocked(undefined, base), locked('inventarch/one')), locked('inventarch/two'));
+  const requested: string[] = [];
+  const answer = (status: number): void => {
+    requested.length = 0;
+    vi.stubGlobal('fetch', async (input: string | URL) => {
+      requested.push(String(input));
+      return new Response('missing', { status });
+    });
+  };
+  answer(404);
+  // The unpublished base is skipped as ever; the two published pins are named, on one read of the absent info file.
+  expect(await restoreWithdrawals(root, lock, defaults())).toEqual({
+    withdrawn: [],
+    unchecked: ['inventarch/one@1.0.0', 'inventarch/two@1.0.0'],
+  });
+  expect(requested).toEqual(['https://api.inventarch.dev/registry/ia-registry.json']);
+  // The strict reading still refuses, and so does restore's for a default that is there and failing.
+  await expect(registryWithdrawals(root, lock, defaults())).rejects.toMatchObject(
+    refusal('ARTIFACT-UNAVAILABLE', /^The default registry /),
+  );
+  answer(503);
+  await expect(restoreWithdrawals(root, lock, defaults())).rejects.toMatchObject(
+    refusal('ARTIFACT-UNAVAILABLE', /^Registry request /),
+  );
+  // A configured base without its info file is a wrong registry, never an absent one.
+  answer(404);
+  await expect(
+    restoreWithdrawals(root, lock, registryChooser({ root, env: {}, flag: 'https://registry.test/empty', cwd: root })),
+  ).rejects.toMatchObject(refusal('INPUT-INVALID', /^Not a registry: /));
 });
 
 // Registry spec §5.1 and §6.3: cached lock pins answer for themselves.
