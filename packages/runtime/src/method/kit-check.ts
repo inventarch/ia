@@ -3,7 +3,7 @@ import { basename, join, resolve } from 'node:path';
 // `byRelease` is the codec's SemVer order, highest first; `compareVersions` below is the release history's, lowest first.
 import { compareVersions as byRelease } from '@inventarch/db/distribution';
 import { worksFloor } from './kit-root.js';
-import { kitBindings, kitChecks, kitDelivery, readDescriptor, SIDECARS, sourcesDigest } from './kits.js';
+import { kitBindings, kitChecks, kitDelivery, readDescriptor, readSidecar, SIDECARS, sourcesDigest } from './kits.js';
 import { checkFile, compareVersions, readReleases, releaseFile, RELEASES_FORMAT } from './releases.js';
 import type { ReleaseIndex, ReleaseRow } from './releases.js';
 
@@ -49,7 +49,10 @@ export interface KitReport {
 export const LANGUAGE_ID = 'inventarch/language';
 const KIT_ID = /^[a-z0-9][a-z0-9-]*\/[a-z0-9][a-z0-9-]*-kit$/;
 const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
-const LICENCES: Readonly<Record<string, KitClass>> = { 'Apache-2.0': 'public', UNLICENSED: 'private' };
+const LICENCES = new Map<string, KitClass>([
+  ['Apache-2.0', 'public'],
+  ['UNLICENSED', 'private'],
+]);
 /**
  * The sidecars a release's recorded `sources` digest covers: the packer (the `ia` plugin's `kit.mjs`) reads
  * `handlers.json` after the four this package keys its read roots by.
@@ -67,6 +70,36 @@ const attempt = <T>(run: () => T): { value: T } | { error: string } => {
 const text = (value: unknown): string | undefined => (typeof value === 'string' && value !== '' ? value : undefined);
 const readJson = (path: string): unknown => JSON.parse(readFileSync(path, 'utf8'));
 const isDir = (path: string): boolean => statSync(path, { throwIfNoEntry: false })?.isDirectory() === true;
+const isFile = (path: string): boolean => statSync(path, { throwIfNoEntry: false })?.isFile() === true;
+
+/** Validate the on-write declarations described by the kit runtime, without running their commands. */
+function checkOnWrite(sidecar: Record<string, unknown>): void {
+  const rows = sidecar['onWrite'];
+  if (sidecar['format'] !== 1 || !Array.isArray(rows)) throw new Error('expected format 1 and an onWrite list');
+  for (const [index, row] of rows.entries()) {
+    const where = `onWrite[${index}]`;
+    if (typeof row?.name !== 'string' || !/^[a-z0-9][a-z0-9-]*$/.test(row.name))
+      throw new Error(`${where} needs a name`);
+    if (
+      !Array.isArray(row.extensions) ||
+      !row.extensions.length ||
+      !row.extensions.every((ext: unknown) => typeof ext === 'string' && /^\.[a-z0-9]+$/i.test(ext))
+    )
+      throw new Error(`${where} needs file extensions such as [".md"]`);
+    if (row.marker !== undefined && (typeof row.marker !== 'string' || !/^[^/\\]+$/.test(row.marker)))
+      throw new Error(`${where}.marker must be a file name`);
+    if (row.maxDepth !== undefined && !(Number.isInteger(row.maxDepth) && row.maxDepth >= 0 && row.maxDepth <= 64))
+      throw new Error(`${where}.maxDepth must be an integer from 0 to 64`);
+    if (!Array.isArray(row.argv) || !row.argv.length || !row.argv.every((arg: unknown) => typeof arg === 'string'))
+      throw new Error(`${where} needs a non-empty argv of strings`);
+    for (const arg of row.argv as string[])
+      for (const [, name] of arg.matchAll(/\$\{([^}]*)\}/g))
+        if (!['NODE', 'KIT', 'PLUGIN'].includes(name!))
+          throw new Error(`${where}.argv has unknown placeholder ${name}`);
+    if (row.timeout !== undefined && !(Number.isInteger(row.timeout) && row.timeout >= 1 && row.timeout <= 25))
+      throw new Error(`${where}.timeout must be an integer from 1 to 25`);
+  }
+}
 
 /** Whether a folder is a kit folder: it holds a `releases.json` or a `.ia/release.json`. */
 export const isKitFolder = (dir: string): boolean =>
@@ -101,20 +134,23 @@ const recordKey = (row: unknown): string | undefined => {
 function releaseNames(dir: string, index: ReleaseIndex, row: ReleaseRow): Names | { error: string } | undefined {
   let records: readonly unknown[] | undefined = Array.isArray(row.records) ? row.records : undefined;
   let offers: unknown = (row as { offers?: unknown }).offers;
-  if (records === undefined && index.format === RELEASES_FORMAT) {
+  if (index.format === RELEASES_FORMAT) {
     // The file name is built from the version, so only a release version names one.
     if (!SEMVER.test(String(row.version))) return { error: `release ${String(row.version)} is not a release version` };
     const name = releaseFile(row.version);
     const path = join(dir, name);
-    if (!existsSync(path)) return { error: `${name} is missing` };
-    const file = attempt(() => {
+    try {
       const value = readJson(path);
-      checkFile(index, row, value);
-      return value as { records: readonly unknown[]; offers?: unknown };
-    });
-    if ('error' in file) return { error: `${name} is not the file of release ${row.version}: ${file.error}` };
-    records = file.value.records;
-    offers = file.value.offers;
+      records = checkFile(index, row, value).records;
+      offers = (value as { offers?: unknown }).offers;
+    } catch (error) {
+      return {
+        error:
+          (error as NodeJS.ErrnoException).code === 'ENOENT'
+            ? `${name} is missing`
+            : `${name} is not the file of release ${row.version}: ${(error as Error).message}`,
+      };
+    }
   }
   if (records === undefined) return undefined;
   const keys = (offers as { keys?: unknown } | undefined)?.keys;
@@ -137,20 +173,29 @@ function bumpOf(from: string, to: string): Bump | null {
  * The version rule (dec-004): breaking needs a major, an addition a minor, anything else a patch. On 0.x the same
  * changes sit one step down, as SemVer reads 0.x: breaking needs a minor, and an addition may ride a patch.
  */
-function versionRule(dir: string, index: ReleaseIndex, find: (rule: string, message: string) => void): void {
+function versionRule(
+  dir: string,
+  index: ReleaseIndex,
+  floors: ReadonlyMap<ReleaseRow, string>,
+  find: (rule: string, message: string) => void,
+): void {
   const rows = index.releases;
   const [previous, latest] = [rows.at(-2), rows.at(-1)];
+  const [before, after] = [previous, latest].map((row) => {
+    if (!row || !SEMVER.test(row.version)) return undefined;
+    const names = releaseNames(dir, index, row);
+    if (names && 'error' in names) {
+      find('releases', names.error);
+      return undefined;
+    }
+    return names;
+  });
   if (!previous || !latest) return;
   const bump = bumpOf(previous.version, latest.version);
   if (bump === null) {
     find('version', `release ${latest.version} does not follow ${previous.version}`);
     return;
   }
-  const [before, after] = [previous, latest].map((row) => {
-    const names = releaseNames(dir, index, row);
-    if (names && 'error' in names) find('releases', names.error);
-    return names && 'error' in names ? undefined : names;
-  });
   const breaking: string[] = [];
   const added: string[] = [];
   if (before && after) {
@@ -165,10 +210,8 @@ function versionRule(dir: string, index: ReleaseIndex, find: (rule: string, mess
     if (records.length) added.push(`adds ${records.length} record${records.length === 1 ? '' : 's'} (${records[0]})`);
     if (keys.length) added.push(`adds the key ${keys[0]}${keys.length > 1 ? ` and ${keys.length - 1} more` : ''}`);
   }
-  const floors = [previous.works, latest.works].map((works) =>
-    typeof works === 'string' ? attempt(() => worksFloor(works)) : undefined,
-  );
-  const [was, now] = floors.map((floor) => (floor && 'value' in floor ? floor.value : undefined));
+  const was = floors.get(previous);
+  const now = floors.get(latest);
   // The codec's comparison orders the highest first.
   if (was !== undefined && now !== undefined && byRelease(now, was) < 0)
     breaking.push(`raises the lowest IA version it works with from ${was} to ${now}`);
@@ -251,7 +294,7 @@ function inspect(dir: string, publicIds: ReadonlySet<string>): KitReport {
   const version = text(descriptor?.['version']) ?? null;
   const latest = index?.releases.at(-1);
   const licence = text(descriptor?.['license']);
-  const kitClass = (licence !== undefined ? LICENCES[licence] : undefined) ?? null;
+  const kitClass = LICENCES.get(licence ?? '') ?? null;
 
   if (descriptor) {
     if (id === null || !KIT_ID.test(id))
@@ -276,15 +319,32 @@ function inspect(dir: string, publicIds: ReadonlySet<string>): KitReport {
     if (index.format !== RELEASES_FORMAT)
       spec('releases', `releases.json is format ${index.format ?? 1}; the spec asks for format ${RELEASES_FORMAT}`);
     if (!latest) spec('releases', 'releases.json records no release');
-    for (const row of index.releases)
+    const floors = new Map<ReleaseRow, string>();
+    for (const row of index.releases) {
       if (!SEMVER.test(String(row.version)))
         integrity('releases', `release ${String(row.version)} is not a release version (x.y.z)`);
+      if (row.works !== undefined) {
+        const floor = attempt(() => worksFloor(row.works));
+        if ('error' in floor)
+          integrity(
+            'works',
+            `release ${row.version} names works ${JSON.stringify(row.works)}, which is not a SemVer range that admits an IA release`,
+          );
+        else floors.set(row, floor.value);
+      }
+    }
+    versionRule(dir, index, floors, integrity);
   }
   if (latest && version !== null && SEMVER.test(version) && SEMVER.test(latest.version)) {
     const order = compareVersions(version, latest.version);
     if (order < 0)
       integrity('descriptor', `the descriptor is at ${version}, behind the latest release ${latest.version}`);
-    if (order === 0 && typeof latest['sources'] === 'string') {
+    if (
+      index?.format === RELEASES_FORMAT &&
+      (typeof latest['sources'] !== 'string' || !/^[a-f0-9]{64}$/.test(latest['sources']))
+    )
+      integrity('sources', `release ${latest.version} has no valid sources digest`);
+    else if (order === 0 && typeof latest['sources'] === 'string') {
       const digest = attempt(() => sourcesDigest(dir, RECORDED_SIDECARS));
       if ('error' in digest) integrity('sources', digest.error);
       else if (digest.value !== latest['sources'])
@@ -297,15 +357,9 @@ function inspect(dir: string, publicIds: ReadonlySet<string>): KitReport {
   if (latest) {
     if (latest.works === undefined)
       spec('works', `release ${latest.version} does not say which IA versions it works with (works)`);
-    else if ('error' in attempt(() => worksFloor(latest.works)))
-      integrity(
-        'works',
-        `release ${latest.version} names works ${JSON.stringify(latest.works)}, which is not a SemVer range that admits an IA release`,
-      );
     if (text(latest.cli) === undefined)
       spec('works', `release ${latest.version} does not record the IA version that packed it (cli)`);
   }
-  if (index) versionRule(dir, index, integrity);
 
   // Sidecars name only the kit's own records.
   let offers: string[] = [];
@@ -324,15 +378,22 @@ function inspect(dir: string, publicIds: ReadonlySet<string>): KitReport {
   ];
   for (const [name, undeclared] of sidecars) {
     const result = attempt(undeclared);
-    if ('error' in result) integrity('sidecars', result.error);
+    if ('error' in result) integrity('sidecars', `${name}: ${result.error}`);
     else if (result.value.length)
       integrity('sidecars', `${name} names what the kit does not declare: ${result.value.join(', ')}`);
   }
+  for (const name of ['onwrite.json', 'handlers.json']) {
+    const result = attempt(() => {
+      const sidecar = readSidecar(kit, name);
+      if (name === 'onwrite.json' && sidecar !== undefined) checkOnWrite(sidecar);
+    });
+    if ('error' in result) integrity('sidecars', `${name}: ${result.error}`);
+  }
 
   // What the minimum spec asks a kit folder to hold.
-  if (!existsSync(join(dir, 'README.md'))) spec('readme', 'no README.md');
+  if (!isFile(join(dir, 'README.md'))) spec('readme', 'no README.md');
   const tests = join(dir, 'tests');
-  if (!isDir(tests) || !readdirSync(tests).some((name) => TEST_FILE.test(name)))
+  if (!isDir(tests) || !readdirSync(tests).some((name) => TEST_FILE.test(name) && isFile(join(tests, name))))
     spec('tests', 'no tests/*.test.* file');
   const seat = headers(join(dir, '.ia', 'src', 'workspace.ia'));
   const missing = ['workspace', 'agent', 'mandate'].filter((word) => !seat.has(word));

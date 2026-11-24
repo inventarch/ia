@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, expect, it } from 'vitest';
@@ -92,6 +92,102 @@ function kit(options: Options = {}): string {
   return dir;
 }
 const rules = (report: KitReport): string[] => report.findings.map((finding) => `${finding.level}:${finding.rule}`);
+
+it.each(['0.1.0', '1.0.0'])('validates the only format 2 release file at %s', (version) => {
+  const dir = kit({ releases: [{ version }] });
+  const file = join(dir, 'releases', `${version}.json`);
+  const original = JSON.parse(readFileSync(file, 'utf8'));
+  rmSync(file);
+  for (const contents of [undefined, '{', null, { ...original, archive: 'f'.repeat(64) }]) {
+    if (contents !== undefined) put(file, contents);
+    const report = checkKit(dir);
+    expect(report).toMatchObject({ ok: false, ready: false });
+    expect(rules(report)).toEqual(['integrity:releases']);
+    expect(report.findings[0]!.message).toContain(`releases/${version}.json`);
+  }
+});
+
+it('uses the format 2 file even when its index row also embeds records', () => {
+  const dir = kit({ releases: [{ version: '0.1.0' }, { version: '0.1.1' }] });
+  const path = join(dir, 'releases.json');
+  const index = JSON.parse(readFileSync(path, 'utf8'));
+  index.releases[0].records = [];
+  put(path, index);
+  rmSync(join(dir, 'releases', '0.1.0.json'));
+  expect(rules(checkKit(dir))).toEqual(['integrity:releases']);
+});
+
+it('uses embedded records for a legacy format 1 release without a per-version file', () => {
+  const dir = kit();
+  const path = join(dir, 'releases.json');
+  const index = JSON.parse(readFileSync(path, 'utf8'));
+  const { file, ...row } = index.releases[0];
+  rmSync(join(dir, file));
+  put(path, { kit: index.kit, releases: [{ ...row, records: [record('write-note')] }] });
+  expect(rules(checkKit(dir))).toEqual(['spec:releases']);
+});
+
+it('checks recorded works ranges throughout the history and permits earlier rows without works', () => {
+  const releases = [{ version: '0.1.0', works: 'never' }, { version: '0.2.0', works: undefined }, { version: '0.3.0' }];
+  expect(rules(checkKit(kit({ releases })))).toEqual(['integrity:works']);
+});
+
+it.each([undefined, 12])('requires a recorded source digest for a format 2 release (got %s)', (sources) => {
+  const dir = kit();
+  const path = join(dir, 'releases.json');
+  const index = JSON.parse(readFileSync(path, 'utf8'));
+  index.releases[0].sources = sources;
+  put(path, index);
+  expect(rules(checkKit(dir))).toEqual(['integrity:sources']);
+});
+
+it('recognizes only the declared licence values', () => {
+  const dir = kit({ license: 'constructor', releases: [{ version: '1.0.0' }] });
+  expect(checkKit(dir)).toMatchObject({ class: null, ok: false });
+  expect(rules(checkKit(dir))).toEqual(['spec:licence']);
+});
+
+it('requires files for the README and tests', () => {
+  const dir = kit();
+  for (const file of ['README.md', 'tests/contract.test.mjs']) {
+    rmSync(join(dir, file));
+    mkdirSync(join(dir, file));
+  }
+  expect(rules(checkKit(dir))).toEqual(['spec:readme', 'spec:tests']);
+});
+
+it.each([
+  ['onwrite.json', '{'],
+  ['onwrite.json', { format: 1, onWrite: [{}] }],
+  ['handlers.json', '{'],
+] as const)('reports an invalid %s even when its digest matches', (name, contents) => {
+  const dir = kit({ edit: (folder) => put(join(folder, name), contents) });
+  expect(rules(checkKit(dir))).toEqual(['integrity:sidecars']);
+});
+
+it('accepts a declared on-write hook and an opaque handlers object', () => {
+  const report = checkKit(
+    kit({
+      edit(dir) {
+        put(join(dir, 'handlers.json'), { format: 1 });
+        put(join(dir, 'onwrite.json'), {
+          format: 1,
+          onWrite: [
+            {
+              name: 'check-note',
+              extensions: ['.md'],
+              argv: ['${NODE}', '${KIT}/check.mjs'],
+              marker: 'README.md',
+              maxDepth: 0,
+              timeout: 25,
+            },
+          ],
+        });
+      },
+    }),
+  );
+  expect(report.findings).toEqual([]);
+});
 
 it('a kit folder that holds everything passes, and on 0.x is ready for 1.0.0', () => {
   const report = checkKit(kit());

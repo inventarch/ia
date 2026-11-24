@@ -328,10 +328,17 @@ export interface KitCheck {
 }
 const plainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
-const readSidecar = (kit: Pick<Kit, 'dir'>, name: string): Record<string, unknown> | undefined => {
+export const readSidecar = (kit: Pick<Kit, 'dir'>, name: string): Record<string, unknown> | undefined => {
   if (!kit.dir) return undefined;
   const path = join(kit.dir, name);
-  return existsSync(path) ? (JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>) : undefined;
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'));
+    if (!plainObject(parsed)) throw new MethodError(`${path} must contain a JSON object`, 'IA-CORE-KIT');
+    return parsed;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+    throw error;
+  }
 };
 
 /** The checks a kit's runner may run (`checks.json`); a name that is not a @check record of the kit is dropped into `undeclared`. */

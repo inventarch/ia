@@ -63,6 +63,33 @@ it('exits 1 when a kit fails, and says which', async () => {
   expect(result.stdout).toContain('1 kit checked, 1 failing. Not checked:');
 });
 
+it('reports a missing first release file and still checks the other kits', async () => {
+  const parent = scratch('kit-check-first-release');
+  kit(parent, 'other', '0.1.0');
+  const dir = kit(parent, 'note', '0.2.0');
+  put(join(dir, 'releases.json'), {
+    format: 2,
+    kit: 'inventarch/note-kit',
+    latest: '0.1.0',
+    releases: [{ version: '0.1.0', file: 'releases/0.1.0.json', sources: 'f'.repeat(64) }],
+  });
+  const result = await run(['kit', 'check', parent, '--json']);
+  expect(result.exitCode).toBe(1);
+  expect(JSON.parse(result.stdout)).toMatchObject({
+    ok: false,
+    kits: [
+      {
+        id: 'inventarch/note-kit',
+        ok: false,
+        findings: expect.arrayContaining([
+          { rule: 'releases', level: 'integrity', fails: true, message: 'releases/0.1.0.json is missing' },
+        ]),
+      },
+      { id: 'inventarch/other-kit', ok: true },
+    ],
+  });
+});
+
 it('refuses a folder that names no kit, an unknown action and --root', async () => {
   const empty = scratch('kit-check-empty');
   const missing = await run(['kit', 'check', empty, '--json']);
