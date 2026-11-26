@@ -1,0 +1,534 @@
+{
+  "format": "ia.npm-changeset.v1",
+  "version": "3.10.0",
+  "state": "consumed",
+  "baseline": {
+    "commit": "f31bb4e7dd7f54f98f0373da30cad15ab5e23320",
+    "version": "3.9.1"
+  },
+  "bump": "minor",
+  "summary": "Coordinated 3.10.0 release of the 24 public npm packages: Count array scans, not milliseconds, in the linear-postings test; Read the IA range a kit release works with; Restore cached releases while the default registry is not provisioned.",
+  "packages": {
+    "@inventarch/agent-composition-system": {
+      "previous": "3.9.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/agent-system": {
+      "previous": "3.9.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/authoring-system": {
+      "previous": "3.9.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/cli": {
+      "previous": "3.9.1",
+      "kind": "changed",
+      "summary": "Restore cached releases while the default registry is not provisioned."
+    },
+    "@inventarch/compliance": {
+      "previous": "3.9.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/compliance-system": {
+      "previous": "3.9.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/db": {
+      "previous": "3.9.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/distribution": {
+      "previous": "3.9.1",
+      "kind": "changed",
+      "summary": "Restore cached releases while the default registry is not provisioned."
+    },
+    "@inventarch/governance-system": {
+      "previous": "3.9.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/graph": {
+      "previous": "3.9.1",
+      "kind": "changed",
+      "summary": "Count array scans, not milliseconds, in the linear-postings test."
+    },
+    "@inventarch/hook-authoring-system": {
+      "previous": "3.9.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/kb": {
+      "previous": "3.9.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/language": {
+      "previous": "3.9.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/learning-system": {
+      "previous": "3.9.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/mcp-door": {
+      "previous": "3.9.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/runner": {
+      "previous": "3.9.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/runtime": {
+      "previous": "3.9.1",
+      "kind": "changed",
+      "summary": "Read the IA range a kit release works with."
+    },
+    "@inventarch/service-contracts": {
+      "previous": "3.9.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/session-system": {
+      "previous": "3.9.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/steward-hook": {
+      "previous": "3.9.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/template-system": {
+      "previous": "3.9.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/work-system": {
+      "previous": "3.9.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/workspace-runtime": {
+      "previous": "3.9.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/workspace-system": {
+      "previous": "3.9.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    }
+  },
+  "changes": [
+    {
+      "id": "count-array-scans-not-milliseconds-in-the-linear",
+      "title": "Count array scans, not milliseconds, in the linear-postings test",
+      "summary": "Test only: the linear-time posting test counts array scans instead of timing loads, so runner speed can no longer fail it. No consumer-facing change.",
+      "packages": [
+        "@inventarch/graph"
+      ],
+      "paths": [
+        "packages/graph/"
+      ]
+    },
+    {
+      "id": "read-the-ia-range-a-kit-release-works-with",
+      "title": "Read the IA range a kit release works with",
+      "summary": "A kit's release row may now name `works`, the range of IA versions (`@inventarch/cli`) the release works with, beside `cli`, the version that packed it. The method resolver reads a kit whose latest release names `works` with every reader the range admits and refuses any other with IA-CORE-CLI-UNSUPPORTED, so a new IA release inside the range needs no new kit release. A `works` that is not a SemVer range admitting some release, one that only a prerelease satisfies included, refuses IA-CORE-KIT. A release without `works` keeps the earlier packed-major rule.",
+      "packages": [
+        "@inventarch/runtime"
+      ],
+      "paths": [
+        "packages/runtime/",
+        "docs/specs/kit-runtime/"
+      ]
+    },
+    {
+      "id": "restore-cached-releases-without-the-default-registry",
+      "title": "Restore cached releases while the default registry is not provisioned",
+      "summary": "`ia restore` no longer refuses with IA-DIST-ARTIFACT-UNAVAILABLE when a locked kit's only registry is the built-in default and that default serves no registry (it answers without `ia-registry.json`). Such a kit, installed from a catalog or a directory, is restored from the verified archive in the workspace cache; the result warns that no registry was asked whether it was withdrawn and names it, and `--json` lists it in `unchecked`. This is what stopped the console's upgrade recipe at its restore step. A kit that is not cached, a default registry that is failing instead of absent, and every configured registry refuse as before. `@inventarch/distribution/registry` adds `restoreWithdrawals`; `registryWithdrawals` is unchanged.",
+      "packages": [
+        "@inventarch/cli",
+        "@inventarch/distribution"
+      ],
+      "paths": [
+        "apps/cli/",
+        "apps/distribution/",
+        "docs/specs/registry/"
+      ]
+    },
+    {
+      "id": "cohort-alignment",
+      "title": "Coordinated version alignment",
+      "summary": "Package version metadata follows the coordinated 3.10.0 release; each native artifact version follows its own archive content.",
+      "packages": [
+        "@inventarch/agent-composition-system",
+        "@inventarch/agent-system",
+        "@inventarch/authoring-system",
+        "@inventarch/compliance",
+        "@inventarch/compliance-system",
+        "@inventarch/db",
+        "@inventarch/governance-system",
+        "@inventarch/hook-authoring-system",
+        "@inventarch/kb",
+        "@inventarch/language",
+        "@inventarch/learning-system",
+        "@inventarch/mcp-door",
+        "@inventarch/runner",
+        "@inventarch/service-contracts",
+        "@inventarch/session-system",
+        "@inventarch/steward-hook",
+        "@inventarch/template-system",
+        "@inventarch/work-system",
+        "@inventarch/workspace-runtime",
+        "@inventarch/workspace-system"
+      ],
+      "paths": [
+        ".ia/src/systems/agent-composition-system/package.json",
+        ".ia/src/systems/agent-system/package.json",
+        ".ia/src/systems/authoring-system/package.json",
+        ".ia/src/systems/compliance-system/package.json",
+        ".ia/src/systems/governance-system/package.json",
+        ".ia/src/systems/hook-authoring-system/package.json",
+        ".ia/src/systems/learning-system/package.json",
+        ".ia/src/systems/session-system/package.json",
+        ".ia/src/systems/template-system/package.json",
+        ".ia/src/systems/work-system/package.json",
+        ".ia/src/systems/workspace-system/package.json",
+        "apps/mcp-door/package.json",
+        "apps/runner/package.json",
+        "apps/steward-hook/package.json",
+        "packages/compliance/package.json",
+        "packages/db/package.json",
+        "packages/kb/package.json",
+        "packages/language/package.json",
+        "packages/service-contracts/package.json",
+        "packages/workspace-runtime/package.json"
+      ]
+    },
+    {
+      "id": "repository-maintenance",
+      "title": "Repository maintenance",
+      "summary": "Tooling, workflow, documentation and release bookkeeping outside the published package contents.",
+      "packages": [],
+      "internal": true,
+      "paths": [
+        ".github/",
+        "apps/vscode/THIRD_PARTY_NOTICES.txt",
+        "apps/vscode/package.json",
+        "docs/",
+        "releases/",
+        "tools/"
+      ]
+    }
+  ],
+  "coverage": [
+    {
+      "path": ".github/workflows/published-language-ledger.yml",
+      "sha256": "8443387c00aa714c8d64ac163cc178efbf75dc6a6376ee1f34627f25a03c33aa",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/package.json",
+      "sha256": "25eea6015f33220456078ccae519a4b3f61ec28f5e8935a61b03c17849072f9f",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/package.json",
+      "sha256": "6085d37f028fd77bcfee88ffb570d9a15802973704c001deb82b99899a81d15e",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/package.json",
+      "sha256": "d3fda000c9e43c9cb6a18e515160435c88b95c2f73823066b209869998eb2c7f",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/compliance-system/package.json",
+      "sha256": "a42e18d27c905825d8be83333baa4671c2a3d4109f6ab608c8e87c78a5ddc732",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/package.json",
+      "sha256": "8d6045669a8e619b2c9ee276ed84f6e359c1d7e33dd62731c57834778cb17c00",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/hook-authoring-system/package.json",
+      "sha256": "3771f405432eeb30470e2525cae0b2f067b9f76d85631b7244205b43aa96b3f2",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/learning-system/package.json",
+      "sha256": "99f09460e628d710172ebb272a3b51a4486f09831594d952bb2df483854e74e4",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/session-system/package.json",
+      "sha256": "52c75cef0c9e9f3545823dbe3cab7fe7de82b43c90d8ad72eca3feab9b60d06a",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/template-system/package.json",
+      "sha256": "2d6502f9f854a858828178443b3a594e01e366966ad045573647dec80a2a83c0",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/work-system/package.json",
+      "sha256": "ec8a3392b788a1e563cf2f793e154bed0069a139fc86bfb0dfb127974f7cf067",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/workspace-system/package.json",
+      "sha256": "d2b25bcd169ca3f0e4a260ea1d6a1194af8549180ca6b90c8808c9de0db0440b",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "apps/cli/package.json",
+      "sha256": "e426308cfec07db1910e68456a503616cc6b072f1ab42af8543ec010d27b6740",
+      "cohortOnly": true,
+      "change": "restore-cached-releases-without-the-default-registry"
+    },
+    {
+      "path": "apps/cli/src/distribute.ts",
+      "sha256": "df1799dfbde9da047ed8513cdf2898b51c12af0f1c8956545ea6d7d4ea57ebab",
+      "change": "restore-cached-releases-without-the-default-registry"
+    },
+    {
+      "path": "apps/cli/tests/registry.test.ts",
+      "sha256": "ad9586857b0175616de63c2bcaa526756c13f62ee3cd6c8c70cf9066e3e6a99b",
+      "change": "restore-cached-releases-without-the-default-registry"
+    },
+    {
+      "path": "apps/distribution/package.json",
+      "sha256": "fd815e1b563c7fb1f99190774ab9cadd2b73c4f2cbdc4624f3eeef99a975a8de",
+      "cohortOnly": true,
+      "change": "restore-cached-releases-without-the-default-registry"
+    },
+    {
+      "path": "apps/distribution/src/registry-resolve.ts",
+      "sha256": "3e4f1e5334073187c3b65b71e3dfed67edea0f5b53188791d8b2b1f5217ec818",
+      "change": "restore-cached-releases-without-the-default-registry"
+    },
+    {
+      "path": "apps/distribution/src/registry.ts",
+      "sha256": "1325d2bac9feeca059c817eb5a44f16dd711d061889c8d6d44ff906864a805ee",
+      "change": "restore-cached-releases-without-the-default-registry"
+    },
+    {
+      "path": "apps/distribution/tests/registry-resolve.test.ts",
+      "sha256": "630ee1f9c1f28e0daf3c64c59650d5d65f4d9bf7b8f7601484ac501a52d9a88f",
+      "change": "restore-cached-releases-without-the-default-registry"
+    },
+    {
+      "path": "apps/mcp-door/package.json",
+      "sha256": "1ba284468b8c1e43266f505ccab0112235f57f2fdb866d94f6ac9a02e1252eb2",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "apps/runner/package.json",
+      "sha256": "ee9983c1ea2c85ebeda4962f341a3312914d3e6bdf496a02278d9cdb5dd85f47",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "apps/steward-hook/package.json",
+      "sha256": "d95c069af415b019585c01693184a183063131028452f23cbdf35a9a6e5cee23",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "apps/vscode/THIRD_PARTY_NOTICES.txt",
+      "sha256": "2723b63dfb226218594d046bfa36f42109322ed5bbe63a11057f65112508c8df",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "apps/vscode/package.json",
+      "sha256": "cd286ef60e33b081e35007f998e2345c857217520868f946526fc7290c3314fe",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "docs/catalog.json",
+      "sha256": "9500280e84ee572a59dadaae70911c88f987fc51095ce96328bee29b832123e4",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "docs/specs/kit-runtime/README.md",
+      "sha256": "efcf3748da7a6cae83254c0167640cb6a6fcb3f1573164c87594bd180d19cd21",
+      "change": "read-the-ia-range-a-kit-release-works-with"
+    },
+    {
+      "path": "docs/specs/registry/README.md",
+      "sha256": "f50eb74f1ac7282be357f8deb817f046fb7415ead1f1db404a37bf1ced820ae7",
+      "change": "restore-cached-releases-without-the-default-registry"
+    },
+    {
+      "path": "packages/compliance/package.json",
+      "sha256": "d63673ff3f166685a821a71bd95bd0ee7c780f53d1111bedebcabc7772a70c25",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/db/package.json",
+      "sha256": "156d1260360b832b4e2fcc1d57daefd76f4d78d16aa3c40d3df8cc521038733b",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/graph/package.json",
+      "sha256": "3c27716ceb81b1190b597a3c2fde2aa6b44464d3a64fde0a1533b41cd6ab2f53",
+      "cohortOnly": true,
+      "change": "count-array-scans-not-milliseconds-in-the-linear"
+    },
+    {
+      "path": "packages/graph/tests/load.test.ts",
+      "sha256": "51db7e12a00e5954b432297748f88f561a8a3f60f05262aad298b729ec564287",
+      "change": "count-array-scans-not-milliseconds-in-the-linear"
+    },
+    {
+      "path": "packages/kb/package.json",
+      "sha256": "2bde44c97ecebb5f48d5073fefef1aebf04de35d6e29abf1f0067c487a417e40",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/language/package.json",
+      "sha256": "0564776c9fc8f904923434b12213e574b597198c1ddaa605d599f2e3181c04e0",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/runtime/package.json",
+      "sha256": "d3d33ec1fbe94678c90cf60af61bc7304ec612b1c7870efdd36c0a0452df3e63",
+      "cohortOnly": true,
+      "change": "read-the-ia-range-a-kit-release-works-with"
+    },
+    {
+      "path": "packages/runtime/src/method/index.ts",
+      "sha256": "9cf9f6977101a6f526d54c431312ab61858e0b782398d9f8c9fa4798f477ef32",
+      "change": "read-the-ia-range-a-kit-release-works-with"
+    },
+    {
+      "path": "packages/runtime/src/method/kit-root.ts",
+      "sha256": "10a52f196623688a0651721a15808d671248df1f32c3d6be7b5073b6b485cdca",
+      "change": "read-the-ia-range-a-kit-release-works-with"
+    },
+    {
+      "path": "packages/runtime/src/method/releases.ts",
+      "sha256": "445a39651886e00e89a82f008ccdb99b3fd97c82e1b0c9e5d4efc1e18d3ea8b1",
+      "change": "read-the-ia-range-a-kit-release-works-with"
+    },
+    {
+      "path": "packages/runtime/tests/install-guard.test.ts",
+      "sha256": "987e778da311b6f852fdb40ad0e7e04bd054da322c8aab221b918df5dac839d6",
+      "change": "read-the-ia-range-a-kit-release-works-with"
+    },
+    {
+      "path": "packages/runtime/tests/kit-root.test.ts",
+      "sha256": "d8e8148c7efd3fd236494b287293d132904a86516f6ed97ef23e02f2fb80b983",
+      "change": "read-the-ia-range-a-kit-release-works-with"
+    },
+    {
+      "path": "packages/service-contracts/package.json",
+      "sha256": "c5717c79d40718aafb25b53cc45e73d7e066985adc30c65c3cd5aba4f9dc8876",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/workspace-runtime/package.json",
+      "sha256": "849729b50c4646a48690c58be5384e960e441ccc2e2d8c94a5f0c69437e89534",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "releases/current.json",
+      "sha256": "3129c1f17b3b30fe7d8aebcdde081b5463680f409e7c5569be1520fc5043e7f5",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "releases/native/current.json",
+      "sha256": "549c2651802b13334203a95831225616170a9788b3da8ff1fe70faac821cc325",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "releases/native/notes.json",
+      "sha256": "66eabaa5f8d39e5560735f99bea497e4f480a1b872aa3c98ee74f605b561e0d4",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "tools/distribution/NPM-PUBLISHING.md",
+      "sha256": "54a04f0ad299672dc9e0c2860c54c46235c174f84faa39ad622c198791d6ed0e",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "tools/distribution/system-package-policy.json",
+      "sha256": "97ee5e7a671cefadd49171cf1a0b8aebfb76f3becbe980f7158e673427393395",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "tools/native/SPEC.md",
+      "sha256": "8e95958567ae4413f59e8d2b96e5be9eaae7088af53a63fcb9aea4992d8c7008",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "tools/native/published-language-ledger.test.ts",
+      "sha256": "8dc7a9697a6417f4b34b1ca324741dddd3f33a5cd87d98d785f3c793d74dd112",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "tools/native/published-language-ledger.ts",
+      "sha256": "415a89fc4bc946016d078fb7f43af4990f651360a11e4bb1eea93373d03d7400",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "tools/testing/SPEC.md",
+      "sha256": "28ba73435eb0c4c6b633d1e19b08e147bc33e86f6e29e55e26a872c3dcfa00e4",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "tools/testing/cache.test.ts",
+      "sha256": "87eeddae51489e92343e525147d3b0860a6fe8f6ac12850acb50f958aed8a8dd",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "tools/testing/inventory.test.ts",
+      "sha256": "508712a3545a750da080ca1cfd1f725ee72eefa5445377d1f96c90ad1ade8a43",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "tools/testing/orchestrate.ts",
+      "sha256": "91235c60830f8534a9aa5628bea9b43e22be2edbab30fea24bb40aee4f07ea57",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "tools/testing/tasks.json",
+      "sha256": "9b2f82522abe0f485206498325e513031088c32028b063ae0473a7c192163fb4",
+      "change": "repository-maintenance"
+    }
+  ]
+}

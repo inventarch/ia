@@ -1,8 +1,8 @@
 {
   "format": "ia.native-release-notes.v1",
   "baseline": {
-    "tag": "v3.9.0",
-    "commit": "c74a9b6ac16b513ceaba7230008f97de920ce349"
+    "tag": "v3.9.1",
+    "commit": "f31bb4e7dd7f54f98f0373da30cad15ab5e23320"
   },
   "changes": []
 }

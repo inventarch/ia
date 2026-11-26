@@ -2,6 +2,34 @@
 
 Generated from reviewed release changesets. Entries describe intended releases; publication is a separate action.
 
+## 3.10.0
+
+Coordinated 3.10.0 release of the 24 public npm packages: Count array scans, not milliseconds, in the linear-postings test; Read the IA range a kit release works with; Restore cached releases while the default registry is not provisioned.
+
+### Count array scans, not milliseconds, in the linear-postings test
+
+Test only: the linear-time posting test counts array scans instead of timing loads, so runner speed can no longer fail it. No consumer-facing change.
+
+Packages: `@inventarch/graph`.
+
+### Read the IA range a kit release works with
+
+A kit's release row may now name `works`, the range of IA versions (`@inventarch/cli`) the release works with, beside `cli`, the version that packed it. The method resolver reads a kit whose latest release names `works` with every reader the range admits and refuses any other with IA-CORE-CLI-UNSUPPORTED, so a new IA release inside the range needs no new kit release. A `works` that is not a SemVer range admitting some release, one that only a prerelease satisfies included, refuses IA-CORE-KIT. A release without `works` keeps the earlier packed-major rule.
+
+Packages: `@inventarch/runtime`.
+
+### Restore cached releases while the default registry is not provisioned
+
+`ia restore` no longer refuses with IA-DIST-ARTIFACT-UNAVAILABLE when a locked kit's only registry is the built-in default and that default serves no registry (it answers without `ia-registry.json`). Such a kit, installed from a catalog or a directory, is restored from the verified archive in the workspace cache; the result warns that no registry was asked whether it was withdrawn and names it, and `--json` lists it in `unchecked`. This is what stopped the console's upgrade recipe at its restore step. A kit that is not cached, a default registry that is failing instead of absent, and every configured registry refuse as before. `@inventarch/distribution/registry` adds `restoreWithdrawals`; `registryWithdrawals` is unchanged.
+
+Packages: `@inventarch/cli`, `@inventarch/distribution`.
+
+### Coordinated version alignment
+
+Package version metadata follows the coordinated 3.10.0 release; each native artifact version follows its own archive content.
+
+Packages: `@inventarch/agent-composition-system`, `@inventarch/agent-system`, `@inventarch/authoring-system`, `@inventarch/compliance`, `@inventarch/compliance-system`, `@inventarch/db`, `@inventarch/governance-system`, `@inventarch/hook-authoring-system`, `@inventarch/kb`, `@inventarch/language`, `@inventarch/learning-system`, `@inventarch/mcp-door`, `@inventarch/runner`, `@inventarch/service-contracts`, `@inventarch/session-system`, `@inventarch/steward-hook`, `@inventarch/template-system`, `@inventarch/work-system`, `@inventarch/workspace-runtime`, `@inventarch/workspace-system`.
+
 ## 3.9.1
 
 Coordinated 3.9.1 release of the 24 public npm packages: Committed kb reads retry a timed-out git call once; Let a workspace that declares a root twice own it.
