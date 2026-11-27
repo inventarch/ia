@@ -1,0 +1,16 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "Add ia kit check",
+  "summary": "`ia kit check [<folder>...]` checks kit folders against the kit spec in one run. An integrity finding always fails: a file of the kit is unreadable or malformed, the descriptor, release history, recorded sources and sidecars disagree, a `works` range is unreadable, two kits share an id, or a release's version understates its change (a removed record, a dropped key or a higher IA minimum needs a major step; an added record or key a minor step; one step down on 0.x). A spec finding (no format 2 release naming `works`, README, tests, seat workspace, offered key, licence or source commit, or a dependency outside the kit's layer) is reported for a kit on 0.x and fails a kit at 1.0.0 or above. `@inventarch/runtime/method` exports the checker as `checkKit` and `checkKits`.",
+  "packages": [
+    "@inventarch/cli",
+    "@inventarch/runtime"
+  ],
+  "paths": [
+    "apps/cli/",
+    "packages/runtime/",
+    "docs/specs/consumer-cli-contract/",
+    "tools/testing/tasks.json"
+  ]
+}

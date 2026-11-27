@@ -123,8 +123,11 @@ export function declaredAssets(kitDir: string): readonly { readonly rel: string;
     });
 }
 
-/** One digest over a kit's sources (paths and LF-normalized bytes): `.ia/`, the declared assets, then each sidecar present. */
-export function sourcesDigest(kitDir: string): string {
+/**
+ * One digest over a kit's sources (paths and LF-normalized bytes): `.ia/`, the declared assets, then each sidecar present.
+ * `sidecars` is the list read; the default keys this package's read roots.
+ */
+export function sourcesDigest(kitDir: string, sidecars: readonly string[] = SIDECARS): string {
   if (!kitDir) throw new MethodError('hosted kit carries no local source bytes', 'IA-CORE-KIT-HOSTED');
   const hash = createHash('sha256');
   const ia = join(kitDir, '.ia');
@@ -139,7 +142,7 @@ export function sourcesDigest(kitDir: string): string {
   ))
     feed(relative(kitDir, path).replace(/\\/g, '/'), path);
   for (const { rel, abs } of declaredAssets(kitDir)) feed(rel, abs);
-  for (const name of SIDECARS) if (existsSync(join(kitDir, name))) feed(name, join(kitDir, name));
+  for (const name of sidecars) if (existsSync(join(kitDir, name))) feed(name, join(kitDir, name));
   return hash.digest('hex');
 }
 
@@ -325,10 +328,17 @@ export interface KitCheck {
 }
 const plainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
-const readSidecar = (kit: Pick<Kit, 'dir'>, name: string): Record<string, unknown> | undefined => {
+export const readSidecar = (kit: Pick<Kit, 'dir'>, name: string): Record<string, unknown> | undefined => {
   if (!kit.dir) return undefined;
   const path = join(kit.dir, name);
-  return existsSync(path) ? (JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>) : undefined;
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'));
+    if (!plainObject(parsed)) throw new MethodError(`${path} must contain a JSON object`, 'IA-CORE-KIT');
+    return parsed;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+    throw error;
+  }
 };
 
 /** The checks a kit's runner may run (`checks.json`); a name that is not a @check record of the kit is dropped into `undeclared`. */

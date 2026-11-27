@@ -32,6 +32,7 @@ import { runInit } from './init.js';
 import { runInspect } from './inspect.js';
 import { runNext } from './next.js';
 import { runFloor } from './floor.js';
+import { runKit } from './kit.js';
 import { runPack } from './pack.js';
 import { runPosition } from './position.js';
 import { runPreview } from './preview.js';
@@ -531,6 +532,7 @@ const HANDLERS: Readonly<Record<string, Handler>> = {
   restore: runDistribute('restore'),
   recover: runRecovery,
   workspaces: runWorkspaces,
+  kit: runKit,
   doctor: runDoctor,
   host: runHost,
 };
