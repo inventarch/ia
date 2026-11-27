@@ -1,0 +1,19 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "Move dependencies to newer releases",
+  "summary": "Dependencies move to newer releases. `@inventarch/db`: `semver` 7.8.5 to 7.8.6, `@types/semver` 7.7.1 to 7.8.0 (development); `@inventarch/distribution`: `smol-toml` 1.9.0 to 1.9.1; `@inventarch/service-contracts`: `zod` 4.6.6 to 4.6.7.",
+  "packages": [
+    "@inventarch/db",
+    "@inventarch/distribution",
+    "@inventarch/service-contracts"
+  ],
+  "paths": [
+    "apps/distribution/",
+    "apps/vscode/package.json",
+    "package.json",
+    "packages/db/",
+    "packages/service-contracts/",
+    "pnpm-lock.yaml"
+  ]
+}
