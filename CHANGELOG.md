@@ -2,6 +2,28 @@
 
 Generated from reviewed release changesets. Entries describe intended releases; publication is a separate action.
 
+## 3.11.0
+
+Coordinated 3.11.0 release of the 24 public npm packages: Add ia kit check; ia position honours activation for loaded records and playbook cells.
+
+### Add ia kit check
+
+`ia kit check [<folder>...]` checks kit folders against the kit spec in one run. An integrity finding always fails: a file of the kit is unreadable or malformed, the descriptor, release history, recorded sources and sidecars disagree, a `works` range is unreadable, two kits share an id, or a release's version understates its change (a removed record, a dropped key or a higher IA minimum needs a major step; an added record or key a minor step; one step down on 0.x). A spec finding (no format 2 release naming `works`, README, tests, seat workspace, offered key, licence or source commit, or a dependency outside the kit's layer) is reported for a kit on 0.x and fails a kit at 1.0.0 or above. `@inventarch/runtime/method` exports the checker as `checkKit` and `checkKits`.
+
+Packages: `@inventarch/cli`, `@inventarch/runtime`.
+
+### ia position honours activation for loaded records and playbook cells
+
+`ia position` now applies a record's activation wherever it delivers the record, as `ia context` does at the same coordinate, and not only to blocking rules. A record that would load, and a rule or playbook that would apply by word, are left out where the key's coordinate contradicts their activation: an advisory law that activates at plan no longer loads at act, and a playbook's cells come only at a shape whose category its activation admits. Delivered records are read from the view `ia context` reads at the key's phase, whatever phase the token is bound to: an override that activates at plan alone falls back at act to the record it overrides, at that record's band, digest, severity and cells, and a record that view does not admit, for example because its system's steward does not hold at that phase, is left out. Every record left out this way is named in `omittedRules`, whose entries gain `word`; one left out of the loaded set takes no slot of the budget and is not listed as a pointer. A loaded record, applies-by-word entry or playbook cell whose activation waits on an axis the key does not bind, such as move, now carries `activation`, as a reserved rule already does. The seat's own loaded entry is never tested. The text view prints `applies only when` under such entries and one `Left out by activation` section, which replaces `Rules left out by activation`.
+
+Packages: `@inventarch/cli`, `@inventarch/runtime`.
+
+### Coordinated version alignment
+
+Package version metadata follows the coordinated 3.11.0 release; each native artifact version follows its own archive content.
+
+Packages: `@inventarch/agent-composition-system`, `@inventarch/agent-system`, `@inventarch/authoring-system`, `@inventarch/compliance`, `@inventarch/compliance-system`, `@inventarch/db`, `@inventarch/distribution`, `@inventarch/governance-system`, `@inventarch/graph`, `@inventarch/hook-authoring-system`, `@inventarch/kb`, `@inventarch/language`, `@inventarch/learning-system`, `@inventarch/mcp-door`, `@inventarch/runner`, `@inventarch/service-contracts`, `@inventarch/session-system`, `@inventarch/steward-hook`, `@inventarch/template-system`, `@inventarch/work-system`, `@inventarch/workspace-runtime`, `@inventarch/workspace-system`.
+
 ## 3.10.0
 
 Coordinated 3.10.0 release of the 24 public npm packages: Count array scans, not milliseconds, in the linear-postings test; Read the IA range a kit release works with; Restore cached releases while the default registry is not provisioned.
