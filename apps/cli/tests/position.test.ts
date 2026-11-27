@@ -153,10 +153,13 @@ it('escapes the terminal controls authored text carries in the human report, and
   const root = conformance(),
     path = resolve(root, '.ia/src/systems/governance-system/records/sample-procedure.ia'),
     text = 'Look first\u001b]0;PWNED\u0007\u001b[2J\u001b[31mRED';
-  // The playbook applies by its subject-kind to K0's workspace, so its orient Attention cell is delivered at K0.
+  // The playbook applies by its subject-kind to K0's workspace, so its orient Attention cell is delivered at K0. Its
+  // activation (category is process) is removed: K0's context shape binds the category relation, which it contradicts.
   writeFileSync(
     path,
-    `${readFileSync(path, 'utf8').replace('Attention means "Sample fixture statement 4."', `Attention means "${text}"`)}  subject\n    subject-kind definition\n`,
+    `${readFileSync(path, 'utf8')
+      .replace('Attention means "Sample fixture statement 4."', `Attention means "${text}"`)
+      .replace('  activation\n    activate when category is process\n', '')}  subject\n    subject-kind definition\n`,
   );
   const machine = await positioned(root);
   expect(machine.body.cells).toContainEqual(expect.objectContaining({ text }));
@@ -453,32 +456,66 @@ it('keeps ia scope, ia scope --root and ia scope --params {} the frozen route ov
     expect(await scope(args, cwd), args.join(' ') || '(bare)').toMatchObject({ root: '', revision });
 });
 
-// #281: the text view says when a reserved rule waits on an axis the key cannot bind, and names the rules activation
-// leaves out, with the contradictory term, as ia context omits them.
-it('prints a conditional rule with its condition and the rules activation leaves out', async () => {
-  const root = delivery();
+// #281, #325: the text view says when a reserved rule, a loaded record or a delivered cell waits on an axis the key
+// cannot bind, and names every record activation leaves out, with its word and the contradictory term, as ia context
+// omits them.
+it('prints a conditional rule, record or cell with its condition and every record activation leaves out', async () => {
+  const root = delivery(),
+    law = (name: string) => `governance-system/governance/law/${name}`,
+    steps = 'governance-system/definition/procedure/moving-steps';
+  for (const [name, severity, activation] of [
+    ['plan-only', 'blocking', 'phase is plan'],
+    ['on-move', 'blocking', 'move is Execution'],
+    ['advice-plan', 'advisory', 'phase is plan'],
+    ['advice-move', 'advisory', 'move is Execution'],
+  ] as const)
+    writeFileSync(
+      resolve(root, RECORDS, `${name}.ia`),
+      `${rule('law', name, severity)}  activation\n    activate when ${activation}\n`,
+    );
+  // A playbook that applies by word to the workspace seat, its act cell waiting on move.
   writeFileSync(
-    resolve(root, RECORDS, 'plan-only.ia'),
-    `${rule('law', 'plan-only', 'blocking')}  activation\n    activate when phase is plan\n`,
-  );
-  writeFileSync(
-    resolve(root, RECORDS, 'on-move.ia'),
-    `${rule('law', 'on-move', 'blocking')}  activation\n    activate when move is Execution\n`,
+    resolve(root, RECORDS, 'moving-steps.ia'),
+    [
+      '#! ia 1.0',
+      '@playbook moving-steps',
+      '  meaning',
+      '    says "Fixture procedure moving-steps."',
+      '    answers "What does moving-steps do?"',
+      '  cognition',
+      '    act',
+      '      primary Inference',
+      '      Inference means "moving act."',
+      '  subject',
+      '    subject-kind definition',
+      '  activation',
+      '    activate when move is Execution',
+      '',
+    ].join('\n'),
   );
   const flags = ['--shape', 'governance', '--phase', 'act'];
   const { body } = await positioned(root, flags);
+  expect(body.cells).toContainEqual({
+    playbook: steps,
+    address: `${steps}#act/Inference`,
+    text: 'moving act.',
+    activation: 'move is Execution',
+  });
   expect(body.omittedRules).toEqual([
-    { identity: 'governance-system/governance/law/plan-only', detail: 'phase is plan, request is act' },
+    { identity: law('advice-plan'), word: 'law', detail: 'phase is plan, request is act' },
+    { identity: law('plan-only'), word: 'law', detail: 'phase is plan, request is act' },
   ]);
-  expect(body.rules.find((r) => r.identity === 'governance-system/governance/law/on-move')?.activation).toBe(
-    'move is Execution',
-  );
+  expect(body.rules.find((r) => r.identity === law('on-move'))?.activation).toBe('move is Execution');
+  expect(body.loaded.find((entry) => 'identity' in entry && entry.identity === law('advice-move'))).toMatchObject({
+    activation: 'move is Execution',
+  });
   const human = await run(['position', ...flags, '--root', root]);
   expect(human.exitCode, human.stderr).toBe(0);
   const text = flat(human.stdout);
-  expect(text).toContain('governance-system/governance/law/on-move');
-  expect(text).toContain('applies only when move is Execution');
+  expect(text).toMatch(/law\/on-move @law of [^•]* applies only when move is Execution/);
+  expect(text).toMatch(/law\/advice-move @law of [^•]* applies only when move is Execution/);
+  expect(text).toContain(`${steps}#act/Inference moving act. applies only when move is Execution`);
   expect(text).toContain(
-    'Rules left out by activation • governance-system/governance/law/plan-only phase is plan, request is act',
+    `Left out by activation • ${law('advice-plan')} @law: phase is plan, request is act • ${law('plan-only')} @law: phase is plan, request is act`,
   );
 });

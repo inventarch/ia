@@ -4,6 +4,7 @@ import { conditionHolds, digest, effectiveSeverity, laneOf, reaches } from '@inv
 import type { ClaimMatch, DirectedEdgeRow, DirectedRow, Node } from '@inventarch/graph';
 import type { ReadHandle } from '@inventarch/db';
 import { activationAt } from './activation.js';
+import type { Activation } from './activation.js';
 import { RuntimeError } from './errors.js';
 import { fragmentText } from './locator.js';
 import { rootWorkspace } from './mandate-modes.js';
@@ -94,19 +95,29 @@ export interface PositionRecord {
 /** A loaded or reserved record: the tuple and the per-record digest (graph G13) of the occurrence the scope admits. */
 export interface LoadedRecord extends PositionRecord {
   readonly digest: string;
-}
-/**
- * A reserved rule. `activation` is present only when the rule's selectors leave it undecided at the key's coordinate (an
- * axis they name, such as move or artifact-set, is unbound): the undecided groups, `axis is value and ...`, joined by
- * `or`. A rule without it applies at the coordinate.
- */
-export interface RuleRecord extends LoadedRecord {
+  /**
+   * Present only when the record's selectors leave it undecided at the key's coordinate (an axis they name, such as
+   * move or artifact-set, is unbound): the undecided groups, `axis is value and ...`, joined by `or`. A record without
+   * it applies at the coordinate. The seat's loaded entry, which the key names, is never tested and never carries it.
+   * A delivered record's tuple, band and digest are those of the occurrence delivered at the key's phase.
+   */
   readonly activation?: string;
 }
-/** A blocking rule left out of `rules` because its activation contradicts the key's coordinate, as `ia context` omits it. */
+/** A reserved rule: a loaded record, `activation` marking one whose selectors leave it undecided at the coordinate. */
+export interface RuleRecord extends LoadedRecord {}
+/**
+ * A record left out because its activation contradicts the key's coordinate, or because the view at the key's phase
+ * does not admit it, as `ia context` leaves it out: a blocking rule `rules` would reserve, a record `loaded` would
+ * hold, or a rule or playbook that would apply by word.
+ */
 export interface OmittedRule {
   readonly identity: string;
-  /** The contradictory terms, `axis is value, request is other`, joined by `; `. */
+  /** The record's word, as the pointer tuple names it. */
+  readonly word: string;
+  /**
+   * The contradictory terms, `axis is value, request is other`, joined by `; `; or, for a record whose own activation
+   * admits the coordinate but which the view at the key's phase does not admit, `not admitted at phase <phase>`.
+   */
   readonly detail: string;
 }
 /** The loaded entry of a seat that is no record: a location, or a workspace seat no record declares (`''`). */
@@ -137,10 +148,14 @@ export interface AppliesByWord extends PositionRecord {
   readonly via: Extract<PositionVia, { readonly by: 'subject' }>;
   /** (x, H, P, 1, 16, no word): the re-seat key at this entry. */
   readonly reseat: ScopeKey;
+  /** As on a loaded record: the groups the entry's activation waits on, when an axis they name is unbound. */
+  readonly activation?: string;
 }
 /**
  * A playbook's cell at (P, the explicit primitive or primitive(H)): the text of its cells at that address, as `ia read <address>` reads it, or,
- * when it has none there, the nearest phase whose cells include that primitive's.
+ * when it has none there, the nearest phase whose cells include that primitive's. The text is that of the occurrence
+ * delivered at P, which `ia read`, reading the whole-workspace winner, also reads unless that winner shadows it.
+ * `activation` is the playbook's, as on its applies-by-word entry, which may be past the listed ones.
  */
 export type PositionCell =
   | {
@@ -148,6 +163,7 @@ export type PositionCell =
       /** `<identity>#<phase>/<Primitive>`. */
       readonly address: string;
       readonly text: string;
+      readonly activation?: string;
     }
   | {
       readonly playbook: string;
@@ -159,6 +175,7 @@ export type PositionCell =
        */
       readonly nearest?: Phase;
       readonly message: string;
+      readonly activation?: string;
     };
 /** The frontier, per (owner system, kind): records one hop past the loaded set, never entered. */
 export interface FrontierTally {
@@ -218,7 +235,10 @@ export interface PositionBody {
   readonly revision: string;
   readonly key: ScopeKey;
   readonly seat: ResolvedSeat;
-  /** The seat first, then the first n of the other seeds and the reached records, in the shape's order, of w only. */
+  /**
+   * The seat first, then the first n of the other seeds and the reached records, in the shape's order, of w only. Only
+   * a record whose activation admits the key's coordinate is loaded (R04); one left undecided carries `activation`.
+   */
   readonly loaded: readonly LoadedEntry[];
   /**
    * The blocking governance candidates, and the blocking rules that apply by word to a candidate (R17), reserved
@@ -226,14 +246,20 @@ export interface PositionBody {
    * rule whose activation admits the key's coordinate is listed (R04); one left undecided carries `activation`.
    */
   readonly rules: readonly RuleRecord[];
-  /** The blocking rules the key's coordinate disqualifies by activation, by identity; never entered or pointed to. */
+  /**
+   * Every record the body would otherwise deliver that the key's coordinate disqualifies by activation, or that the
+   * view at the key's phase does not admit, by identity: a reserved rule, a record that would load and a rule or
+   * playbook that would apply by word. A rule or record left out of `rules` or `loaded` is never entered, pointed to or
+   * on the frontier.
+   */
   readonly omittedRules: readonly OmittedRule[];
   /** The first 48 pointers in the shape's order, of w only. */
   readonly pointers: readonly PositionPointer[];
   readonly pointerTallies: readonly PointerTally[];
   /**
    * The first 48 rules and playbooks outside `rules` that apply by word to a loaded record or a blocking candidate in
-   * `rules`, by band ↓, identity ↑, of any word whatever w is.
+   * `rules`, by band ↓, identity ↑, of any word whatever w is. Only one whose activation admits the key's coordinate
+   * applies (R04); one left undecided carries `activation`.
    */
   readonly appliesByWord: readonly AppliesByWord[];
   /** The applies-by-word entries past the listed ones, per (word, owner system). */
@@ -385,11 +411,12 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
   // author graph G06 keeps as an edge's condition subject. A row that does not hold is never followed, primes nothing
   // and names no pointer or frontier record, so nothing is reached through it. A conditional row stated by a record the
   // body does not enter (a runtime-band @workspace's, read when one is the home) holds for nothing in it.
-  const live = (row: DirectedRow): boolean => {
+  const rowHolds = (row: DirectedRow, held: ReadonlyMap<string, Node>): boolean => {
     if (row.kind === 'field-ref' || row.condition === undefined) return true;
-    const subject = nodes.get(row.declaredOn);
+    const subject = held.get(row.declaredOn);
     return subject !== undefined && conditionHolds(row.condition, subject.dimensions, values);
   };
+  const live = (row: DirectedRow): boolean => rowHolds(row, nodes);
   const viewed = new Map<string, readonly DirectedRow[]>();
   const rowsOf = (identity: string): readonly DirectedRow[] => {
     let rows = viewed.get(identity);
@@ -535,13 +562,53 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
   const ruleReach = (identity: string): Reach =>
     unfiltered.reached.get(identity) ?? matched.get(identity) ?? { hop: 0, via: unfiltered.c0.get(identity)! };
 
+  // Delivery reads one view, always: the one `ia context` reads at the key's phase, a child scope of `within` bound to
+  // that phase (db D07). Graph G04 selects there by phase before band and admission runs there, so it holds for each
+  // identity the occurrence in force at the phase, or nothing: an override that holds at plan alone falls back at act
+  // to the record it overrides, and a record whose system's steward cannot hold at the phase is not admitted there. A
+  // token bound to another phase changes nothing, since the child selects at the key's phase among every occurrence its
+  // parent's boundary keeps. A record the walk reaches is delivered only as this view holds it: its activation,
+  // severity, subject fields, cells, band, digest and order, the rows its priming reads included, are that
+  // occurrence's, and one it does not hold is left out. The view `within` reads (`nodes`) keeps what `ia context` does
+  // not do: the walk, the closure, the pointers and their order, the frontier, the mandates, the seat's own entry, the
+  // admission findings, and the reason a record is left out. The steward an entry names is read there too: it is the
+  // agent the phase view names, as a system has one @system record (a second is IA-COMP-SYSTEM-MALFORMED) naming it
+  // by identity.
+  const atPhase = { within: handle.resolveScope({ within, phase: key.phase }).token },
+    delivery: ReadonlyMap<string, Node> = new Map(
+      handle
+        .snapshot(atPhase)
+        .records.filter((node) => node.placement.kind !== 'runtime')
+        .map((node) => [node.identity, node]),
+    );
+  /** The record delivered for an identity, as the key's phase view holds it; else the walk's, to explain why not. */
+  const occurrence = (identity: string): Node => delivery.get(identity) ?? nodes.get(identity)!;
+  const deliveredViewed = new Map<string, readonly DirectedRow[]>();
+  /**
+   * A delivered record's rows as the key's phase view holds them, each condition decided on the record that states it
+   * there: what ranks the record, where `rowsOf`, the token view's, walks. Only a record that view holds is asked for.
+   */
+  const deliveredRowsOf = (identity: string): readonly DirectedRow[] => {
+    let rows = deliveredViewed.get(identity);
+    if (rows === undefined)
+      deliveredViewed.set(
+        identity,
+        (rows = handle
+          .directedView(identity, atPhase)
+          .filter((row) => delivery.has(row.counterpart) && rowHolds(row, delivery))),
+      );
+    return rows;
+  };
+
   // Applies by word (R17): the @law, @convention, @principle and @playbook records of
   // the closure whose `subject.subject-word` is the word, or `subject.subject-kind` the kind, of a record, of any word
-  // whatever w is. A field match, not a row: it costs no hop and claims no relation or consent.
+  // whatever w is. A field match, not a row: it costs no hop and claims no relation or consent. The subject fields are
+  // read from the record delivered at the key's phase.
   const subjects: readonly Subject[] = records.flatMap((node) => {
     if (!SUBJECT_WORDS.includes(node.discriminator) || !inside(node.identity)) return [];
-    const word = statedText(node, 'subject.subject-word'),
-      kind = statedText(node, 'subject.subject-kind');
+    const at = occurrence(node.identity),
+      word = statedText(at, 'subject.subject-word'),
+      kind = statedText(at, 'subject.subject-kind');
     return word === undefined && kind === undefined
       ? []
       : [{ identity: node.identity, ...(word === undefined ? {} : { word }), ...(kind === undefined ? {} : { kind }) }];
@@ -561,17 +628,26 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
         : [{ field: 'subject.subject-kind' as const, value: subject.kind!, record: byKind }]),
     ];
   };
+  /** Whether the record delivered at the key's phase (else the walk's, to explain its omission) is blocking. */
   const blocking = (identity: string): boolean => {
-    const node = nodes.get(identity)!;
+    const node = occurrence(identity);
     return node.kind === 'governance' && effectiveSeverity(node.dimensions, values) === 'blocking';
   };
 
   // The order keys, total: governance (prime, band ↓, hop, sev, id), every other shape (band ↓, hop,
-  // lane, id). prime is the least priming index of a row incident to the record, sev its severity's rank.
-  const sorted = (identities: Iterable<string>, hopOf: (identity: string) => number, governance: boolean) =>
+  // lane, id). prime is the least priming index of a row incident to the record, sev its severity's rank. A delivered
+  // section (`asDelivered`) ranks each record as the key's phase view holds it, its band, severity and lane and the
+  // rows its prime reads; the pointers rank as the token's view holds them. hop is the walk's either way.
+  const sorted = (
+    identities: Iterable<string>,
+    hopOf: (identity: string) => number,
+    governance: boolean,
+    asDelivered = false,
+  ) =>
     [...identities]
       .map((identity) => {
-        const node = nodes.get(identity)!;
+        const node = asDelivered ? occurrence(identity) : nodes.get(identity)!,
+          rows = governance ? (asDelivered ? deliveredRowsOf(identity) : rowsOf(identity)) : [];
         return {
           identity,
           band: node.band,
@@ -579,7 +655,7 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
           prime: governance
             ? Math.min(
                 PRIMING.length,
-                ...rowsOf(identity).flatMap((row) => (row.kind === 'field-ref' ? [] : [rank(PRIMING, row.predicate)])),
+                ...rows.flatMap((row) => (row.kind === 'field-ref' ? [] : [rank(PRIMING, row.predicate)])),
               )
             : 0,
           sev: governance ? rank(SEVERITIES, effectiveSeverity(node.dimensions, values)) : 0,
@@ -610,29 +686,43 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
       if (matches.length > 0)
         matched.set(subject.identity, { hop: 0, via: { by: 'subject', label: FIELD_MATCH, matches } });
     }
-  // A blocking rule is reserved only where its activation admits the coordinate, as `ia context` delivers it (R04): a
-  // contradicted one is listed in `omittedRules` instead, and stays out of L, the pointers and the frontier, and an
-  // undecided one is listed with the groups it waits on.
-  const activations = new Map(
-    [...[...candidates].filter(blocking), ...matched.keys()].map((identity) => [
-      identity,
-      activationAt(nodes.get(identity)!, values),
-    ]),
-  );
-  const rules = sorted(
-    [...activations].filter(([, a]) => a.status !== 'omitted').map(([identity]) => identity),
-    (identity) => ruleReach(identity).hop,
-    true,
-  );
-  const omittedRules = [...activations]
-    .flatMap(([identity, a]) => (a.status === 'omitted' ? [{ identity, detail: a.detail }] : []))
-    .sort((a, b) => order(a.identity, b.identity));
-  const reserved = new Set(activations.keys());
-  const pool = sorted(
-    new Set([...seeds, ...hopReached].filter((identity) => !reserved.has(identity))),
-    hopOfReach,
-    governance,
-  );
+  // The delivery decision, cached per record: the activation at the key's coordinate of the record the key's phase view
+  // holds, read with graph `selectors` as `ia context` reads it for every record before it delivers any (R04). A record
+  // the coordinate contradicts, or the view does not hold, is delivered nowhere, neither reserved in `rules`, loaded
+  // nor applying by word with a cell, and `omittedRules` names it: by its own contradictory terms, or, when its own
+  // activation admits the coordinate, as not admitted at the phase. One the coordinate leaves undecided is delivered
+  // with the groups it waits on. The seat's loaded entry, which the key names, is never tested; a seat that applies by
+  // word to itself is tested there as any subject is.
+  const activations = new Map<string, Activation>();
+  const activation = (identity: string): Activation => {
+    let found = activations.get(identity);
+    if (found === undefined) {
+      const held = delivery.get(identity);
+      if (held !== undefined) found = activationAt(held, values);
+      else {
+        const own = activationAt(nodes.get(identity)!, values);
+        found = own.status === 'omitted' ? own : { status: 'omitted', detail: `not admitted at phase ${key.phase}` };
+      }
+      activations.set(identity, found);
+    }
+    return found;
+  };
+  const active = (identity: string): boolean => activation(identity).status !== 'omitted';
+  /** The mark of a delivered record its activation leaves undecided: the groups it waits on. */
+  const marked = (identity: string): { readonly activation?: string } => {
+    const found = activation(identity);
+    return found.status === 'conditional' ? { activation: found.detail } : {};
+  };
+  // R is reserved whatever its activation; `rules` lists the members it admits, and a contradicted one stays out of L,
+  // the pointers and the frontier.
+  const reservable = [...[...candidates].filter(blocking), ...matched.keys()];
+  const rules = sorted(reservable.filter(active), (identity) => ruleReach(identity).hop, true, true);
+  const reserved = new Set(reservable);
+  // A record activation leaves out of L takes no slot of the budget and, like a reserved rule, is never pointed to or
+  // on the frontier: `omittedRules` alone names it.
+  const loadable = [...seeds, ...hopReached].filter((identity) => !reserved.has(identity)),
+    withheld = new Set([...reserved, ...loadable.filter((identity) => !active(identity))]);
+  const pool = sorted(new Set(loadable.filter(active)), hopOfReach, governance, true);
   const chosen = pool.slice(0, key.budget),
     entered = [...(seatId === undefined ? [] : [seatId]), ...chosen],
     inLoaded = new Set(entered);
@@ -641,7 +731,7 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
   // closure that composition or a hop reached; each once, by the first that reaches it.
   const pointed = new Map<string, Reach>();
   const point = (identity: string, reach: Reach): void => {
-    if (identity === seatId || inLoaded.has(identity) || reserved.has(identity) || pointed.has(identity)) return;
+    if (identity === seatId || inLoaded.has(identity) || withheld.has(identity) || pointed.has(identity)) return;
     if (wanted(identity)) pointed.set(identity, reach);
   };
   for (const identity of [...c0.keys(), ...hopReached]) point(identity, reachOf(identity));
@@ -662,7 +752,7 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
           wanted(to) &&
           to !== seatId &&
           !inLoaded.has(to) &&
-          !reserved.has(to) &&
+          !withheld.has(to) &&
           !pointed.has(to) &&
           !reached.has(to) &&
           !boundary.has(to)
@@ -677,23 +767,38 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
   // as claimants and cells do.
   const delivered = [...entered, ...rules.filter((identity) => candidates.has(identity))];
   const byBand = (a: string, b: string): number => nodes.get(b)!.band - nodes.get(a)!.band || order(a, b);
-  const applies = subjects
+  // A subject applies by word only where its own activation admits the coordinate: one it contradicts is no entry, so
+  // it delivers no cell, and `omittedRules` names it.
+  const matching = subjects
     .filter((subject) => !reserved.has(subject.identity))
     .map((subject) => ({ identity: subject.identity, matches: matchesOf(subject, delivered) }))
-    .filter((entry) => entry.matches.length > 0)
-    .sort((a, b) => byBand(a.identity, b.identity));
+    .filter((entry) => entry.matches.length > 0);
+  const applies = matching
+    .filter((entry) => active(entry.identity))
+    .sort((a, b) => occurrence(b.identity).band - occurrence(a.identity).band || order(a.identity, b.identity));
+  // Every record left out by activation that the body would otherwise deliver, once each, by identity.
+  const omittedRules = [...new Set([...reservable, ...loadable, ...matching.map((entry) => entry.identity)])]
+    .sort(order)
+    .flatMap((identity) => {
+      const found = activation(identity);
+      return found.status === 'omitted'
+        ? [{ identity, word: occurrence(identity).discriminator, detail: found.detail }]
+        : [];
+    });
 
-  // The cells at (P, the explicit primitive or primitive(H)) of the first c playbooks that apply by word: the text `ia read`
-  // reads at the address, every cell there in source order, conditions unevaluated; else the nearest phase with a cell
-  // of that primitive, by distance in the cycle orient, plan, act, learn, a tie going to the phase that order lists
-  // first.
+  // The cells at (P, the explicit primitive or primitive(H)) of the first c playbooks that apply by word: the text of
+  // the occurrence delivered at the key's phase, every cell there in source order, conditions unevaluated, which is
+  // what `ia read` reads at the address unless that occurrence is one the whole-workspace winner shadows; else the
+  // nearest phase with a cell of that primitive, by distance in the cycle orient, plan, act, learn, a tie going to the
+  // phase that order lists first. Each carries its playbook's `activation`, since its entry may be past the listed 48.
   const primitive = key.primitive ?? SHAPE_ROWS[key.shape].primitive,
     phaseAt = PHASES.indexOf(key.phase);
   const cellOf = (identity: string): PositionCell => {
-    const node = nodes.get(identity)!,
+    const node = occurrence(identity),
       fragment = `${key.phase}/${primitive}`,
       text = fragmentText(node, fragment);
-    if (text !== undefined) return { playbook: identity, address: `${identity}#${fragment}`, text };
+    if (text !== undefined)
+      return { playbook: identity, address: `${identity}#${fragment}`, text, ...marked(identity) };
     const has = (phase: Phase): boolean =>
       node.cells.some((cell) => cell.phase === phase && cell.primitive === primitive);
     const distance = (phase: Phase): number => {
@@ -711,6 +816,7 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
         nearest === undefined
           ? `no cell; no phase has a cell at ${primitive}`
           : `no cell; nearest phase with a cell: ${nearest}`,
+      ...marked(identity),
     };
   };
   const cells = applies
@@ -760,9 +866,9 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
         )?.counterpart
       : undefined;
   };
-  const record = (identity: string, reach: Reach): PositionRecord => {
-    const node = nodes.get(identity)!,
-      steward = stewardOf(node.system);
+  /** The tuple of `node`: the record the token's view holds, or for a delivered record the key's phase view's. */
+  const record = (identity: string, reach: Reach, node = nodes.get(identity)!): PositionRecord => {
+    const steward = stewardOf(node.system);
     return {
       identity,
       word: node.discriminator,
@@ -775,9 +881,14 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
       ...(reach.via === undefined ? {} : { via: reach.via }),
     };
   };
-  const loadedRecord = (identity: string, reach: Reach): LoadedRecord => ({
-    ...record(identity, reach),
-    digest: nodes.get(identity)!.digest,
+  const loadedRecord = (identity: string, reach: Reach, node = nodes.get(identity)!): LoadedRecord => ({
+    ...record(identity, reach, node),
+    digest: node.digest,
+  });
+  /** A delivered record's entry: the occurrence delivered at the key's phase, marked when it is undecided. */
+  const deliveredRecord = (identity: string, reach: Reach): LoadedRecord => ({
+    ...loadedRecord(identity, reach, occurrence(identity)),
+    ...marked(identity),
   });
   const pointer = (identity: string): PositionPointer => {
     const reach = pointed.get(identity)!,
@@ -844,7 +955,8 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
   else if (home === undefined && declarers === undefined && seat.kind !== 'workspace')
     unknowns.push({ kind: 'sources', message: `no @workspace holds the seat, and ${fallback}` });
   if (handle.isCompleteScope(within)) {
-    const spans = entered.map((identity) => nodes.get(identity)!);
+    // The loaded records' spans: the seat's own, and for every other the occurrence delivered at the key's phase.
+    const spans = entered.map((identity) => (identity === seatId ? nodes.get(identity)! : occurrence(identity)));
     for (const finding of handle.report.findings) {
       if (!FINDINGS.has(finding.code)) continue;
       // The innermost loaded record whose source span holds the finding's line.
@@ -880,22 +992,16 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
       seatId === undefined
         ? { path: seat.path ?? '', ...(declarers === undefined ? {} : { declarers }) }
         : loadedRecord(seatId, reachOf(seatId)),
-      ...chosen.map((identity) => loadedRecord(identity, reachOf(identity))),
+      ...chosen.map((identity) => deliveredRecord(identity, reachOf(identity))),
     ],
-    rules: rules.map((identity) => {
-      const a = activations.get(identity)!;
-      return {
-        ...loadedRecord(identity, ruleReach(identity)),
-        ...(a.status === 'conditional' ? { activation: a.detail } : {}),
-      };
-    }),
+    rules: rules.map((identity) => deliveredRecord(identity, ruleReach(identity))),
     omittedRules,
     pointers: listed.map(pointer),
     pointerTallies: wordTallies(tallied),
     appliesByWord: applies.slice(0, LISTED).map(({ identity, matches }) => {
       const via = { by: 'subject', label: FIELD_MATCH, matches } as const;
       return {
-        ...record(identity, { hop: 0, via }),
+        ...record(identity, { hop: 0, via }, occurrence(identity)),
         via,
         reseat: {
           seat: identity,
@@ -904,6 +1010,7 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
           ...RESEAT,
           ...(key.primitive === undefined ? {} : { primitive: key.primitive }),
         },
+        ...marked(identity),
       };
     }),
     appliesByWordTallies: wordTallies(applies.slice(LISTED).map((entry) => entry.identity)),
